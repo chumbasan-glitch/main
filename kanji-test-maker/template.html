@@ -559,7 +559,7 @@ function drawPage(canvas, answer, pxPerMm){
     const boxH = V * f, Hs = V - boxH - 3;
     const fsFor = k => Math.min(Hs / Math.ceil(L / k), cw * 0.9 / (k * 1.25 + 0.3), 7.5);
     let best = {fs:fsFor(1), k:1};
-    if(best.fs < 4.2) for(let k = 2; k <= 4; k++){ const v = fsFor(k); if(v > best.fs){ best = {fs:v, k}; } }
+    for(let k = 2; k <= 4; k++){ const v = fsFor(k); if(v > best.fs * (best.fs < 4.2 ? 1 : 1.15)){ best = {fs:v, k}; } }
     const fs = best.fs;
     const bw = cw * 0.8;
     rowQs.forEach((x, c) => {
