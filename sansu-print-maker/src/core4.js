@@ -40,7 +40,8 @@ unit5(1, "小数と整数", "4月", "小数と整数のしくみを調べよう"
 /* 2 合同な図形 */
 unit5(2, "合同な図形", "4月", "合同な図形の対応する辺や角を調べよう", [
   {id:"a", name:"対応するちょう点・辺・角", gen(lv){ return genCongruent(lv, "corr"); }},
-  {id:"b", name:"辺の長さと角の大きさ", gen(lv){ return genCongruent(lv, "len"); }}
+  {id:"b", name:"辺の長さと角の大きさ", gen(lv){ return genCongruent(lv, "len"); }},
+  {id:"c", name:"合同な図形をかく", gen(lv){ return genCongDraw(lv); }}
 ]);
 
 /* 3 比例 */
@@ -520,7 +521,9 @@ unit5(19, "立体", "2月", "角柱や円柱のとくちょうを調べよう", 
     const k = pick(lv === 0 ? [["側面の数", n], ["ちょう点の数", 2 * n]] : [["辺の数", 3 * n], ["面の数", n + 2], ["ちょう点の数", 2 * n]]);
     return L(`${nm}の${k[0]}((${k[1]}))`, K_Q, "角柱");
   }},
-  {id:"b", name:"てん開図と長さ", gen(lv){
+  {id:"b", name:"てん開図をかく", gen(lv){ return genNetDraw(lv); }},
+  {id:"c", name:"てん開図から長さを求める", gen(lv){ return genNetRead(lv); }},
+  {id:"d", name:"側面の横の長さ（文章題）", gen(lv){
     const d = ri(2, 12), h = ri(3, 12);
     return W_(`底面の直径が${d}cm，高さが${h}cmの円柱のてん開図をかきます。側面の長方形の横の長さは何cmですか。円周率は3.14とします。`, `${d}×3.14＝${dmul(d, "3.14")}`, `${dmul(d, "3.14")}cm`, "円柱");
   }}

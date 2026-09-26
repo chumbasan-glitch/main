@@ -391,3 +391,188 @@ function genGraph(kind, lv){
   };
   return setItem(150, 20, draw, subs, {inst:"つぎの問題に答えましょう。", lead:"帯グラフ", text, stack:true});
 }
+
+/* ================= かく問題（作図・展開図） ================= */
+/* 左に図、右（入らなければ下）に大きめのかくらん */
+function drawItem(fw, fh, drawFig, bw, bh, drawAns, o){
+  return Object.assign({cat:"fig", n:1, full:true,
+    minW(){ return 9999; },
+    side(W){ return W - fw - 6 >= bw; },
+    height(G, W, fs){ return this.side(W) ? Math.max(fh, bh) : fh + 0.8 * fs + bh; },
+    firstUp(G, W, fs){ return 0.62 * fs; },
+    draw(G, x, y, W, fs, ans){
+      drawFig(G, x, y, fw, fh, fs);
+      const side = this.side(W), bx = side ? x + W - bw : x, by = side ? y : y + fh + 0.8 * fs;
+      G.rect(bx, by, bw, bh, {w:0.35});
+      if(ans) drawAns(G, bx, by, bw, bh, fs);
+    }
+  }, o || {});
+}
+/* 図形を実際の大きさ（1cm＝10mm）で四角の中にかく */
+function realPlace(pts, bx, by, bw, bh){
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const w = (Math.max(...xs) - Math.min(...xs)) * 10, h = (Math.max(...ys) - Math.min(...ys)) * 10;
+  const ox = bx + (bw - w) / 2 - Math.min(...xs) * 10, oy = by + (bh - h) / 2 - Math.min(...ys) * 10;
+  return p => [ox + p[0] * 10, oy + p[1] * 10];
+}
+const bbox = pts => { const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); return {w:Math.max(...xs) - Math.min(...xs), h:Math.max(...ys) - Math.min(...ys)}; };
+
+/* 合同な図形をかく */
+function genCongDraw(lv){
+  const BW = 88, BH = 64;
+  let pts, sides = [], angs = [], diag = null, how;
+  for(let t = 0; t < 500; t++){
+    sides = []; angs = []; diag = null;
+    if(lv === 2){
+      const a = ri(4, 7), c = ri(2, 5), e = ri(4, 7), f = ri(2, 6), g = ri(2, 6);
+      if(a + c <= e + 1 || c + e <= a + 1 || a + e <= c + 1 || e + f <= g + 1 || f + g <= e + 1 || e + g <= f + 1) continue;
+      const B = [0, 0], C = [a, 0];
+      const ax = (c * c + a * a - e * e) / (2 * a), A = [ax, -Math.sqrt(c * c - ax * ax)];
+      /* D は直線ACについてBと反対がわ */
+      const u = unit(sub(C, A)), nrm = [u[1], -u[0]];
+      const dx = (g * g + e * e - f * f) / (2 * e), dy = Math.sqrt(Math.max(0, g * g - dx * dx));
+      let D = add(add(A, mul(u, dx)), mul(nrm, dy));
+      const sideB = (B[0] - A[0]) * nrm[0] + (B[1] - A[1]) * nrm[1];
+      if(sideB > 0) D = add(add(A, mul(u, dx)), mul(nrm, -dy));
+      pts = [A, B, C, D];
+      const an = pts.map((p, i) => angAt(p, pts[(i + 3) % 4], pts[(i + 1) % 4]));
+      if(an.some(v => v < 40 || v > 160) || Math.abs(an.reduce((p, q) => p + q, 0) - 360) > 0.5) continue;
+      sides = [[0, 1, c], [1, 2, a], [2, 3, f], [3, 0, g]]; diag = [0, 2, e];
+      how = "四角形";
+    } else {
+      const mode = lv === 0 ? "sss" : pick(["sas", "asa"]);
+      const a = ri(4, 7);
+      if(mode === "sss"){
+        const b = ri(3, 7), c = ri(3, 7);
+        if(a + b <= c + 1 || a + c <= b + 1 || b + c <= a + 1) continue;
+        const x = (c * c + a * a - b * b) / (2 * a); pts = [[x, -Math.sqrt(c * c - x * x)], [0, 0], [a, 0]];
+        sides = [[0, 1, c], [1, 2, a], [2, 0, b]];
+      } else if(mode === "sas"){
+        const c = ri(3, 6), B = ri(8, 22) * 5;
+        pts = [[c * Math.cos(B * D2R), -c * Math.sin(B * D2R)], [0, 0], [a, 0]];
+        sides = [[0, 1, c], [1, 2, a]]; angs = [[1, B]];
+      } else {
+        const B = ri(7, 16) * 5, C = ri(7, 16) * 5; if(B + C > 130) continue;
+        const ab = a * Math.sin(C * D2R) / Math.sin((B + C) * D2R);
+        pts = [[ab * Math.cos(B * D2R), -ab * Math.sin(B * D2R)], [0, 0], [a, 0]];
+        sides = [[1, 2, a]]; angs = [[1, B], [2, C]];
+      }
+      const an = pts.map((p, i) => angAt(p, pts[(i + 2) % 3], pts[(i + 1) % 3]));
+      if(an.some(v => v < 28)) continue;
+      how = "三角形";
+    }
+    const bb = bbox(pts); if(bb.w * 10 > BW - 12 || bb.h * 10 > BH - 12) continue;
+    break;
+  }
+  if(R() < 0.5) pts = pts.map(p => [-p[0], p[1]]);
+  const n = pts.length;
+  const drawFig = (G, x, y, w, h, fs, color) => {
+    const f = fitPts(pts, x, y, w, h, 7), P = f.pts, cen = centroid(P);
+    G.poly(P, {w:0.4, color});
+    if(diag) G.line(...P[diag[0]], ...P[diag[1]], {w:0.3, dash:[1, 0.8], color});
+    for(const [i, j, v] of sides) sideLabel(G, P[i], P[j], cm(v), cen, fs, {color});
+    if(diag){ const m = mid(P[diag[0]], P[diag[1]]); drawToks(G, parseMk(cm(diag[2])), m[0] + 0.4 * fs, m[1] - 0.6 * fs, fs * 0.85, false, color); }
+    for(const [i, v] of angs) angleMark(G, P[i], P[(i + n - 1) % n], P[(i + 1) % n], v + "°", fs, {color});
+  };
+  const ans = (G, bx, by, bw, bh, fs) => {
+    const T = realPlace(pts, bx, by, bw, bh), P = pts.map(T);
+    G.poly(P, {w:0.4, color:RED});
+    if(diag) G.line(...P[diag[0]], ...P[diag[1]], {w:0.3, dash:[1, 0.8], color:RED});
+    G.text("（実際の大きさ）", bx + bw - 1.5, by + bh - 2.5, {size:fs * 0.55, color:RED, align:"right"});
+  };
+  return drawItem(58, 48, (G, x, y, w, h, fs) => drawFig(G, x, y, w, h, fs), BW, BH, ans,
+    {inst:"左の図形と合同な図形を，右の四角の中にかきましょう。", lead:"合同な" + how + "をかく", sig:JSON.stringify([sides, angs, diag])});
+}
+
+/* 円柱・角柱の見取図 */
+function drawCylinder(G, x, y, w, h, fs, d, hh, labR){
+  const s = Math.min((w - 16) / d, (h - 14) / (hh + d * 0.4));
+  const rx = d * s / 2, ry = rx * 0.33, cx = x + w / 2 - 3, top = y + 7 + ry, bot = top + hh * s;
+  G.ellipse(cx, top, rx, ry, 0, 2 * Math.PI, {w:0.4});
+  G.ellipse(cx, bot, rx, ry, 0, Math.PI, {w:0.4});
+  G.ellipse(cx, bot, rx, ry, Math.PI, 2 * Math.PI, {w:0.3, dash:[1, 0.8]});
+  G.line(cx - rx, top, cx - rx, bot, {w:0.4}); G.line(cx + rx, top, cx + rx, bot, {w:0.4});
+  if(labR){ G.line(cx, top, cx + rx, top, {w:0.3}); G.dot(cx, top, 0.35); G.text(cm(d / 2), cx + rx / 2, top - ry - 1.2, {size:fs * 0.8, align:"center"}); }
+  else { G.line(cx - rx, top, cx + rx, top, {w:0.3}); G.text(cm(d), cx, top - ry - 1.2, {size:fs * 0.8, align:"center"}); }
+  drawToks(G, parseMk(cm(hh)), cx + rx + 1.2, (top + bot) / 2, fs * 0.8, false);
+}
+function drawPrism3(G, x, y, w, h, fs, a, b, c, hh){
+  /* 直角三角形（直角をはさむ辺 a, b、ななめの辺 c）を底面にした三角柱 */
+  const P3 = [[0, 0, 0], [a, 0, 0], [0, 0, b], [0, hh, 0], [a, hh, 0], [0, hh, b]];
+  const f = fitPts(P3.map(proj), x, y, w, h, 7), P = f.pts, cen = centroid(P);
+  for(const [i, j] of [[0, 2], [1, 2], [2, 5]]) G.line(...P[i], ...P[j], {w:0.3, dash:[1, 0.8]});
+  for(const [i, j] of [[0, 1], [0, 3], [1, 4], [3, 4], [4, 5], [5, 3]]) G.line(...P[i], ...P[j], {w:0.4});
+  sideLabel(G, P[0], P[1], cm(a), cen, fs); sideLabel(G, P[3], P[5], cm(b), cen, fs); sideLabel(G, P[4], P[5], cm(c), cen, fs); sideLabel(G, P[1], P[4], cm(hh), cen, fs);
+}
+function drawPrism4(G, x, y, w, h, fs, a, b, hh){
+  const P3 = [[0, 0, 0], [a, 0, 0], [a, hh, 0], [0, hh, 0], [0, 0, b], [a, 0, b], [a, hh, b], [0, hh, b]];
+  const f = fitPts(P3.map(proj), x, y, w, h, 7), P = f.pts, cen = centroid(P);
+  for(const [i, j] of [[0, 4], [4, 5], [4, 7]]) G.line(...P[i], ...P[j], {w:0.3, dash:[1, 0.8]});
+  for(const [i, j] of [[0, 1], [1, 2], [2, 3], [3, 0], [3, 7], [2, 6], [1, 5], [7, 6], [6, 5]]) G.line(...P[i], ...P[j], {w:0.4});
+  sideLabel(G, P[0], P[1], cm(a), cen, fs); sideLabel(G, P[1], P[5], cm(b), cen, fs); sideLabel(G, P[1], P[2], cm(hh), cen, fs);
+}
+/* 展開図の線（単位cm）：[点の列の集まり] と 円 */
+function netShapes(kind, v){
+  const L_ = [], C_ = [];
+  if(kind === "cyl"){
+    const W = +dmul(v.d, "3.14"), r = v.d / 2, cx = W / 2;
+    L_.push([[0, v.d], [W, v.d], [W, v.d + v.h], [0, v.d + v.h], [0, v.d]]);
+    C_.push([cx, r, r], [cx, v.d + v.h + r, r]);
+  } else if(kind === "p3"){
+    const {a, b, c, h} = v, hc = a * b / c, xc = b + a;
+    /* 横にならぶ長方形：b, a, c の順。三角形は c の長方形の上と下 */
+    L_.push([[0, 0], [b + a + c, 0], [b + a + c, h], [0, h], [0, 0]], [[b, 0], [b, h]], [[b + a, 0], [b + a, h]]);
+    const px = b * b / c;
+    L_.push([[xc, 0], [xc + c - px, -hc], [xc + c, 0]], [[xc, h], [xc + c - px, h + hc], [xc + c, h]]);
+  } else {
+    const {a, b, h} = v;
+    L_.push([[0, 0], [2 * a + 2 * b, 0], [2 * a + 2 * b, h], [0, h], [0, 0]], [[a, 0], [a, h]], [[a + b, 0], [a + b, h]], [[2 * a + b, 0], [2 * a + b, h]]);
+    L_.push([[0, 0], [0, -b], [a, -b], [a, 0]], [[0, h], [0, h + b], [a, h + b], [a, h]]);
+  }
+  const all = L_.flat().concat(C_.flatMap(c => [[c[0] - c[2], c[1] - c[2]], [c[0] + c[2], c[1] + c[2]]]));
+  return {L:L_, C:C_, all};
+}
+function drawNet(G, S, T, s, color){
+  for(const l of S.L) G.poly(l.map(T), {close:false, w:0.4, color});
+  for(const [cx, cy, r] of S.C){ const p = T([cx, cy]); G.arc(p[0], p[1], r * s, 0, 2 * Math.PI, {w:0.4, color}); }
+}
+function genNetDraw(lv){
+  const kind = lv === 0 ? "cyl" : lv === 1 ? pick(["p3", "p4"]) : pick(["cyl", "p4"]);
+  const v = kind === "cyl" ? (lv === 2 ? {d:3, h:ri(2, 3)} : {d:2, h:ri(2, 4)}) : kind === "p3" ? {a:3, b:4, c:5, h:ri(2, 3)} : {a:ri(2, 4), b:pick([1, 2]), h:ri(2, 4)};
+  const S = netShapes(kind, v), bb = bbox(S.all);
+  const BW = Math.max(90, Math.ceil(bb.w * 10 + 14)), BH = Math.max(64, Math.ceil(bb.h * 10 + 14));
+  const drawFig = (G, x, y, w, h, fs) => {
+    if(kind === "cyl"){ drawCylinder(G, x, y, w, h, fs, v.d, v.h, false); G.text("円周率は3.14", x + w / 2, y + h - 1, {size:fs * 0.6, align:"center"}); }
+    else if(kind === "p3") drawPrism3(G, x, y, w, h, fs, v.a, v.b, v.c, v.h);
+    else drawPrism4(G, x, y, w, h, fs, v.a, v.b, v.h);
+  };
+  const ans = (G, bx, by, bw, bh, fs) => { drawNet(G, S, realPlace(S.all, bx, by, bw, bh), 10, RED); G.text("（実際の大きさ・かき方の一例）", bx + bw - 1.5, by + bh - 2.5, {size:fs * 0.55, color:RED, align:"right"}); };
+  const name = kind === "cyl" ? "円柱" : kind === "p3" ? "三角柱" : "四角柱";
+  return drawItem(52, 44, drawFig, BW, BH, ans,
+    {inst:"つぎの立体のてん開図を，実際の大きさで四角の中にかきましょう。", lead:name + "のてん開図", sig:kind + JSON.stringify(v)});
+}
+/* 展開図から長さを読み取る */
+function genNetRead(lv){
+  const d = ri(2, 8), h = ri(3, 9), W = dmul(d, "3.14");
+  const S = netShapes("cyl", {d, h});
+  const draw = (G, x, y, w, h_, fs) => {
+    const f = fitPts(S.all, x, y, w, h_, 5), s = f.s;
+    const x0 = Math.min(...S.all.map(p => p[0])), y0 = Math.min(...S.all.map(p => p[1]));
+    const T = p => [f.pts[0][0] + (p[0] - S.all[0][0]) * s, f.pts[0][1] + (p[1] - S.all[0][1]) * s];
+    drawNet(G, S, T, s);
+    const c = S.C[0], p = T([c[0], c[1]]), r = c[2] * s;
+    const lab = lv === 0 ? cm(d) : lv === 1 ? cm(d / 2) : "イ";
+    if(lv === 1){ G.line(p[0], p[1], p[0] + r, p[1], {w:0.3}); G.dot(p[0], p[1], 0.3); G.text(lab, p[0] + r + 1, p[1] - 1.2, {size:fs * 0.8}); }
+    else { G.line(p[0] - r, p[1], p[0] + r, p[1], {w:0.3}); G.text(lab, p[0] + r + 1, p[1] - 1.2, {size:fs * 0.8}); }
+    const a = T([0, d + h]), b = T([+W, d + h]), t = T([+W, d]);
+    const tl = T([0, d]), ym = (tl[1] + a[1]) / 2, x1 = tl[0] + 0.8, x2 = b[0] - 0.8, ah = 1.1;
+    G.line(x1, ym, x2, ym, {w:0.3});
+    G.poly([[x1 + ah, ym - ah * 0.6], [x1, ym], [x1 + ah, ym + ah * 0.6]], {close:false, w:0.3});
+    G.poly([[x2 - ah, ym - ah * 0.6], [x2, ym], [x2 - ah, ym + ah * 0.6]], {close:false, w:0.3});
+    const lab2 = lv === 2 ? cm(W) : "ア";
+    G.text(lab2, (x1 + x2) / 2, ym - 0.75 * fs, {size:fs * 0.8, align:"center"});
+    drawToks(G, parseMk(cm(h)), t[0] + 1, (t[1] + b[1]) / 2, fs * 0.8, false);
+  };
+  const q = lv === 2 ? `イ((${cm(d)}))` : `ア((${cm(W)}))`;
+  return figItem(FIGW + 6, FIGH + 18, draw, q, {sig:lv + ":" + d + ":" + h, inst:lv === 2 ? "下の円柱のてん開図で，イの長さを求めましょう。円周率は3.14とします。" : "下の円柱のてん開図で，アの長さを求めましょう。円周率は3.14とします。", lead:"てん開図の長さ"});
+}

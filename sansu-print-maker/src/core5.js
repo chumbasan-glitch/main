@@ -18,7 +18,7 @@ function buildItems(st){
         const lv = st.level === "mix" ? ri(0, 2) : st.level;
         let it; try{ it = s.gen(lv); }catch(e){ console.error(u.name, s.name, e); break; }
         if(!it) continue;
-        const sig = it.sig || (it.toks ? mkText(it.toks) : it.subs ? it.subs.map(mkText).join("|") : null);
+        const sig = it.sig || (it.toks && it.cat !== "fig" ? mkText(it.toks) : it.subs ? it.subs.map(mkText).join("|") : null);
         if(sig && seen.has(sig) && guard < 40) continue;
         if(sig) seen.add(sig);
         if(it.n > left){ if(it.trim) it.trim(left); else continue; }
@@ -39,8 +39,9 @@ function groupList(list){
     const ci = list.filter(i => i.cat === cat), insts = [];
     for(const it of ci) if(!insts.includes(it.inst)) insts.push(it.inst);
     const parts = insts.map(t => ci.filter(i => i.inst === t));
-    if(parts.length === 1 || parts.every(p => p.reduce((s, i) => s + i.n, 0) >= 2)) parts.forEach(p => out.push({items:p}));
-    else out.push({items:ci});
+    const big = parts.filter(p => p.reduce((s, i) => s + i.n, 0) >= 2), small = parts.filter(p => !big.includes(p));
+    const rest = small.flat();
+    parts.forEach(p => { if(big.includes(p)) out.push({items:p}); else if(p === small[0]) out.push({items:rest}); });
   }
   return out;
 }

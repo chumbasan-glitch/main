@@ -132,6 +132,7 @@ function makeG(ctx, k){
       if(o.fill){ ctx.closePath(); ctx.fillStyle = o.fill; ctx.fill(); }
       if(o.stroke !== false) G.stroke(o);
     },
+    ellipse(cx, cy, rx, ry, a0, a1, o){ ctx.beginPath(); ctx.ellipse(cx * k, cy * k, rx * k, ry * k, 0, a0, a1); G.stroke(o || {}); },
     dot(x, y, r, color){ ctx.beginPath(); ctx.arc(x * k, y * k, r * k, 0, Math.PI * 2); ctx.fillStyle = color || INK; ctx.fill(); }
   };
   return G;
