@@ -1,0 +1,2267 @@
+<title>算数プリントメーカー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#F1F3EE;
+  --surface:#FFFFFF;
+  --surface-2:#E7EBE3;
+  --ink:#1F2A24;
+  --ink-soft:#5A665F;
+  --line:#D0D6CC;
+  --accent:#2D6A4F;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#DDEDE3;
+  --red:#C23B2A;
+  --ok:#2F7A4B;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151A17; --surface:#1D2420; --surface-2:#28302B; --ink:#E6EAE5; --ink-soft:#A3AEA7; --line:#36403A;
+    --accent:#7FC4A0; --accent-ink:#10231A; --accent-soft:#23392D; --red:#EE8676; --ok:#7CC89A; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151A17; --surface:#1D2420; --surface-2:#28302B; --ink:#E6EAE5; --ink-soft:#A3AEA7; --line:#36403A;
+  --accent:#7FC4A0; --accent-ink:#10231A; --accent-soft:#23392D; --red:#EE8676; --ok:#7CC89A; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;font-size:15px;line-height:1.6;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:1320px;margin:0 auto;padding-inline:16px;padding-block:14px 48px;display:flex;flex-direction:column;gap:16px}
+header.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
+header.top h1{margin:0;font-family:"Klee One","Hiragino Mincho ProN",serif;font-weight:600;font-size:26px;letter-spacing:.06em}
+header.top .sub{color:var(--ink-soft);font-size:13px}
+.layout{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:16px;align-items:start}
+@media (max-width:880px){.layout{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.step{display:flex;flex-direction:column;gap:8px}
+.step-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
+.step-h .n{width:24px;height:24px;border-radius:50%;background:var(--ink);color:var(--surface);display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+.step-h .aside{margin-left:auto;font-weight:500;font-size:12.5px;color:var(--ink-soft)}
+.hint{font-size:12.5px;color:var(--ink-soft);margin:0}
+.sub-h{font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-top:2px}
+.seg{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:10px;flex-wrap:wrap}
+.seg button{flex:1 1 auto;min-width:0;border:none;background:transparent;color:var(--ink-soft);font:inherit;font-weight:700;font-size:14px;padding:8px 8px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+.grades{display:grid;grid-template-columns:repeat(6,1fr)}
+.units{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;max-height:340px;overflow-y:auto}
+.unit{display:grid;grid-template-columns:26px 1fr auto;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center}
+.unit:last-child{border-bottom:none}
+.unit input{width:19px;height:19px;margin:0;accent-color:var(--accent)}
+.unit .nm{font-weight:700;font-size:14px;line-height:1.35}
+.unit .nm small{font-weight:500;color:var(--ink-soft);margin-right:4px}
+.unit .mo{font-size:12px;color:var(--ink-soft)}
+.unit.on{background:var(--accent-soft)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;font-size:14px;padding:8px 14px;border-radius:9px;cursor:pointer}
+.btn:focus-visible,.seg button:focus-visible,.chip:focus-visible,.unit:focus-within,.presets button:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.small{font-size:13px;padding:5px 10px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.link{background:none;border:none;color:var(--accent);font:inherit;font-weight:700;font-size:13px;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:2px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--ink);font:inherit;font-weight:700;font-size:13px;padding:4px 10px;border-radius:99px;cursor:pointer}
+.chip.off{border-color:var(--line);background:var(--surface);color:var(--ink-soft);text-decoration:line-through;opacity:.7}
+.subgrp{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:10px}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:20px;font-weight:700;cursor:pointer;line-height:1}
+.stepper input{width:64px;height:38px;text-align:center;font:inherit;font-size:19px;font-weight:700;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-variant-numeric:tabular-nums}
+.stepper.sm button{width:30px;height:30px;font-size:17px}
+.stepper.sm input{width:48px;height:30px;font-size:15px}
+.presets{display:flex;gap:4px;flex-wrap:wrap}
+.presets button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);font:inherit;font-weight:700;font-size:13px;padding:4px 10px;border-radius:99px;cursor:pointer}
+.presets button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.alloc{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.alloc .ar{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.alloc .ar span{font-size:13.5px;font-weight:700;min-width:0}
+.textin{width:100%;font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.check{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;cursor:pointer}
+.check input{width:19px;height:19px;accent-color:var(--accent);margin:0}
+.lbl{font-size:12.5px;font-weight:700;color:var(--ink-soft)}
+.pv-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pv-meta{font-size:13px;color:var(--ink-soft);margin-left:auto}
+.notice{font-size:13px;padding:8px 12px;border-radius:9px;background:var(--accent-soft);color:var(--ink)}
+.pages{background:var(--surface-2);border-radius:10px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.pages figure{margin:0;display:flex;flex-direction:column;gap:4px;width:100%;align-items:center}
+.pages figcaption{font-size:12px;color:var(--ink-soft);font-weight:700}
+.pages canvas{display:block;width:100%;max-width:820px;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.save{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.save .status{font-size:13px;color:var(--ink-soft);flex-basis:100%}
+.save .status.err{color:var(--red)}
+.save .status.ok{color:var(--ok)}
+.empty{padding:40px 16px;text-align:center;color:var(--ink-soft)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.overlay .box{background:var(--surface);border-radius:14px;padding:16px;max-width:900px;width:100%;max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.overlay img{width:100%;border:1px solid var(--line);-webkit-touch-callout:default}
+.imglist{display:flex;flex-direction:column;gap:14px}
+.imglist figure{margin:0;display:flex;flex-direction:column;gap:4px}
+.imglist figcaption{font-weight:700}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>算数プリントメーカー</h1>
+    <span class="sub">学校図書 令和6年度版／学年と単元を選ぶと、問題と答えのプリントができます</span>
+  </header>
+
+  <div class="layout">
+    <section class="panel" aria-label="プリントの設定">
+      <div class="step">
+        <div class="step-h"><span class="n">1</span>学年<span class="aside" id="gradeNote"></span></div>
+        <div class="seg grades" id="grades"></div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><span class="n">2</span>単元<span class="aside" id="unitCount"></span></div>
+        <div class="row">
+          <button class="link" id="unitAll" type="button">全部えらぶ</button>
+          <button class="link" id="unitNone" type="button">全部はずす</button>
+        </div>
+        <div class="units" id="units"></div>
+      </div>
+
+      <div class="step" id="stepSubs">
+        <div class="step-h"><span class="n">3</span>細かい内容</div>
+        <p class="hint">タップすると、出題から外したり戻したりできます。</p>
+        <div id="subs" class="step"></div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><span class="n">4</span>レベル</div>
+        <div class="seg" id="segLevel">
+          <button type="button" data-v="0">きほん</button>
+          <button type="button" data-v="1">ふつう</button>
+          <button type="button" data-v="2">チャレンジ</button>
+          <button type="button" data-v="mix">まぜる</button>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><span class="n">5</span>問題数<span class="aside" id="cntInfo"></span></div>
+        <div class="row">
+          <div class="stepper">
+            <button type="button" id="cntMinus" aria-label="1問へらす">−</button>
+            <input id="cnt" type="number" min="1" max="60" inputmode="numeric" aria-label="問題数">
+            <button type="button" id="cntPlus" aria-label="1問ふやす">＋</button>
+          </div>
+          <div class="presets" id="presets"></div>
+        </div>
+        <div id="allocBox" class="alloc" hidden>
+          <div class="row" style="justify-content:space-between"><span class="lbl">単元ごとの問題数</span><button class="link" id="reSplit" type="button">同じくらいに分けなおす</button></div>
+          <div id="alloc"></div>
+        </div>
+      </div>
+
+      <div class="step" id="stepOrder">
+        <div class="step-h"><span class="n">6</span>ならべ方</div>
+        <div class="seg" id="segOrder">
+          <button type="button" data-v="group">単元ごとにまとめる</button>
+          <button type="button" data-v="mix">まぜる</button>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><span class="n">7</span>プリント</div>
+        <span class="lbl">用紙</span>
+        <div class="seg" id="segPaper">
+          <button type="button" data-v="auto" id="paperAuto">おすすめ</button>
+          <button type="button" data-v="A4">A4</button>
+          <button type="button" data-v="B4">B4</button>
+        </div>
+        <span class="lbl">1まいに入りきらないとき</span>
+        <div class="seg" id="segOver">
+          <button type="button" data-v="bigger">大きい用紙にする</button>
+          <button type="button" data-v="pages">2まい目に続ける</button>
+        </div>
+        <span class="lbl">文字の大きさ</span>
+        <div class="seg" id="segSize">
+          <button type="button" data-v="s">小</button>
+          <button type="button" data-v="m">中</button>
+          <button type="button" data-v="l">大</button>
+        </div>
+        <span class="lbl">点数らん</span>
+        <div class="seg" id="segScore">
+          <button type="button" data-v="count">問題数（／20問）</button>
+          <button type="button" data-v="100">100点満点</button>
+        </div>
+        <label class="check" for="meateOn"><input type="checkbox" id="meateOn">めあてを入れる</label>
+        <input class="textin" id="meate" type="text" maxlength="40" aria-label="めあて">
+      </div>
+    </section>
+
+    <section class="panel" aria-label="できあがり">
+      <div class="pv-head">
+        <div class="seg" id="segView">
+          <button type="button" data-v="q">問題</button>
+          <button type="button" data-v="a">答え（先生用）</button>
+        </div>
+        <button class="btn small" type="button" id="regen">作り直す</button>
+        <span class="pv-meta" id="pvMeta"></span>
+      </div>
+      <div class="notice" id="paperNote" hidden></div>
+      <div class="pages" id="pages"></div>
+      <div class="save">
+        <button class="btn red" type="button" id="savePdf">PDFで保存（問題＋答え）</button>
+        <button class="btn" type="button" id="saveImgQ">問題を画像で保存</button>
+        <button class="btn" type="button" id="saveImgA">答えを画像で保存</button>
+        <span class="status" id="saveStatus">PDFには、問題のページのあとに答えのページが入ります。</span>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="overlay" id="imgOverlay" hidden>
+  <div class="box">
+    <strong>画像を長押しして「写真に保存」をえらんでください</strong>
+    <p class="hint" id="imgHow"></p>
+    <div class="row"><button class="btn primary" type="button" id="imgClose">閉じる</button></div>
+    <div id="imgList" class="imglist"></div>
+    <div class="row"><button class="btn" type="button" id="imgClose2">閉じる</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= 基本の道具 ================= */
+const INK = "#1a1a1a", RED = "#d4231b", GRID = "#b9b9b9", SHADE = "#dcdcdc";
+const FONT = '"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","Klee One","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+
+function makeRng(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+let R = Math.random;
+const ri = (a, b) => a + Math.floor(R() * (b - a + 1));
+const pick = a => a[Math.floor(R() * a.length)];
+const shuffle = a => { a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const gcd = (a, b) => { a = Math.abs(a); b = Math.abs(b); while(b){ [a, b] = [b, a % b]; } return a; };
+const lcm = (a, b) => a / gcd(a, b) * b;
+const P10 = n => Math.pow(10, n);
+
+/* n / 10^s を小数の文字列にする（例：ds(352,2) → "3.52"） */
+function ds(n, s){
+  s = s || 0;
+  const neg = n < 0; n = Math.round(Math.abs(n));
+  let str = String(n);
+  if(s > 0){
+    str = str.padStart(s + 1, "0");
+    str = str.slice(0, -s) + "." + str.slice(-s);
+    str = str.replace(/0+$/, "").replace(/\.$/, "");
+  }
+  return (neg ? "-" : "") + str;
+}
+/* 数の文字列 → [整数, 小数のけた数] */
+function dparse(str){ const i = str.indexOf("."); return i < 0 ? [parseInt(str, 10), 0] : [parseInt(str.replace(".", ""), 10), str.length - i - 1]; }
+/* 小数どうしのかけ算・わり算を整数で正しく計算する */
+function dmul(a, b){ const [x, s] = dparse(String(a)), [y, t] = dparse(String(b)); return ds(x * y, s + t); }
+function dadd(a, b, sign){ const [x, s] = dparse(String(a)), [y, t] = dparse(String(b)), m = Math.max(s, t); return ds(x * P10(m - s) + (sign || 1) * y * P10(m - t), m); }
+/* a÷b（わり切れるとき） */
+function ddiv(a, b){ const [x, s] = dparse(String(a)), [y, t] = dparse(String(b)); for(let k = 0; k < 8; k++){ const num = x * P10(t + k), q = num / (y * P10(s)); if(Number.isInteger(q)) return ds(q, k); } return null; }
+/* 最後のけたが0でない小数 */
+function rdec(lo, hi, s){ let n; do{ n = ri(lo, hi); } while(s > 0 && n % 10 === 0); return ds(n, s); }
+
+/* 分数の記法 */
+const F = (n, d) => "{" + n + "/" + d + "}";
+const MX = (w, n, d) => "{" + w + " " + n + "/" + d + "}";
+/* 答えの分数：約分して、仮分数なら帯分数もそえる */
+function fAns(n, d, mixedFirst){
+  const g = gcd(n, d); n /= g; d /= g;
+  if(d === 1) return String(n);
+  if(n > d){
+    const w = Math.floor(n / d), r = n % d;
+    return mixedFirst ? MX(w, r, d) + "（" + F(n, d) + "）" : F(n, d) + "（" + MX(w, r, d) + "）";
+  }
+  return F(n, d);
+}
+const circled = n => "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"[n - 1] || "(" + n + ")";
+
+/* ================= ことばの記法 =================
+   {3/4} 分数　{1 2/3} 帯分数　^2 ^3 右上の小さい数
+   [[答え]] 四角の答えらん　((答え)) かっこの答えらん　<<答え>> 答えだけ（問題では空白）  */
+function parseMk(s){
+  const out = []; let i = 0, buf = "";
+  const flush = () => { if(buf){ out.push({t:"s", s:buf}); buf = ""; } };
+  const pairs = [["[[", "]]", "box"], ["((", "))", "par"], ["<<", ">>", "ans"]];
+  while(i < s.length){
+    let hit = false;
+    for(const [o, c, t] of pairs){
+      if(s.startsWith(o, i)){
+        const j = s.indexOf(c, i + 2);
+        flush(); out.push({t, a:parseMk(s.slice(i + 2, j))}); i = j + 2; hit = true; break;
+      }
+    }
+    if(hit) continue;
+    if(s[i] === "{"){
+      const j = s.indexOf("}", i), inner = s.slice(i + 1, j);
+      const m = inner.match(/^(?:(\d+)\s+)?([^/]+)\/(.+)$/);
+      flush(); out.push({t:"f", w:m[1] || "", n:m[2], d:m[3]}); i = j + 1; continue;
+    }
+    if(s[i] === "^"){ flush(); out.push({t:"sup", s:s[i + 1]}); i += 2; continue; }
+    if(s[i] === "\n"){ flush(); out.push({t:"br"}); i++; continue; }
+    buf += s[i]; i++;
+  }
+  flush(); return out;
+}
+/* 文章の中のすべての文字（漢字チェック用） */
+function mkText(tokens){
+  let s = "";
+  for(const t of tokens){
+    if(t.t === "s") s += t.s;
+    else if(t.t === "f") s += t.w + t.n + t.d;
+    else if(t.a) s += mkText(t.a);
+  }
+  return s;
+}
+
+/* ================= 描画の道具（単位はすべてmm） ================= */
+function makeG(ctx, k){
+  const G = {
+    k, ctx, texts:null,
+    font(size, weight){ ctx.font = (weight || 600) + " " + (size * k).toFixed(2) + "px " + FONT; },
+    width(s, size, weight){ G.font(size, weight); return ctx.measureText(s).width / k; },
+    text(s, x, y, o){
+      o = o || {}; G.font(o.size || 5, o.weight);
+      ctx.fillStyle = o.color || INK; ctx.textAlign = o.align || "left"; ctx.textBaseline = o.base || "middle";
+      ctx.fillText(s, x * k, y * k);
+      if(G.texts) G.texts.push(s);
+    },
+    stroke(o){
+      ctx.strokeStyle = o.color || INK; ctx.lineWidth = (o.w || 0.3) * k;
+      ctx.setLineDash(o.dash ? o.dash.map(v => v * k) : []);
+      ctx.stroke(); ctx.setLineDash([]);
+    },
+    line(x1, y1, x2, y2, o){ ctx.beginPath(); ctx.moveTo(x1 * k, y1 * k); ctx.lineTo(x2 * k, y2 * k); G.stroke(o || {}); },
+    poly(pts, o){
+      o = o || {};
+      ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0] * k, p[1] * k) : ctx.moveTo(p[0] * k, p[1] * k));
+      if(o.close !== false) ctx.closePath();
+      if(o.fill){ ctx.fillStyle = o.fill; ctx.fill(); }
+      if(o.stroke !== false) G.stroke(o);
+    },
+    rect(x, y, w, h, o){
+      o = o || {};
+      if(o.fill){ ctx.fillStyle = o.fill; ctx.fillRect(x * k, y * k, w * k, h * k); }
+      if(o.stroke !== false){ ctx.beginPath(); ctx.rect(x * k, y * k, w * k, h * k); G.stroke(o); }
+    },
+    arc(cx, cy, r, a0, a1, o){
+      o = o || {};
+      ctx.beginPath();
+      if(o.fill){ ctx.moveTo(cx * k, cy * k); }
+      ctx.arc(cx * k, cy * k, r * k, a0, a1, !!o.ccw);
+      if(o.fill){ ctx.closePath(); ctx.fillStyle = o.fill; ctx.fill(); }
+      if(o.stroke !== false) G.stroke(o);
+    },
+    dot(x, y, r, color){ ctx.beginPath(); ctx.arc(x * k, y * k, r * k, 0, Math.PI * 2); ctx.fillStyle = color || INK; ctx.fill(); }
+  };
+  return G;
+}
+
+/* ================= 記法の大きさと描画 ================= */
+function tokMetrics(G, t, fs){
+  if(t.m && t.m.fs === fs) return t.m;
+  let m;
+  if(t.t === "s") m = {w:G.width(t.s, fs), up:0.62 * fs, dn:0.62 * fs};
+  else if(t.t === "sup") m = {w:G.width(t.s, fs * 0.6) + 0.05 * fs, up:0.62 * fs, dn:0.62 * fs};
+  else if(t.t === "f"){
+    const fn = fs * 0.78, wn = Math.max(G.width(t.n, fn), G.width(t.d, fn)) + 0.3 * fs;
+    const ww = t.w ? G.width(t.w, fs) + 0.06 * fs : 0;
+    m = {w:ww + wn + 0.1 * fs, up:0.14 * fs + fn * 1.02, dn:0.14 * fs + fn * 1.02, ww, wn, fn};
+  } else if(t.t === "br") m = {w:0, up:0, dn:0};
+  else {
+    const im = lineMetrics(G, t.a, fs);
+    if(t.t === "box") m = {w:Math.max(im.w + 1.0 * fs, 2.2 * fs), up:Math.max(im.up, 0.62 * fs) + 0.12 * fs, dn:Math.max(im.dn, 0.62 * fs) + 0.12 * fs, im};
+    else if(t.t === "par") m = {w:Math.max(im.w + 2.2 * fs, t.minw || 5.5 * fs), up:Math.max(im.up, 0.7 * fs), dn:Math.max(im.dn, 0.7 * fs), im};
+    else m = {w:Math.max(im.w, t.minw || 2.4 * fs) + 0.3 * fs, up:Math.max(im.up, 0.62 * fs), dn:Math.max(im.dn, 0.62 * fs), im};
+  }
+  m.fs = fs; t.m = m; return m;
+}
+function lineMetrics(G, toks, fs){
+  let w = 0, up = 0.62 * fs, dn = 0.62 * fs;
+  for(const t of toks){ const m = tokMetrics(G, t, fs); w += m.w; up = Math.max(up, m.up); dn = Math.max(dn, m.dn); }
+  return {w, up, dn};
+}
+function drawToks(G, toks, x, y, fs, ans, color){
+  for(const t of toks){
+    const m = tokMetrics(G, t, fs);
+    drawTok(G, t, m, x, y, fs, ans, color);
+    x += m.w;
+  }
+  return x;
+}
+function drawTok(G, t, m, x, y, fs, ans, color){
+  const c = color || INK;
+  if(t.t === "s") G.text(t.s, x, y, {size:fs, color:c});
+  else if(t.t === "sup") G.text(t.s, x + 0.03 * fs, y - 0.32 * fs, {size:fs * 0.6, color:c});
+  else if(t.t === "f"){
+    if(t.w) G.text(t.w, x, y, {size:fs, color:c});
+    const x0 = x + m.ww, cx = x0 + m.wn / 2 + 0.05 * fs;
+    G.line(x0 + 0.1 * fs, y, x0 + m.wn, y, {w:0.28, color:c});
+    G.text(t.n, cx, y - 0.14 * fs - m.fn * 0.5, {size:m.fn, color:c, align:"center"});
+    G.text(t.d, cx, y + 0.14 * fs + m.fn * 0.52, {size:m.fn, color:c, align:"center"});
+  } else if(t.t === "box"){
+    G.rect(x + 0.12 * fs, y - m.up + 0.06 * fs, m.w - 0.24 * fs, m.up + m.dn - 0.12 * fs, {w:0.3});
+    if(ans) drawToks(G, t.a, x + (m.w - m.im.w) / 2, y, fs, false, RED);
+  } else if(t.t === "par"){
+    const ph = (m.up + m.dn) * 0.95;
+    G.text("（", x, y, {size:ph * 0.95, weight:400, color:c});
+    G.text("）", x + m.w, y, {size:ph * 0.95, weight:400, color:c, align:"right"});
+    if(ans) drawToks(G, t.a, x + (m.w - m.im.w) / 2, y, fs, false, RED);
+  } else if(t.t === "ans"){
+    if(ans) drawToks(G, t.a, x + 0.15 * fs, y, fs, false, RED);
+  }
+}
+/* 折り返し（文字ごとに分け、行頭の「。、」をさける） */
+function wrapToks(G, toks, maxW, fs){
+  const units = [];
+  for(const t of toks){
+    if(t.t === "s") for(const ch of t.s) units.push({t:"s", s:ch});
+    else units.push(t);
+  }
+  const lines = []; let cur = [], w = 0;
+  const NOHEAD = "。、，．）」』ょゃゅっー";
+  for(let i = 0; i < units.length; i++){
+    const u = units[i];
+    if(u.t === "br"){ lines.push(cur); cur = []; w = 0; continue; }
+    const uw = tokMetrics(G, u, fs).w;
+    if(w + uw > maxW && cur.length){
+      if(u.t === "s" && NOHEAD.includes(u.s)){ cur.push(u); w += uw; continue; }
+      lines.push(cur); cur = []; w = 0;
+    }
+    cur.push(u); w += uw;
+  }
+  if(cur.length) lines.push(cur);
+  /* 同じ種類の文字をつなぎなおす */
+  return lines.map(l => {
+    const out = [];
+    for(const u of l){ const last = out[out.length - 1]; if(u.t === "s" && last && last.t === "s" && !last.m){ last.s += u.s; } else out.push(u.t === "s" ? {t:"s", s:u.s} : u); }
+    return out;
+  });
+}
+function blockMetrics(G, lines, fs, gap){
+  let h = 0; const ms = lines.map(l => { const m = lineMetrics(G, l, fs); h += m.up + m.dn; return m; });
+  return {h:h + (lines.length - 1) * (gap || 0.2 * fs), ms};
+}
+function drawBlock(G, lines, x, y, fs, ans, gap){
+  const {ms} = blockMetrics(G, lines, fs, gap);
+  lines.forEach((l, i) => { y += ms[i].up; drawToks(G, l, x, y, fs, ans); y += ms[i].dn + (gap || 0.2 * fs); });
+}
+
+/* ================= 問題の形（アイテム） =================
+   cat: calc 計算・短い問題 / hissan 筆算 / fig 図・表 / word 文章題
+   inst: 大きい問題の指示文　lead: まぜたときに問題の前につける短い指示  */
+const NUMW = fs => 1.55 * fs;
+function drawNum(G, x, y, n, fs){
+  const r = 0.47 * fs;
+  G.arc(x + r + 0.05 * fs, y, r, 0, Math.PI * 2, {w:0.25});
+  G.text(String(n), x + r + 0.05 * fs, y + 0.02 * fs, {size:n >= 10 ? fs * 0.52 : fs * 0.66, align:"center"});
+}
+
+function lineItem(mk, o){
+  o = o || {};
+  const toks = parseMk(mk);
+  return Object.assign({cat:"calc", n:1, toks,
+    minW(G, fs){ return lineMetrics(G, toks, fs).w + 0.3 * fs; },
+    lines(G, W, fs){ return wrapToks(G, toks, W, fs); },
+    height(G, W, fs){ return blockMetrics(G, this.lines(G, W, fs), fs, 0.35 * fs).h; },
+    firstUp(G, W, fs){ return lineMetrics(G, this.lines(G, W, fs)[0], fs).up; },
+    draw(G, x, y, W, fs, ans){ drawBlock(G, this.lines(G, W, fs), x, y, fs, ans, 0.35 * fs); }
+  }, o);
+}
+
+/* 文章題：問題文・式・答え */
+function wordItem(text, shiki, answer, o){
+  o = o || {};
+  const toks = parseMk(text);
+  const sh = (Array.isArray(shiki) ? shiki : [shiki]).map(parseMk);
+  const an = parseMk(answer);
+  return Object.assign({cat:"word", n:1, full:true, toks,
+    minW(){ return 9999; },
+    parts(G, W, fs){
+      const lines = wrapToks(G, toks, W, fs);
+      const tb = blockMetrics(G, lines, fs, 0.3 * fs);
+      const shH = Math.max(3.2 * fs, sh.reduce((h, l) => h + lineMetrics(G, l, fs).up + lineMetrics(G, l, fs).dn + 0.3 * fs, 0));
+      const am = lineMetrics(G, an, fs);
+      return {lines, tb, shH, am, ansH:Math.max(1.9 * fs, am.up + am.dn + 0.4 * fs)};
+    },
+    height(G, W, fs){ const p = this.parts(G, W, fs); return p.tb.h + 0.35 * fs + p.shH + p.ansH; },
+    firstUp(G, W, fs){ const p = this.parts(G, W, fs); return p.tb.ms[0].up; },
+    draw(G, x, y, W, fs, ans){
+      const p = this.parts(G, W, fs);
+      drawBlock(G, p.lines, x, y, fs, ans, 0.3 * fs);
+      let yy = y + p.tb.h + 0.35 * fs;
+      G.text("式", x, yy + 0.7 * fs, {size:fs});
+      if(ans){
+        let sy = yy;
+        for(const l of sh){ const m = lineMetrics(G, l, fs); sy += m.up; drawToks(G, l, x + 1.8 * fs, sy + 0.08 * fs, fs, false, RED); sy += m.dn + 0.3 * fs; }
+      }
+      yy += p.shH;
+      const lw = Math.min(W * 0.5, Math.max(W * 0.34, p.am.w + 3 * fs)), lx = x + W - lw;
+      const ly = yy + p.ansH - 0.25 * fs;
+      G.text("答え", lx - 0.4 * fs, ly - 0.62 * fs, {size:fs, align:"right"});
+      G.line(lx, ly, x + W, ly, {w:0.3});
+      if(ans) drawToks(G, an, lx + (lw - p.am.w) / 2, ly - p.am.dn - 0.15 * fs, fs, false, RED);
+    }
+  }, o);
+}
+
+/* 図＋ひとつの問い */
+function figItem(fw, fh, drawFig, qmk, o){
+  o = o || {};
+  const q = parseMk(qmk);
+  return Object.assign({cat:"fig", n:1,
+    minW(G, fs){ return Math.max(fw, lineMetrics(G, q, fs).w) + 0.3 * fs; },
+    height(G, W, fs){ const m = lineMetrics(G, q, fs); return fh + 0.5 * fs + m.up + m.dn; },
+    firstUp(G, W, fs){ return 0.62 * fs; },
+    draw(G, x, y, W, fs, ans){
+      drawFig(G, x, y, fw, fh, fs, ans);
+      const m = lineMetrics(G, q, fs);
+      drawToks(G, q, x, y + fh + 0.5 * fs + m.up, fs, ans);
+    }
+  }, o);
+}
+
+/* 図（表）＋いくつかの問い（小さい問題の番号は自分でつける） */
+function setItem(fw, fh, drawFig, subs, o){
+  o = o || {};
+  const it = Object.assign({cat:"fig", full:true, selfNum:true,
+    subs:subs.map(parseMk),
+    get n(){ return this.subs.length; },
+    trim(k){ this.subs = this.subs.slice(0, k); },
+    minW(){ return 9999; },
+    layout(G, W, fs){
+      const numw = NUMW(fs);
+      const sw = Math.max(...this.subs.map(s => lineMetrics(G, s, fs).w)) + numw;
+      const side = !o.stack && W - fw - 5 >= sw;
+      const tl = this.text ? wrapToks(G, this.text, W, fs) : null;
+      const th = tl ? blockMetrics(G, tl, fs, 0.3 * fs).h + 0.6 * fs : 0;
+      const sh = this.subs.reduce((h, s) => { const m = lineMetrics(G, s, fs); return h + m.up + m.dn + 0.7 * fs; }, 0) - 0.7 * fs;
+      return {side, tl, th, sh, sw};
+    },
+    height(G, W, fs){ const L = this.layout(G, W, fs); return L.th + (L.side ? Math.max(fh, L.sh) : fh + 0.8 * fs + L.sh); },
+    draw(G, x, y, W, fs, ans, num){
+      const L = this.layout(G, W, fs);
+      if(L.tl) drawBlock(G, L.tl, x, y, fs, ans, 0.3 * fs);
+      y += L.th;
+      drawFig(G, x, y, fw, fh, fs, ans);
+      let sx, sy;
+      if(L.side){ sx = x + W - Math.min(W - fw - 4, Math.max(L.sw, (W - fw) * 0.75)); sy = y + Math.max(0, (fh - L.sh) / 2); }
+      else { sx = x; sy = y + fh + 0.8 * fs; }
+      this.subs.forEach((s, i) => {
+        const m = lineMetrics(G, s, fs); sy += m.up;
+        drawNum(G, sx, sy, num + i, fs);
+        drawToks(G, s, sx + NUMW(fs), sy, fs, ans);
+        sy += m.dn + 0.7 * fs;
+      });
+    }
+  }, o);
+  it.text = o.text ? parseMk(o.text) : null;
+  return it;
+}
+
+/* ---------- 筆算（かけ算） ---------- */
+function hissanMulItem(a, b, o){
+  const [ai, da] = dparse(a), [bi, db] = dparse(b);
+  const aD = a.replace(".", ""), bD = b.replace(".", "");
+  const dp = da + db;
+  let pS = String(ai * bi); if(dp > 0 && pS.length <= dp) pS = pS.padStart(dp + 1, "0");
+  const bs = String(bi), parts = [];
+  for(let j = 0; j < bs.length; j++){ const dg = +bs[bs.length - 1 - j]; if(dg) parts.push({s:String(ai * dg), sh:j}); }
+  const useParts = parts.length > 1;
+  let cols = Math.max(aD.length, bD.length + 1, pS.length);
+  if(useParts) for(const p of parts) cols = Math.max(cols, p.s.length + p.sh);
+  const rows = 3 + (useParts ? parts.length : 0);
+  return Object.assign({cat:"hissan", n:1, inst:"筆算でしましょう。", lead:"筆算", sig:a + "×" + b,
+    dims(fs){ return {cs:1.25 * fs, rh:1.32 * fs}; },
+    minW(G, fs){ return (cols + 0.4) * this.dims(fs).cs; },
+    height(G, W, fs){ return rows * this.dims(fs).rh + 0.2 * fs; },
+    firstUp(G, W, fs){ return this.dims(fs).rh / 2; },
+    draw(G, x, y, W, fs, ans){
+      const {cs, rh} = this.dims(fs), x0 = x + 0.3 * cs;
+      const cx = c => x0 + (c + 0.5) * cs, ry = r => y + (r + 0.5) * rh;
+      for(let c = 0; c <= cols; c++) G.line(x0 + c * cs, y, x0 + c * cs, y + rows * rh, {w:0.12, color:GRID, dash:[0.5, 0.7]});
+      for(let r = 0; r <= rows; r++) G.line(x0, y + r * rh, x0 + cols * cs, y + r * rh, {w:0.12, color:GRID, dash:[0.5, 0.7]});
+      const put = (s, row, endCol, color, dots) => {
+        for(let i = 0; i < s.length; i++) G.text(s[i], cx(endCol - (s.length - 1 - i)), ry(row) + 0.03 * fs, {size:fs * 1.02, align:"center", color});
+      };
+      const pt = (row, afterCol, color) => G.dot(x0 + (afterCol + 1) * cs, y + row * rh + rh * 0.8, 0.13 * fs, color);
+      put(aD, 0, cols - 1); if(da) pt(0, cols - 1 - da, INK);
+      put(bD, 1, cols - 1); if(db) pt(1, cols - 1 - db, INK);
+      G.text("×", cx(cols - bD.length - 1), ry(1), {size:fs, align:"center"});
+      G.line(x0, y + 2 * rh, x0 + cols * cs, y + 2 * rh, {w:0.35});
+      if(!ans) return;
+      let r = 2;
+      if(useParts){
+        for(const p of parts){ put(p.s, r, cols - 1 - p.sh, RED); r++; }
+        G.line(x0, y + r * rh, x0 + cols * cs, y + r * rh, {w:0.35, color:RED});
+      }
+      put(pS, r, cols - 1, RED);
+      if(dp){
+        pt(r, cols - 1 - dp, RED);
+        let z = 0; while(z < dp && pS[pS.length - 1 - z] === "0") z++;
+        for(let i = 0; i < z; i++){ const c = cols - 1 - i; G.line(cx(c) - 0.3 * cs, ry(r) + 0.35 * rh, cx(c) + 0.3 * cs, ry(r) - 0.35 * rh, {w:0.3, color:RED}); }
+      }
+    }
+  }, o || {});
+}
+
+/* ---------- 筆算（わり算） ----------
+   mode: exact わり切れるまで / round 四しゃ五入して r けた / rem 商は一の位まで・あまり */
+function divSolve(n, d, mode, r){
+  const dD = d.replace(".", ""), dd = dparse(d)[1], D = parseInt(dD, 10);
+  const X = n.replace(".", "").split(""), nd = dparse(n)[1], orig = X.length;
+  const onesIdx = X.length - nd - 1, onesP = onesIdx + dd, added = new Set();
+  const need = i => { while(X.length <= i){ X.push("0"); added.add(X.length - 1); } };
+  need(onesP);
+  let limit = mode === "rem" ? onesP : mode === "round" ? onesP + r + 1 : onesP + 5;
+  let cur = 0, first = -1, last = -1; const steps = [], qd = {};
+  for(let i = 0; i <= limit; i++){
+    need(i);
+    cur = cur * 10 + (+X[i]); const q = Math.floor(cur / D); qd[i] = q;
+    if(q > 0){ if(first < 0) first = i; steps.push({col:i, prod:q * D, rem:cur - q * D}); cur -= q * D; }
+    last = i;
+    if(mode === "exact" && i >= onesP && i >= orig - 1 && cur === 0 && first >= 0) break;
+  }
+  const c0 = first >= 0 && first <= onesP ? first : onesP;
+  const qDig = []; for(let c = c0; c <= last; c++) qDig.push({c, v:qd[c] || 0});
+  const qInt = parseInt(qDig.map(q => q.v).join(""), 10), qDec = Math.max(0, last - onesP);
+  let ansText;
+  if(mode === "exact") ansText = ds(qInt, qDec);
+  else if(mode === "round") ansText = "約" + ds(Math.round(qInt / 10), r);
+  else ansText = ds(qInt, 0) + "あまり" + ds(cur, dd + Math.max(0, nd - dd));
+  return {dD, dd, D, X, orig, onesIdx, onesP, added, steps, qDig, last, qInt, qDec, ansText, rem:cur};
+}
+function hissanDivItem(n, d, mode, r, o){
+  const S = divSolve(n, d, mode, r);
+  const cols = Math.max(S.X.length, S.last + 1);
+  const rows = 2 + 2 * S.steps.length;
+  const noteMk = mode === "exact" ? "" : S.ansText;
+  const lead = mode === "exact" ? "わり切れるまで" : mode === "round" ? (r === 0 ? "四しゃ五入して整数で" : "四しゃ五入して" + F(1, P10(r)) + "の位まで") : "商は一の位まで，あまりも";
+  return Object.assign({cat:"hissan", n:1, lead, S, sig:n + "÷" + d,
+    inst:mode === "exact" ? "わり切れるまで筆算でしましょう。" : mode === "round" ? (r === 0 ? "商を四しゃ五入して，整数で求めましょう。" : "商を四しゃ五入して，" + F(1, P10(r)) + "の位までのがい数で求めましょう。") : "商は一の位まで求めて，あまりも出しましょう。",
+    dims(fs){ return {cs:1.2 * fs, rh:1.3 * fs}; },
+    noteW(G, fs){ return noteMk ? G.width(noteMk, fs * 0.9) + 1.2 * fs : 0; },
+    minW(G, fs){ const {cs} = this.dims(fs); return (S.dD.length + 0.9 + cols) * cs + this.noteW(G, fs) + 0.3 * fs; },
+    height(G, W, fs){ return rows * this.dims(fs).rh + 0.3 * fs; },
+    firstUp(G, W, fs){ return this.dims(fs).rh / 2; },
+    draw(G, x, y, W, fs, ans){
+      const {cs, rh} = this.dims(fs);
+      const xl = x + 0.2 * cs, xb = xl + S.dD.length * cs + 0.75 * cs;
+      const cx = c => xb + (c + 0.5) * cs, ry = rr => y + (rr + 0.5) * rh;
+      for(let c = 0; c <= cols; c++) G.line(xb + c * cs, y, xb + c * cs, y + rows * rh, {w:0.12, color:GRID, dash:[0.5, 0.7]});
+      for(let rr = 0; rr <= rows; rr++) G.line(xb, y + rr * rh, xb + cols * cs, y + rr * rh, {w:0.12, color:GRID, dash:[0.5, 0.7]});
+      const put = (s, row, endCol, color) => { for(let i = 0; i < s.length; i++) G.text(s[i], cx(endCol - (s.length - 1 - i)), ry(row) + 0.03 * fs, {size:fs * 1.02, align:"center", color}); };
+      /* わる数 */
+      for(let i = 0; i < S.dD.length; i++) G.text(S.dD[i], xl + (i + 0.5) * cs, ry(1) + 0.03 * fs, {size:fs * 1.02, align:"center"});
+      if(S.dd) G.dot(xl + (S.dD.length - S.dd) * cs, y + rh + rh * 0.8, 0.13 * fs, INK);
+      /* ）とよこ線 */
+      const bx = xb - 0.1 * cs;
+      G.ctx.beginPath(); G.ctx.moveTo((bx - 0.35 * cs) * G.k, (y + rh) * G.k);
+      G.ctx.quadraticCurveTo((bx + 0.15 * cs) * G.k, (y + 1.5 * rh) * G.k, (bx - 0.35 * cs) * G.k, (y + 2 * rh + 0.1 * rh) * G.k); G.stroke({w:0.35});
+      G.line(bx - 0.35 * cs, y + rh, xb + cols * cs, y + rh, {w:0.35});
+      /* わられる数 */
+      for(let i = 0; i < S.orig; i++) G.text(S.X[i], cx(i), ry(1) + 0.03 * fs, {size:fs * 1.02, align:"center"});
+      if(S.onesIdx < S.orig - 1) G.dot(xb + (S.onesIdx + 1) * cs, y + rh + rh * 0.8, 0.13 * fs, INK);
+      if(!ans) return;
+      for(const i of S.added) if(i < cols) G.text("0", cx(i), ry(1) + 0.03 * fs, {size:fs * 0.9, align:"center", color:RED});
+      if(S.dd){
+        G.dot(xl + S.dD.length * cs, y + rh + rh * 0.8, 0.14 * fs, RED);
+        G.dot(xb + (S.onesP + 1) * cs, y + rh + rh * 0.8, 0.14 * fs, RED);
+      }
+      for(const q of S.qDig) G.text(String(q.v), cx(q.c), ry(0) + 0.03 * fs, {size:fs * 1.02, align:"center", color:RED});
+      if(S.last > S.onesP) G.dot(xb + (S.onesP + 1) * cs, y + rh * 0.8, 0.14 * fs, RED);
+      let row = 2;
+      S.steps.forEach((st, j) => {
+        const ps = String(st.prod); put(ps, row, st.col, RED);
+        G.line(xb + (st.col - ps.length + 1) * cs, y + (row + 1) * rh, xb + (st.col + 1) * cs, y + (row + 1) * rh, {w:0.3, color:RED});
+        row++;
+        const upto = j < S.steps.length - 1 ? S.steps[j + 1].col : S.last;
+        let v = String(st.rem); for(let c = st.col + 1; c <= upto; c++) v += S.X[c];
+        v = String(parseInt(v, 10));
+        put(v, row, upto, RED);
+        if(mode === "rem" && j === S.steps.length - 1 && S.dd) G.dot(xb + (S.onesIdx + 1) * cs, y + row * rh + rh * 0.8, 0.14 * fs, RED);
+        row++;
+      });
+      if(noteMk) G.text(noteMk, xb + cols * cs + 0.8 * fs, ry(0), {size:fs * 0.9, color:RED});
+    }
+  }, o || {});
+}
+
+/* ---------- 図のための道具 ---------- */
+/* 点の集まりを箱に合わせて置く（同じ倍率 s を返す） */
+function fitPts(pts, x, y, w, h, pad, sFix){
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+  const s = sFix || Math.min((w - 2 * pad) / Math.max(maxx - minx, 1e-6), (h - 2 * pad) / Math.max(maxy - miny, 1e-6));
+  const ox = x + (w - (maxx - minx) * s) / 2 - minx * s, oy = y + (h - (maxy - miny) * s) / 2 - miny * s;
+  return {s, pts:pts.map(p => [ox + p[0] * s, oy + p[1] * s])};
+}
+function fitScale(pts, w, h, pad){
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  return Math.min((w - 2 * pad) / Math.max(Math.max(...xs) - Math.min(...xs), 1e-6), (h - 2 * pad) / Math.max(Math.max(...ys) - Math.min(...ys), 1e-6));
+}
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1]];
+const mul = (a, k) => [a[0] * k, a[1] * k];
+const len = a => Math.hypot(a[0], a[1]);
+const unit = a => { const l = len(a) || 1; return [a[0] / l, a[1] / l]; };
+const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+const centroid = ps => [ps.reduce((s, p) => s + p[0], 0) / ps.length, ps.reduce((s, p) => s + p[1], 0) / ps.length];
+const angAt = (p, a, b) => { const u = unit(sub(a, p)), v = unit(sub(b, p)); return Math.acos(Math.max(-1, Math.min(1, u[0] * v[0] + u[1] * v[1]))) * 180 / Math.PI; };
+/* 頂点 p の角に弧と文字 */
+function angleMark(G, p, a, b, label, fs, o){
+  o = o || {};
+  const u = unit(sub(a, p)), v = unit(sub(b, p));
+  const a0 = Math.atan2(u[1], u[0]), a1 = Math.atan2(v[1], v[0]);
+  let d = a1 - a0; while(d <= -Math.PI) d += 2 * Math.PI; while(d > Math.PI) d -= 2 * Math.PI;
+  const deg = Math.abs(d) * 180 / Math.PI;
+  const r = o.r || (deg < 45 ? 1.9 * fs : 1.3 * fs);
+  if(o.right){
+    const q = 0.55 * fs;
+    G.poly([add(p, mul(u, q)), add(add(p, mul(u, q)), mul(v, q)), add(p, mul(v, q))], {close:false, w:0.25});
+  } else if(o.arc !== false) G.arc(p[0], p[1], r * 0.55, a0, a0 + d, {ccw:d < 0, w:0.25, color:o.color});
+  if(label){
+    const bis = unit(add(u, v)), dist = r * (deg < 45 ? 1.05 : 1.0) + 0.35 * fs;
+    const lp = add(p, mul(bis, dist));
+    drawToks(G, parseMk(label), lp[0] - lineMetrics(G, parseMk(label), fs * 0.85).w / 2, lp[1], fs * 0.85, o.ans, o.color);
+  }
+}
+/* 辺の外側に長さを書く */
+function sideLabel(G, a, b, label, cen, fs, o){
+  o = o || {};
+  const m = mid(a, b); let nrm = unit([-(b[1] - a[1]), b[0] - a[0]]);
+  if((m[0] - cen[0]) * nrm[0] + (m[1] - cen[1]) * nrm[1] < 0) nrm = mul(nrm, -1);
+  const toks = parseMk(label), lm = lineMetrics(G, toks, fs * 0.85);
+  const off = (o.off || 0.9) * fs + Math.abs(nrm[0]) * lm.w * 0.45;
+  const p = add(m, mul(nrm, off));
+  drawToks(G, toks, p[0] - lm.w / 2, p[1], fs * 0.85, o.ans, o.color);
+}
+function vLabel(G, p, cen, name, fs, color){
+  const d = unit(sub(p, cen)), q = add(p, mul(d, 1.05 * fs));
+  G.text(name, q[0], q[1], {size:fs * 0.85, align:"center", color:color || INK, weight:600});
+}
+/* 等しい辺のしるし */
+function tick(G, a, b, n, fs){
+  const m = mid(a, b), u = unit(sub(b, a)), nv = [-u[1], u[0]];
+  for(let i = 0; i < n; i++){
+    const c = add(m, mul(u, (i - (n - 1) / 2) * 0.35 * fs));
+    G.line(...add(c, mul(nv, 0.4 * fs)), ...add(c, mul(nv, -0.4 * fs)), {w:0.3});
+  }
+}
+
+/* ================= 図の問題（5年） ================= */
+const D2R = Math.PI / 180;
+const FIGW = 48, FIGH = 32;
+const cm = v => v + "cm";
+
+/* 表（比例・データなど）：本文＋表＋問い */
+function tableItem(text, rows, subs, o){
+  o = o || {};
+  const tt = text ? parseMk(text) : null;
+  const rt = rows.map(r => r.map(c => parseMk(String(c))));
+  const it = Object.assign({cat:"fig", full:true, sig:(text || "") + JSON.stringify(rows),
+    subs:subs.map(parseMk),
+    get n(){ return this.subs.length; },
+    get selfNum(){ return this.subs.length > 1; },
+    trim(k){ this.subs = this.subs.slice(0, Math.max(1, k)); },
+    minW(){ return 9999; },
+    tdims(G, fs){
+      const cols = rt[0].length, cw = [];
+      for(let c = 0; c < cols; c++) cw[c] = Math.max(c === 0 ? 3 * fs : 2.6 * fs, ...rt.map(r => lineMetrics(G, r[c], fs * 0.92).w + 1.2 * fs));
+      const rh = rt.map(r => Math.max(1.75 * fs, ...r.map(c => { const m = lineMetrics(G, c, fs * 0.92); return m.up + m.dn + 0.5 * fs; })));
+      return {cw, rh, w:cw.reduce((a, b) => a + b, 0), h:rh.reduce((a, b) => a + b, 0)};
+    },
+    parts(G, W, fs){
+      const tl = tt ? wrapToks(G, tt, W, fs) : null;
+      const th = tl ? blockMetrics(G, tl, fs, 0.3 * fs).h + 0.6 * fs : 0;
+      const td = this.tdims(G, fs);
+      const sh = this.subs.reduce((h, s) => { const m = lineMetrics(G, s, fs); return h + m.up + m.dn + 0.7 * fs; }, 0);
+      return {tl, th, td, sh};
+    },
+    height(G, W, fs){ const p = this.parts(G, W, fs); return p.th + p.td.h + 0.8 * fs + p.sh - 0.7 * fs; },
+    firstUp(G, W, fs){ return 0.62 * fs; },
+    draw(G, x, y, W, fs, ans, num){
+      const p = this.parts(G, W, fs);
+      if(p.tl) drawBlock(G, p.tl, x, y, fs, ans, 0.3 * fs);
+      let yy = y + p.th, xx = x + (o.center ? Math.max(0, (W - p.td.w) / 2) : 0.5 * fs);
+      rt.forEach((r, ri_) => {
+        let cx = xx;
+        r.forEach((c, ci) => {
+          const w = p.td.cw[ci], h = p.td.rh[ri_];
+          G.rect(cx, yy, w, h, {w:0.3, fill:ci === 0 || (o.headRow && ri_ === 0) ? "#f0f0f0" : null});
+          const m = lineMetrics(G, c, fs * 0.92);
+          drawToks(G, c, cx + (w - m.w) / 2, yy + h / 2, fs * 0.92, ans);
+          cx += w;
+        });
+        yy += p.td.rh[ri_];
+      });
+      yy += 0.8 * fs;
+      const multi = this.subs.length > 1;
+      this.subs.forEach((s, i) => {
+        const m = lineMetrics(G, s, fs); yy += m.up;
+        if(multi) drawNum(G, x, yy, num + i, fs);
+        drawToks(G, s, x + (multi ? NUMW(fs) : 0), yy, fs, ans);
+        yy += m.dn + 0.7 * fs;
+      });
+    }
+  }, o);
+  return it;
+}
+
+/* 三角形の角 */
+function genTriAngle(lv){
+  let al, be, ga;
+  if(lv === 1){ al = 2 * ri(15, 50); be = ga = (180 - al) / 2; }
+  else do{ be = ri(35, 85); ga = ri(35, 85); al = 180 - be - ga; } while(al < 30 || al > 110);
+  const B = [0, 0], C = [10, 0], ab = 10 * Math.sin(ga * D2R) / Math.sin(al * D2R);
+  let A = [ab * Math.cos(be * D2R), -ab * Math.sin(be * D2R)];
+  let pts = [A, B, C];
+  let C2 = null;
+  if(lv === 2) C2 = [15, 0];
+  const flip = R() < 0.5;
+  if(flip){ pts = pts.map(p => [-p[0], p[1]]); if(C2) C2 = [-C2[0], C2[1]]; }
+  const ang = [al, be, ga];
+  let unknown, shown, ansV, ext = 0;
+  if(lv === 0){ unknown = ri(0, 2); ansV = ang[unknown]; }
+  else if(lv === 1){ unknown = R() < 0.5 ? 0 : ri(1, 2); ansV = ang[unknown]; }
+  else { unknown = 0; ext = 180 - ga; ansV = ext - be; }
+  const draw = (G, x, y, w, h, fs, ans) => {
+    const all = C2 ? pts.concat([C2]) : pts;
+    const f = fitPts(all, x, y, w, h, 5.5);
+    const [a, b, c] = f.pts, c2 = C2 ? f.pts[3] : null, cen = centroid([a, b, c]);
+    if(c2) G.line(c[0], c[1], c2[0], c2[1], {w:0.35});
+    G.poly([a, b, c], {w:0.4});
+    const P = [a, b, c], nb = i => [P[(i + 1) % 3], P[(i + 2) % 3]];
+    if(lv === 1){ tick(G, a, b, 1, fs); tick(G, a, c, 1, fs); }
+    for(let i = 0; i < 3; i++){
+      if(lv === 2 && i === 2) continue;
+      if(i === unknown) angleMark(G, P[i], ...nb(i), "ア", fs);
+      else if(lv === 1 && unknown !== 0 && i !== 0 && i !== unknown) continue;
+      else if(lv === 1 && unknown === 0 && i === 2) continue;
+      else angleMark(G, P[i], ...nb(i), ang[i] + "°", fs);
+    }
+    if(lv === 2) angleMark(G, c, a, c2, ext + "°", fs);
+  };
+  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度"});
+}
+
+/* 四角形の角 */
+function genQuadAngle(lv){
+  let pts, ang;
+  for(let tries = 0; tries < 200; tries++){
+    if(lv === 1){
+      const a = ri(8, 12), h2 = ri(5, 9), h = ri(5, 9), s = pick([-3, -2, 2, 3, 4, 5]);
+      if(Math.abs(h - h2) < 2) continue;
+      pts = [[0, 0], [a, 0], [a - s, -h], [0, -h2]];
+    } else {
+      const th = []; let t = R() * 360; const gaps = [0, 0, 0, 0].map(() => 60 + R() * 60), sg = gaps.reduce((p, q) => p + q, 0);
+      for(let i = 0; i < 4; i++){ th.push(t); t += gaps[i] / sg * 360; }
+      pts = th.map(d => { const r = 0.85 + R() * 0.3; return [1.25 * r * Math.cos(d * D2R) * 10, 0.9 * r * Math.sin(d * D2R) * 10]; });
+    }
+    ang = pts.map((p, i) => angAt(p, pts[(i + 3) % 4], pts[(i + 1) % 4]));
+    const sl = pts.map((p, i) => len(sub(pts[(i + 1) % 4], p)));
+    if(ang.every(v => v > 55 && v < 140) && Math.min(...sl) > 0.6 * Math.max(...sl) && Math.abs(ang.reduce((p, q) => p + q, 0) - 360) < 0.5) break;
+  }
+  const rd = ang.map(Math.round);
+  const unknown = lv === 1 ? ri(1, 3) : ri(0, 3);
+  const extAt = lv === 2 ? (unknown + ri(1, 3)) % 4 : -1;
+  let ansV = 360; for(let i = 0; i < 4; i++) if(i !== unknown) ansV -= (lv === 1 && i === 0) ? 90 : rd[i];
+  let ext = extAt >= 0 ? 180 - rd[extAt] : 0;
+  const draw = (G, x, y, w, h, fs, ans) => {
+    let extra = [];
+    if(extAt >= 0){ const p = pts[extAt], q = pts[(extAt + 3) % 4]; extra = [add(p, mul(unit(sub(p, q)), 5))]; }
+    const f = fitPts(pts.concat(extra), x, y, w, h, 5.5), P = f.pts.slice(0, 4);
+    if(extAt >= 0) G.line(...P[extAt], ...f.pts[4], {w:0.35});
+    G.poly(P, {w:0.4});
+    for(let i = 0; i < 4; i++){
+      const nb = [P[(i + 3) % 4], P[(i + 1) % 4]];
+      if(i === unknown) angleMark(G, P[i], ...nb, "ア", fs);
+      else if(lv === 1 && i === 0) angleMark(G, P[i], ...nb, "", fs, {right:true});
+      else if(i === extAt) angleMark(G, P[i], f.pts[4], nb[1], ext + "°", fs);
+      else angleMark(G, P[i], ...nb, rd[i] + "°", fs);
+    }
+  };
+  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度"});
+}
+
+/* 合同な三角形 */
+function makeTri(){
+  for(;;){
+    const a = ri(4, 9), b = ri(3, 9), c = ri(3, 9);
+    if(a === b || b === c || a === c) continue;
+    if(a < Math.max(b, c) - 1) continue;
+    if(a + b <= c + 1.5 || a + c <= b + 1.5 || b + c <= a + 1.5) continue;
+    const x = (c * c + a * a - b * b) / (2 * a), yy = Math.sqrt(c * c - x * x);
+    const A = [x, -yy], B = [0, 0], C = [a, 0];
+    const angs = [angAt(A, B, C), angAt(B, A, C), angAt(C, A, B)];
+    if(angs.some(v => v < 32 || v > 112)) continue;
+    return {a, b, c, pts:[A, B, C], angs};
+  }
+}
+function genCongruent(lv, kind){
+  const T = makeTri();
+  const th = (lv === 0 ? pick([180, 0, 180]) : ri(60, 300)) * D2R, refl = lv === 2 || (lv === 1 && R() < 0.3);
+  const t2 = T.pts.map(p => { const q = refl ? [-p[0], p[1]] : p; return [q[0] * Math.cos(th) - q[1] * Math.sin(th), q[0] * Math.sin(th) + q[1] * Math.cos(th)]; });
+  const N1 = ["A", "B", "C"], L2 = shuffle(["D", "E", "F"]);
+  const sideName = (i, j) => N1[i] + N1[j], side2 = (i, j) => L2[i] + L2[j];
+  const sideLen = (i, j) => { const k = 3 - i - j; return [T.a, T.b, T.c][k]; };
+  const angR = T.angs.map(Math.round);
+  let subs = [], shows = {sides:[], angs:[]};
+  if(kind === "corr"){
+    const vs = shuffle([0, 1, 2]);
+    const cand = [
+      "ちょう点" + N1[vs[0]] + "に対応するちょう点((ちょう点" + L2[vs[0]] + "))",
+      "ちょう点" + L2[vs[1]] + "に対応するちょう点((ちょう点" + N1[vs[1]] + "))",
+      "辺" + sideName(vs[0], vs[2]) + "に対応する辺((辺" + side2(vs[0], vs[2]) + "))",
+      "辺" + side2(vs[1], vs[2]) + "に対応する辺((辺" + sideName(vs[1], vs[2]) + "))",
+      "角" + N1[vs[2]] + "に対応する角((角" + L2[vs[2]] + "))"
+    ];
+    subs = lv === 0 ? [cand[0], cand[2], cand[4]] : lv === 1 ? [cand[0], cand[1], cand[2], cand[4]] : cand;
+  } else {
+    /* 三角形ABCに辺BC・ABと角B・角Cを書く */
+    shows.sides = [[1, 2], [0, 1]]; shows.angs = [1, 2];
+    subs.push("辺" + side2(1, 2) + "((" + cm(T.a) + "))");
+    subs.push("辺" + side2(0, 1) + "((" + cm(T.c) + "))");
+    subs.push("角" + L2[1] + "((" + angR[1] + "°))");
+    if(lv >= 1) subs.push("角" + L2[2] + "((" + angR[2] + "°))");
+    if(lv === 2) subs.push("角" + L2[0] + "((" + (180 - angR[1] - angR[2]) + "°))");
+    subs = shuffle(subs);
+  }
+  const fw = 90, fh = 44;
+  const draw = (G, x, y, w, h, fs, ans) => {
+    const s = Math.min(fitScale(T.pts, w / 2 - 2, h, 6), fitScale(t2, w / 2 - 2, h, 6));
+    const f1 = fitPts(T.pts, x, y, w / 2, h, 6, s), f2 = fitPts(t2, x + w / 2, y, w / 2, h, 6, s);
+    for(const [f, names] of [[f1, N1], [f2, L2]]){
+      G.poly(f.pts, {fill:SHADE, w:0.4});
+      const cen = centroid(f.pts);
+      f.pts.forEach((p, i) => vLabel(G, p, cen, names[i], fs));
+    }
+    const P = f1.pts, cen = centroid(P);
+    for(const [i, j] of shows.sides) sideLabel(G, P[i], P[j], cm(sideLen(i, j)), cen, fs);
+    for(const i of shows.angs) angleMark(G, P[i], P[(i + 1) % 3], P[(i + 2) % 3], angR[i] + "°", fs);
+  };
+  const inst = kind === "corr" ? "下の2つの三角形は合同です。対応するちょう点，辺，角を答えましょう。" : "下の2つの三角形は合同です。つぎの辺の長さや角の大きさを答えましょう。";
+  return setItem(fw, fh, draw, subs, {inst, lead:"合同な三角形"});
+}
+
+/* 面積の図 */
+function genArea(kind, lv){
+  let pts, S, dims = [], hLine = null, ext = null, diag = null, extraSide = null;
+  const dec = lv === 1 && kind !== "rhombus" ? R() < 0.5 : false;
+  const v = (lo, hi) => dec ? rdec(lo * 10, hi * 10, 1) : String(ri(lo, hi));
+  if(kind === "para"){
+    let b = v(4, 9), h = v(3, 6); const bn = +b, hn = +h;
+    let s = lv === 2 ? bn + ri(1, 3) : ri(1, Math.max(1, Math.floor(bn / 2)));
+    if(lv === 1 && !dec){ const tr = pick([[3, 4, 5], [6, 8, 10], [5, 12, 13]]); s = tr[0] > bn - 1 ? 2 : tr[0]; }
+    pts = [[s, 0], [s + bn, 0], [bn, hn], [0, hn]];
+    S = dmul(b, h);
+    dims = [[3, 2, cm(b)]]; hLine = [[s, 0], [s, hn], cm(h)];
+    if(lv === 2) ext = [[bn, hn], [s, hn]];
+    if(lv === 1 && !dec){ const sl = Math.round(Math.hypot(s, hn) * 10) / 10; extraSide = [[0, 3], ds(Math.round(sl * 10), 1)]; }
+  } else if(kind === "tri"){
+    const b = v(4, 10), h = v(3, 8), bn = +b, hn = +h;
+    const s = lv === 2 ? bn + ri(1, 3) : ri(1, Math.max(1, Math.floor(bn) - 1));
+    pts = [[s, 0], [bn, hn], [0, hn]];
+    S = ds(dparse(dmul(b, h))[0] * 5, dparse(dmul(b, h))[1] + 1);
+    dims = [[1, 2, cm(b)]]; hLine = [[s, 0], [s, hn], cm(h)];
+    if(lv === 2) ext = [[bn, hn], [s, hn]];
+  } else if(kind === "trap"){
+    const a = v(2, 6), b = v(+a + 2, 11), h = v(3, 6), an = +a, bn = +b, hn = +h;
+    const s = lv === 2 ? 0 : ri(0, Math.max(0, Math.floor(bn - an)));
+    pts = [[s, 0], [s + an, 0], [bn, hn], [0, hn]];
+    const pr = dparse(dmul(dadd(a, b), h)); S = ds(pr[0] * 5, pr[1] + 1);
+    dims = [[0, 1, cm(a)], [3, 2, cm(b)]];
+    hLine = s === 0 ? [[0, 0], [0, hn], cm(h), true] : [[s, 0], [s, hn], cm(h)];
+  } else {
+    const p = String(ri(4, 10)), q = String(ri(3, 8)), pn = +p, qn = +q;
+    const cx = lv === 2 ? pn * (0.25 + R() * 0.15) : pn / 2;
+    pts = lv === 2 ? [[0, qn / 2], [cx, 0], [pn, qn / 2], [cx, qn]] : [[0, qn / 2], [pn / 2, 0], [pn, qn / 2], [pn / 2, qn]];
+    S = ds(pn * qn * 5, 1);
+    diag = [[[0, qn / 2], [pn, qn / 2], cm(p)], [[cx, 0], [cx, qn], cm(q)]];
+  }
+  const draw = (G, x, y, w, h, fs, ans) => {
+    const all = pts.concat(ext ? [ext[1]] : []);
+    const f = fitPts(all, x, y, w, h, 6.5), s = f.s;
+    const T = p => [f.pts[0][0] + (p[0] - pts[0][0]) * s, f.pts[0][1] + (p[1] - pts[0][1]) * s];
+    const P = pts.map(T), cen = centroid(P);
+    G.poly(P, {w:0.4});
+    if(ext) G.line(...T(ext[0]), ...T(ext[1]), {w:0.3, dash:[1, 0.8]});
+    for(const [i, j, lab] of dims) sideLabel(G, P[i], P[j], lab, cen, fs);
+    if(extraSide) sideLabel(G, P[extraSide[0][0]], P[extraSide[0][1]], cm(extraSide[1]), cen, fs);
+    if(hLine){
+      const a = T(hLine[0]), b = T(hLine[1]);
+      if(!hLine[3]) G.line(...a, ...b, {w:0.3, dash:[1, 0.8]});
+      const q = 0.5 * fs, dir = ext ? -1 : 1;
+      G.poly([[b[0] + dir * q, b[1]], [b[0] + dir * q, b[1] - q], [b[0], b[1] - q]], {close:false, w:0.25});
+      const toks = parseMk(hLine[2]), lm = lineMetrics(G, toks, fs * 0.85);
+      const lx = a[0] > cen[0] + 0.5 && !ext ? a[0] - lm.w - 0.45 * fs : a[0] + 0.45 * fs;
+      drawToks(G, toks, hLine[3] ? a[0] - lm.w - 0.6 * fs : lx, (a[1] + b[1]) / 2, fs * 0.85, false);
+    }
+    if(diag){
+      for(const [p1, p2, lab] of diag){
+        const a = T(p1), b = T(p2); G.line(...a, ...b, {w:0.3, dash:[1, 0.8]});
+      }
+      const c = T([diag[1][0][0], diag[0][0][1]]);
+      G.poly([[c[0] + 0.5 * fs, c[1]], [c[0] + 0.5 * fs, c[1] - 0.5 * fs], [c[0], c[1] - 0.5 * fs]], {close:false, w:0.25});
+      const l1 = parseMk(diag[0][2]), l2 = parseMk(diag[1][2]);
+      const a0 = T(diag[0][0]), a1 = T(diag[0][1]);
+      drawToks(G, l1, (a0[0] + a1[0]) / 2 + (lv === 2 ? 2.5 * fs : 1.2 * fs), a0[1] + 0.8 * fs, fs * 0.85, false);
+      const b0 = T(diag[1][0]);
+      drawToks(G, l2, b0[0] + 0.6 * fs, b0[1] + 1.4 * fs, fs * 0.85, false);
+    }
+  };
+  const name = {para:"平行四辺形", tri:"三角形", trap:"台形", rhombus:lv === 2 ? "四角形" : "ひし形"}[kind];
+  return figItem(FIGW + 4, FIGH, draw, "((" + S + "cm^2))", {inst:"つぎの図形の面積を求めましょう。", lead:name + "の面積"});
+}
+
+/* 円周 */
+function genCircle(lv){
+  const d = ri(2, 12) * (lv === 1 ? 2 : 1);
+  const draw = (G, x, y, w, h, fs, ans) => {
+    const r = Math.min(w, h) / 2 - 3, cx = x + w / 2, cy = y + h / 2 + (lv === 2 ? r / 2 : 0);
+    if(lv === 2){
+      G.arc(cx, cy, r, Math.PI, 2 * Math.PI, {w:0.4}); G.line(cx - r, cy, cx + r, cy, {w:0.4});
+      drawToks(G, parseMk(cm(d)), cx - G.width(cm(d), fs * 0.85) / 2, cy + 0.9 * fs, fs * 0.85, false);
+      return;
+    }
+    G.arc(cx, cy, r, 0, 2 * Math.PI, {w:0.4}); G.dot(cx, cy, 0.35);
+    if(lv === 0){ G.line(cx - r, cy, cx + r, cy, {w:0.3}); G.text(cm(d), cx + r / 2, cy - 0.8 * fs, {size:fs * 0.85, align:"center"}); }
+    else { G.line(cx, cy, cx + r * 0.8, cy - r * 0.6, {w:0.3}); G.text(cm(d / 2), cx + r * 0.1, cy - r * 0.55, {size:fs * 0.85, align:"center"}); }
+  };
+  const c = dmul(String(d), "3.14");
+  const ansV = lv === 2 ? ds(d * 157 + d * 100, 2) : c;
+  return figItem(FIGW - 8, FIGH, draw, (lv === 2 ? "まわりの長さ" : "円周") + "((" + cm(ansV) + "))",
+    {inst:lv === 2 ? "つぎの図形のまわりの長さを求めましょう。円周率は3.14とします。" : "つぎの円の円周の長さを求めましょう。円周率は3.14とします。", lead:lv === 2 ? "半円のまわりの長さ" : "円周"});
+}
+
+/* 直方体・立方体・L字の立体 */
+function proj(p){ return [p[0] + p[2] * 0.42, -p[1] - p[2] * 0.3]; }
+function genBox(lv, lshape){
+  let W, H, D, V, h1, w2, unitS = "cm";
+  if(lshape){
+    W = ri(6, 10); H = ri(5, 8); D = ri(3, 6); h1 = ri(2, H - 2); w2 = ri(2, W - 3);
+    V = w2 * H * D + (W - w2) * h1 * D;
+  } else if(lv === 0 && R() < 0.4){ W = H = D = ri(3, 9); V = W * W * W; }
+  else if(lv === 2){ unitS = "m"; W = rdec(10, 40, 1); H = ri(1, 3); D = ri(2, 5); V = +dmul(dmul(W, String(H)), String(D)); }
+  else { W = ri(4, lv === 1 ? 15 : 9); H = ri(3, lv === 1 ? 12 : 8); D = ri(3, lv === 1 ? 12 : 8); V = W * H * D; }
+  const Wn = +W, Hn = +H, Dn = +D;
+  const draw = (G, x, y, w, h, fs, ans) => {
+    let P3, vis, hid = [], labels;
+    if(lshape){
+      const F = [[0, 0], [Wn, 0], [Wn, h1], [w2, h1], [w2, Hn], [0, Hn]];
+      const f = F.map(p => [p[0], p[1], 0]), b = F.map(p => [p[0], p[1], Dn]);
+      P3 = f.concat(b);
+      vis = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0], [5, 11], [4, 10], [3, 9], [2, 8], [1, 7], [11, 10], [10, 9], [9, 8], [8, 7]];
+      labels = [[0, 1, cm(W)], [0, 5, cm(H)], [1, 2, cm(h1)], [5, 4, cm(w2)], [1, 7, cm(D)]];
+    } else {
+      P3 = [[0, 0, 0], [Wn, 0, 0], [Wn, Hn, 0], [0, Hn, 0], [0, 0, Dn], [Wn, 0, Dn], [Wn, Hn, Dn], [0, Hn, Dn]];
+      vis = [[0, 1], [1, 2], [2, 3], [3, 0], [3, 7], [2, 6], [1, 5], [7, 6], [6, 5]];
+      hid = [[0, 4], [4, 5], [4, 7]];
+      labels = [[0, 1, W + unitS], [1, 5, D + unitS], [1, 2, H + unitS]];
+      if(W === H && H === D && !lshape) labels = [[0, 1, W + unitS]];
+    }
+    const f = fitPts(P3.map(proj), x, y, w, h, 6.5), P = f.pts, cen = centroid(P);
+    for(const [i, j] of hid) G.line(...P[i], ...P[j], {w:0.3, dash:[1, 0.8]});
+    for(const [i, j] of vis) G.line(...P[i], ...P[j], {w:0.4});
+    for(const [i, j, lab] of labels) sideLabel(G, P[i], P[j], lab, cen, fs);
+  };
+  const Vs = typeof V === "number" ? String(V) : V;
+  const lead = lshape ? "いろいろな形の体積" : "体積";
+  return figItem(FIGW + 4, FIGH + 2, draw, "((" + Vs + unitS + "^3))", {inst:"つぎの立体の体積を求めましょう。", lead});
+}
+
+/* 円グラフ・帯グラフ */
+const GRAPH_THEMES = [
+  {t:"5年生のすきなスポーツ", items:["サッカー", "野球", "水泳", "なわとび"], u:"人"},
+  {t:"5年生のすきな給食", items:["カレー", "あげパン", "ラーメン", "サラダ"], u:"人"},
+  {t:"図書室でかりた本の種類", items:["物語", "図かん", "れきし", "まんが"], u:"さつ"},
+  {t:"家でかっている動物", items:["犬", "ねこ", "金魚", "鳥"], u:"人"}
+];
+function makeShares(lv){
+  for(;;){
+    const step = lv === 0 ? 5 : 1;
+    const other = step === 5 ? pick([5, 10]) : ri(4, 9);
+    let rest = 100 - other, vals = [];
+    for(let i = 0; i < 3; i++){ const v = Math.round(ri(12, Math.min(45, rest - 12 * (3 - i))) / step) * step; vals.push(v); rest -= v; }
+    vals.push(rest);
+    if(vals.some(v => v < 12)) continue;
+    vals.sort((a, b) => b - a);
+    if(new Set(vals).size < 4) continue;
+    return vals.concat([other]);
+  }
+}
+function genGraph(kind, lv){
+  const th = pick(GRAPH_THEMES), names = shuffle(th.items), vals = makeShares(lv);
+  const lab = names.concat(["その他"]);
+  const subs = [];
+  const i1 = ri(0, 3); subs.push(lab[i1] + "のわり合は何%ですか。((" + vals[i1] + "%))");
+  let i2; do{ i2 = ri(0, 3); } while(i2 === i1);
+  subs.push(lab[i2] + "のわり合は何%ですか。((" + vals[i2] + "%))");
+  if(lv >= 1){
+    const pairs = []; for(let a = 0; a < 4; a++) for(let b = 0; b < 4; b++) if(a !== b && vals[a] > vals[b] && (vals[a] * 10) % vals[b] === 0) pairs.push([a, b]);
+    if(pairs.length){ const [a, b] = pick(pairs); subs.push(lab[a] + "は，" + lab[b] + "の何倍ですか。((" + ds(vals[a] * 10 / vals[b], 1) + "倍))"); }
+  }
+  if(lv === 2){ const tot = pick([200, 300, 400, 500]), i3 = ri(0, 3); subs.push("全体が" + tot + th.u + "のとき，" + lab[i3] + "は何" + th.u + "ですか。((" + tot * vals[i3] / 100 + th.u + "))"); }
+  const text = "下の" + (kind === "pie" ? "円グラフ" : "帯グラフ") + "は，" + th.t + "を調べて，わり合を表したものです。";
+  if(kind === "pie"){
+    const draw = (G, x, y, w, h, fs) => {
+      const r = Math.min(w, h) / 2 - 3.5, cx = x + w / 2, cy = y + h / 2;
+      let a = -Math.PI / 2;
+      vals.forEach((v, i) => {
+        const a1 = a + v / 100 * 2 * Math.PI;
+        G.arc(cx, cy, r, a, a1, {fill:i % 2 ? "#ffffff" : "#eeeeee", stroke:false});
+        G.line(cx, cy, cx + r * Math.cos(a), cy + r * Math.sin(a), {w:0.35});
+        const am = (a + a1) / 2, lr = v < 10 ? r * 0.78 : r * 0.6;
+        G.text(lab[i], cx + lr * Math.cos(am), cy + lr * Math.sin(am), {size:fs * (v < 10 ? 0.55 : 0.68), align:"center"});
+        a = a1;
+      });
+      G.arc(cx, cy, r, 0, 2 * Math.PI, {w:0.4});
+      for(let t = 0; t < 100; t++){
+        const ang = -Math.PI / 2 + t / 100 * 2 * Math.PI, l = t % 10 === 0 ? 1.6 : t % 5 === 0 ? 1.1 : 0.6;
+        G.line(cx + r * Math.cos(ang), cy + r * Math.sin(ang), cx + (r + l) * Math.cos(ang), cy + (r + l) * Math.sin(ang), {w:0.15});
+        if(t % 10 === 0) G.text(String(t), cx + (r + 2.9) * Math.cos(ang), cy + (r + 2.9) * Math.sin(ang), {size:fs * 0.45, align:"center"});
+      }
+    };
+    return setItem(58, 58, draw, subs, {inst:"つぎの問題に答えましょう。", lead:"円グラフ", text});
+  }
+  const draw = (G, x, y, w, h, fs) => {
+    const bx = x + 2, bw = w - 4, by = y + 2, bh = 9;
+    let cx = bx;
+    vals.forEach((v, i) => {
+      const ww = bw * v / 100;
+      G.rect(cx, by, ww, bh, {w:0.35, fill:i % 2 ? "#ffffff" : "#eeeeee"});
+      G.text(lab[i], cx + ww / 2, by + bh / 2, {size:fs * (v < 10 ? 0.5 : 0.68), align:"center"});
+      cx += ww;
+    });
+    for(let t = 0; t <= 100; t++){
+      const tx = bx + bw * t / 100, l = t % 10 === 0 ? 2 : t % 5 === 0 ? 1.3 : 0.7;
+      G.line(tx, by + bh, tx, by + bh + l, {w:0.15});
+      if(t % 10 === 0) G.text(String(t), tx, by + bh + 3.6, {size:fs * 0.5, align:"center"});
+    }
+    G.text("(%)", bx + bw, by + bh + 6.2, {size:fs * 0.5, align:"right"});
+  };
+  return setItem(150, 20, draw, subs, {inst:"つぎの問題に答えましょう。", lead:"帯グラフ", text, stack:true});
+}
+
+/* ================= 5年の単元と問題 ================= */
+const L = (mk, inst, lead, o) => lineItem(mk, Object.assign({inst, lead}, o || {}));
+const W_ = (text, shiki, ans, lead) => wordItem(text, shiki, ans, {inst:"つぎの問題に答えましょう。", lead:lead || "文章題"});
+const K_BOX = "[[ ]]にあう数を書きましょう。";
+const K_CALC = "つぎの計算をしましょう。";
+const K_Q = "つぎの問題に答えましょう。";
+const joinN = a => a.join("，");
+/* 真分数（約分できない） */
+function rfrac(maxD, minD){ for(;;){ const d = ri(minD || 2, maxD), n = ri(1, d - 1); if(gcd(n, d) === 1) return [n, d]; } }
+function divisors(n){ const r = []; for(let i = 1; i <= n; i++) if(n % i === 0) r.push(i); return r; }
+function mixedStr(n, d){ const g = gcd(n, d); n /= g; d /= g; if(d === 1) return String(n); const w = Math.floor(n / d); return w ? MX(w, n % d, d) : F(n, d); }
+
+const U5 = [];
+function unit5(no, name, month, meate, subs){ U5.push({id:"5-" + no, no, name, month, meate, subs}); }
+
+/* 1 小数と整数 */
+unit5(1, "小数と整数", "4月", "小数と整数のしくみを調べよう", [
+  {id:"a", name:"小数のしくみ", gen(lv){
+    if(lv === 0){ const a = ri(1, 9), b = ri(1, 9), c = ri(1, 9); return L(`${a}.${b}${c}は，1を[[${a}]]こ，0.1を[[${b}]]こ，0.01を[[${c}]]こあわせた数です。`, K_BOX, "□にあう数"); }
+    if(lv === 1){ const t = ri(1, 9), a = ri(0, 9), b = ri(1, 9), c = ri(0, 9), e = ri(1, 9); return L(`${t}${a}.${b}${c}${e}は，10を[[${t}]]こ，1を[[${a}]]こ，0.1を[[${b}]]こ，0.01を[[${c}]]こ，0.001を[[${e}]]こあわせた数です。`, K_BOX, "□にあう数"); }
+    const s = pick([2, 3]), n = ri(101, 9999), u = s === 2 ? "0.01" : "0.001";
+    if(n % 10 === 0) return this.gen(lv);
+    return R() < 0.5 ? L(`${u}を[[${n}]]こ集めた数は，${ds(n, s)}です。`, K_BOX, "□にあう数") : L(`${u}を${n}こ集めた数は，[[${ds(n, s)}]]です。`, K_BOX, "□にあう数");
+  }},
+  {id:"b", name:"10倍・100倍・1000倍", gen(lv){
+    const m = lv === 0 ? pick([10, 100]) : pick([100, 1000]);
+    const x = lv === 0 ? rdec(11, 999, 2) : rdec(1, 99, pick([2, 3]));
+    if(lv === 2) return L(`[[${x}]]を${m}倍すると，${dmul(x, m)}になります。`, K_BOX, "□にあう数");
+    return L(`${x}を${m}倍した数((${dmul(x, m)}))`, "つぎの数を書きましょう。", "つぎの数");
+  }},
+  {id:"c", name:"10分の1・100分の1", gen(lv){
+    const m = lv === 0 ? pick([10, 100]) : pick([100, 1000]), k = String(m).length - 1;
+    const x = lv === 0 ? rdec(11, 9999, pick([0, 1])) : rdec(11, 999, pick([1, 2]));
+    const [xi, s] = dparse(x), y = ds(xi, s + k);
+    if(lv === 2) return L(`[[${x}]]の${F(1, m)}は，${y}です。`, K_BOX, "□にあう数");
+    return L(`${x}の${F(1, m)}の数((${y}))`, "つぎの数を書きましょう。", "つぎの数");
+  }}
+]);
+
+/* 2 合同な図形 */
+unit5(2, "合同な図形", "4月", "合同な図形の対応する辺や角を調べよう", [
+  {id:"a", name:"対応するちょう点・辺・角", gen(lv){ return genCongruent(lv, "corr"); }},
+  {id:"b", name:"辺の長さと角の大きさ", gen(lv){ return genCongruent(lv, "len"); }}
+]);
+
+/* 3 比例 */
+const PROP_SIT = [
+  k => ({t:`1mのねだんが${k}円のリボンを買います。買う長さ□mと代金○円`, a:"長さ□(m)", b:"代金○(円)", k}),
+  k => ({t:`1さつ${k}円のノートを買います。買うさつ数□さつと代金○円`, a:"さつ数□(さつ)", b:"代金○(円)", k}),
+  k => ({t:`水そうに，1分間に${k}Lずつ水を入れます。水を入れる時間□分と，たまった水の量○L`, a:"時間□(分)", b:"水の量○(L)", k:k}),
+  k => ({t:`たての長さが${k}cmの長方形があります。横の長さ□cmと面積○cm^2`, a:"横の長さ□(cm)", b:"面積○(cm^2)", k})
+];
+unit5(3, "比例", "5月", "ともなって変わる2つの量の関係を調べよう", [
+  {id:"a", name:"比例の表をかんせいさせる", gen(lv){
+    const si = pick([0, 1, 2, 3]), k = si === 0 ? pick([60, 80, 120, 150]) : si === 1 ? pick([90, 120, 150, 160]) : si === 2 ? ri(2, 9) : ri(3, 9);
+    const S = PROP_SIT[si](k), xs = lv === 2 ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6];
+    const giv = lv === 0 ? [0, 1] : lv === 1 ? [pick([1, 2])] : [2];
+    const rowA = [S.a].concat(xs.map((x, i) => lv === 2 && (i === 4) ? `[[${x}]]` : String(x)));
+    const rowB = [S.b].concat(xs.map((x, i) => giv.includes(i) || (lv === 2 && i === 4) ? String(x * k) : `[[${x * k}]]`));
+    return tableItem(S.t + "の関係を表にしました。", [rowA, rowB], ["○は□に比例しています。"], {inst:"表のあいているところに，あてはまる数を書きましょう。", lead:"比例の表"});
+  }},
+  {id:"b", name:"比例しているかどうか", gen(lv){
+    const list = [
+      {t:"正方形の1辺の長さ□cmと，まわりの長さ○cm", f:x => 4 * x, y:true},
+      {t:"1本60円のえんぴつを買うときの，本数□本と代金○円", f:x => 60 * x, y:true},
+      {t:"分速80mで歩くときの，歩いた時間□分と道のり○m", f:x => 80 * x, y:true},
+      {t:"正方形の1辺の長さ□cmと，面積○cm^2", f:x => x * x, y:false},
+      {t:"20cmのろうそくの，もえた長さ□cmと，残りの長さ○cm", f:x => 20 - x, y:false},
+      {t:"兄は弟より3才年上です。弟の年れい□才と，兄の年れい○才", f:x => x + 3, y:false},
+      {t:"まわりの長さが20cmの長方形の，たての長さ□cmと横の長さ○cm", f:x => 10 - x, y:false}
+    ];
+    const S = pick(list);
+    return tableItem(S.t + "の関係を表にしました。", [["□"].concat([1, 2, 3, 4, 5].map(String)), ["○"].concat([1, 2, 3, 4, 5].map(x => String(S.f(x))))],
+      ["○は□に比例していますか。((" + (S.y ? "比例している" : "比例していない") + "))"], {inst:K_Q, lead:"比例しているか"});
+  }}
+]);
+
+/* 4 平均 */
+unit5(4, "平均", "5月", "平均を使って，ならした大きさを考えよう", [
+  {id:"a", name:"平均を求める", gen(lv){
+    const u = pick(["g", "cm", "点", "こ"]);
+    for(;;){
+      const n = pick([4, 5]);
+      let vals;
+      if(lv === 2){ vals = Array.from({length:n}, () => rdec(10, 99, 1)); const sm = vals.reduce((a, v) => dadd(a, v), "0"); const av = ddiv(sm, n); if(av && dparse(av)[1] <= 2) return L(`${joinN(vals.map(v => v + (u === "こ" ? "kg" : u === "点" ? "m" : u)))}の平均((${av}${u === "こ" ? "kg" : u === "点" ? "m" : u}))`, "つぎの平均を求めましょう。", "平均"); continue; }
+      const base = u === "g" ? ri(50, 70) : u === "cm" ? ri(120, 150) : u === "点" ? ri(60, 90) : ri(3, 12);
+      vals = Array.from({length:n}, () => base + ri(-6, 6)).map(v => Math.max(u === "こ" ? 0 : 1, v));
+      const sum = vals.reduce((a, b) => a + b, 0);
+      if(lv === 0 && sum % n) continue;
+      if(lv === 1 && (sum % n === 0 || (sum * 10) % n)) continue;
+      return L(`${joinN(vals.map(v => v + u))}の平均((${ds(sum * 10 / n, 1)}${u}))`, "つぎの平均を求めましょう。", "平均");
+    }
+  }},
+  {id:"b", name:"平均を使った問題", gen(lv){
+    if(lv === 0){
+      if(R() < 0.5){ const m = ri(52, 64), k = pick([10, 20, 30, 40, 50]); return W_(`1こ平均${m}gのたまごがあります。このたまご${k}こ分の重さは，何gと考えられますか。`, `${m}×${k}＝${m * k}`, `${m * k}g`, "平均"); }
+      const m = ri(60, 90), k = ri(3, 6); return W_(`${k}回のテストの平均点は${m}点でした。${k}回のテストの合計は何点ですか。`, `${m}×${k}＝${m * k}`, `${m * k}点`, "平均");
+    }
+    if(lv === 1){
+      for(;;){ const v = [ri(58, 68), ri(58, 68), ri(58, 68)], s = v[0] + v[1] + v[2]; if(s % 3) continue; const av = ds(s / 3, 1);
+        return W_(`10歩の長さを3回はかったら，${ds(v[0], 1)}m，${ds(v[1], 1)}m，${ds(v[2], 1)}mでした。この人の歩はばは，約何mですか。`, [`（${ds(v[0], 1)}＋${ds(v[1], 1)}＋${ds(v[2], 1)}）÷3＝${av}`, `${av}÷10＝${ds(s / 3, 2)}`], `約${ds(s / 3, 2)}m`, "平均"); }
+    }
+    for(;;){ const k = ri(3, 5), m = ri(70, 85), m2 = m + ri(1, 3), x = m2 * (k + 1) - m * k; if(x > 100) continue;
+      return W_(`${k}回のテストの平均点は${m}点でした。${k + 1}回目のテストで何点をとれば，${k + 1}回の平均点が${m2}点になりますか。`, [`${m2}×${k + 1}＝${m2 * (k + 1)}`, `${m}×${k}＝${m * k}`, `${m2 * (k + 1)}－${m * k}＝${x}`], `${x}点`, "平均"); }
+  }}
+]);
+
+/* 5 倍数と約数 */
+unit5(5, "倍数と約数", "5月", "倍数や約数の見つけ方を考えよう", [
+  {id:"a", name:"ぐう数とき数", gen(lv){
+    const hi = lv === 0 ? 30 : lv === 1 ? 200 : 999;
+    const set = new Set(); while(set.size < 6) set.add(ri(lv === 2 ? 0 : 1, hi));
+    const nums = shuffle([...set]), ev = nums.filter(v => v % 2 === 0).sort((a, b) => a - b), od = nums.filter(v => v % 2).sort((a, b) => a - b);
+    if(!ev.length || !od.length) return this.gen(lv);
+    return L(`〔 ${joinN(nums)} 〕\nぐう数((${joinN(ev)}))　き数((${joinN(od)}))`, "つぎの数を，ぐう数とき数に分けましょう。", "ぐう数とき数");
+  }},
+  {id:"b", name:"倍数", gen(lv){
+    const a = ri(3, 9);
+    if(lv === 0) return L(`${a}の倍数を，小さい順に3つ((${joinN([a, 2 * a, 3 * a])}))`, K_Q, "倍数");
+    if(lv === 1){ const lo = ri(2, 5) * 10, hi = lo + 30, r = []; for(let v = lo; v <= hi; v++) if(v % a === 0) r.push(v); return L(`${lo}から${hi}までの整数で，${a}の倍数を全部((${joinN(r)}))`, K_Q, "倍数"); }
+    const N = ri(5, 20) * 10; return L(`1から${N}までの整数で，${a}の倍数は何こありますか。((${Math.floor(N / a)}こ))`, K_Q, "倍数");
+  }},
+  {id:"c", name:"公倍数・最小公倍数", gen(lv){
+    let a, b; do{ a = ri(2, 12); b = ri(2, 15); } while(a === b || a % b === 0 || b % a === 0 || lcm(a, b) > 60);
+    if(lv === 0) return L(`（${a}，${b}）の最小公倍数((${lcm(a, b)}))`, K_Q, "最小公倍数");
+    if(lv === 1){ const l = lcm(a, b); return L(`（${a}，${b}）の公倍数を，小さい順に3つ((${joinN([l, 2 * l, 3 * l])}))`, K_Q, "公倍数"); }
+    let c; do{ c = ri(2, 10); } while(c === a || c === b || lcm(lcm(a, b), c) > 120);
+    return L(`（${a}，${b}，${c}）の最小公倍数((${lcm(lcm(a, b), c)}))`, K_Q, "最小公倍数");
+  }},
+  {id:"d", name:"約数", gen(lv){
+    let n; do{ n = lv === 0 ? ri(8, 30) : lv === 1 ? ri(24, 60) : ri(48, 100); } while(divisors(n).length < 4);
+    return L(`${n}の約数を全部((${joinN(divisors(n))}))`, K_Q, "約数");
+  }},
+  {id:"e", name:"公約数・最大公約数", gen(lv){
+    let a, b; do{ const g = ri(2, 12); a = g * ri(1, 6); b = g * ri(1, 7); } while(a === b || gcd(a, b) < 2 || a < 8 || b < 8 || a > 96 || b > 96);
+    if(lv === 0) return L(`（${a}，${b}）の最大公約数((${gcd(a, b)}))`, K_Q, "最大公約数");
+    if(lv === 1) return L(`（${a}，${b}）の公約数を全部((${joinN(divisors(gcd(a, b)))}))`, K_Q, "公約数");
+    const g = gcd(a, b), c = g * ri(2, 8); if(c === a || c === b) return this.gen(lv);
+    return L(`（${a}，${b}，${c}）の最大公約数((${gcd(g, c)}))`, K_Q, "最大公約数");
+  }}
+]);
+
+/* 6 単位量あたりの大きさ（１） */
+unit5(6, "単位量あたりの大きさ（１）", "6月", "こみぐあいなどを，単位量あたりの大きさで比べよう", [
+  {id:"a", name:"こみぐあい", gen(lv){
+    const areas = [8, 10, 16, 20, 25, 40, 50];
+    for(;;){
+      const a1 = pick(areas), a2 = pick(areas), p1 = ri(5, 30), p2 = ri(5, 30);
+      if(a1 === a2) continue;
+      if(lv === 2){
+        const ok = [2, 4, 5, 8, 10, 16, 20, 25]; if(!ok.includes(p1) || !ok.includes(p2)) continue;
+        const d1 = ddiv(a1, p1), d2 = ddiv(a2, p2); if(!d1 || !d2 || d1 === d2) continue;
+        return W_(`Aの部屋は${a1}m^2に${p1}人，Bの部屋は${a2}m^2に${p2}人います。1人あたりの面積で比べると，どちらの部屋のほうがこんでいますか。`, [`A　${a1}÷${p1}＝${d1}`, `B　${a2}÷${p2}＝${d2}`], (+d1 < +d2 ? "A" : "B") + "の部屋", "こみぐあい");
+      }
+      const d1 = ddiv(p1, a1), d2 = ddiv(p2, a2); if(!d1 || !d2 || d1 === d2 || dparse(d1)[1] > 3 || dparse(d2)[1] > 3) continue;
+      if(lv === 0) return W_(`Aの部屋は${a1}m^2に${p1}人，Bの部屋は${a2}m^2に${p2}人います。1m^2あたりの人数で比べると，どちらの部屋のほうがこんでいますか。`, [`A　${p1}÷${a1}＝${d1}`, `B　${p2}÷${a2}＝${d2}`], (+d1 > +d2 ? "A" : "B") + "の部屋", "こみぐあい");
+      return W_(`Aの畑は${a1}m^2で${p1}kgのいもがとれ，Bの畑は${a2}m^2で${p2}kgのいもがとれました。1m^2あたりでよくとれたのは，どちらの畑ですか。`, [`A　${p1}÷${a1}＝${d1}`, `B　${p2}÷${a2}＝${d2}`], (+d1 > +d2 ? "A" : "B") + "の畑", "こみぐあい");
+    }
+  }},
+  {id:"b", name:"人口みつ度", gen(lv){
+    const a = pick([20, 25, 40, 50, 80, 125]);
+    if(lv === 0){ const d = ri(12, 90) * 10, pop = d * a; return W_(`面積が${a}km^2で，人口が${pop}人の町があります。この町の人口みつ度を求めましょう。`, `${pop}÷${a}＝${d}`, `${d}人`, "人口みつ度"); }
+    if(lv === 1){ const ar = ri(12, 48), pop = ri(4000, 30000); const q = pop / ar, rd = Math.round(q); if(Number.isInteger(q)) return this.gen(lv);
+      return W_(`面積が${ar}km^2で，人口が${pop}人の市があります。この市の人口みつ度を，四しゃ五入して整数で求めましょう。`, `${pop}÷${ar}＝${q.toFixed(2).replace(/0+$/, "")}…`, `約${rd}人`, "人口みつ度"); }
+    const a2 = pick([20, 25, 40, 50].filter(v => v !== a)), d1 = ri(20, 80) * 10, d2 = d1 + pick([-1, 1]) * ri(2, 8) * 10;
+    return W_(`A町は面積が${a}km^2で人口が${d1 * a}人，B町は面積が${a2}km^2で人口が${d2 * a2}人です。人口みつ度が高いのは，どちらの町ですか。`, [`A　${d1 * a}÷${a}＝${d1}`, `B　${d2 * a2}÷${a2}＝${d2}`], d1 > d2 ? "A町" : "B町", "人口みつ度");
+  }},
+  {id:"c", name:"単位量あたりの大きさを使う", gen(lv){
+    const k = rdec(2, 9, 1), a = ri(4, 30);
+    if(lv === 0) return W_(`1m^2あたり${k}kgのひ料をまきます。${a}m^2の畑にまくには，ひ料は何kgいりますか。`, `${k}×${a}＝${dmul(k, a)}`, `${dmul(k, a)}kg`, "単位量あたり");
+    if(lv === 1) return W_(`1m^2あたり${k}kgのひ料をまきます。${dmul(k, a)}kgのひ料では，何m^2の畑にまけますか。`, `${dmul(k, a)}÷${k}＝${a}`, `${a}m^2`, "単位量あたり");
+    for(;;){ const n1 = ri(3, 8), n2 = ri(3, 8), u1 = ri(6, 15) * 10, u2 = ri(6, 15) * 10; if(n1 === n2 || u1 === u2) continue;
+      return W_(`${n1}本で${n1 * u1}円のえんぴつAと，${n2}本で${n2 * u2}円のえんぴつBがあります。1本あたりのねだんが安いのは，どちらですか。`, [`A　${n1 * u1}÷${n1}＝${u1}`, `B　${n2 * u2}÷${n2}＝${u2}`], u1 < u2 ? "えんぴつA" : "えんぴつB", "単位量あたり"); }
+  }}
+]);
+
+/* 7 小数のかけ算 */
+unit5(7, "小数のかけ算", "6月", "小数をかける計算のしかたを考えよう", [
+  {id:"a", name:"整数×小数（筆算）", gen(lv){
+    const a = String(lv === 1 ? ri(102, 999) : ri(12, 98)), b = lv === 2 ? rdec(11, 399, 2) : rdec(11, 99, 1);
+    return hissanMulItem(a, b);
+  }},
+  {id:"b", name:"小数×小数（筆算）", gen(lv){
+    if(lv === 0) return hissanMulItem(rdec(11, 99, 1), rdec(11, 99, 1));
+    if(lv === 1) return hissanMulItem(rdec(101, 999, 2), rdec(11, 99, 1));
+    return R() < 0.5 ? hissanMulItem(rdec(11, 99, 2), rdec(1, 9, 1)) : hissanMulItem(pick(["2.5", "1.5", "3.5", "4.5", "7.5"]), pick(["3.6", "2.4", "4.8", "1.6", "5.2"]));
+  }},
+  {id:"c", name:"小数のかけ算（暗算）", gen(lv){
+    let a, b;
+    if(lv === 0){ a = "0." + ri(2, 9); b = String(ri(2, 9)); }
+    else if(lv === 1){ a = "0." + ri(2, 9); b = "0." + ri(2, 9); }
+    else { a = pick(["0.0" + ri(2, 9), "1." + ri(1, 9), "0." + ri(2, 9)]); b = pick(["0." + ri(2, 9), String(ri(2, 9) * 10), "0.0" + ri(2, 9)]); }
+    return L(`${a}×${b}＝<<${dmul(a, b)}>>`, K_CALC, "計算");
+  }},
+  {id:"d", name:"計算のきまり", gen(lv){
+    if(lv === 0){ const [p, q] = pick([["2.5", "4"], ["0.25", "4"], ["1.25", "8"], ["0.5", "2"]]); const x = rdec(11, 99, 1); return L(`${p}×${x}×${q}＝<<${dmul(dmul(p, q), x)}>>`, "くふうして計算しましょう。", "くふうして"); }
+    if(lv === 1){ const x = rdec(11, 99, 1), a = rdec(11, 89, 1), b = dadd("10", a, -1); return L(`${x}×${a}＋${x}×${b}＝<<${dmul(x, 10)}>>`, "くふうして計算しましょう。", "くふうして"); }
+    const x = String(ri(12, 48)), c = pick(["9.9", "10.1", "4.9", "5.1"]); return L(`${x}×${c}＝<<${dmul(x, c)}>>`, "くふうして計算しましょう。", "くふうして");
+  }},
+  {id:"e", name:"文章題", gen(lv){
+    if(lv === 0){ for(;;){ const p = pick([80, 120, 150, 250, 60, 90]), x = rdec(12, 49, 1), c = dmul(p, x); if(c.includes(".")) continue; return W_(`1mのねだんが${p}円のリボンを${x}m買います。代金は何円ですか。`, `${p}×${x}＝${c}`, `${c}円`, "かけ算"); } }
+    if(lv === 1){ if(R() < 0.5){ const k = rdec(11, 29, 1), x = rdec(12, 49, 1); return W_(`1dLで${k}m^2のかべをぬれるペンキがあります。このペンキ${x}dLでは，何m^2ぬれますか。`, `${k}×${x}＝${dmul(k, x)}`, `${dmul(k, x)}m^2`, "かけ算"); }
+      const a = rdec(12, 49, 1), b = rdec(12, 49, 1); return W_(`たて${a}m，横${b}mの長方形の花だんがあります。この花だんの面積は何m^2ですか。`, `${a}×${b}＝${dmul(a, b)}`, `${dmul(a, b)}m^2`, "かけ算"); }
+    const w = rdec(11, 39, 1), x = "0." + ri(2, 9); return W_(`1mの重さが${w}kgのぼうがあります。このぼう${x}mの重さは何kgですか。`, `${w}×${x}＝${dmul(w, x)}`, `${dmul(w, x)}kg`, "かけ算");
+  }}
+]);
+
+/* 8 小数のわり算 */
+function divPair(dLo, dHi, dS, qLo, qHi, qS, cond){
+  for(let i = 0; i < 500; i++){
+    const d = rdec(dLo, dHi, dS), q = rdec(qLo, qHi, qS), n = dmul(q, d);
+    if(!cond || cond(n, d, q)) return {n, d, q};
+  }
+  return {n:"7.2", d:"2.4", q:"3"};
+}
+unit5(8, "小数のわり算", "7月", "小数でわる計算のしかたを考えよう", [
+  {id:"a", name:"整数÷小数（筆算）", gen(lv){
+    const P = lv === 0 ? divPair(11, 49, 1, 2, 9, 0, n => !n.includes(".")) : lv === 1 ? divPair(11, 49, 1, 12, 60, 0, n => !n.includes(".")) : divPair(11, 49, 2, 4, 90, 0, n => !n.includes(".") && n.length <= 3);
+    return hissanDivItem(P.n, P.d, "exact");
+  }},
+  {id:"b", name:"小数÷小数（筆算）", gen(lv){
+    const P = lv === 0 ? divPair(11, 49, 1, 2, 9, 0) : lv === 1 ? divPair(11, 49, 1, 12, 99, 1, n => dparse(n)[1] <= 2) : divPair(2, 9, 1, 12, 60, 0);
+    return hissanDivItem(P.n, P.d, "exact");
+  }},
+  {id:"c", name:"わり進むわり算", gen(lv){
+    const P = divPair(2, lv === 0 ? 9 : 49, 1, 11, 99, lv === 2 ? 2 : 1, (n, d, q) => dparse(n)[1] <= dparse(d)[1] && dparse(q)[1] > 0 && dparse(n)[0] > 0);
+    return hissanDivItem(P.n, P.d, "exact");
+  }},
+  {id:"d", name:"商をがい数で求める", gen(lv){
+    for(;;){
+      const d = rdec(11, 89, 1), n = rdec(11, 999, 1), r = lv === 2 ? 2 : 1;
+      const S = divSolve(n, d, "exact");
+      if(S.qDec <= r + 1 && S.rem === 0) continue;
+      if(dparse(n)[0] < dparse(d)[0]) continue;
+      return hissanDivItem(n, d, "round", r);
+    }
+  }},
+  {id:"e", name:"あまりのあるわり算", gen(lv){
+    for(;;){
+      const d = lv === 2 ? "0." + ri(3, 9) : rdec(11, 49, 1), n = rdec(lv === 2 ? 21 : 51, lv === 0 ? 199 : 499, 1);
+      const S = divSolve(n, d, "rem"); if(S.rem === 0 || S.qInt < 2 || S.qInt > 60) continue;
+      return hissanDivItem(n, d, "rem");
+    }
+  }},
+  {id:"f", name:"文章題", gen(lv){
+    if(lv === 0){ for(;;){ const x = rdec(12, 49, 1), u = pick([60, 80, 120, 150, 250]), p = dmul(u, x); if(p.includes(".")) continue; return W_(`${x}mで${p}円のリボンがあります。このリボン1mのねだんは何円ですか。`, `${p}÷${x}＝${u}`, `${u}円`, "わり算"); } }
+    if(lv === 1){ const k = rdec(2, 9, 1), n = ri(6, 30), w = dmul(k, n); return W_(`${w}kgの米を，1ふくろに${k}kgずつ入れます。何ふくろできますか。`, `${w}÷${k}＝${n}`, `${n}ふくろ`, "わり算"); }
+    for(;;){ const k = "0." + ri(2, 4), v = rdec(21, 79, 1), S = divSolve(v, k, "rem"); if(!S.rem) continue; const rem = ds(S.rem, 1);
+      return W_(`${v}Lのジュースを，${k}Lずつコップに分けます。何はいできて，何Lあまりますか。`, `${v}÷${k}＝${S.qInt}あまり${rem}`, `${S.qInt}はいできて，${rem}Lあまる`, "わり算"); }
+  }}
+]);
+
+/* ○倍の計算 小数倍 */
+U5.push({id:"5-x1", no:"○", name:"○倍の計算（小数倍）", month:"7月", meate:"何倍かを小数で表して考えよう", subs:[
+  {id:"a", name:"何倍かを求める", gen(lv){
+    for(;;){
+      const a = lv === 2 ? rdec(12, 60, 1) : String(ri(2, 12)), b = lv === 2 ? rdec(12, 90, 1) : String(ri(2, 30));
+      if(a === b) continue; if(lv === 0 && +b < +a) continue; if(lv === 1 && +b > +a) continue;
+      const q = ddiv(b, a); if(!q || dparse(q)[1] > 2 || !q.includes(".")) continue;
+      return W_(`赤いテープの長さは${a}m，青いテープの長さは${b}mです。青いテープの長さは，赤いテープの長さの何倍ですか。`, `${b}÷${a}＝${q}`, `${q}倍`, "何倍");
+    }
+  }},
+  {id:"b", name:"もとにする量・比べられる量", gen(lv){
+    const k = lv === 2 ? "0." + ri(2, 8) : rdec(12, 39, 1), a = String(ri(2, 20)), b = dmul(a, k);
+    if(lv === 0) return W_(`Aのテープは${a}mです。Bのテープの長さは，Aのテープの長さの${k}倍です。Bのテープは何mですか。`, `${a}×${k}＝${b}`, `${b}m`, "何倍");
+    return W_(`Bのテープは${b}mで，これはAのテープの長さの${k}倍です。Aのテープは何mですか。`, `${b}÷${k}＝${a}`, `${a}m`, "何倍");
+  }}
+]});
+
+/* 9 図形の角 */
+const POLY = ["", "", "", "三角形", "四角形", "五角形", "六角形", "七角形", "八角形", "九角形", "十角形", "", "十二角形"];
+unit5(9, "図形の角", "9月", "三角形や四角形の角の大きさの和を使って考えよう", [
+  {id:"a", name:"三角形の角", gen(lv){ return genTriAngle(lv); }},
+  {id:"b", name:"四角形の角", gen(lv){ return genQuadAngle(lv); }},
+  {id:"c", name:"多角形の角の大きさの和", gen(lv){
+    if(lv === 2){ const n = pick([5, 6, 8, 9, 10, 12]); return L(`正${POLY[n]}の1つの角の大きさ((${180 * (n - 2) / n}°))`, K_Q, "多角形の角"); }
+    const n = lv === 0 ? ri(5, 8) : ri(6, 10); return L(`${POLY[n]}の角の大きさの和((${180 * (n - 2)}°))`, K_Q, "多角形の角");
+  }}
+]);
+
+/* 10 単位量あたりの大きさ（２） */
+unit5(10, "単位量あたりの大きさ（２）", "9月", "速さの比べ方や表し方を考えよう", [
+  {id:"a", name:"速さを求める", gen(lv){
+    if(lv === 0){ const v = ri(4, 9) * 10, t = ri(2, 5); return W_(`${v * t}kmを${t}時間で走る自動車があります。この自動車の時速を求めましょう。`, `${v * t}÷${t}＝${v}`, `時速${v}km`, "速さ"); }
+    if(lv === 1){ if(R() < 0.5){ const v = ri(6, 9) * 10, t = ri(10, 25); return W_(`${v * t}mを${t}分で歩く人がいます。この人の分速を求めましょう。`, `${v * t}÷${t}＝${v}`, `分速${v}m`, "速さ"); }
+      const v = ri(5, 9), t = ri(8, 20); return W_(`${v * t}mを${t}秒で走る人がいます。この人の秒速を求めましょう。`, `${v * t}÷${t}＝${v}`, `秒速${v}m`, "速さ"); }
+    for(;;){ const v1 = ri(5, 8), v2 = ri(5, 8), t1 = ri(10, 20), t2 = ri(10, 20); if(v1 === v2) continue;
+      return W_(`Aさんは${v1 * t1}mを${t1}秒で，Bさんは${v2 * t2}mを${t2}秒で走りました。速いのはどちらですか。`, [`A　${v1 * t1}÷${t1}＝${v1}`, `B　${v2 * t2}÷${t2}＝${v2}`], v1 > v2 ? "Aさん" : "Bさん", "速さ"); }
+  }},
+  {id:"b", name:"道のりを求める", gen(lv){
+    if(lv === 0){ const v = ri(4, 9) * 10, t = ri(2, 6); return W_(`時速${v}kmで走る自動車が，${t}時間に進む道のりは何kmですか。`, `${v}×${t}＝${v * t}`, `${v * t}km`, "道のり"); }
+    if(lv === 1){ const v = ri(4, 9) * 10, t = pick(["1.5", "2.5", "3.5", "0.5"]); return W_(`時速${v}kmで走る自動車が，${t}時間に進む道のりは何kmですか。`, `${v}×${t}＝${dmul(v, t)}`, `${dmul(v, t)}km`, "道のり"); }
+    const v = pick([30, 36, 48, 54, 60, 72]), m = pick([10, 20, 30, 40, 50]); const km = v * m / 60;
+    return W_(`時速${v}kmで走る自動車が，${m}分間に進む道のりは何kmですか。`, [`${m}分＝${F(m / gcd(m, 60), 60 / gcd(m, 60))}時間`, `${v}×${F(m / gcd(m, 60), 60 / gcd(m, 60))}＝${km}`], `${km}km`, "道のり");
+  }},
+  {id:"c", name:"時間を求める", gen(lv){
+    if(lv === 0){ const v = ri(4, 9) * 10, t = ri(2, 6); return W_(`${v * t}kmの道のりを，時速${v}kmで走ると，何時間かかりますか。`, `${v * t}÷${v}＝${t}`, `${t}時間`, "時間"); }
+    if(lv === 1){ const v = ri(4, 8) * 10, t = pick(["1.5", "2.5", "0.5", "3.5"]); return W_(`${dmul(v, t)}kmの道のりを，時速${v}kmで走ると，何時間かかりますか。`, `${dmul(v, t)}÷${v}＝${t}`, `${t}時間`, "時間"); }
+    const v = ri(6, 9) * 10, t = ri(12, 30); return W_(`家から駅まで${v * t}mあります。分速${v}mで歩くと，何分かかりますか。`, `${v * t}÷${v}＝${t}`, `${t}分`, "時間");
+  }},
+  {id:"d", name:"時速・分速・秒速", gen(lv){
+    if(lv === 0){ if(R() < 0.5){ const s = ri(3, 15); return L(`秒速${s}m＝分速[[${s * 60}]]m`, K_BOX, "□にあう数"); } const m = ri(2, 9) * 60; return L(`分速${m}m＝秒速[[${m / 60}]]m`, K_BOX, "□にあう数"); }
+    if(lv === 1){ if(R() < 0.5){ const m = ri(4, 20) * 50; return L(`分速${m}m＝時速[[${ds(m * 60 / 100, 1)}]]km`, K_BOX, "□にあう数"); } const v = ri(2, 12) * 6; return L(`時速${v}km＝分速[[${v * 1000 / 60}]]m`, K_BOX, "□にあう数"); }
+    if(R() < 0.5){ const s = ri(5, 25); return L(`秒速${s}m＝時速[[${dmul(s, "3.6")}]]km`, K_BOX, "□にあう数"); }
+    const v = ri(1, 20) * 18; return L(`時速${v}km＝秒速[[${v / 3.6}]]m`, K_BOX, "□にあう数");
+  }}
+]);
+
+/* 11 分数のたし算とひき算 */
+function fracAddGen(lv, op){
+  for(let t = 0; t < 400; t++){
+    const [a, b] = rfrac(lv === 0 ? 8 : 12), [c, d] = rfrac(lv === 0 ? 8 : 12);
+    if(b === d) continue;
+    const L2 = lcm(b, d); if(L2 > 60) continue;
+    const num = op > 0 ? a * L2 / b + c * L2 / d : a * L2 / b - c * L2 / d;
+    if(num <= 0) continue;
+    const g = gcd(num, L2);
+    if(lv === 0 && (g > 1 || num >= L2)) continue;
+    if(lv === 1 && (g === 1 || num >= L2)) continue;
+    if(lv === 2 && op > 0 && num <= L2) continue;
+    if(lv === 2 && op < 0 && g === 1) continue;
+    return L(`${F(a, b)}${op > 0 ? "＋" : "－"}${F(c, d)}＝<<${fAns(num, L2)}>>`, K_CALC, "計算");
+  }
+  return L(`${F(1, 2)}＋${F(1, 3)}＝<<${F(5, 6)}>>`, K_CALC, "計算");
+}
+unit5(11, "分数のたし算とひき算", "10月", "分母のちがう分数のたし算やひき算のしかたを考えよう", [
+  {id:"a", name:"約分", gen(lv){
+    const [n, d] = rfrac(lv === 0 ? 7 : 12), k = lv === 0 ? ri(2, 5) : ri(4, 12);
+    if(lv === 2){ const w = ri(1, 4); return L(`${MX(w, n * k, d * k)}＝<<${MX(w, n, d)}>>`, "約分しましょう。", "約分"); }
+    return L(`${F(n * k, d * k)}＝<<${F(n, d)}>>`, "約分しましょう。", "約分");
+  }},
+  {id:"b", name:"通分", gen(lv){
+    for(;;){
+      const fr = [rfrac(lv === 0 ? 8 : 12), rfrac(lv === 0 ? 8 : 12)].concat(lv === 2 ? [rfrac(8)] : []);
+      const ds_ = fr.map(f => f[1]); if(new Set(ds_).size < fr.length) continue;
+      const Lc = ds_.reduce(lcm); if(Lc > (lv === 2 ? 48 : 40)) continue;
+      if(lv === 1 && Lc === ds_.reduce((p, q) => p * q, 1)) continue;
+      const q = "（" + fr.map(f => F(f[0], f[1])).join("，") + "）", a = "（" + fr.map(f => F(f[0] * Lc / f[1], Lc)).join("，") + "）";
+      return L(`${q}→<<${a}>>`, "（　）の中の分数を通分しましょう。", "通分");
+    }
+  }},
+  {id:"c", name:"分数の大小", gen(lv){
+    for(;;){
+      const [a, b] = rfrac(12), [c, d] = rfrac(12); if(b === d || a * d === b * c) continue;
+      const sg = a * d > b * c ? "＞" : "＜";
+      if(lv === 2){ const w = ri(1, 3); return L(`${MX(w, a, b)}[[${sg}]]${MX(w, c, d)}`, "[[ ]]に不等号を書きましょう。", "不等号"); }
+      if(lv === 0 && lcm(b, d) > 30) continue;
+      return L(`${F(a, b)}[[${sg}]]${F(c, d)}`, "[[ ]]に不等号を書きましょう。", "不等号");
+    }
+  }},
+  {id:"d", name:"たし算", gen(lv){ return fracAddGen(lv, 1); }},
+  {id:"e", name:"ひき算", gen(lv){ return fracAddGen(lv, -1); }},
+  {id:"f", name:"帯分数のたし算・ひき算", gen(lv){
+    for(let t = 0; t < 400; t++){
+      const op = R() < 0.5 ? 1 : -1, [a, b] = rfrac(10), [c, d] = rfrac(10); if(b === d) continue;
+      const Lc = lcm(b, d); if(Lc > 40) continue;
+      const w1 = ri(1, 4), w2 = ri(1, 3);
+      const x = w1 * Lc + a * Lc / b, y = w2 * Lc + c * Lc / d, r = op > 0 ? x + y : x - y;
+      if(r <= Lc) continue;
+      const fx = a * Lc / b, fy = c * Lc / d, carry = op > 0 ? fx + fy >= Lc : fx < fy;
+      if(lv === 0 && (carry || gcd(r, Lc) > 1)) continue;
+      if(lv === 1 && !carry) continue;
+      if(lv === 2 && (!carry || gcd(r % Lc, Lc) === 1)) continue;
+      return L(`${MX(w1, a, b)}${op > 0 ? "＋" : "－"}${MX(w2, c, d)}＝<<${mixedStr(r, Lc)}>>`, K_CALC, "計算");
+    }
+    return L(`${MX(1, 1, 2)}＋${MX(1, 1, 3)}＝<<${MX(2, 5, 6)}>>`, K_CALC, "計算");
+  }},
+  {id:"g", name:"3つの分数の計算", gen(lv){
+    for(let t = 0; t < 400; t++){
+      const fr = [rfrac(lv === 0 ? 6 : 10), rfrac(lv === 0 ? 6 : 10), rfrac(lv === 0 ? 6 : 10)];
+      const Lc = fr.map(f => f[1]).reduce(lcm); if(Lc > (lv === 2 ? 60 : 36)) continue;
+      const ops = lv === 0 ? [1, 1] : [pick([1, -1]), pick([1, -1])];
+      const v = fr.map(f => f[0] * Lc / f[1]); const r = v[0] + ops[0] * v[1] + ops[1] * v[2];
+      if(r <= 0) continue;
+      const s = F(...fr[0]) + (ops[0] > 0 ? "＋" : "－") + F(...fr[1]) + (ops[1] > 0 ? "＋" : "－") + F(...fr[2]);
+      return L(`${s}＝<<${fAns(r, Lc)}>>`, K_CALC, "計算");
+    }
+    return L(`${F(1, 2)}＋${F(1, 3)}－${F(1, 4)}＝<<${F(7, 12)}>>`, K_CALC, "計算");
+  }}
+]);
+
+/* 12 分数と小数・整数 */
+unit5(12, "分数と小数・整数", "10月", "分数と小数・整数の関係を調べよう", [
+  {id:"a", name:"わり算の商を分数で", gen(lv){
+    for(;;){ const a = ri(1, 15), b = ri(2, 12); if(a === b) continue;
+      if(lv === 0 && (a > b || gcd(a, b) > 1)) continue; if(lv === 1 && (a < b || gcd(a, b) > 1)) continue; if(lv === 2 && gcd(a, b) === 1) continue;
+      if(a % b === 0) continue;
+      return L(`${a}÷${b}＝<<${fAns(a, b)}>>`, "わり算の商を分数で表しましょう。", "商を分数で"); }
+  }},
+  {id:"b", name:"分数を小数で", gen(lv){
+    const d = pick([2, 4, 5, 8, 10, 20, 25]); let n; do{ n = ri(1, d - 1); } while(gcd(n, d) > 1 && d !== 10);
+    if(gcd(n, d) > 1) return this.gen(lv);
+    const dec = ddiv(n, d);
+    if(lv === 2){ const w = ri(1, 3); return L(`${MX(w, n, d)}＝<<${dadd(w, dec)}>>`, "分数を小数で表しましょう。", "小数で"); }
+    if(lv === 0 && ![2, 4, 5, 10].includes(d)) return this.gen(lv);
+    return L(`${F(n, d)}＝<<${dec}>>`, "分数を小数で表しましょう。", "小数で");
+  }},
+  {id:"c", name:"小数・整数を分数で", gen(lv){
+    if(lv === 0){ const x = ri(1, 9); return L(`0.${x}＝<<${F(x / gcd(x, 10), 10 / gcd(x, 10))}>>`, "小数や整数を分数で表しましょう。", "分数で"); }
+    if(lv === 1){ const x = pick([ri(11, 99), ri(101, 299)]); if(x % 10 === 0) return this.gen(lv); return L(`${ds(x, 2)}＝<<${fAns(x, 100)}>>`, "小数や整数を分数で表しましょう。", "分数で"); }
+    const n = ri(2, 9), d = ri(2, 9); return L(`${n}を，分母が${d}の分数で表しましょう。((${F(n * d, d)}))`, "小数や整数を分数で表しましょう。", "分数で");
+  }},
+  {id:"d", name:"分数倍", gen(lv){
+    for(;;){ const a = ri(2, 12), b = ri(2, 15); if(a === b || b % a === 0 || (b * 10) % a === 0 && lv === 0) continue;
+      if(lv === 1 && b > a) continue;
+      return W_(`赤いリボンは${a}m，白いリボンは${b}mです。白いリボンの長さは，赤いリボンの長さの何倍ですか。分数で答えましょう。`, `${b}÷${a}＝${fAns(b, a)}`, `${fAns(b, a)}倍`, "分数倍"); }
+  }},
+  {id:"e", name:"分数と小数の大小", gen(lv){
+    for(;;){ const [n, d] = rfrac(9, 3), x = "0." + ri(1, 9); const xv = +x; if(Math.abs(xv - n / d) < 1e-9) continue;
+      const sg = xv > n / d ? "＞" : "＜";
+      if(lv === 2){ const w = ri(1, 2); return L(`${w}${x.slice(1)}[[${sg}]]${MX(w, n, d)}`, "[[ ]]に不等号を書きましょう。", "不等号"); }
+      return R() < 0.5 ? L(`${x}[[${sg}]]${F(n, d)}`, "[[ ]]に不等号を書きましょう。", "不等号") : L(`${F(n, d)}[[${sg === "＞" ? "＜" : "＞"}]]${x}`, "[[ ]]に不等号を書きましょう。", "不等号"); }
+  }}
+]);
+
+/* 13 割合（１） */
+unit5(13, "割合（１）", "11月", "わり合の意味を知って，わり合を求めよう", [
+  {id:"a", name:"わり合を求める", gen(lv){
+    for(;;){
+      if(lv === 0){ const b = pick([20, 25, 40, 50]), a = ri(5, b - 1), q = ddiv(a, b); return W_(`定員が${b}人のバスに，${a}人が乗っています。定員をもとにした，乗っている人数のわり合を求めましょう。`, `${a}÷${b}＝${q}`, q, "わり合"); }
+      if(lv === 1){ const b = pick([10, 20, 25, 50]), a = ri(2, b - 1), q = ddiv(a, b); return W_(`シュートを${b}回して，${a}回入りました。入ったわり合を求めましょう。`, `${a}÷${b}＝${q}`, q, "わり合"); }
+      const b = pick([40, 50, 80, 100]), a = b + ri(2, 30), q = ddiv(a, b); if(!q || dparse(q)[1] > 3) continue;
+      return W_(`定員が${b}人の電車に，${a}人が乗っています。定員をもとにした，乗っている人数のわり合を求めましょう。`, `${a}÷${b}＝${q}`, q, "わり合");
+    }
+  }},
+  {id:"b", name:"百分率と歩合", gen(lv){
+    const t = ri(0, 1);
+    if(lv === 0){ const p = ri(1, 99); return t ? L(`${ds(p, 2)}＝[[${p}]]%`, K_BOX, "□にあう数") : L(`${p}%＝[[${ds(p, 2)}]]`, K_BOX, "□にあう数"); }
+    if(lv === 1){ if(t){ const w = ri(1, 9), b = ri(1, 9); return L(`0.${w}${b}＝[[${w}]]わり[[${b}]]分`, K_BOX, "□にあう数"); } const p = ri(101, 250); return L(`${ds(p, 2)}＝[[${p}]]%`, K_BOX, "□にあう数"); }
+    const w = ri(1, 9), b = ri(0, 9), r = ri(1, 9);
+    return t ? L(`0.${w}${b}${r}＝[[${w}]]わり[[${b}]]分[[${r}]]りん`, K_BOX, "□にあう数") : L(`${w}わり${b}分${r}りん＝[[${ds(w * 100 + b * 10 + r, 3)}]]`, K_BOX, "□にあう数");
+  }},
+  {id:"c", name:"百分率の文章題", gen(lv){
+    const b = pick([20, 25, 40, 50]), a = ri(3, b - 2), p = a * 100 / b;
+    if(lv === 2){ const q = ddiv(a, b); const [qi, s] = dparse(q); if(s > 3) return this.gen(lv);
+      const v = Math.round(+q * 1000), w = Math.floor(v / 100), bu = Math.floor(v / 10) % 10, ri_ = v % 10;
+      const ansW = w + "わり" + (bu || ri_ ? bu + "分" : "") + (ri_ ? ri_ + "りん" : "");
+      return W_(`${b}人のクラスで，${a}人が犬をかっています。犬をかっている人のわり合を，歩合で表しましょう。`, `${a}÷${b}＝${q}`, ansW, "歩合");
+    }
+    return W_(`${b}人のクラスで，${a}人が犬をかっています。犬をかっている人は，クラス全体の何%ですか。`, [`${a}÷${b}＝${ddiv(a, b)}`, `${ddiv(a, b)}→${ds(p * 10, 1)}%`], `${ds(p * 10, 1)}%`, "百分率");
+  }}
+]);
+
+/* 14 図形の面積 */
+unit5(14, "図形の面積", "11月", "いろいろな図形の面積の求め方を考えよう", [
+  {id:"a", name:"平行四辺形", gen(lv){ return genArea("para", lv); }},
+  {id:"b", name:"三角形", gen(lv){ return genArea("tri", lv); }},
+  {id:"c", name:"台形", gen(lv){ return genArea("trap", lv); }},
+  {id:"d", name:"ひし形", gen(lv){ return genArea("rhombus", lv); }},
+  {id:"e", name:"面積から長さを求める", gen(lv){
+    const k = pick(["tri", "para"]), b = ri(4, 12), h = ri(3, 12), S = k === "tri" ? ds(b * h * 5, 1) : String(b * h);
+    return L(`面積が${S}cm^2，底辺が${b}cmの${k === "tri" ? "三角形" : "平行四辺形"}の高さ((${h}cm))`, K_Q, "高さ");
+  }}
+]);
+
+/* 15 正多角形と円 */
+unit5(15, "正多角形と円", "12月", "正多角形や円の性質を調べよう", [
+  {id:"a", name:"正多角形", gen(lv){
+    const n = pick([5, 6, 8, 9, 10, 12]);
+    if(lv === 2) return L(`円の中心のまわりの角を${360 / n}°ずつに分けてかいた正多角形の名前((正${POLY[n]}))`, K_Q, "正多角形");
+    return L(`正${POLY[n]}をかくとき，円の中心のまわりの角を何度ずつに分けますか。((${360 / n}°))`, K_Q, "正多角形");
+  }},
+  {id:"b", name:"円周の長さ", gen(lv){ return genCircle(lv); }},
+  {id:"c", name:"円周から直径を求める", gen(lv){
+    const d = ri(2, 20); const c = dmul(d, "3.14");
+    if(lv === 2) return L(`円周が${c}cmの円の半径((${ds(d * 5, 1)}cm))`, K_Q, "直径");
+    return L(`円周が${c}cmの円の直径((${d}cm))`, K_Q, "直径");
+  }}
+]);
+
+/* 16 体積 */
+unit5(16, "体積", "1月", "直方体や立方体の体積の求め方を考えよう", [
+  {id:"a", name:"直方体・立方体の体積", gen(lv){ return genBox(lv, false); }},
+  {id:"b", name:"体積の単位", gen(lv){
+    if(lv === 0){ const c = ri(0, 2); if(c === 0) return L(`1m^3＝[[1000000]]cm^3`, K_BOX, "□にあう数"); const n = ri(2, 9); return c === 1 ? L(`${n}L＝[[${n * 1000}]]cm^3`, K_BOX, "□にあう数") : L(`1L＝[[1000]]mL`, K_BOX, "□にあう数"); }
+    if(lv === 1){ const x = rdec(11, 99, 1); return R() < 0.5 ? L(`${x}L＝[[${dmul(x, 1000)}]]cm^3`, K_BOX, "□にあう数") : L(`${dmul(x, 1000)}cm^3＝[[${x}]]L`, K_BOX, "□にあう数"); }
+    if(R() < 0.5){ const x = rdec(11, 99, 1); return L(`${x}m^3＝[[${dmul(x, 1000)}]]L`, K_BOX, "□にあう数"); }
+    const m = ri(2, 9) * 100; return L(`${m}mL＝[[${m}]]cm^3`, K_BOX, "□にあう数");
+  }},
+  {id:"c", name:"いろいろな形の体積", gen(lv){ return genBox(lv, true); }},
+  {id:"d", name:"容積", gen(lv){
+    if(lv < 2){ const a = ri(2, 6) * 10, b = ri(2, 6) * 10, c = ri(1, 4) * 10 + (lv === 1 ? 5 : 0), v = a * b * c;
+      return W_(`内のりが，たて${a}cm，横${b}cm，深さ${c}cmの水そうがあります。この水そうの容積は何cm^3ですか。また，それは何Lですか。`, `${a}×${b}×${c}＝${v}`, `${v}cm^3，${ds(v, 3)}L`, "容積"); }
+    const A = ri(12, 30), B = ri(12, 30), C = ri(8, 20), v = (A - 2) * (B - 2) * (C - 1);
+    return W_(`厚さ1cmの板で，外のりが，たて${A}cm，横${B}cm，高さ${C}cmの直方体の形をした，ふたのない入れ物を作りました。この入れ物の容積は何cm^3ですか。`, [`内のり　たて${A - 2}cm，横${B - 2}cm，深さ${C - 1}cm`, `${A - 2}×${B - 2}×${C - 1}＝${v}`], `${v}cm^3`, "容積");
+  }}
+]);
+
+/* 17 割合（２） */
+unit5(17, "割合（２）", "2月", "わり合を使って，比べられる量やもとにする量を求めよう", [
+  {id:"a", name:"比べられる量を求める", gen(lv){
+    const b = pick([40, 50, 80, 120, 150, 200]), p = lv === 2 ? pick([110, 120, 125, 130, 150]) : ri(2, 19) * 5, a = b * p / 100;
+    if(!Number.isInteger(a)) return this.gen(lv);
+    return W_(`定員が${b}人の電車に，定員の${p}%の人が乗っています。乗っている人は何人ですか。`, `${b}×${ds(p, 2)}＝${a}`, `${a}人`, "比べられる量");
+  }},
+  {id:"b", name:"もとにする量を求める", gen(lv){
+    const T = pick([60, 75, 80, 90, 100, 120, 150]), p = pick([10, 20, 25, 30, 40, 60]), a = T * p / 100;
+    if(!Number.isInteger(a)) return this.gen(lv);
+    return W_(`ある学校の5年生で，めがねをかけている人は${a}人で，これは5年生全体の${p}%にあたります。5年生は全部で何人ですか。`, `${a}÷${ds(p, 2)}＝${T}`, `${T}人`, "もとにする量");
+  }},
+  {id:"c", name:"わり引き・ふえる量", gen(lv){
+    const P = ri(8, 30) * 100, p = pick([10, 15, 20, 25, 30, 40]);
+    if(lv === 0){ const a = P * (100 - p) / 100; return W_(`定価${P}円のシャツを，定価の${p}%引きで買いました。代金は何円ですか。`, `${P}×（1－${ds(p, 2)}）＝${a}`, `${a}円`, "わり引き"); }
+    if(lv === 1){ const a = P * (100 + p) / 100; return W_(`去年の入場者は${P}人でした。今年は去年より${p}%ふえました。今年の入場者は何人ですか。`, `${P}×（1＋${ds(p, 2)}）＝${a}`, `${a}人`, "ふえる量"); }
+    const a = P * (100 - p) / 100; return W_(`定価の${p}%引きのねだんで，${a}円でくつを買いました。このくつの定価は何円ですか。`, `${a}÷（1－${ds(p, 2)}）＝${P}`, `${P}円`, "わり引き");
+  }}
+]);
+
+/* 18 いろいろなグラフ */
+unit5(18, "いろいろなグラフ", "2月", "円グラフや帯グラフを読み取ろう", [
+  {id:"a", name:"円グラフを読む", gen(lv){ return genGraph("pie", lv); }},
+  {id:"b", name:"帯グラフを読む", gen(lv){ return genGraph("band", lv); }}
+]);
+
+/* 19 立体 */
+unit5(19, "立体", "2月", "角柱や円柱のとくちょうを調べよう", [
+  {id:"a", name:"角柱・円柱の数", gen(lv){
+    const n = ri(3, 8), nm = POLY[n].replace("形", "柱");
+    if(lv === 2){ const k = pick([["側面の数", n], ["ちょう点の数", 2 * n], ["辺の数", 3 * n]]); return L(`${k[0]}が${k[1]}の角柱の名前((${nm}))`, K_Q, "角柱"); }
+    const k = pick(lv === 0 ? [["側面の数", n], ["ちょう点の数", 2 * n]] : [["辺の数", 3 * n], ["面の数", n + 2], ["ちょう点の数", 2 * n]]);
+    return L(`${nm}の${k[0]}((${k[1]}))`, K_Q, "角柱");
+  }},
+  {id:"b", name:"てん開図と長さ", gen(lv){
+    const d = ri(2, 12), h = ri(3, 12);
+    return W_(`底面の直径が${d}cm，高さが${h}cmの円柱のてん開図をかきます。側面の長方形の横の長さは何cmですか。円周率は3.14とします。`, `${d}×3.14＝${dmul(d, "3.14")}`, `${dmul(d, "3.14")}cm`, "円柱");
+  }}
+]);
+
+/* 20 データの活用 */
+unit5(20, "データの活用", "3月", "データから，いろいろなことを読み取ろう", [
+  {id:"a", name:"表から読み取る", gen(lv){
+    for(;;){
+      const subj = shuffle(["国語", "算数", "理科", "社会", "体育"]).slice(0, 4);
+      const TA = 50, TB = 40;
+      const A = [0, 0, 0].map(() => ri(5, 16)); A.push(TA - A.reduce((p, q) => p + q, 0));
+      const B = [0, 0, 0].map(() => ri(2, 8) * 2); B.push(TB - B.reduce((p, q) => p + q, 0));
+      if(A[3] < 3 || B[3] < 2 || B[3] % 2) continue;
+      const k = ri(0, 3), pA = A[k] * 2, pB = B[k] * 2.5; if(pA === pB) continue;
+      const rows = [["教科"].concat(subj).concat(["合計"]), ["A小学校(人)"].concat(A.map(String)).concat([String(TA)]), ["B小学校(人)"].concat(B.map(String)).concat([String(TB)])];
+      const subs = [`A小学校で，${subj[k]}がすきな人のわり合は何%ですか。((${pA}%))`, `B小学校で，${subj[k]}がすきな人のわり合は何%ですか。((${pB}%))`];
+      if(lv >= 1) subs.push(`${subj[k]}がすきな人のわり合が大きいのは，どちらの学校ですか。((${pA > pB ? "A小学校" : "B小学校"}))`);
+      return tableItem("A小学校とB小学校の5年生に，すきな教科を1つずつ聞いて，表にまとめました。", rows, subs, {inst:K_Q, lead:"表の読み取り", headRow:true});
+    }
+  }}
+]);
+
+/* 21 5年のまとめ（ほかの単元の問題をまぜる） */
+const pool = refs => ({gen(lv){ const [u, s] = pick(refs).split("."); return U5.find(x => x.id === u).subs.find(x => x.id === s).gen(lv); }});
+unit5(21, "5年のまとめ", "3月", "5年で学習したことをふりかえろう", [
+  Object.assign({id:"a", name:"数と計算"}, pool(["5-1.b", "5-1.c", "5-5.c", "5-5.e", "5-7.c", "5-7.b", "5-8.b", "5-11.a", "5-11.d", "5-11.e", "5-12.b", "5-12.a", "5-13.b"])),
+  Object.assign({id:"b", name:"図形"}, pool(["5-9.a", "5-9.b", "5-14.a", "5-14.b", "5-14.c", "5-15.b", "5-16.a", "5-19.a"])),
+  Object.assign({id:"c", name:"変化と関係"}, pool(["5-6.b", "5-6.c", "5-10.a", "5-10.b", "5-10.c", "5-13.a", "5-17.a", "5-17.b", "5-3.a"])),
+  Object.assign({id:"d", name:"データの活用"}, pool(["5-4.a", "5-4.b", "5-18.a", "5-18.b"]))
+]);
+
+const GRADES = {1:null, 2:null, 3:null, 4:null, 5:U5, 6:null};
+
+/* ================= 問題を作る・ならべる ================= */
+function unitsOf(grade){ return GRADES[grade] || []; }
+function subsOn(st, u){ const off = (st.subsOff[u.id] || []); return u.subs.filter(s => !off.includes(s.id)); }
+
+function buildItems(st){
+  R = makeRng(st.seed);
+  const out = [];
+  for(const u of unitsOf(st.grade)){
+    if(!st.units.includes(u.id)) continue;
+    const n = st.alloc[u.id] || 0, subs = subsOn(st, u);
+    if(!n || !subs.length) continue;
+    const k = Math.max(1, Math.min(subs.length, Math.ceil(n / 2.5)));
+    const use = k < subs.length ? shuffle(subs.map((s, i) => i)).slice(0, k).sort((a, b) => a - b).map(i => subs[i]) : subs;
+    const cnt = use.map(() => 0); for(let i = 0; i < n; i++) cnt[i % use.length]++;
+    use.forEach((s, si) => {
+      let left = cnt[si], guard = 0; const got = [], seen = new Set();
+      while(left > 0 && guard++ < 50){
+        const lv = st.level === "mix" ? ri(0, 2) : st.level;
+        let it; try{ it = s.gen(lv); }catch(e){ console.error(u.name, s.name, e); break; }
+        if(!it) continue;
+        const sig = it.sig || (it.toks ? mkText(it.toks) : it.subs ? it.subs.map(mkText).join("|") : null);
+        if(sig && seen.has(sig) && guard < 40) continue;
+        if(sig) seen.add(sig);
+        if(it.n > left){ if(it.trim) it.trim(left); else continue; }
+        it.unit = u; it.sub = s; got.push(it); left -= it.n;
+      }
+      got.sort((a, b) => a.inst < b.inst ? -1 : a.inst > b.inst ? 1 : 0);
+      out.push(...got);
+    });
+  }
+  return out;
+}
+
+const GENERIC = {calc:"つぎの問題に答えましょう。", hissan:"筆算でしましょう。", fig:"つぎの問題に答えましょう。", word:"つぎの問題に答えましょう。"};
+function groupList(list){
+  const out = [], cats = [];
+  for(const it of list) if(!cats.includes(it.cat)) cats.push(it.cat);
+  for(const cat of cats){
+    const ci = list.filter(i => i.cat === cat), insts = [];
+    for(const it of ci) if(!insts.includes(it.inst)) insts.push(it.inst);
+    const parts = insts.map(t => ci.filter(i => i.inst === t));
+    if(parts.length === 1 || parts.every(p => p.reduce((s, i) => s + i.n, 0) >= 2)) parts.forEach(p => out.push({items:p}));
+    else out.push({items:ci});
+  }
+  return out;
+}
+function makeGroups(items, order){
+  let groups = [];
+  if(order === "mix") groups = groupList(shuffle(items));
+  else {
+    const units = []; for(const it of items) if(!units.includes(it.unit)) units.push(it.unit);
+    for(const u of units) groups.push(...groupList(items.filter(i => i.unit === u)));
+  }
+  for(const g of groups){
+    const same = g.items.every(i => i.inst === g.items[0].inst);
+    g.inst = same ? g.items[0].inst : GENERIC[g.items[0].cat];
+    g.n = g.items.reduce((s, i) => s + i.n, 0);
+    for(const i of g.items) i.showLead = !same;
+    g.instT = parseMk(g.inst);
+  }
+  return groups;
+}
+
+/* 100点満点の配点：大問ごとに同じ点数（各○点）になるようにする */
+function assignPoints(groups){
+  const N = groups.reduce((s, g) => s + g.n, 0);
+  for(const g of groups){ g.each = null; g.total = null; g.itemPts = null; }
+  if(!N || N > 100) return false;
+  const base = Math.floor(100 / N), r = 100 - base * N;
+  const pri = {word:0, fig:1, hissan:2, calc:3};
+  const order = groups.map((g, i) => i).sort((a, b) => pri[groups[a].items[0].cat] - pri[groups[b].items[0].cat]);
+  const stages = [new Map([[0, null]])];
+  for(const gi of order){
+    const prev = stages[stages.length - 1], next = new Map();
+    for(const [s] of prev) for(let e = 0; e <= 4; e++){ const s2 = s + e * groups[gi].n; if(s2 <= r && !next.has(s2)) next.set(s2, [s, e]); }
+    stages.push(next);
+  }
+  const extra = new Array(groups.length).fill(0);
+  if(stages[stages.length - 1].has(r)){
+    let s = r;
+    for(let k = order.length; k >= 1; k--){ const [ps, e] = stages[k].get(s); extra[order[k - 1]] = e; s = ps; }
+    groups.forEach((g, i) => { g.each = base + extra[i]; g.total = g.each * g.n; });
+  } else {
+    let left = r;
+    for(const gi of order){ const g = groups[gi]; g.itemPts = []; for(const it of g.items){ let p = base * it.n; const add_ = Math.min(left, it.n); p += add_; left -= add_; g.itemPts.push(p); } g.total = g.itemPts.reduce((a, b) => a + b, 0); }
+  }
+  return true;
+}
+
+/* ================= ページのレイアウト ================= */
+const PAPERS = {A4:[210, 297], B4:[257, 364]};
+const MARGIN = 12;
+const FS = {s:4.3, m:4.9, l:5.7};
+
+function hdrH(fs){ return Math.max(15, 3.3 * fs); }
+function meateH(fs){ return 2.0 * fs; }
+
+function layoutPages(G, groups, paper, fs, opt){
+  const [PW, PH] = PAPERS[paper];
+  const CW = PW - 2 * MARGIN, bottom = PH - MARGIN - 5;
+  const top0 = MARGIN + hdrH(fs) + (opt.meate ? meateH(fs) + 0.8 * fs : 0) + 1.3 * fs;
+  const indent = 0.9 * fs, availW = CW - indent, gapX = 1.6 * fs, numW = NUMW(fs);
+  const pages = [{ops:[]}]; let y = top0;
+  const newPage = () => { pages.push({ops:[]}); y = top0; };
+  groups.forEach((g, gi) => {
+    const ptsTxt = opt.score === "100" ? ptsText(g) : "";
+    const ptsW = ptsTxt ? G.width(ptsTxt, fs * 0.7) + 1.5 * fs : 0;
+    const instLines = wrapToks(G, g.instT, CW - 1.8 * fs - ptsW, fs);
+    const gh = blockMetrics(G, instLines, fs, 0.25 * fs).h + 0.8 * fs;
+    const nonfull = g.items.filter(i => !i.full);
+    let c = 1;
+    for(const cc of [4, 3, 2]){
+      const cw = (availW - (cc - 1) * gapX) / cc;
+      if(nonfull.length && nonfull.every(i => i.minW(G, fs) + numW <= cw)){ c = cc; break; }
+    }
+    const colW = (availW - (c - 1) * gapX) / c;
+    const rows = []; let cur = [];
+    let num = 1;
+    g.items.forEach((it, ii) => {
+      const cell = {item:it, num, pts:g.itemPts ? g.itemPts[ii] : null}; num += it.n;
+      if(it.full){ if(cur.length){ rows.push(cur); cur = []; } rows.push([Object.assign(cell, {w:availW})]); }
+      else { cur.push(Object.assign(cell, {w:colW})); if(cur.length === c){ rows.push(cur); cur = []; } }
+    });
+    if(cur.length) rows.push(cur);
+    const leadH = 1.35 * fs;
+    rows.forEach((row, ri_) => {
+      let h = 0;
+      row.forEach((cell, k) => {
+        cell.x = MARGIN + indent + k * (colW + gapX);
+        cell.cw = cell.w - (cell.item.selfNum ? 0 : numW);
+        cell.lead = cell.item.showLead && cell.item.lead ? leadH : 0;
+        cell.h = cell.lead + cell.item.height(G, cell.cw, fs);
+        h = Math.max(h, cell.h);
+      });
+      const rowGap = 1.3 * fs;
+      const need = h + (ri_ === 0 ? gh : 0);
+      if(y + need > bottom && y > top0 + 1) newPage();
+      if(ri_ === 0){ pages[pages.length - 1].ops.push({t:"group", g, gi, y, instLines, ptsTxt}); y += gh; }
+      pages[pages.length - 1].ops.push({t:"row", row, y, h});
+      y += h + rowGap;
+    });
+    y += 0.9 * fs;
+  });
+  pages.forEach(p => p.used = p.ops.length ? Math.max(...p.ops.map(o => o.y + (o.h || 0))) : top0);
+  return {pages, PW, PH, fits:pages.length === 1};
+}
+function ptsText(g){
+  if(g.each != null) return g.n > 1 ? `各${g.each}点〔${g.total}〕` : `${g.each}点`;
+  if(g.total != null) return `〔${g.total}〕`;
+  return "";
+}
+
+/* ================= ページを描く ================= */
+function drawHeader(G, L, fs, opt, ans, pageNo, pageCount){
+  const PW = L.PW, CW = PW - 2 * MARGIN, x0 = MARGIN, y0 = MARGIN, hh = hdrH(fs);
+  const scoreW = Math.max(26, 5.6 * fs), nameW = Math.max(62, CW * 0.36), titleW = CW - scoreW - nameW;
+  G.rect(x0, y0, CW, hh, {w:0.6});
+  G.line(x0 + titleW, y0, x0 + titleW, y0 + hh, {w:0.4});
+  G.line(x0 + titleW + nameW, y0, x0 + titleW + nameW, y0 + hh, {w:0.4});
+  let ts = fs * 1.3; const tw = titleW - 2 * fs;
+  if(G.width(opt.title, ts, 700) <= tw) G.text(opt.title, x0 + fs, y0 + hh / 2, {size:ts, weight:700});
+  else {
+    const parts = opt.title.split("・"); let best = null;
+    for(let cut = 1; cut < parts.length; cut++){
+      const l1 = parts.slice(0, cut).join("・") + "・", l2 = parts.slice(cut).join("・");
+      const w = Math.max(G.width(l1, 1, 700), G.width(l2, 1, 700));
+      if(!best || w < best.w) best = {l1, l2, w};
+    }
+    if(!best) best = {l1:opt.title, l2:"", w:G.width(opt.title, 1, 700)};
+    ts = Math.min(fs * 1.05, tw / best.w, (hh - 2) / 2.5);
+    G.text(best.l1, x0 + fs, y0 + hh / 2 - ts * 0.62, {size:ts, weight:700});
+    G.text(best.l2, x0 + fs, y0 + hh / 2 + ts * 0.62, {size:ts, weight:700});
+  }
+  G.text(opt.grade <= 2 ? "なまえ" : "名前", x0 + titleW + 0.6 * fs, y0 + 0.75 * fs, {size:fs * 0.62});
+  if(opt.score === "100") G.text("点", x0 + CW - 0.6 * fs, y0 + hh - 0.8 * fs, {size:fs * 0.8, align:"right"});
+  else G.text("／" + opt.total + (opt.grade <= 2 ? "もん" : "問"), x0 + CW - 0.6 * fs, y0 + hh - 0.8 * fs, {size:fs * 0.8, align:"right"});
+  if(ans) G.text("答え（先生用）", x0 + CW, y0 - 3.2, {size:fs * 0.75, color:RED, align:"right", weight:700});
+  if(pageCount > 1) G.text(pageNo + "／" + pageCount, x0 + CW / 2, L.PH - MARGIN + 1, {size:fs * 0.6, align:"center"});
+  if(opt.meate){
+    const my = y0 + hh + 0.8 * fs, mh = meateH(fs);
+    G.rect(x0, my, CW, mh, {w:0.3, fill:"#f4f4f4"});
+    G.text("めあて", x0 + 0.8 * fs, my + mh / 2, {size:fs * 0.75, weight:700});
+    let ms = fs * 0.9; while(ms > fs * 0.6 && G.width(opt.meate, ms) > CW - 5.5 * fs) ms -= 0.2;
+    G.text(opt.meate, x0 + 4.6 * fs, my + mh / 2, {size:ms});
+  }
+}
+function drawPageAt(G, L, pi, fs, opt, ans){
+  const page = L.pages[pi];
+  G.rect(0, 0, L.PW, L.PH, {fill:"#ffffff", stroke:false});
+  drawHeader(G, L, fs, opt, ans, pi + 1, L.pages.length);
+  const numW = NUMW(fs);
+  for(const op of page.ops){
+    if(op.t === "group"){
+      const b = 1.2 * fs, x = MARGIN, first = blockMetrics(G, op.instLines, fs, 0.25 * fs).ms[0];
+      const cy = op.y + first.up;
+      G.rect(x, cy - b / 2, b, b, {fill:INK, stroke:false});
+      G.text(String(op.gi + 1), x + b / 2, cy + 0.02 * fs, {size:fs * 0.85, color:"#ffffff", align:"center", weight:700});
+      drawBlock(G, op.instLines, x + b + 0.6 * fs, op.y, fs, false, 0.25 * fs);
+      if(op.ptsTxt) G.text(op.ptsTxt, L.PW - MARGIN, cy, {size:fs * 0.7, align:"right"});
+    } else {
+      for(const cell of op.row){
+        const it = cell.item; let y = op.y, x = cell.x;
+        if(cell.lead){ drawToks(G, parseMk("〔" + it.lead + "〕"), x, y + cell.lead / 2 - 0.1 * fs, fs * 0.72, false); y += cell.lead; }
+        if(!it.selfNum){
+          const fu = it.firstUp ? it.firstUp(G, cell.cw, fs) : 0.62 * fs;
+          drawNum(G, x, y + fu, cell.num, fs); x += numW;
+        }
+        if(cell.pts != null) G.text("（" + cell.pts + "点）", cell.x + cell.w, op.y + 0.5 * fs, {size:fs * 0.55, align:"right"});
+        it.draw(G, x, y, cell.cw, fs, ans, cell.num);
+      }
+    }
+  }
+}
+
+/* ================= PDF（画像をならべたPDFを作る） ================= */
+async function canvasJpeg(c){ return new Promise(res => c.toBlob(res, "image/jpeg", 0.92)); }
+async function makePdf(canvases, paper){
+  const pages = [];
+  for(const c of canvases){ const b = await canvasJpeg(c); pages.push({bytes:new Uint8Array(await b.arrayBuffer()), w:c.width, h:c.height}); }
+  const [W, H] = PAPERS[paper], wPt = (W * 72 / 25.4).toFixed(2), hPt = (H * 72 / 25.4).toFixed(2);
+  const enc = new TextEncoder(), chunks = [], offs = []; let len = 0;
+  const push = x => { const b = typeof x === "string" ? enc.encode(x) : x; chunks.push(b); len += b.length; };
+  const obj = (id, parts) => { offs[id] = len; push(id + " 0 obj\n"); parts.forEach(push); push("\nendobj\n"); };
+  push("%PDF-1.4\n"); push(new Uint8Array([37, 226, 227, 207, 211, 10]));
+  const n = pages.length;
+  obj(1, ["<< /Type /Catalog /Pages 2 0 R >>"]);
+  obj(2, ["<< /Type /Pages /Kids [" + pages.map((_, i) => (3 + 3 * i) + " 0 R").join(" ") + "] /Count " + n + " >>"]);
+  pages.forEach((pg, i) => {
+    const p = 3 + 3 * i, cs = "q " + wPt + " 0 0 " + hPt + " 0 0 cm /Im" + i + " Do Q";
+    obj(p, ["<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + wPt + " " + hPt + "] /Resources << /XObject << /Im" + i + " " + (p + 2) + " 0 R >> >> /Contents " + (p + 1) + " 0 R >>"]);
+    obj(p + 1, ["<< /Length " + cs.length + " >>\nstream\n" + cs + "\nendstream"]);
+    obj(p + 2, ["<< /Type /XObject /Subtype /Image /Width " + pg.w + " /Height " + pg.h + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + pg.bytes.length + " >>\nstream\n", pg.bytes, "\nendstream"]);
+  });
+  const total = 3 + 3 * n, xref = len;
+  let x = "xref\n0 " + total + "\n0000000000 65535 f \n";
+  for(let i = 1; i < total; i++) x += String(offs[i]).padStart(10, "0") + " 00000 n \n";
+  push(x); push("trailer\n<< /Size " + total + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF\n");
+  return new Blob(chunks, {type:"application/pdf"});
+}
+
+/* ================= 画面 ================= */
+const $ = id => document.getElementById(id);
+const LEVEL_NAMES = {0:"きほん", 1:"ふつう", 2:"チャレンジ", mix:"まぜる"};
+const state = {grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
+let view = "q", items = [], groups = [], LAY = null, PAPER_NOW = "A4";
+
+function persist(){ try{ localStorage.setItem("smm-state", JSON.stringify(Object.assign({}, state, {seed:undefined}))); }catch(e){} }
+function load(){
+  try{
+    const s = JSON.parse(localStorage.getItem("smm-state") || "null");
+    if(s) for(const k of Object.keys(state)) if(k !== "seed" && s[k] !== undefined) state[k] = s[k];
+  }catch(e){}
+  if(!GRADES[state.grade]) state.grade = 5;
+  const ids = unitsOf(state.grade).map(u => u.id);
+  state.units = state.units.filter(id => ids.includes(id));
+  if(!state.units.length) state.units = [ids[0]];
+}
+
+/* ---------- 単元ごとの問題数 ---------- */
+function selUnits(){ return unitsOf(state.grade).filter(u => state.units.includes(u.id)); }
+function autoSplit(){
+  const us = selUnits(), n = us.length; state.alloc = {};
+  if(!n) return;
+  const base = Math.floor(state.total / n); let r = state.total - base * n;
+  us.forEach(u => { state.alloc[u.id] = base + (r > 0 ? 1 : 0); if(r > 0) r--; });
+}
+function defaultMeate(){
+  const us = selUnits();
+  if(!us.length) return "";
+  if(us.length === 1) return us[0].meate;
+  return us.map(u => u.name.replace(/（.）/, "")).slice(0, 3).join("や") + (us.length > 3 ? "など" : "") + "をふりかえろう";
+}
+function titleText(){
+  const us = selUnits();
+  return us.map(u => u.name).join("・") || "算数プリント";
+}
+
+/* ---------- 描画（左の設定） ---------- */
+function segSet(id, val){ for(const b of $(id).querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.v === String(val))); }
+function renderGrades(){
+  const box = $("grades"); box.innerHTML = "";
+  for(let g = 1; g <= 6; g++){
+    const b = document.createElement("button"); b.type = "button"; b.textContent = g + "年"; b.dataset.v = g;
+    b.disabled = !GRADES[g]; if(!GRADES[g]) b.title = "じゅんび中";
+    b.addEventListener("click", () => { state.grade = g; state.units = [unitsOf(g)[0].id]; autoSplit(); update(true); });
+    box.appendChild(b);
+  }
+  segSet("grades", state.grade);
+  $("gradeNote").textContent = "いまは5年のみ";
+}
+function renderUnits(){
+  const box = $("units"); box.innerHTML = "";
+  for(const u of unitsOf(state.grade)){
+    const on = state.units.includes(u.id);
+    const lab = document.createElement("label"); lab.className = "unit" + (on ? " on" : "");
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = on; cb.id = "u-" + u.id;
+    cb.addEventListener("change", () => {
+      if(cb.checked) state.units.push(u.id); else state.units = state.units.filter(x => x !== u.id);
+      autoSplit(); update(true);
+    });
+    const nm = document.createElement("span"); nm.className = "nm";
+    const sm = document.createElement("small"); sm.textContent = typeof u.no === "number" ? u.no : ""; nm.append(sm, document.createTextNode(u.name));
+    const mo = document.createElement("span"); mo.className = "mo"; mo.textContent = u.month;
+    lab.append(cb, nm, mo); box.appendChild(lab);
+  }
+  $("unitCount").textContent = state.units.length + "こ選択";
+}
+function renderSubs(){
+  const box = $("subs"); box.innerHTML = "";
+  const us = selUnits();
+  $("stepSubs").hidden = !us.length;
+  for(const u of us){
+    const grp = document.createElement("div"); grp.className = "subgrp";
+    const h = document.createElement("div"); h.className = "sub-h"; h.textContent = u.name;
+    const chips = document.createElement("div"); chips.className = "chips";
+    const off = state.subsOff[u.id] || [];
+    for(const s of u.subs){
+      const b = document.createElement("button"); b.type = "button"; b.className = "chip" + (off.includes(s.id) ? " off" : "");
+      b.textContent = s.name; b.setAttribute("aria-pressed", String(!off.includes(s.id)));
+      b.addEventListener("click", () => {
+        const cur = state.subsOff[u.id] || [];
+        if(cur.includes(s.id)) state.subsOff[u.id] = cur.filter(x => x !== s.id);
+        else if(cur.length < u.subs.length - 1) state.subsOff[u.id] = cur.concat([s.id]);
+        update(true);
+      });
+      chips.appendChild(b);
+    }
+    grp.append(h, chips); box.appendChild(grp);
+  }
+}
+function renderCount(){
+  $("cnt").value = state.total;
+  const pr = $("presets"); pr.innerHTML = "";
+  for(const n of [5, 10, 15, 20, 30]){
+    const b = document.createElement("button"); b.type = "button"; b.textContent = n + "問"; b.setAttribute("aria-pressed", String(state.total === n));
+    b.addEventListener("click", () => { state.total = n; autoSplit(); update(true); });
+    pr.appendChild(b);
+  }
+  const us = selUnits();
+  $("allocBox").hidden = us.length < 2;
+  const box = $("alloc"); box.innerHTML = "";
+  if(us.length >= 2) for(const u of us){
+    const r = document.createElement("div"); r.className = "ar";
+    const s = document.createElement("span"); s.textContent = u.name;
+    const st = document.createElement("div"); st.className = "stepper sm";
+    const m = document.createElement("button"); m.type = "button"; m.textContent = "−"; m.setAttribute("aria-label", u.name + "を1問へらす");
+    const inp = document.createElement("input"); inp.type = "number"; inp.min = "0"; inp.max = "40"; inp.value = state.alloc[u.id] || 0; inp.id = "al-" + u.id; inp.setAttribute("aria-label", u.name + "の問題数");
+    const p = document.createElement("button"); p.type = "button"; p.textContent = "＋"; p.setAttribute("aria-label", u.name + "を1問ふやす");
+    const setA = v => { state.alloc[u.id] = Math.max(0, Math.min(40, v | 0)); state.total = Math.max(1, us.reduce((a, x) => a + (state.alloc[x.id] || 0), 0)); update(true); };
+    m.addEventListener("click", () => setA((state.alloc[u.id] || 0) - 1));
+    p.addEventListener("click", () => setA((state.alloc[u.id] || 0) + 1));
+    inp.addEventListener("change", () => setA(parseInt(inp.value, 10) || 0));
+    st.append(m, inp, p); r.append(s, st); box.appendChild(r);
+  }
+  $("stepOrder").hidden = us.length < 2 && !us.some(u => u.subs.length > 1);
+}
+function renderOptions(){
+  segSet("segLevel", state.level); segSet("segOrder", state.order); segSet("segPaper", state.paper);
+  segSet("segOver", state.over); segSet("segSize", state.size); segSet("segScore", state.score); segSet("segView", view);
+  $("segScore").querySelector('[data-v="count"]').textContent = "問題数（／" + state.total + "問）";
+  $("meateOn").checked = state.meateOn;
+  $("meate").disabled = !state.meateOn;
+  if(!state.meateEdited) state.meate = defaultMeate();
+  if(document.activeElement !== $("meate")) $("meate").value = state.meate;
+}
+
+/* ---------- 問題を作ってならべる ---------- */
+let mG = null;
+function measureG(){ if(!mG){ const c = document.createElement("canvas"); mG = makeG(c.getContext("2d"), 4); } return mG; }
+function printOpt(){
+  return {title:titleText(), grade:state.grade, score:state.score === "100" && groups.reduce((s, g) => s + g.n, 0) <= 100 ? "100" : "count", total:groups.reduce((s, g) => s + g.n, 0), meate:state.meateOn ? state.meate.trim() : ""};
+}
+function generate(){
+  items = buildItems(state);
+  groups = makeGroups(items, state.order);
+  relayout();
+}
+function relayout(){
+  if(state.score === "100") assignPoints(groups); else for(const g of groups){ g.each = g.total = g.itemPts = null; }
+  const G = measureG(), fs = FS[state.size], opt = printOpt();
+  if(state.paper === "auto"){
+    const a4 = layoutPages(G, groups, "A4", fs, opt);
+    if(a4.fits || state.over === "pages"){ LAY = a4; PAPER_NOW = "A4"; }
+    else { LAY = layoutPages(G, groups, "B4", fs, opt); PAPER_NOW = "B4"; }
+    $("paperAuto").textContent = "おすすめ（" + PAPER_NOW + "）";
+  } else { PAPER_NOW = state.paper; LAY = layoutPages(G, groups, PAPER_NOW, fs, opt); $("paperAuto").textContent = "おすすめ"; }
+  const n = LAY.pages.length, note = $("paperNote");
+  if(!groups.length){ note.hidden = true; }
+  else if(state.paper === "auto" && PAPER_NOW === "B4" && n === 1){ note.hidden = false; note.textContent = "A4の1まいには入りきらないので、B4にしました。"; }
+  else if(n > 1){ note.hidden = false; note.textContent = PAPER_NOW + "で" + n + "まいになります。" + (PAPER_NOW === "A4" ? "1まいにしたいときは、用紙をB4にするか、問題数をへらしてください。" : "1まいにしたいときは、問題数をへらすか、文字を小さくしてください。"); }
+  else note.hidden = true;
+  const total = groups.reduce((s, g) => s + g.n, 0);
+  $("pvMeta").textContent = total ? PAPER_NOW + "たて ・ " + total + "問 ・ " + n + "まい ・ " + LEVEL_NAMES[state.level] : "";
+  $("cntInfo").textContent = total && total !== state.total ? "（できた問題 " + total + "問）" : "";
+  drawPreview();
+}
+
+/* ---------- プレビュー ---------- */
+let pvTimer = 0;
+function drawPreview(){
+  clearTimeout(pvTimer);
+  pvTimer = setTimeout(() => {
+    const box = $("pages");
+    const none = !groups.length;
+    for(const id of ["savePdf", "saveImgQ", "saveImgA"]) $(id).disabled = none;
+    if(none){ box.innerHTML = '<div class="empty">単元を1つ以上えらんでください。</div>'; return; }
+    const want = LAY.pages.length;
+    const figs = [...box.querySelectorAll("figure")];
+    if(figs.length !== want || box.querySelector(".empty")){
+      box.innerHTML = "";
+      for(let i = 0; i < want; i++){
+        const f = document.createElement("figure"), c = document.createElement("canvas"), cap = document.createElement("figcaption");
+        c.setAttribute("aria-label", "プリントのプレビュー " + (i + 1) + "まいめ");
+        cap.textContent = want > 1 ? (i + 1) + "まいめ" : ""; cap.hidden = want < 2;
+        f.append(c, cap); box.appendChild(f);
+      }
+    }
+    const cvs = box.querySelectorAll("canvas");
+    const cssW = Math.min(820, Math.max(280, box.clientWidth - 24));
+    const k = cssW * Math.min(2, window.devicePixelRatio || 1) / LAY.PW;
+    const fs = FS[state.size], opt = printOpt();
+    cvs.forEach((c, i) => {
+      c.width = Math.round(LAY.PW * k); c.height = Math.round(LAY.PH * k);
+      const G = makeG(c.getContext("2d"), k);
+      try{ drawPageAt(G, LAY, i, fs, opt, view === "a"); }catch(e){ console.error(e); }
+    });
+  }, 30);
+}
+function renderAll(){ renderGrades(); renderUnits(); renderSubs(); renderCount(); renderOptions(); }
+function update(regen){ persist(); renderAll(); if(regen) generate(); else relayout(); }
+
+/* ---------- 保存（PDF・画像） ---------- */
+let dl = null, dlChecked = false;
+async function getDl(){
+  if(dl) return dl;
+  try{ if(window.claude && typeof window.claude.use === "function") dl = await window.claude.use("downloads"); }catch(e){ dl = null; }
+  dlChecked = true; setSaveMode();
+  return dl;
+}
+function setSaveMode(){
+  const can = !!dl || !dlChecked;
+  $("savePdf").textContent = can ? "PDFで保存（問題＋答え）" : "印刷用の画像を出す（問題＋答え）";
+  $("saveImgQ").hidden = $("saveImgA").hidden = !can;
+}
+function status(msg, kind){ const el = $("saveStatus"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); }
+const PRINT_K = 200 / 25.4;
+function renderPrint(ans){
+  const fs = FS[state.size], opt = printOpt();
+  return LAY.pages.map((_, i) => { const c = document.createElement("canvas"); c.width = Math.round(LAY.PW * PRINT_K); c.height = Math.round(LAY.PH * PRINT_K); drawPageAt(makeG(c.getContext("2d"), PRINT_K), LAY, i, fs, opt, ans); return c; });
+}
+function baseName(){
+  const us = selUnits();
+  const unit = us.length ? us[0].name.replace(/[（）()\s]/g, "") + (us.length > 1 ? "ほか" : "") : "";
+  const d = new Date(), pad = n => String(n).padStart(2, "0");
+  return "算数プリント_" + state.grade + "年_" + unit + "_" + groups.reduce((s, g) => s + g.n, 0) + "問_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+}
+function showImages(list){
+  const box = $("imgList"); box.innerHTML = "";
+  for(const it of list){
+    const fig = document.createElement("figure"), cap = document.createElement("figcaption"), img = document.createElement("img");
+    cap.textContent = it.label; img.alt = it.label; img.src = it.canvas.toDataURL("image/png");
+    fig.append(cap, img); box.appendChild(fig);
+  }
+  $("imgHow").textContent = "印刷するときは、用紙を「" + PAPER_NOW + "」、大きさを「用紙に合わせる」（ふちなしにしない）にしてください。";
+  $("imgOverlay").hidden = false;
+}
+async function offer(filename, data){
+  if(!dl) return "none";
+  try{ await dl.save({filename, data}); return "saved"; }catch(err){ return (err && err.code) || "error"; }
+}
+function explain(code){
+  if(code === "declined") return ["保存をやめました。", ""];
+  if(code === "rate_limited") return ["保存の確認画面がすでに開いています。少し待ってからもう一度おしてください。", "err"];
+  return ["この画面では保存できませんでした。", "err"];
+}
+async function withBusy(btn, fn){ const t = btn.textContent; btn.disabled = true; btn.textContent = "作成中…"; try{ await fn(); } finally { btn.disabled = false; btn.textContent = t; setSaveMode(); } }
+$("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () => {
+  await fontsReady;
+  if(!(await getDl())){
+    const q = renderPrint(false), a = renderPrint(true);
+    showImages(q.map((c, i) => ({label:"問題" + (q.length > 1 ? "（" + (i + 1) + "まいめ）" : ""), canvas:c})).concat(a.map((c, i) => ({label:"答え（先生用）" + (a.length > 1 ? "（" + (i + 1) + "まいめ）" : ""), canvas:c}))));
+    status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
+    return;
+  }
+  status("PDFを作っています…");
+  let blob;
+  try{ blob = await makePdf(renderPrint(false).concat(renderPrint(true)), PAPER_NOW); }catch(err){ status("PDFを作れませんでした。「画像で保存」をためしてください。", "err"); return; }
+  const r = await offer(baseName() + ".pdf", blob);
+  const n = LAY.pages.length;
+  if(r === "saved") status("PDFを保存しました（" + (n > 1 ? "1〜" + n + "ページ目：問題、" + (n + 1) + "〜" + (2 * n) + "ページ目：答え" : "1ページ目：問題、2ページ目：答え") + "）。印刷するときは、用紙を " + PAPER_NOW + " にしてください。", "ok");
+  else status(...explain(r));
+}));
+async function saveImage(ans, btn){
+  await withBusy(btn, async () => {
+    await fontsReady; await getDl();
+    const cs = renderPrint(ans);
+    for(let i = 0; i < cs.length; i++){
+      const blob = await new Promise(res => cs[i].toBlob(res, "image/png"));
+      const r = await offer(baseName() + (ans ? "_答え" : "_問題") + (cs.length > 1 ? "_" + (i + 1) : "") + ".png", blob);
+      if(r !== "saved"){ status(...explain(r)); return; }
+    }
+    status((ans ? "答え" : "問題") + "の画像を保存しました。", "ok");
+  });
+}
+$("saveImgQ").addEventListener("click", e => saveImage(false, e.currentTarget));
+$("saveImgA").addEventListener("click", e => saveImage(true, e.currentTarget));
+$("imgClose").addEventListener("click", () => { $("imgOverlay").hidden = true; });
+$("imgClose2").addEventListener("click", () => { $("imgOverlay").hidden = true; });
+getDl();
+
+/* ---------- 操作 ---------- */
+function bindSeg(id, fn){ $(id).addEventListener("click", e => { const b = e.target.closest("button"); if(b && !b.disabled) fn(b.dataset.v); }); }
+bindSeg("segLevel", v => { state.level = v === "mix" ? "mix" : +v; update(true); });
+bindSeg("segOrder", v => { state.order = v; update(true); });
+bindSeg("segPaper", v => { state.paper = v; update(false); });
+bindSeg("segOver", v => { state.over = v; update(false); });
+bindSeg("segSize", v => { state.size = v; update(false); });
+bindSeg("segScore", v => { state.score = v; update(false); });
+bindSeg("segView", v => { view = v; segSet("segView", view); drawPreview(); });
+const setTotal = v => { state.total = Math.max(1, Math.min(60, v | 0)); autoSplit(); update(true); };
+$("cntMinus").addEventListener("click", () => setTotal(state.total - 1));
+$("cntPlus").addEventListener("click", () => setTotal(state.total + 1));
+$("cnt").addEventListener("change", () => setTotal(parseInt($("cnt").value, 10) || 1));
+$("reSplit").addEventListener("click", () => { autoSplit(); update(true); });
+$("regen").addEventListener("click", () => { state.seed = (state.seed * 7 + 12345 + Math.floor(Math.random() * 1000)) % 100000000; generate(); });
+$("unitAll").addEventListener("click", () => { state.units = unitsOf(state.grade).map(u => u.id); autoSplit(); update(true); });
+$("unitNone").addEventListener("click", () => { state.units = []; autoSplit(); update(true); });
+$("meateOn").addEventListener("change", () => { state.meateOn = $("meateOn").checked; update(false); });
+$("meate").addEventListener("input", () => { state.meate = $("meate").value; state.meateEdited = state.meate !== defaultMeate(); persist(); relayout(); });
+window.addEventListener("resize", drawPreview);
+
+/* ---------- 書体の読みこみ ---------- */
+const fontsReady = (async () => {
+  if(!document.fonts || !document.fonts.load) return;
+  try{
+    await Promise.race([
+      Promise.all([document.fonts.load('600 20px "Klee One"', "算数プリント0123"), document.fonts.load('400 20px "Klee One"', "（）")]),
+      new Promise(r => setTimeout(r, 3000))
+    ]);
+  }catch(e){}
+})();
+fontsReady.then(() => { mG = null; clearMetrics(groups); relayout(); });
+
+function clearMetrics(o){
+  const seen = new Set();
+  const walk = v => { if(!v || typeof v !== "object" || seen.has(v)) return; seen.add(v); if(v.m && v.t) delete v.m; for(const k of Object.keys(v)) if(k !== "unit" && k !== "sub") walk(v[k]); };
+  walk(o);
+}
+
+load();
+if(!Object.keys(state.alloc).length || selUnits().some(u => state.alloc[u.id] === undefined)) autoSplit();
+renderAll();
+generate();
+
+</script>
