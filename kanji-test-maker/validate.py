@@ -2,7 +2,8 @@
 - 書式、問題の言葉に未習の漢字がないか、答えの漢字が問題の外に出ていないか
 - 例文の数が max(3, 教科書の読み方の数) か、すべての読み方に例文があるか
 """
-import re
+import re, sys
+G = int(sys.argv[1]) if len(sys.argv) > 1 else 6
 
 def iskanji(c): return '一' <= c <= '鿿' or c == '々'
 
@@ -11,16 +12,18 @@ for l in open('grades.txt'):
     g, v = l.strip().split(':')
     for c in v: grade[c] = int(g)
 unit = {}
-for l in open('units6.txt'):
+for l in open('units%d.txt' % G):
     n, rest = l.strip().split(' ', 1); name, ks = rest.split('：')
-    for c in ks.split(): unit[c] = int(n); grade[c] = 6
+    for c in ks.split(): unit[c] = int(n); grade[c] = G
+for l in (open('units6.txt') if G < 6 else []):
+    for c in l.strip().split('：')[1].split(): grade[c] = 6
 READ = {}
-for l in open('readings6.txt'):
+for l in open('readings%d.txt' % G):
     for t in l.split():
         if ':' in t: cur, r = t.split(':'); READ[cur] = [r]
         else: READ[cur].append(t)
 
-def learned(c, u): return c in grade and (grade[c] < 6 or (grade[c] == 6 and unit[c] <= u))
+def learned(c, u): return c in grade and (grade[c] < G or (grade[c] == G and unit[c] <= u))
 def hira(x): return ''.join(chr(ord(c) - 0x60) if 'ァ' <= c <= 'ヶ' else c for c in x)
 SEI = str.maketrans('がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ', 'かきくけこさしすせそたちつてとはひふへほはひふへほ')
 def norm(x): return x.translate(SEI)
@@ -49,7 +52,7 @@ def covers(r, got):
 
 tok = re.compile(r'\{([^{}|]+)\|([^{}|]+)\}|\[|\]|([^{}\[\]])')
 errs = 0; seen = set(); maxlen = 0; total = 0
-for ln, l in enumerate(open('sent6.txt'), 1):
+for ln, l in enumerate(open('sent%d.txt' % G), 1):
     l = l.rstrip('\n')
     if not l.strip(): continue
     parts = l.split('\t'); k = parts[0]; seen.add(k); u = unit[k]

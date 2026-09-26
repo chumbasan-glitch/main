@@ -628,7 +628,7 @@ function renderGrades(){
 function renderUnits(){
   const el = $("units"); el.innerHTML = "";
   const us = unitsOf(state.grade), sel = new Set(state.sel[state.grade] || []);
-  if(!us.length){ el.innerHTML = '<div class="empty">この学年の漢字データは、まだ入っていません。<br>いまは6年生だけ試せます。</div>'; $("unitCount").textContent = ""; return; }
+  if(!us.length){ el.innerHTML = '<div class="empty">この学年の漢字データは、まだ入っていません。</div>'; $("unitCount").textContent = ""; return; }
   for(const u of us){
     const lab = document.createElement("label"); lab.className = "unit" + (sel.has(u.no) ? " on" : "");
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = sel.has(u.no); cb.id = "u" + u.no;
