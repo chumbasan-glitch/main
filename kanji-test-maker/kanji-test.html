@@ -137,7 +137,10 @@ header.top .sub{color:var(--ink-soft);font-size:13px}
 @media (max-width:860px){.two{grid-template-columns:1fr}}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
 .overlay .box{background:var(--surface);border-radius:14px;padding:16px;max-width:900px;width:100%;max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
-.overlay img{width:100%;border:1px solid var(--line)}
+.overlay img{width:100%;border:1px solid var(--line);-webkit-touch-callout:default}
+.imglist{display:flex;flex-direction:column;gap:14px}
+.imglist figure{margin:0;display:flex;flex-direction:column;gap:4px}
+.imglist figcaption{font-weight:700}
 h2.sec{margin:0;font-size:17px}
 .owner{display:flex;flex-direction:column;gap:16px}
 .pubbar{flex-direction:row;justify-content:space-between;align-items:center;flex-wrap:wrap;border:2px solid var(--accent)}
@@ -288,13 +291,15 @@ h2.sec{margin:0;font-size:17px}
 
 <div class="overlay" id="imgOverlay" hidden>
   <div class="box">
-    <strong>画像を長押しして保存してください</strong>
-    <img id="imgOut" alt="プリントの画像">
+    <strong>画像を長押しして「写真に保存」をえらんでください</strong>
+    <p class="hint" id="imgHow"></p>
     <div class="row"><button class="btn primary" type="button" id="imgClose">閉じる</button></div>
+    <div id="imgList" class="imglist"></div>
+    <div class="row"><button class="btn" type="button" id="imgClose2">閉じる</button></div>
   </div>
 </div>
 
-<script id="ktm-edits" type="application/json">{"rev":0,"custom":[],"hidden":{}}</script>
+<script id="ktm-edits" type="application/json">{"rev":2,"custom":[],"hidden":{}}</script>
 <script>
 "use strict";
 /* 公開ページの元の形（例文の反映で、ページを作り直すときに使う） */
@@ -724,10 +729,32 @@ function renderAll(){
 }
 
 /* ---------- 保存（PDF・画像） ---------- */
-let dl = null;
-(async () => {
+/* 共有リンクから開いた画面では、ファイルの保存ができない（画像を表示して長押しで保存する） */
+let dl = null, dlChecked = false;
+async function getDl(){
+  if(dl) return dl;
   try{ if(window.claude && typeof window.claude.use === "function") dl = await window.claude.use("downloads"); }catch(e){ dl = null; }
-})();
+  const first = !dlChecked; dlChecked = true; setSaveMode(first);
+  return dl;
+}
+function setSaveMode(announce){
+  const can = !!dl || !dlChecked;
+  $("savePdf").textContent = can ? "PDFで保存（問題＋答え）" : "印刷用の画像を出す（問題＋答え）";
+  $("saveImgQ").hidden = $("saveImgA").hidden = !can;
+  if(!can && announce) status("「印刷用の画像を出す」をおして、出てきた画像を長押しで「写真に保存」してください。エプソンのアプリで「写真」として " + paperNow() + " に印刷します。");
+}
+function showImages(list){
+  const box = $("imgList"); box.innerHTML = "";
+  for(const it of list){
+    const fig = document.createElement("figure");
+    const cap = document.createElement("figcaption"); cap.textContent = it.label;
+    const img = document.createElement("img"); img.alt = it.label + "のプリント"; img.src = it.canvas.toDataURL("image/png");
+    fig.append(cap, img); box.appendChild(fig);
+  }
+  $("imgHow").textContent = "エプソンのアプリで「写真」をえらび、用紙を「" + paperNow() + "」、印刷の大きさを「用紙に合わせる」（ふちなしにしない）にして印刷してください。";
+  $("imgOverlay").hidden = false;
+}
+getDl();
 function status(msg, kind){ const el = $("saveStatus"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); }
 function baseName(){
   const us = unitsOf(state.grade).filter(u => (state.sel[state.grade] || []).includes(u.no));
@@ -775,15 +802,20 @@ function explain(code){
   if(code === "rate_limited") return ["保存の確認画面がすでに開いています。少し待ってからもう一度おしてください。", "err"];
   return ["この画面では保存できませんでした。", "err"];
 }
-async function withBusy(btn, fn){ const t = btn.textContent; btn.disabled = true; btn.textContent = "作成中…"; try{ await fn(); } finally { btn.disabled = false; btn.textContent = t; } }
+async function withBusy(btn, fn){ const t = btn.textContent; btn.disabled = true; btn.textContent = "作成中…"; try{ await fn(); } finally { btn.disabled = false; btn.textContent = t; setSaveMode(false); } }
 $("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () => {
   await fontsReady;
+  if(!(await getDl())){
+    const pages = [false, true].map(ans => { const c = document.createElement("canvas"); drawPage(c, ans, PRINT_PX); return {label:ans ? "答え（先生用）" : "問題", canvas:c}; });
+    showImages(pages);
+    status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
+    return;
+  }
   status("PDFを作っています…");
   let blob;
   try{ blob = await makePdf(); }catch(err){ status("PDFを作れませんでした。「画像で保存」をためしてください。", "err"); return; }
   const r = await offer(baseName() + ".pdf", blob);
   if(r === "saved") status("PDFを保存しました（1ページ目：問題、2ページ目：答え）。エプソンのアプリで開いて印刷してください。用紙は " + paperNow() + " を選んでください。", "ok");
-  else if(r === "none") status("この画面ではPDFを保存できません。「画像で保存」を使ってください。", "err");
   else status(...explain(r));
 }));
 async function saveImage(ans, btn){
@@ -791,16 +823,18 @@ async function saveImage(ans, btn){
     await fontsReady;
     const c = document.createElement("canvas"); drawPage(c, ans, PRINT_PX);
     const blob = await canvasBlob(c, "image/png");
+    await getDl();
     const r = await offer(baseName() + (ans ? "_答え" : "_問題") + ".png", blob);
     if(r === "saved"){ status("画像を保存しました。エプソンのアプリで「写真」として " + paperNow() + " に印刷してください。", "ok"); return; }
     if(r === "declined"){ status(...explain(r)); return; }
-    $("imgOut").src = c.toDataURL("image/png"); $("imgOverlay").hidden = false;
+    showImages([{label:ans ? "答え（先生用）" : "問題", canvas:c}]);
     status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
   });
 }
 $("saveImgQ").addEventListener("click", e => saveImage(false, e.currentTarget));
 $("saveImgA").addEventListener("click", e => saveImage(true, e.currentTarget));
 $("imgClose").addEventListener("click", () => { $("imgOverlay").hidden = true; });
+$("imgClose2").addEventListener("click", () => { $("imgOverlay").hidden = true; });
 
 /* ---------- 例文の編集 ---------- */
 let edKanji = null, edEditing = null;
@@ -947,6 +981,7 @@ function bkMsg(t, k){ $("bkMsg").textContent = t; $("bkMsg").className = "msg" +
 $("bkSave").addEventListener("click", async () => {
   const json = JSON.stringify({app:"kanji-test-maker", version:2, edits:{custom:edits.custom, hidden:edits.hidden}}, null, 1);
   const d = new Date(), pad = n => String(n).padStart(2, "0");
+  await getDl();
   const r = await offer("漢字テスト_バックアップ_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + ".json", json);
   if(r === "saved") bkMsg("バックアップを保存しました。", "ok");
   else if(r === "declined") bkMsg("保存をやめました。");
