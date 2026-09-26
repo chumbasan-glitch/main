@@ -1,0 +1,894 @@
+<title>漢字小テストメーカー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#F3F1EC;
+  --surface:#FFFFFF;
+  --surface-2:#ECE9E1;
+  --ink:#1E2638;
+  --ink-soft:#5E6475;
+  --line:#D6D1C5;
+  --accent:#2E4F86;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#E3E9F4;
+  --red:#C23B2A;
+  --red-soft:#F8E4E0;
+  --ok:#2F7A4B;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181D;
+    --surface:#1F2229;
+    --surface-2:#2A2E37;
+    --ink:#E9E7E1;
+    --ink-soft:#A5A8B2;
+    --line:#383C47;
+    --accent:#8FB0E8;
+    --accent-ink:#141821;
+    --accent-soft:#263249;
+    --red:#EE8676;
+    --red-soft:#3D2522;
+    --ok:#7CC89A;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181D;
+  --surface:#1F2229;
+  --surface-2:#2A2E37;
+  --ink:#E9E7E1;
+  --ink-soft:#A5A8B2;
+  --line:#383C47;
+  --accent:#8FB0E8;
+  --accent-ink:#141821;
+  --accent-soft:#263249;
+  --red:#EE8676;
+  --red-soft:#3D2522;
+  --ok:#7CC89A;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+  font-size:15px;line-height:1.6;
+  -webkit-tap-highlight-color:transparent;
+}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:14px 48px;display:flex;flex-direction:column;gap:16px}
+header.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
+header.top h1{margin:0;font-family:"Klee One","Hiragino Mincho ProN",serif;font-weight:600;font-size:26px;letter-spacing:.06em}
+header.top .sub{color:var(--ink-soft);font-size:13px}
+.layout{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;align-items:start}
+@media (max-width:860px){.layout{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.step{display:flex;flex-direction:column;gap:8px}
+.step-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
+.step-h .n{width:24px;height:24px;border-radius:50%;background:var(--ink);color:var(--surface);display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+.step-h .aside{margin-left:auto;font-weight:500;font-size:12.5px;color:var(--ink-soft)}
+.hint{font-size:12.5px;color:var(--ink-soft);margin:0}
+.seg{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:10px;flex-wrap:wrap}
+.seg button{flex:1 1 auto;min-width:0;border:none;background:transparent;color:var(--ink-soft);font:inherit;font-weight:700;font-size:14px;padding:9px 8px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.grades{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.units{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;max-height:320px;overflow-y:auto}
+.unit{display:grid;grid-template-columns:28px 1fr;gap:4px 6px;padding:8px 10px;border-bottom:1px solid var(--line);cursor:pointer;align-items:start}
+.unit:last-child{border-bottom:none}
+.unit input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--accent)}
+.unit .nm{font-weight:700;font-size:14px;line-height:1.4}
+.unit .ks{grid-column:2;font-family:"Klee One",serif;font-size:15px;color:var(--ink-soft);letter-spacing:.12em}
+.unit.on{background:var(--accent-soft)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;font-size:14px;padding:8px 14px;border-radius:9px;cursor:pointer}
+.btn:focus-visible,.seg button:focus-visible,.chip:focus-visible,.unit:focus-within{outline:3px solid var(--accent);outline-offset:1px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.small{font-size:13px;padding:5px 10px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.link{background:none;border:none;color:var(--accent);font:inherit;font-weight:700;font-size:13px;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:2px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--ink);font-family:"Klee One",serif;font-weight:600;font-size:20px;width:42px;height:42px;border-radius:8px;cursor:pointer;padding:0;line-height:1}
+.chip.off{border-color:var(--line);background:var(--surface);color:var(--ink-soft);text-decoration:line-through;opacity:.6}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper button{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:20px;font-weight:700;cursor:pointer}
+.stepper input{width:70px;height:40px;text-align:center;font:inherit;font-size:20px;font-weight:700;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-variant-numeric:tabular-nums}
+.presets{display:flex;gap:4px;flex-wrap:wrap}
+.presets button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);font:inherit;font-weight:700;font-size:13px;padding:4px 10px;border-radius:99px;cursor:pointer}
+.presets button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.textin{width:100%;font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.pv-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pv-head .seg{flex:0 0 auto}
+.pv-meta{font-size:13px;color:var(--ink-soft);margin-left:auto}
+.paper-frame{background:var(--surface-2);border-radius:10px;padding:12px;display:flex;justify-content:center}
+.paper-frame canvas{display:block;width:100%;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.save{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.save .status{font-size:13px;color:var(--ink-soft);flex-basis:100%}
+.save .status.err{color:var(--red)}
+.save .status.ok{color:var(--ok)}
+.qlist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.q{display:grid;grid-template-columns:34px 40px auto 1fr auto;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line)}
+.q:last-child{border-bottom:none}
+.q .no{font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums;text-align:right}
+.q .k{font-family:"Klee One",serif;font-weight:600;font-size:22px;text-align:center}
+.q .s{font-family:"Klee One",serif;font-size:15px;min-width:0}
+.q .s u{text-decoration-color:var(--red);text-decoration-thickness:2px;text-underline-offset:3px}
+.q .seg button{padding:5px 9px;font-size:13px}
+@media (max-width:560px){.q{grid-template-columns:30px 34px 1fr}.q .s{grid-column:1/-1}.q .seg{grid-column:3}.q .alt{grid-column:1/-1;justify-self:start}}
+.empty{padding:24px;text-align:center;color:var(--ink-soft)}
+.ed-list{display:flex;flex-direction:column;gap:8px}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.card.hidden{opacity:.55;background:var(--surface-2)}
+.card .txt{font-family:"Klee One",serif;font-size:17px}
+.card .txt u{text-decoration-color:var(--red);text-decoration-thickness:2px;text-underline-offset:4px}
+.card .meta{font-size:12.5px;color:var(--ink-soft)}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:99px;background:var(--surface-2);color:var(--ink-soft);margin-right:6px}
+.tag.mine{background:var(--accent-soft);color:var(--accent)}
+.form{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center}
+.form label{font-size:13px;font-weight:700}
+.form .full{grid-column:1/-1}
+.msg{font-size:13px}
+.msg.err{color:var(--red)}
+.msg.ok{color:var(--ok)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.overlay .box{background:var(--surface);border-radius:14px;padding:16px;max-width:900px;width:100%;max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.overlay img{width:100%;border:1px solid var(--line)}
+h2.sec{margin:0;font-size:17px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>漢字小テストメーカー</h1>
+    <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
+  </header>
+
+  <div class="layout">
+    <section class="panel" aria-label="テストの設定">
+      <div class="step">
+        <div class="step-h"><span class="n">1</span>学年</div>
+        <div class="seg grades" id="grades"></div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><span class="n">2</span>単元<span class="aside" id="unitCount"></span></div>
+        <div class="row">
+          <button class="link" id="unitAll" type="button">全部えらぶ</button>
+          <button class="link" id="unitNone" type="button">全部はずす</button>
+        </div>
+        <div class="units" id="units"></div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><span class="n">3</span>出題する漢字<span class="aside" id="kanjiCount"></span></div>
+        <p class="hint">タップすると、出題から外したり戻したりできます。</p>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><span class="n">4</span>問題数<span class="aside" id="rowsInfo"></span></div>
+        <div class="row">
+          <div class="stepper">
+            <button type="button" id="cntMinus" aria-label="1問へらす">−</button>
+            <input id="cnt" type="number" min="1" max="50" inputmode="numeric" aria-label="問題数">
+            <button type="button" id="cntPlus" aria-label="1問ふやす">＋</button>
+          </div>
+          <div class="presets" id="presets"></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><span class="n">5</span>出し方</div>
+        <div class="seg" id="segOrder">
+          <button type="button" data-v="random">ランダム</button>
+          <button type="button" data-v="book">教科書の順</button>
+        </div>
+        <div class="seg" id="segRw">
+          <button type="button" data-v="read">全部読み</button>
+          <button type="button" data-v="write">全部書き</button>
+          <button type="button" data-v="half">半分ずつ</button>
+          <button type="button" data-v="random">ランダム</button>
+        </div>
+        <p class="hint">「半分ずつ」は、前半が読み、後半が書きになります。作ったあとで、1問ずつ切りかえられます。</p>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><span class="n">6</span>プリント</div>
+        <div class="seg" id="segBox">
+          <button type="button" data-v="long">長い四角</button>
+          <button type="button" data-v="grid">マス目</button>
+        </div>
+        <div class="seg" id="segPaper">
+          <button type="button" data-v="auto" id="paperAuto">おすすめ</button>
+          <button type="button" data-v="A4">A4</button>
+          <button type="button" data-v="B4">B4</button>
+          <button type="button" data-v="A3">A3</button>
+        </div>
+        <label class="hint" for="label">回数など（自由に書けます）</label>
+        <input class="textin" id="label" type="text" maxlength="14" placeholder="例：第３回　／　１学期まとめ">
+      </div>
+    </section>
+
+    <section class="panel" aria-label="できあがり">
+      <div class="pv-head">
+        <div class="seg" id="segView">
+          <button type="button" data-v="q">問題</button>
+          <button type="button" data-v="a">答え（先生用）</button>
+        </div>
+        <button class="btn small" type="button" id="regen">作り直す</button>
+        <span class="pv-meta" id="pvMeta"></span>
+      </div>
+      <div class="paper-frame"><canvas id="pv" aria-label="プリントのプレビュー"></canvas></div>
+      <div class="save">
+        <button class="btn red" type="button" id="savePdf">PDFで保存（問題＋答え）</button>
+        <button class="btn" type="button" id="saveImgQ">問題を画像で保存</button>
+        <button class="btn" type="button" id="saveImgA">答えを画像で保存</button>
+        <span class="status" id="saveStatus">保存したPDFを、エプソンのアプリで開いて印刷してください。</span>
+      </div>
+      <div class="step">
+        <div class="step-h">問題の一覧<span class="aside">読み・書きの切りかえと、例文の入れかえができます</span></div>
+        <div class="qlist" id="qlist"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="two">
+    <section class="panel" aria-label="例文の確認と直し">
+      <h2 class="sec">例文の確認・直し・追加</h2>
+      <p class="hint">漢字をえらぶと、その漢字の例文が出ます。直した文や追加した文は、このiPadに保存されます。</p>
+      <select class="textin" id="edUnit" aria-label="単元"></select>
+      <div class="chips" id="edChips"></div>
+      <div class="ed-list" id="edList"></div>
+      <div class="card" id="edForm" hidden>
+        <strong id="edFormTitle">文を追加</strong>
+        <div class="form">
+          <label for="fText">文</label><input class="textin" id="fText" type="text" placeholder="例：公園で友だちと遊ぶ。">
+          <label for="fWord">問題にする言葉</label><input class="textin" id="fWord" type="text" placeholder="例：遊ぶ">
+          <label for="fYomi">読みがな</label><input class="textin" id="fYomi" type="text" placeholder="例：あそぶ">
+          <p class="hint full">・まだ習っていない漢字は、ひらがなで書いてください。<br>・「問題にする言葉」は、送りがなまで入れてください（例：遊ぶ）。</p>
+          <div class="row full"><button class="btn primary" type="button" id="fSave">保存する</button><button class="btn" type="button" id="fCancel">やめる</button><span class="msg" id="fMsg"></span></div>
+        </div>
+      </div>
+      <div class="row"><button class="btn" type="button" id="edAdd">この漢字に文を追加</button></div>
+    </section>
+
+    <section class="panel" aria-label="バックアップ">
+      <h2 class="sec">バックアップ</h2>
+      <p class="hint">直した文・追加した文・設定を、ファイルに保存できます。iPadを変えるときや、ほかの先生と共有するときに使います。</p>
+      <div class="row"><button class="btn" type="button" id="bkSave">バックアップを保存</button></div>
+      <label class="hint" for="bkFile">保存したファイルから戻す（今の内容は上書きされます）</label>
+      <input type="file" id="bkFile" accept=".json,application/json">
+      <div class="row"><button class="btn" type="button" id="bkLoad">選んだファイルを読みこむ</button></div>
+      <span class="msg" id="bkMsg"></span>
+      <p class="hint">書体：Windowsでは「UD デジタル 教科書体」、iPadでは「Klee One」で印刷されます。</p>
+    </section>
+  </div>
+</div>
+
+<div class="overlay" id="imgOverlay" hidden>
+  <div class="box">
+    <strong>画像を長押しして保存してください</strong>
+    <img id="imgOut" alt="プリントの画像">
+    <div class="row"><button class="btn primary" type="button" id="imgClose">閉じる</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/*DATA*/
+
+/* ---------- 漢字の学年・単元 ---------- */
+const GRADE_OF = {}, UNIT_OF = {};
+for (const g of [1,2,3,4,5]) for (const c of GRADE_CHARS[g]) GRADE_OF[c] = g;
+for (const g in UNITS) for (const u of UNITS[g]) for (const k of u.kanji) { GRADE_OF[k] = +g; UNIT_OF[k] = u.no; }
+const isKanji = c => (c >= "一" && c <= "鿿") || c === "々";
+
+/* ---------- 保存 ---------- */
+const STORE = "kanji_test_maker_v1";
+const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", custom:[], hidden:{} };
+let state = JSON.parse(JSON.stringify(DEFAULTS));
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE);
+    if(raw){ const p = JSON.parse(raw); if(p && typeof p === "object") state = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), p); }
+  }catch(e){}
+}
+function persist(){ try{ localStorage.setItem(STORE, JSON.stringify(state)); }catch(e){} }
+
+/* ---------- 例文 ---------- */
+function parseMarkup(s){
+  const items = []; let tgt = false;
+  const re = /\{([^{}|]+)\|([^{}|]+)\}|\[|\]|([^{}\[\]])/g; let m;
+  while((m = re.exec(s))){
+    if(m[0] === "["){ tgt = true; continue; }
+    if(m[0] === "]"){ tgt = false; continue; }
+    if(m[1]) items.push({base:m[1], rd:m[2], tgt}); else items.push({text:m[3], tgt});
+  }
+  return items;
+}
+function customItems(c){
+  const i = c.text.indexOf(c.word);
+  const items = [];
+  for(const ch of c.text.slice(0, i)) items.push({text:ch, tgt:false});
+  items.push({base:c.word, rd:c.yomi, tgt:true, whole:true});
+  for(const ch of c.text.slice(i + c.word.length)) items.push({text:ch, tgt:false});
+  return items;
+}
+const builtinCache = {};
+function builtins(k){
+  if(!builtinCache[k]) builtinCache[k] = (SENT[k] || []).map((s, i) => ({id:k + "#" + i, kanji:k, items:parseMarkup(s), custom:false}));
+  return builtinCache[k];
+}
+function allSentences(k){
+  const own = state.custom.filter(c => c.kanji === k).map(c => ({id:c.id, kanji:k, items:customItems(c), custom:true, src:c}));
+  return builtins(k).concat(own);
+}
+function activeSentences(k){ return allSentences(k).filter(s => !state.hidden[s.id]); }
+function findSentence(id){
+  const k = id.includes("#") ? id.split("#")[0] : (state.custom.find(c => c.id === id) || {}).kanji;
+  return k ? allSentences(k).find(s => s.id === id) : null;
+}
+function targetWrite(sen){ return sen.items.filter(i => i.tgt).map(i => i.base || i.text).join(""); }
+function targetRead(sen){ return sen.items.filter(i => i.tgt).map(i => i.rd || i.text).join(""); }
+function visible(sen, mode, learned){
+  const out = [];
+  for(const it of sen.items){
+    let str;
+    if(it.tgt) str = mode === "read" ? (it.base || it.text) : (it.rd || it.text);
+    else if(it.base) str = [...it.base].every(learned) ? it.base : it.rd;
+    else str = it.text;
+    for(const ch of str) out.push({ch, line:it.tgt});
+  }
+  return out;
+}
+function answerOf(sen, mode){ return mode === "read" ? targetRead(sen) : targetWrite(sen); }
+
+function learnedFn(grade, uptoUnit){
+  return c => {
+    const g = GRADE_OF[c];
+    if(!g) return false;
+    if(g < grade) return true;
+    if(g === grade) return (UNIT_OF[c] || 0) <= uptoUnit;
+    return false;
+  };
+}
+function currentLearned(){
+  const sel = state.sel[state.grade] || [];
+  return learnedFn(state.grade, sel.length ? Math.max(...sel) : 0);
+}
+
+/* ---------- 問題づくり ---------- */
+let qs = [];
+function shuffle(a){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function unitsOf(g){ return UNITS[g] || []; }
+function selectedPool(){
+  const sel = new Set(state.sel[state.grade] || []);
+  const ks = [];
+  for(const u of unitsOf(state.grade)) if(sel.has(u.no)) for(const k of u.kanji) ks.push(k);
+  return ks;
+}
+function pool(){ return selectedPool().filter(k => !state.off[k] && activeSentences(k).length); }
+function generate(){
+  const ks = pool();
+  if(!ks.length){ qs = []; return; }
+  const N = state.count, idx = {}; ks.forEach((k, i) => idx[k] = i);
+  let list = [], pass = 0;
+  while(list.length + ks.length <= N){ list = list.concat(ks.map(k => ({k, pass}))); pass++; }
+  const rest = N - list.length;
+  if(rest > 0) list = list.concat(shuffle(ks).slice(0, rest).map(k => ({k, pass})));
+  if(state.order === "book") list.sort((a, b) => a.pass - b.pass || idx[a.k] - idx[b.k]);
+  else {
+    list = shuffle(list);
+    for(let t = 0; t < 40; t++){
+      let fixed = true;
+      for(let i = 1; i < list.length; i++) if(list[i].k === list[i-1].k){
+        fixed = false; const j = Math.floor(Math.random() * list.length); [list[i], list[j]] = [list[j], list[i]];
+      }
+      if(fixed) break;
+    }
+  }
+  const decks = {}, used = {};
+  qs = list.map((e, i) => {
+    if(!decks[e.k]){ decks[e.k] = shuffle(activeSentences(e.k).map(s => s.id)); used[e.k] = 0; }
+    const d = decks[e.k]; const sid = d[used[e.k]++ % d.length];
+    let mode;
+    if(state.rw === "read") mode = "read";
+    else if(state.rw === "write") mode = "write";
+    else if(state.rw === "half") mode = i < Math.ceil(N / 2) ? "read" : "write";
+    else mode = Math.random() < .5 ? "read" : "write";
+    return {kanji:e.k, sid, mode};
+  });
+}
+function altSentence(i){
+  const q = qs[i]; const ids = activeSentences(q.kanji).map(s => s.id);
+  if(ids.length < 2) return;
+  const inUse = new Set(qs.filter((x, j) => j !== i && x.kanji === q.kanji).map(x => x.sid));
+  const start = ids.indexOf(q.sid);
+  for(let s = 1; s <= ids.length; s++){
+    const cand = ids[(start + s) % ids.length];
+    if(!inUse.has(cand) || s === ids.length - 1){ q.sid = cand; return; }
+  }
+}
+function validateQs(){
+  qs = qs.filter(q => findSentence(q.sid) && !state.hidden[q.sid]);
+}
+
+/* ---------- 用紙とレイアウト ---------- */
+const PAPERS = {A4:[297,210], B4:[364,257], A3:[420,297]};
+function rowsOf(n){ return Math.max(1, Math.ceil(n / 10)); }
+function recommendPaper(n){ return rowsOf(n) <= 2 ? "A4" : "B4"; }
+function paperNow(){ return state.paper === "auto" ? recommendPaper(qs.length || state.count) : state.paper; }
+const FONT = '"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","Klee One","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+const ROT = new Set([..."ー－―〜～…‥（）「」『』()-—［］【】〔〕"]);
+const SMALL = new Set([..."ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ"]);
+const PUNC = new Set([..."、。，．"]);
+
+function drawPage(canvas, answer, pxPerMm){
+  const paper = paperNow(); const [W, H] = PAPERS[paper];
+  canvas.width = Math.round(W * pxPerMm); canvas.height = Math.round(H * pxPerMm);
+  const S = canvas.width / W;
+  const ctx = canvas.getContext("2d");
+  const P = v => v * S;
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const setFont = (mm, w) => { ctx.font = (w || 600) + " " + P(mm).toFixed(2) + "px " + FONT; };
+  const vchar = (ch, x, y, fs) => {
+    if(ROT.has(ch)){ ctx.save(); ctx.translate(P(x), P(y)); ctx.rotate(Math.PI / 2); ctx.fillText(ch, 0, 0); ctx.restore(); }
+    else if(PUNC.has(ch)) ctx.fillText(ch, P(x + fs * .55), P(y - fs * .55));
+    else if(SMALL.has(ch)) ctx.fillText(ch, P(x + fs * .1), P(y - fs * .1));
+    else ctx.fillText(ch, P(x), P(y));
+  };
+  const vtext = (str, x, yTop, fs) => { let y = yTop + fs / 2; for(const ch of str){ vchar(ch, x, y, fs); y += fs; } };
+  const line = (x1, y1, x2, y2, w) => { ctx.lineWidth = P(w); ctx.beginPath(); ctx.moveTo(P(x1), P(y1)); ctx.lineTo(P(x2), P(y2)); ctx.stroke(); };
+  const rect = (x, y, w, h, lw) => { ctx.lineWidth = P(lw); ctx.strokeRect(P(x), P(y), P(w), P(h)); };
+  const INK = "#1a1a1a", RED = "#D0271D";
+  ctx.strokeStyle = INK; ctx.fillStyle = INK;
+
+  const M = 10, low = state.grade <= 2;
+  /* 見出しの列（右はし） */
+  const hw = H * 0.16, c1w = hw * 0.54, c2w = hw * 0.46;
+  const c1x = W - M - c1w / 2, c2x = W - M - c1w - c2w / 2;
+  const title = low ? "かんじ小テスト" : "漢字小テスト";
+  const tfs = Math.min(c1w * 0.72, (H - 2 * M) * 0.5 / title.length);
+  setFont(tfs); vtext(title, c1x, M, tfs);
+  const scoreH = c1w * 1.35, scoreW = c1w * 0.92;
+  const scoreY = H - M - scoreH;
+  if(state.label){
+    const top = M + tfs * title.length + tfs * 0.6, room = scoreY - 4 - top;
+    const lfs = Math.min(tfs * 0.55, room / state.label.length);
+    setFont(lfs); vtext(state.label, c1x, top, lfs);
+  }
+  ctx.strokeStyle = INK; rect(c1x - scoreW / 2, scoreY, scoreW, scoreH, 0.35);
+  const sfs = scoreW * 0.26; setFont(sfs, 600);
+  ctx.textAlign = "right"; ctx.textBaseline = "alphabetic";
+  ctx.fillText("／" + qs.length, P(c1x + scoreW / 2 - 1.2), P(H - M - 1.6));
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const name = low ? "なまえ" : "名前";
+  const nfs = Math.min(c2w * 0.6, 7);
+  setFont(nfs); vtext(name, c2x, M, nfs);
+  const nbTop = M + nfs * name.length + 2, nbW = c2w * 0.9;
+  rect(c2x - nbW / 2, nbTop, nbW, H - M - nbTop, 0.35);
+  if(answer){
+    ctx.fillStyle = RED; const afs = Math.min(nbW * 0.62, 10); setFont(afs);
+    vtext(low ? "こたえ" : "答え", c2x, nbTop + 4, afs); ctx.fillStyle = INK;
+  }
+
+  /* 問題 */
+  const x1 = W - M - hw - 5, x0 = M, mainW = x1 - x0;
+  const R = rowsOf(qs.length), gap = 5;
+  const rh = (H - 2 * M - (R - 1) * gap) / R, cw = mainW / 10;
+  const learned = currentLearned();
+  for(let r = 0; r < R; r++){
+    const top = M + r * (rh + gap);
+    if(r > 0){ ctx.strokeStyle = "#999"; line(x0, top - gap / 2, x1, top - gap / 2, 0.2); ctx.strokeStyle = INK; }
+    const rowQs = qs.slice(r * 10, r * 10 + 10).map(q => {
+      const sen = findSentence(q.sid);
+      return {q, vis:visible(sen, q.mode, learned), ans:answerOf(sen, q.mode)};
+    });
+    if(!rowQs.length) continue;
+    const L = Math.max(...rowQs.map(x => x.vis.length));
+    const A = Math.max(2, ...rowQs.map(x => [...x.ans].length));
+    const nd = Math.min(cw * 0.5, rh * 0.1, 7.5);
+    const V = rh - nd - 2;
+    const f = Math.min(0.5, Math.max(0.3, A / (A + L * 0.6)));
+    const boxH = V * f, Hs = V - boxH - 3;
+    const fsFor = k => Math.min(Hs / Math.ceil(L / k), cw * 0.9 / (k * 1.25 + 0.3), 7.5);
+    let best = {fs:fsFor(1), k:1};
+    if(best.fs < 4.2) for(let k = 2; k <= 4; k++){ const v = fsFor(k); if(v > best.fs){ best = {fs:v, k}; } }
+    const fs = best.fs;
+    const bw = cw * 0.8;
+    rowQs.forEach((x, c) => {
+      const i = r * 10 + c, cx = x1 - c * cw - cw / 2;
+      /* 番号 */
+      ctx.lineWidth = P(0.25); ctx.beginPath(); ctx.arc(P(cx), P(top + nd / 2), P(nd * 0.45), 0, Math.PI * 2); ctx.stroke();
+      const num = String(i + 1); setFont(nd * (num.length < 2 ? 0.62 : 0.5), 600);
+      ctx.fillText(num, P(cx), P(top + nd / 2 + nd * 0.03));
+      /* 文 */
+      setFont(fs);
+      const n = x.vis.length, cap = Math.max(1, Math.floor(Hs / fs + 0.01));
+      const kk = Math.max(1, Math.ceil(n / cap));
+      const per = Math.ceil(n / kk), pitch = fs * 1.25;
+      const y0 = top + nd + 2;
+      for(let j = 0; j < kk; j++){
+        const lx = cx + (kk - 1) * pitch / 2 - j * pitch - fs * 0.15;
+        const seg = x.vis.slice(j * per, j * per + per);
+        seg.forEach((v, t) => vchar(v.ch, lx, y0 + fs * (t + 0.5), fs));
+        let s = -1;
+        for(let t = 0; t <= seg.length; t++){
+          const on = t < seg.length && seg[t].line;
+          if(on && s < 0) s = t;
+          if(!on && s >= 0){ line(lx + fs * 0.62, y0 + fs * s + fs * 0.05, lx + fs * 0.62, y0 + fs * t - fs * 0.05, Math.max(0.3, fs * 0.06)); s = -1; }
+        }
+      }
+      /* 答えの枠 */
+      const yb = top + rh - boxH, chars = [...x.ans], m = chars.length;
+      if(state.box === "grid"){
+        const cell = Math.min(bw, boxH / A);
+        for(let t = 0; t < m; t++) rect(cx - cell / 2, yb + t * cell, cell, cell, 0.35);
+        if(answer){ ctx.fillStyle = RED; setFont(cell * 0.72); chars.forEach((ch, t) => vchar(ch, cx, yb + t * cell + cell / 2, cell * 0.72)); ctx.fillStyle = INK; }
+      } else {
+        rect(cx - bw / 2, yb, bw, boxH, 0.35);
+        if(answer){
+          ctx.fillStyle = RED; const afs = Math.min(bw * 0.7, boxH / m * 0.88); setFont(afs);
+          vtext(x.ans, cx, yb + (boxH - afs * m) / 2, afs); ctx.fillStyle = INK;
+        }
+      }
+    });
+  }
+  return {W, H, paper};
+}
+
+/* ---------- 画面 ---------- */
+const $ = id => document.getElementById(id);
+let view = "q";
+function setSeg(el, v){ for(const b of el.querySelectorAll("button")) b.setAttribute("aria-pressed", b.dataset.v === String(v) ? "true" : "false"); }
+function renderGrades(){
+  const el = $("grades"); el.innerHTML = "";
+  for(let g = 1; g <= 6; g++){
+    const b = document.createElement("button"); b.type = "button"; b.dataset.v = g; b.textContent = g + "年";
+    b.addEventListener("click", () => {
+      if(state.grade === g) return; state.grade = g;
+      if(!state.sel[g]) state.sel[g] = unitsOf(g).length ? [unitsOf(g)[0].no] : [];
+      persist(); generate(); renderAll();
+    });
+    el.appendChild(b);
+  }
+  setSeg(el, state.grade);
+}
+function renderUnits(){
+  const el = $("units"); el.innerHTML = "";
+  const us = unitsOf(state.grade), sel = new Set(state.sel[state.grade] || []);
+  if(!us.length){ el.innerHTML = '<div class="empty">この学年の漢字データは、まだ入っていません。<br>いまは6年生だけ試せます。</div>'; $("unitCount").textContent = ""; return; }
+  for(const u of us){
+    const lab = document.createElement("label"); lab.className = "unit" + (sel.has(u.no) ? " on" : "");
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = sel.has(u.no); cb.id = "u" + u.no;
+    cb.addEventListener("change", () => {
+      const s = new Set(state.sel[state.grade] || []);
+      cb.checked ? s.add(u.no) : s.delete(u.no);
+      state.sel[state.grade] = [...s].sort((a, b) => a - b);
+      persist(); generate(); renderAll();
+    });
+    const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = u.no + "　" + u.name;
+    const ks = document.createElement("span"); ks.className = "ks"; ks.textContent = u.kanji.join("");
+    lab.append(cb, nm, ks); el.appendChild(lab);
+  }
+  $("unitCount").textContent = sel.size + "単元をえらび中";
+}
+function renderChips(){
+  const el = $("chips"); el.innerHTML = "";
+  const ks = selectedPool();
+  if(!ks.length){ el.innerHTML = '<span class="hint">単元をえらぶと、ここに漢字が出ます。</span>'; $("kanjiCount").textContent = ""; return; }
+  for(const k of ks){
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip" + (state.off[k] ? " off" : ""); b.textContent = k;
+    b.setAttribute("aria-pressed", state.off[k] ? "false" : "true");
+    b.addEventListener("click", () => { if(state.off[k]) delete state.off[k]; else state.off[k] = true; persist(); generate(); renderAll(); });
+    el.appendChild(b);
+  }
+  $("kanjiCount").textContent = pool().length + "字 ／ " + ks.length + "字";
+}
+function renderCount(){
+  $("cnt").value = state.count;
+  const pr = $("presets"); if(!pr.childElementCount) for(const n of [10,20,30,40,50]){
+    const b = document.createElement("button"); b.type = "button"; b.dataset.v = n; b.textContent = n + "問";
+    b.addEventListener("click", () => setCount(n)); pr.appendChild(b);
+  }
+  setSeg(pr, state.count);
+  const R = rowsOf(state.count);
+  $("rowsInfo").textContent = R + "段 ・ おすすめ " + recommendPaper(state.count);
+  $("paperAuto").textContent = "おすすめ（" + recommendPaper(state.count) + "）";
+}
+function setCount(n){
+  n = Math.max(1, Math.min(50, Math.round(+n) || 10));
+  state.count = n; persist(); generate(); renderAll();
+}
+function sentenceHtml(sen, mode, learned){
+  let h = "", open = false;
+  for(const v of visible(sen, mode, learned)){
+    if(v.line && !open){ h += "<u>"; open = true; }
+    if(!v.line && open){ h += "</u>"; open = false; }
+    h += v.ch.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  }
+  return h + (open ? "</u>" : "");
+}
+function renderQList(){
+  const el = $("qlist"); el.innerHTML = "";
+  if(!qs.length){ el.innerHTML = '<div class="empty">単元をえらぶと、問題ができます。</div>'; return; }
+  const learned = currentLearned();
+  qs.forEach((q, i) => {
+    const sen = findSentence(q.sid);
+    const row = document.createElement("div"); row.className = "q";
+    const no = document.createElement("span"); no.className = "no"; no.textContent = i + 1;
+    const k = document.createElement("span"); k.className = "k"; k.textContent = q.kanji;
+    const seg = document.createElement("div"); seg.className = "seg";
+    for(const [v, t] of [["read","読み"],["write","書き"]]){
+      const b = document.createElement("button"); b.type = "button"; b.dataset.v = v; b.textContent = t;
+      b.addEventListener("click", () => { q.mode = v; renderQList(); drawPreview(); });
+      seg.appendChild(b);
+    }
+    setSeg(seg, q.mode);
+    const s = document.createElement("span"); s.className = "s"; s.innerHTML = sentenceHtml(sen, q.mode, learned);
+    const alt = document.createElement("button"); alt.type = "button"; alt.className = "btn small alt"; alt.textContent = "別の文";
+    alt.disabled = activeSentences(q.kanji).length < 2;
+    alt.addEventListener("click", () => { altSentence(i); renderQList(); drawPreview(); });
+    row.append(no, k, seg, s, alt); el.appendChild(row);
+  });
+}
+function renderOptions(){
+  setSeg($("segOrder"), state.order); setSeg($("segRw"), state.rw);
+  setSeg($("segBox"), state.box); setSeg($("segPaper"), state.paper);
+  setSeg($("segView"), view);
+  if(document.activeElement !== $("label")) $("label").value = state.label;
+}
+let pvTimer = 0;
+function drawPreview(){
+  clearTimeout(pvTimer);
+  pvTimer = setTimeout(() => {
+    const c = $("pv"), frame = c.parentElement;
+    const cssW = Math.max(280, frame.clientWidth - 24);
+    const paper = paperNow(), [W, H] = PAPERS[paper];
+    const px = cssW * Math.min(2, window.devicePixelRatio || 1) / W;
+    drawPage(c, view === "a", px);
+    const R = rowsOf(qs.length);
+    $("pvMeta").textContent = qs.length ? (paper + "横 ・ " + qs.length + "問（" + R + "段）") : "";
+    const none = !qs.length;
+    for(const id of ["savePdf","saveImgQ","saveImgA"]) $(id).disabled = none;
+  }, 30);
+}
+function renderAll(){
+  renderGrades(); renderUnits(); renderChips(); renderCount(); renderOptions(); renderQList(); drawPreview(); renderEditor();
+}
+
+/* ---------- 保存（PDF・画像） ---------- */
+let dl = null;
+(async () => {
+  try{ if(window.claude && typeof window.claude.use === "function") dl = await window.claude.use("downloads"); }catch(e){ dl = null; }
+})();
+function status(msg, kind){ const el = $("saveStatus"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); }
+function baseName(){
+  const us = unitsOf(state.grade).filter(u => (state.sel[state.grade] || []).includes(u.no));
+  const unit = us.length ? us[0].name.split("／")[0].replace(/[「」\s]/g, "") + (us.length > 1 ? "ほか" : "") : "";
+  const d = new Date(), pad = n => String(n).padStart(2, "0");
+  return (state.grade <= 2 ? "かんじ小テスト" : "漢字小テスト") + "_" + state.grade + "年_" + unit + "_" + qs.length + "問_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+}
+const PRINT_PX = 200 / 25.4;
+function canvasBlob(c, type, q){ return new Promise(res => c.toBlob(res, type, q)); }
+async function makePdf(){
+  const pages = [];
+  for(const ans of [false, true]){
+    const c = document.createElement("canvas");
+    drawPage(c, ans, PRINT_PX);
+    const b = await canvasBlob(c, "image/jpeg", 0.92);
+    pages.push({bytes:new Uint8Array(await b.arrayBuffer()), w:c.width, h:c.height});
+  }
+  const [W, H] = PAPERS[paperNow()], wPt = (W * 72 / 25.4).toFixed(2), hPt = (H * 72 / 25.4).toFixed(2);
+  const enc = new TextEncoder(), chunks = [], offs = []; let len = 0;
+  const push = x => { const b = typeof x === "string" ? enc.encode(x) : x; chunks.push(b); len += b.length; };
+  const obj = (id, parts) => { offs[id] = len; push(id + " 0 obj\n"); parts.forEach(push); push("\nendobj\n"); };
+  push("%PDF-1.4\n"); push(new Uint8Array([37, 226, 227, 207, 211, 10]));
+  const n = pages.length;
+  obj(1, ["<< /Type /Catalog /Pages 2 0 R >>"]);
+  obj(2, ["<< /Type /Pages /Kids [" + pages.map((_, i) => (3 + 3 * i) + " 0 R").join(" ") + "] /Count " + n + " >>"]);
+  pages.forEach((pg, i) => {
+    const p = 3 + 3 * i, cs = "q " + wPt + " 0 0 " + hPt + " 0 0 cm /Im" + i + " Do Q";
+    obj(p, ["<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + wPt + " " + hPt + "] /Resources << /XObject << /Im" + i + " " + (p + 2) + " 0 R >> >> /Contents " + (p + 1) + " 0 R >>"]);
+    obj(p + 1, ["<< /Length " + cs.length + " >>\nstream\n" + cs + "\nendstream"]);
+    obj(p + 2, ["<< /Type /XObject /Subtype /Image /Width " + pg.w + " /Height " + pg.h + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + pg.bytes.length + " >>\nstream\n", pg.bytes, "\nendstream"]);
+  });
+  const total = 3 + 3 * n, xref = len;
+  let x = "xref\n0 " + total + "\n0000000000 65535 f \n";
+  for(let i = 1; i < total; i++) x += String(offs[i]).padStart(10, "0") + " 00000 n \n";
+  push(x); push("trailer\n<< /Size " + total + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF\n");
+  return new Blob(chunks, {type:"application/pdf"});
+}
+async function offer(filename, data){
+  if(!dl) return "none";
+  try{ await dl.save({filename, data}); return "saved"; }
+  catch(err){ return (err && err.code) || "error"; }
+}
+function explain(code){
+  if(code === "declined") return ["保存をやめました。", ""];
+  if(code === "rate_limited") return ["保存の確認画面がすでに開いています。少し待ってからもう一度おしてください。", "err"];
+  return ["この画面では保存できませんでした。", "err"];
+}
+async function withBusy(btn, fn){ const t = btn.textContent; btn.disabled = true; btn.textContent = "作成中…"; try{ await fn(); } finally { btn.disabled = false; btn.textContent = t; } }
+$("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () => {
+  await fontsReady;
+  status("PDFを作っています…");
+  let blob;
+  try{ blob = await makePdf(); }catch(err){ status("PDFを作れませんでした。「画像で保存」をためしてください。", "err"); return; }
+  const r = await offer(baseName() + ".pdf", blob);
+  if(r === "saved") status("PDFを保存しました（1ページ目：問題、2ページ目：答え）。エプソンのアプリで開いて印刷してください。用紙は " + paperNow() + " を選んでください。", "ok");
+  else if(r === "none") status("この画面ではPDFを保存できません。「画像で保存」を使ってください。", "err");
+  else status(...explain(r));
+}));
+async function saveImage(ans, btn){
+  await withBusy(btn, async () => {
+    await fontsReady;
+    const c = document.createElement("canvas"); drawPage(c, ans, PRINT_PX);
+    const blob = await canvasBlob(c, "image/png");
+    const r = await offer(baseName() + (ans ? "_答え" : "_問題") + ".png", blob);
+    if(r === "saved"){ status("画像を保存しました。エプソンのアプリで「写真」として " + paperNow() + " に印刷してください。", "ok"); return; }
+    if(r === "declined"){ status(...explain(r)); return; }
+    $("imgOut").src = c.toDataURL("image/png"); $("imgOverlay").hidden = false;
+    status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
+  });
+}
+$("saveImgQ").addEventListener("click", e => saveImage(false, e.currentTarget));
+$("saveImgA").addEventListener("click", e => saveImage(true, e.currentTarget));
+$("imgClose").addEventListener("click", () => { $("imgOverlay").hidden = true; });
+
+/* ---------- 例文の編集 ---------- */
+let edKanji = null, edEditing = null;
+function renderEditor(){
+  const sel = $("edUnit"), us = unitsOf(state.grade);
+  const prev = sel.value;
+  sel.innerHTML = "";
+  if(!us.length){ $("edChips").innerHTML = ""; $("edList").innerHTML = '<div class="empty">この学年のデータはまだありません。</div>'; $("edAdd").disabled = true; return; }
+  for(const u of us){ const o = document.createElement("option"); o.value = u.no; o.textContent = u.no + "　" + u.name; sel.appendChild(o); }
+  const want = us.some(u => String(u.no) === prev) ? prev : String((state.sel[state.grade] || [us[0].no])[0] || us[0].no);
+  sel.value = want;
+  const unit = us.find(u => String(u.no) === sel.value) || us[0];
+  if(!edKanji || !unit.kanji.includes(edKanji)) edKanji = unit.kanji[0];
+  const ch = $("edChips"); ch.innerHTML = "";
+  for(const k of unit.kanji){
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip" + (k === edKanji ? "" : " off"); b.style.textDecoration = "none"; b.textContent = k;
+    b.addEventListener("click", () => { edKanji = k; closeForm(); renderEditor(); });
+    ch.appendChild(b);
+  }
+  $("edAdd").disabled = false;
+  $("edAdd").textContent = "「" + edKanji + "」に文を追加";
+  const list = $("edList"); list.innerHTML = "";
+  const learned = learnedFn(state.grade, UNIT_OF[edKanji] || 0);
+  for(const s of allSentences(edKanji)){
+    const hid = !!state.hidden[s.id];
+    const card = document.createElement("div"); card.className = "card" + (hid ? " hidden" : "");
+    const txt = document.createElement("div"); txt.className = "txt"; txt.innerHTML = sentenceHtml(s, "read", learned);
+    const meta = document.createElement("div"); meta.className = "meta";
+    meta.innerHTML = '<span class="tag' + (s.custom ? " mine" : "") + '">' + (s.custom ? "先生の文" : "はじめからある文") + "</span>読み：" + targetRead(s) + (hid ? "（使わない）" : "");
+    const row = document.createElement("div"); row.className = "row";
+    const eb = document.createElement("button"); eb.type = "button"; eb.className = "btn small"; eb.textContent = "直す";
+    eb.addEventListener("click", () => openForm(s));
+    row.appendChild(eb);
+    if(s.custom){
+      const db = document.createElement("button"); db.type = "button"; db.className = "btn small"; db.textContent = s.src.from ? "元の文にもどす" : "消す";
+      db.addEventListener("click", () => {
+        if(db.dataset.arm !== "1"){ db.dataset.arm = "1"; db.textContent = "本当に" + (s.src.from ? "もどす" : "消す"); setTimeout(() => { if(db.isConnected){ db.dataset.arm = ""; db.textContent = s.src.from ? "元の文にもどす" : "消す"; } }, 3000); return; }
+        state.custom = state.custom.filter(c => c.id !== s.id);
+        if(s.src.from) delete state.hidden[s.src.from];
+        persist(); afterDataChange();
+      });
+      row.appendChild(db);
+    } else {
+      const hb = document.createElement("button"); hb.type = "button"; hb.className = "btn small"; hb.textContent = hid ? "使う" : "使わない";
+      hb.addEventListener("click", () => { if(hid) delete state.hidden[s.id]; else state.hidden[s.id] = true; persist(); afterDataChange(); });
+      row.appendChild(hb);
+    }
+    card.append(txt, meta, row); list.appendChild(card);
+  }
+}
+function afterDataChange(){ validateQs(); if(!qs.length) generate(); renderAll(); }
+function openForm(s){
+  edEditing = s || null;
+  $("edForm").hidden = false; $("fMsg").textContent = "";
+  $("edFormTitle").textContent = s ? "文を直す" : "「" + edKanji + "」に文を追加";
+  if(s){
+    const learned = learnedFn(state.grade, UNIT_OF[edKanji] || 0);
+    $("fText").value = visible(s, "read", learned).map(v => v.ch).join("");
+    $("fWord").value = targetWrite(s); $("fYomi").value = targetRead(s);
+  } else { $("fText").value = ""; $("fWord").value = ""; $("fYomi").value = ""; }
+  $("fText").focus();
+}
+function closeForm(){ $("edForm").hidden = true; edEditing = null; }
+$("edAdd").addEventListener("click", () => openForm(null));
+$("fCancel").addEventListener("click", closeForm);
+$("edUnit").addEventListener("change", () => { edKanji = null; closeForm(); renderEditor(); });
+$("fSave").addEventListener("click", () => {
+  const text = $("fText").value.trim(), word = $("fWord").value.trim(), yomi = $("fYomi").value.trim();
+  const msg = (t) => { $("fMsg").textContent = t; $("fMsg").className = "msg err"; };
+  if(!text || !word || !yomi) return msg("3つとも入れてください。");
+  if(!text.includes(word)) return msg("「問題にする言葉」が、文の中に見つかりません。");
+  if(!word.includes(edKanji)) return msg("「問題にする言葉」に「" + edKanji + "」を入れてください。");
+  if(!/^[ぁ-ゖー]+$/.test(yomi)) return msg("読みがなは、ひらがなで入れてください。");
+  const rest = text.replace(word, "");
+  if(rest.includes(edKanji)) return msg("文の中の、問題にする言葉以外のところに「" + edKanji + "」があります（答えのヒントになります）。ひらがなにしてください。");
+  const s = edEditing;
+  if(s && s.custom){ Object.assign(s.src, {text, word, yomi}); }
+  else {
+    const c = {id:"c" + Date.now().toString(36) + Math.floor(Math.random() * 1e4), kanji:edKanji, text, word, yomi};
+    if(s){ c.from = s.id; state.hidden[s.id] = true; }
+    state.custom.push(c);
+  }
+  persist(); closeForm(); afterDataChange();
+  $("bkMsg").textContent = "";
+});
+
+/* ---------- バックアップ ---------- */
+function bkMsg(t, k){ $("bkMsg").textContent = t; $("bkMsg").className = "msg" + (k ? " " + k : ""); }
+$("bkSave").addEventListener("click", async () => {
+  const json = JSON.stringify({app:"kanji-test-maker", version:1, state}, null, 1);
+  const d = new Date(), pad = n => String(n).padStart(2, "0");
+  const r = await offer("漢字テスト_バックアップ_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + ".json", json);
+  if(r === "saved") bkMsg("バックアップを保存しました。", "ok");
+  else if(r === "declined") bkMsg("保存をやめました。");
+  else bkMsg("この画面ではファイルを保存できませんでした。", "err");
+});
+$("bkLoad").addEventListener("click", () => {
+  const f = $("bkFile").files && $("bkFile").files[0];
+  if(!f) return bkMsg("ファイルがえらばれていません。", "err");
+  const rd = new FileReader();
+  rd.onload = () => {
+    try{
+      const p = JSON.parse(rd.result);
+      if(!p || p.app !== "kanji-test-maker" || !p.state) throw 0;
+      state = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), p.state);
+      persist(); generate(); renderAll(); bkMsg("読みこみました。", "ok");
+    }catch(e){ bkMsg("このファイルは読みこめません。漢字テストのバックアップファイルか確かめてください。", "err"); }
+  };
+  rd.onerror = () => bkMsg("ファイルを読みこめませんでした。", "err");
+  rd.readAsText(f);
+});
+
+/* ---------- 設定のボタン ---------- */
+function bindSeg(id, key, regen){
+  $(id).addEventListener("click", e => {
+    const b = e.target.closest("button"); if(!b) return;
+    state[key] = b.dataset.v; persist();
+    if(regen) generate();
+    renderAll();
+  });
+}
+bindSeg("segOrder", "order", true);
+bindSeg("segRw", "rw", true);
+bindSeg("segBox", "box", false);
+bindSeg("segPaper", "paper", false);
+$("segView").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; view = b.dataset.v; setSeg($("segView"), view); drawPreview(); });
+$("cntMinus").addEventListener("click", () => setCount(state.count - 1));
+$("cntPlus").addEventListener("click", () => setCount(state.count + 1));
+$("cnt").addEventListener("change", e => setCount(e.target.value));
+$("label").addEventListener("input", e => { state.label = e.target.value; persist(); drawPreview(); });
+$("regen").addEventListener("click", () => { generate(); renderAll(); });
+$("unitAll").addEventListener("click", () => { state.sel[state.grade] = unitsOf(state.grade).map(u => u.no); persist(); generate(); renderAll(); });
+$("unitNone").addEventListener("click", () => { state.sel[state.grade] = []; persist(); generate(); renderAll(); });
+window.addEventListener("resize", drawPreview);
+
+/* ---------- 書体の読みこみ ---------- */
+const fontsReady = (async () => {
+  if(!document.fonts || !document.fonts.load) return;
+  try{
+    await Promise.race([
+      Promise.all([document.fonts.load('600 20px "Klee One"', "漢字テスト"), document.fonts.load('400 20px "Klee One"', "漢字")]),
+      new Promise(r => setTimeout(r, 3000))
+    ]);
+  }catch(e){}
+})();
+fontsReady.then(drawPreview);
+if(document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", drawPreview);
+
+load();
+generate();
+renderAll();
+</script>
