@@ -56,6 +56,10 @@ function fAns(n, d, mixedFirst){
 }
 const circled = n => "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"[n - 1] || "(" + n + ")";
 
+/* 学年までに習う漢字（これにふくまれる漢字にはふりがなをつけない） */
+let LEARNED = null;
+function setLearned(grade){ LEARNED = new Set(); for(let g = 1; g <= grade; g++) for(const ch of (GRADE_CHARS[g] || "")) LEARNED.add(ch); }
+
 /* ================= ことばの記法 =================
    {3/4} 分数　{1 2/3} 帯分数　^2 ^3 右上の小さい数
    [[答え]] 四角の答えらん　((答え)) かっこの答えらん　<<答え>> 答えだけ（問題では空白）  */
@@ -77,7 +81,11 @@ function parseMk(s){
       const m = inner.match(/^(?:(\d+)\s+)?([^/]+)\/(.+)$/);
       flush(); out.push({t:"f", w:m[1] || "", n:m[2], d:m[3]}); i = j + 1; continue;
     }
-    if(s[i] === "【"){ const j = s.indexOf("】", i), [b, r] = s.slice(i + 1, j).split("|"); flush(); out.push({t:"rb", s:b, r}); i = j + 1; continue; }
+    if(s[i] === "【"){
+      const j = s.indexOf("】", i), [b, r] = s.slice(i + 1, j).split("|");
+      if(LEARNED && [...b].every(ch => LEARNED.has(ch))) buf += b; else { flush(); out.push({t:"rb", s:b, r}); }
+      i = j + 1; continue;
+    }
     if(s[i] === "^"){ flush(); out.push({t:"sup", s:s[i + 1]}); i += 2; continue; }
     if(s[i] === "\n"){ flush(); out.push({t:"br"}); i++; continue; }
     buf += s[i]; i++;

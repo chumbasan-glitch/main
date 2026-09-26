@@ -4,6 +4,7 @@ function subsOn(st, u){ const off = (st.subsOff[u.id] || []); return u.subs.filt
 
 function buildItems(st){
   R = makeRng(st.seed);
+  setLearned(st.grade);
   const out = [];
   for(const u of unitsOf(st.grade)){
     if(!st.units.includes(u.id)) continue;

@@ -502,7 +502,7 @@ function drawPrism3(G, x, y, w, h, fs, a, b, c, hh){
   const f = fitPts(P3.map(proj), x, y, w, h, 7), P = f.pts, cen = centroid(P);
   for(const [i, j] of [[0, 2], [1, 2], [2, 5]]) G.line(...P[i], ...P[j], {w:0.3, dash:[1, 0.8]});
   for(const [i, j] of [[0, 1], [0, 3], [1, 4], [3, 4], [4, 5], [5, 3]]) G.line(...P[i], ...P[j], {w:0.4});
-  sideLabel(G, P[0], P[1], cm(a), cen, fs); sideLabel(G, P[3], P[5], cm(b), cen, fs); sideLabel(G, P[4], P[5], cm(c), cen, fs); sideLabel(G, P[1], P[4], cm(hh), cen, fs);
+  sideLabel(G, P[0], P[1], cm(a), cen, fs); sideLabel(G, P[3], P[5], cm(b), cen, fs); if(c) sideLabel(G, P[4], P[5], cm(c), cen, fs); sideLabel(G, P[1], P[4], cm(hh), cen, fs);
 }
 function drawPrism4(G, x, y, w, h, fs, a, b, hh){
   const P3 = [[0, 0, 0], [a, 0, 0], [a, hh, 0], [0, hh, 0], [0, 0, b], [a, 0, b], [a, hh, b], [0, hh, b]];
