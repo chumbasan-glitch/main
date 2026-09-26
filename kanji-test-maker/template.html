@@ -1,3 +1,4 @@
+<!--ktm-start-->
 <title>漢字小テストメーカー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -138,6 +139,9 @@ header.top .sub{color:var(--ink-soft);font-size:13px}
 .overlay .box{background:var(--surface);border-radius:14px;padding:16px;max-width:900px;width:100%;max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
 .overlay img{width:100%;border:1px solid var(--line)}
 h2.sec{margin:0;font-size:17px}
+.owner{display:flex;flex-direction:column;gap:16px}
+.pubbar{flex-direction:row;justify-content:space-between;align-items:center;flex-wrap:wrap;border:2px solid var(--accent)}
+.pubbar.dirty{border-color:var(--red)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 
@@ -198,8 +202,9 @@ h2.sec{margin:0;font-size:17px}
 
       <div class="step">
         <div class="step-h"><span class="n">6</span>プリント</div>
+        <span class="hint">解答欄</span>
         <div class="seg" id="segBox">
-          <button type="button" data-v="long">長い四角</button>
+          <button type="button" data-v="long">通常</button>
           <button type="button" data-v="grid">マス目</button>
         </div>
         <div class="seg" id="segPaper">
@@ -236,10 +241,21 @@ h2.sec{margin:0;font-size:17px}
     </section>
   </div>
 
+  <div class="owner" id="ownerArea" hidden>
+  <section class="panel pubbar" id="pubBar" aria-label="例文の反映">
+    <div>
+      <strong>作成者だけに表示しています</strong>
+      <p class="hint" id="pubState">例文を直したら「保存してみんなに反映」をおしてください。ほかの先生の画面には、この部分は出ません。</p>
+    </div>
+    <div class="row">
+      <button class="btn" type="button" id="pubDiscard" hidden>変更を取り消す</button>
+      <button class="btn primary" type="button" id="pubSave" disabled>保存してみんなに反映</button>
+    </div>
+  </section>
   <div class="two">
     <section class="panel" aria-label="例文の確認と直し">
       <h2 class="sec">例文の確認・直し・追加</h2>
-      <p class="hint">漢字をえらぶと、その漢字の例文が出ます。直した文や追加した文は、このiPadに保存されます。</p>
+      <p class="hint">漢字をえらぶと、その漢字の例文が出ます。直したあと「保存してみんなに反映」をおすと、同じリンクを開いたすべての先生のテストに反映されます。</p>
       <select class="textin" id="edUnit" aria-label="単元"></select>
       <div class="chips" id="edChips"></div>
       <div class="ed-list" id="edList"></div>
@@ -249,7 +265,7 @@ h2.sec{margin:0;font-size:17px}
           <label for="fText">文</label><input class="textin" id="fText" type="text" placeholder="例：公園で友だちと遊ぶ。">
           <label for="fWord">問題にする言葉</label><input class="textin" id="fWord" type="text" placeholder="例：遊ぶ">
           <label for="fYomi">読みがな</label><input class="textin" id="fYomi" type="text" placeholder="例：あそぶ">
-          <p class="hint full">・まだ習っていない漢字は、ひらがなで書いてください。<br>・「問題にする言葉」は、送りがなまで入れてください（例：遊ぶ）。</p>
+          <p class="hint full">・まだ習っていない漢字は、ひらがなで書いてください。<br>・「問題にする言葉」は、送りがなまで入れてください（例：遊ぶ）。<br>・読み方が2つあるときは「／」で区切ります（例：とうとい／たっとい）。答えに両方出ます。</p>
           <div class="row full"><button class="btn primary" type="button" id="fSave">保存する</button><button class="btn" type="button" id="fCancel">やめる</button><span class="msg" id="fMsg"></span></div>
         </div>
       </div>
@@ -258,14 +274,15 @@ h2.sec{margin:0;font-size:17px}
 
     <section class="panel" aria-label="バックアップ">
       <h2 class="sec">バックアップ</h2>
-      <p class="hint">直した文・追加した文・設定を、ファイルに保存できます。iPadを変えるときや、ほかの先生と共有するときに使います。</p>
+      <p class="hint">直した文・追加した文を、ファイルに保存できます。念のための控えです。</p>
       <div class="row"><button class="btn" type="button" id="bkSave">バックアップを保存</button></div>
-      <label class="hint" for="bkFile">保存したファイルから戻す（今の内容は上書きされます）</label>
+      <label class="hint" for="bkFile">保存したファイルから戻す（読みこんだあと「保存してみんなに反映」をおしてください）</label>
       <input type="file" id="bkFile" accept=".json,application/json">
       <div class="row"><button class="btn" type="button" id="bkLoad">選んだファイルを読みこむ</button></div>
       <span class="msg" id="bkMsg"></span>
       <p class="hint">書体：Windowsでは「UD デジタル 教科書体」、iPadでは「Klee One」で印刷されます。</p>
     </section>
+  </div>
   </div>
 </div>
 
@@ -277,8 +294,19 @@ h2.sec{margin:0;font-size:17px}
   </div>
 </div>
 
+<script id="ktm-edits" type="application/json">{"rev":0,"custom":[],"hidden":{}}</script>
 <script>
 "use strict";
+/* 公開ページの元の形（例文の反映で、ページを作り直すときに使う） */
+const PAGE_SRC = (() => {
+  try{
+    const body = document.body.innerHTML, me = document.currentScript.outerHTML;
+    const a = body.indexOf("<" + "!--ktm-start--" + ">"), b = body.lastIndexOf(me);
+    return a >= 0 && b > a ? body.slice(a, b + me.length) : null;
+  }catch(e){ return null; }
+})();
+const EDITS_OUTER = document.getElementById("ktm-edits").outerHTML;
+const PUBLISHED = (() => { try{ const p = JSON.parse(document.getElementById("ktm-edits").textContent); return {rev:p.rev || 0, custom:p.custom || [], hidden:p.hidden || {}}; }catch(e){ return {rev:0, custom:[], hidden:{}}; } })();
 /*DATA*/
 
 /* ---------- 漢字の学年・単元 ---------- */
@@ -289,7 +317,7 @@ const isKanji = c => (c >= "一" && c <= "鿿") || c === "々";
 
 /* ---------- 保存 ---------- */
 const STORE = "kanji_test_maker_v1";
-const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", custom:[], hidden:{} };
+const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"" };
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
@@ -298,6 +326,25 @@ function load(){
   }catch(e){}
 }
 function persist(){ try{ localStorage.setItem(STORE, JSON.stringify(state)); }catch(e){} }
+
+/* 例文の直し：公開中の内容（PUBLISHED）と、作成者が反映前に直している内容（下書き） */
+const DRAFT = "kanji_test_maker_draft";
+let edits = PUBLISHED;
+function loadDraft(){
+  try{
+    const d = JSON.parse(localStorage.getItem(DRAFT) || "null");
+    if(d && d.base === PUBLISHED.rev) edits = {rev:PUBLISHED.rev, custom:d.custom || [], hidden:d.hidden || {}};
+    else if(d) localStorage.removeItem(DRAFT);
+  }catch(e){}
+  if(state.custom || state.hidden){
+    if(edits === PUBLISHED && ((state.custom || []).length || Object.keys(state.hidden || {}).length))
+      edits = {rev:PUBLISHED.rev, custom:(state.custom || []).concat(PUBLISHED.custom), hidden:Object.assign({}, PUBLISHED.hidden, state.hidden)};
+    delete state.custom; delete state.hidden; persist(); if(edits !== PUBLISHED) saveDraft();
+  }
+}
+function saveDraft(){ try{ localStorage.setItem(DRAFT, JSON.stringify({base:PUBLISHED.rev, custom:edits.custom, hidden:edits.hidden})); }catch(e){} }
+function isDirty(){ return JSON.stringify([edits.custom, edits.hidden]) !== JSON.stringify([PUBLISHED.custom, PUBLISHED.hidden]); }
+function editDraft(fn){ if(edits === PUBLISHED) edits = JSON.parse(JSON.stringify(PUBLISHED)); fn(edits); saveDraft(); }
 
 /* ---------- 例文 ---------- */
 function parseMarkup(s){
@@ -324,28 +371,35 @@ function builtins(k){
   return builtinCache[k];
 }
 function allSentences(k){
-  const own = state.custom.filter(c => c.kanji === k).map(c => ({id:c.id, kanji:k, items:customItems(c), custom:true, src:c}));
+  const own = edits.custom.filter(c => c.kanji === k).map(c => ({id:c.id, kanji:k, items:customItems(c), custom:true, src:c}));
   return builtins(k).concat(own);
 }
-function activeSentences(k){ return allSentences(k).filter(s => !state.hidden[s.id]); }
+function activeSentences(k){ return allSentences(k).filter(s => !edits.hidden[s.id]); }
 function findSentence(id){
-  const k = id.includes("#") ? id.split("#")[0] : (state.custom.find(c => c.id === id) || {}).kanji;
+  const k = id.includes("#") ? id.split("#")[0] : (edits.custom.find(c => c.id === id) || {}).kanji;
   return k ? allSentences(k).find(s => s.id === id) : null;
 }
 function targetWrite(sen){ return sen.items.filter(i => i.tgt).map(i => i.base || i.text).join(""); }
-function targetRead(sen){ return sen.items.filter(i => i.tgt).map(i => i.rd || i.text).join(""); }
+const rdMain = it => it.rd.split("/")[0];
+function targetRead(sen){ return sen.items.filter(i => i.tgt).map(i => i.rd ? rdMain(i) : i.text).join(""); }
+function targetReadAlt(sen){
+  const t = sen.items.filter(i => i.tgt);
+  if(!t.some(i => i.rd && i.rd.includes("/"))) return "";
+  return t.map(i => i.rd ? (i.rd.split("/")[1] || rdMain(i)) : i.text).join("");
+}
 function visible(sen, mode, learned){
   const out = [];
   for(const it of sen.items){
     let str;
-    if(it.tgt) str = mode === "read" ? (it.base || it.text) : (it.rd || it.text);
-    else if(it.base) str = [...it.base].every(learned) ? it.base : it.rd;
+    if(it.tgt) str = mode === "read" ? (it.base || it.text) : (it.rd ? rdMain(it) : it.text);
+    else if(it.base) str = [...it.base].every(learned) ? it.base : rdMain(it);
     else str = it.text;
     for(const ch of str) out.push({ch, line:it.tgt});
   }
   return out;
 }
 function answerOf(sen, mode){ return mode === "read" ? targetRead(sen) : targetWrite(sen); }
+function answerAlt(sen, mode){ return mode === "read" ? targetReadAlt(sen) : ""; }
 
 function learnedFn(grade, uptoUnit){
   return c => {
@@ -414,7 +468,7 @@ function altSentence(i){
   }
 }
 function validateQs(){
-  qs = qs.filter(q => findSentence(q.sid) && !state.hidden[q.sid]);
+  qs = qs.filter(q => findSentence(q.sid) && !edits.hidden[q.sid]);
 }
 
 /* ---------- 用紙とレイアウト ---------- */
@@ -469,9 +523,9 @@ function drawPage(canvas, answer, pxPerMm){
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   const name = low ? "なまえ" : "名前";
   const nfs = Math.min(c2w * 0.6, 7);
-  setFont(nfs); vtext(name, c2x, M, nfs);
-  const nbTop = M + nfs * name.length + 2, nbW = c2w * 0.9;
-  rect(c2x - nbW / 2, nbTop, nbW, H - M - nbTop, 0.35);
+  const nbH = (H - 2 * M - nfs * name.length - 2) / 2, nbTop = H - M - nbH, nbW = c2w * 0.9;
+  setFont(nfs); vtext(name, c2x, nbTop - 2 - nfs * name.length, nfs);
+  rect(c2x - nbW / 2, nbTop, nbW, nbH, 0.35);
   if(answer){
     ctx.fillStyle = RED; const afs = Math.min(nbW * 0.62, 10); setFont(afs);
     vtext(low ? "こたえ" : "答え", c2x, nbTop + 4, afs); ctx.fillStyle = INK;
@@ -487,7 +541,7 @@ function drawPage(canvas, answer, pxPerMm){
     if(r > 0){ ctx.strokeStyle = "#999"; line(x0, top - gap / 2, x1, top - gap / 2, 0.2); ctx.strokeStyle = INK; }
     const rowQs = qs.slice(r * 10, r * 10 + 10).map(q => {
       const sen = findSentence(q.sid);
-      return {q, vis:visible(sen, q.mode, learned), ans:answerOf(sen, q.mode)};
+      return {q, vis:visible(sen, q.mode, learned), ans:answerOf(sen, q.mode), alt:answerAlt(sen, q.mode)};
     });
     if(!rowQs.length) continue;
     const L = Math.max(...rowQs.map(x => x.vis.length));
@@ -529,12 +583,17 @@ function drawPage(canvas, answer, pxPerMm){
       if(state.box === "grid"){
         const cell = Math.min(bw, boxH / A);
         for(let t = 0; t < m; t++) rect(cx - cell / 2, yb + t * cell, cell, cell, 0.35);
-        if(answer){ ctx.fillStyle = RED; setFont(cell * 0.72); chars.forEach((ch, t) => vchar(ch, cx, yb + t * cell + cell / 2, cell * 0.72)); ctx.fillStyle = INK; }
+        if(answer){
+          ctx.fillStyle = RED; setFont(cell * 0.72); chars.forEach((ch, t) => vchar(ch, cx, yb + t * cell + cell / 2, cell * 0.72));
+          if(x.alt){ const alt = "（" + x.alt + "）", sf = Math.min(cw * 0.16, boxH / alt.length); setFont(sf); vtext(alt, cx - cell / 2 - sf * 0.6, yb, sf); }
+          ctx.fillStyle = INK;
+        }
       } else {
         rect(cx - bw / 2, yb, bw, boxH, 0.35);
         if(answer){
-          ctx.fillStyle = RED; const afs = Math.min(bw * 0.7, boxH / m * 0.88); setFont(afs);
-          vtext(x.ans, cx, yb + (boxH - afs * m) / 2, afs); ctx.fillStyle = INK;
+          const t = x.alt ? x.ans + "（" + x.alt + "）" : x.ans, tm = [...t].length;
+          ctx.fillStyle = RED; const afs = Math.min(bw * 0.7, boxH / tm * 0.88); setFont(afs);
+          vtext(t, cx, yb + (boxH - afs * tm) / 2, afs); ctx.fillStyle = INK;
         }
       }
     });
@@ -764,11 +823,11 @@ function renderEditor(){
   const list = $("edList"); list.innerHTML = "";
   const learned = learnedFn(state.grade, UNIT_OF[edKanji] || 0);
   for(const s of allSentences(edKanji)){
-    const hid = !!state.hidden[s.id];
+    const hid = !!edits.hidden[s.id];
     const card = document.createElement("div"); card.className = "card" + (hid ? " hidden" : "");
     const txt = document.createElement("div"); txt.className = "txt"; txt.innerHTML = sentenceHtml(s, "read", learned);
     const meta = document.createElement("div"); meta.className = "meta";
-    meta.innerHTML = '<span class="tag' + (s.custom ? " mine" : "") + '">' + (s.custom ? "先生の文" : "はじめからある文") + "</span>読み：" + targetRead(s) + (hid ? "（使わない）" : "");
+    meta.innerHTML = '<span class="tag' + (s.custom ? " mine" : "") + '">' + (s.custom ? "先生の文" : "はじめからある文") + "</span>読み：" + targetRead(s) + (targetReadAlt(s) ? "（" + targetReadAlt(s) + "）" : "") + (hid ? "（使わない）" : "");
     const row = document.createElement("div"); row.className = "row";
     const eb = document.createElement("button"); eb.type = "button"; eb.className = "btn small"; eb.textContent = "直す";
     eb.addEventListener("click", () => openForm(s));
@@ -777,20 +836,72 @@ function renderEditor(){
       const db = document.createElement("button"); db.type = "button"; db.className = "btn small"; db.textContent = s.src.from ? "元の文にもどす" : "消す";
       db.addEventListener("click", () => {
         if(db.dataset.arm !== "1"){ db.dataset.arm = "1"; db.textContent = "本当に" + (s.src.from ? "もどす" : "消す"); setTimeout(() => { if(db.isConnected){ db.dataset.arm = ""; db.textContent = s.src.from ? "元の文にもどす" : "消す"; } }, 3000); return; }
-        state.custom = state.custom.filter(c => c.id !== s.id);
-        if(s.src.from) delete state.hidden[s.src.from];
-        persist(); afterDataChange();
+        editDraft(e => { e.custom = e.custom.filter(c => c.id !== s.id); if(s.src.from) delete e.hidden[s.src.from]; });
+        afterDataChange();
       });
       row.appendChild(db);
     } else {
       const hb = document.createElement("button"); hb.type = "button"; hb.className = "btn small"; hb.textContent = hid ? "使う" : "使わない";
-      hb.addEventListener("click", () => { if(hid) delete state.hidden[s.id]; else state.hidden[s.id] = true; persist(); afterDataChange(); });
+      hb.addEventListener("click", () => { editDraft(e => { if(hid) delete e.hidden[s.id]; else e.hidden[s.id] = true; }); afterDataChange(); });
       row.appendChild(hb);
     }
     card.append(txt, meta, row); list.appendChild(card);
   }
 }
-function afterDataChange(){ validateQs(); if(!qs.length) generate(); renderAll(); }
+function afterDataChange(){ validateQs(); if(!qs.length) generate(); renderAll(); renderPubBar(); }
+
+/* ---------- 作成者だけ：例文を公開ページに反映 ---------- */
+let artifactNs = null, pubBusy = false;
+const SKELETON = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>';
+function pubMsg(t, kind){ $("pubState").textContent = t; $("pubState").className = "hint" + (kind === "err" ? " msg err" : kind === "ok" ? " msg ok" : ""); }
+function renderPubBar(){
+  const dirty = isDirty();
+  $("pubBar").classList.toggle("dirty", dirty);
+  $("pubSave").disabled = !dirty || pubBusy || !artifactNs || !PAGE_SRC;
+  $("pubDiscard").hidden = !dirty;
+  if(pubBusy) return;
+  if(!PAGE_SRC) pubMsg("この画面では反映できません。", "err");
+  else if(dirty) pubMsg("まだ反映していない変更があります。「保存してみんなに反映」をおしてください。", "err");
+  else pubMsg("例文を直したら「保存してみんなに反映」をおしてください。ほかの先生の画面には、この部分は出ません。");
+}
+$("pubDiscard").addEventListener("click", e => {
+  const b = e.currentTarget;
+  if(b.dataset.arm !== "1"){ b.dataset.arm = "1"; b.textContent = "本当に取り消す"; setTimeout(() => { b.dataset.arm = ""; b.textContent = "変更を取り消す"; }, 3000); return; }
+  b.dataset.arm = ""; b.textContent = "変更を取り消す";
+  edits = PUBLISHED; try{ localStorage.removeItem(DRAFT); }catch(err){}
+  afterDataChange();
+});
+$("pubSave").addEventListener("click", async () => {
+  if(!artifactNs || !PAGE_SRC || !PAGE_SRC.includes(EDITS_OUTER)){ pubMsg("この画面では反映できません。", "err"); return; }
+  const data = {rev:PUBLISHED.rev + 1, custom:edits.custom, hidden:edits.hidden};
+  const tag = "<" + 'script id="ktm-edits" type="application/json">' + JSON.stringify(data).replace(/</g, "\\u003c") + "</scr" + "ipt>";
+  const html = SKELETON + "\n" + PAGE_SRC.replace(EDITS_OUTER, () => tag) + "\n</body></html>";
+  pubBusy = true; $("pubSave").disabled = true; pubMsg("反映しています…（おわると画面が読みこみ直されます）");
+  try{
+    await artifactNs.publish(html);
+    pubMsg("反映しました。", "ok");
+  }catch(err){
+    pubBusy = false;
+    const code = err && err.code;
+    if(code === "conflict") pubMsg("ほかの画面で先に保存されました。読みこみ直したあと、もう一度おしてください。", "err");
+    else if(code === "not_writer" || code === "not_granted" || code === "consent_required"){ $("ownerArea").hidden = true; }
+    else if(code === "rate_limited") pubMsg("続けて保存しすぎました。少し待ってからおしてください。", "err");
+    else if(code === "too_large") pubMsg("データが大きすぎて保存できませんでした。", "err");
+    else pubMsg("反映できませんでした。少し待ってからもう一度おしてください。", "err");
+    $("pubSave").disabled = !isDirty();
+  }
+});
+(async () => {
+  if(!(window.claude && typeof window.claude.use === "function")) return;
+  try{
+    const user = await window.claude.use("user");
+    if(!(user && await user.canEdit())) return;
+    artifactNs = await window.claude.use("artifact");
+    if(!artifactNs) return;
+    $("ownerArea").hidden = false;
+    renderEditor(); renderPubBar();
+  }catch(e){}
+})();
 function openForm(s){
   edEditing = s || null;
   $("edForm").hidden = false; $("fMsg").textContent = "";
@@ -798,7 +909,7 @@ function openForm(s){
   if(s){
     const learned = learnedFn(state.grade, UNIT_OF[edKanji] || 0);
     $("fText").value = visible(s, "read", learned).map(v => v.ch).join("");
-    $("fWord").value = targetWrite(s); $("fYomi").value = targetRead(s);
+    $("fWord").value = targetWrite(s); $("fYomi").value = targetRead(s) + (targetReadAlt(s) ? "／" + targetReadAlt(s) : "");
   } else { $("fText").value = ""; $("fWord").value = ""; $("fYomi").value = ""; }
   $("fText").focus();
 }
@@ -807,29 +918,32 @@ $("edAdd").addEventListener("click", () => openForm(null));
 $("fCancel").addEventListener("click", closeForm);
 $("edUnit").addEventListener("change", () => { edKanji = null; closeForm(); renderEditor(); });
 $("fSave").addEventListener("click", () => {
-  const text = $("fText").value.trim(), word = $("fWord").value.trim(), yomi = $("fYomi").value.trim();
+  const text = $("fText").value.trim(), word = $("fWord").value.trim(), yomi = $("fYomi").value.trim().replace(/[／\s]+/g, "/").replace(/^\/|\/$/g, "");
   const msg = (t) => { $("fMsg").textContent = t; $("fMsg").className = "msg err"; };
   if(!text || !word || !yomi) return msg("3つとも入れてください。");
   if(!text.includes(word)) return msg("「問題にする言葉」が、文の中に見つかりません。");
   if(!word.includes(edKanji)) return msg("「問題にする言葉」に「" + edKanji + "」を入れてください。");
-  if(!/^[ぁ-ゖー]+$/.test(yomi)) return msg("読みがなは、ひらがなで入れてください。");
+  if(!/^[ぁ-ゖー]+(\/[ぁ-ゖー]+)?$/.test(yomi)) return msg("読みがなは、ひらがなで入れてください（2つあるときは「／」で区切ります）。");
   const rest = text.replace(word, "");
   if(rest.includes(edKanji)) return msg("文の中の、問題にする言葉以外のところに「" + edKanji + "」があります（答えのヒントになります）。ひらがなにしてください。");
   const s = edEditing;
-  if(s && s.custom){ Object.assign(s.src, {text, word, yomi}); }
-  else {
-    const c = {id:"c" + Date.now().toString(36) + Math.floor(Math.random() * 1e4), kanji:edKanji, text, word, yomi};
-    if(s){ c.from = s.id; state.hidden[s.id] = true; }
-    state.custom.push(c);
-  }
-  persist(); closeForm(); afterDataChange();
+  editDraft(e => {
+    const own = s && s.custom ? e.custom.find(c => c.id === s.id) : null;
+    if(own) Object.assign(own, {text, word, yomi});
+    else {
+      const c = {id:"c" + Date.now().toString(36) + Math.floor(Math.random() * 1e4), kanji:edKanji, text, word, yomi};
+      if(s){ c.from = s.id; e.hidden[s.id] = true; }
+      e.custom.push(c);
+    }
+  });
+  closeForm(); afterDataChange();
   $("bkMsg").textContent = "";
 });
 
 /* ---------- バックアップ ---------- */
 function bkMsg(t, k){ $("bkMsg").textContent = t; $("bkMsg").className = "msg" + (k ? " " + k : ""); }
 $("bkSave").addEventListener("click", async () => {
-  const json = JSON.stringify({app:"kanji-test-maker", version:1, state}, null, 1);
+  const json = JSON.stringify({app:"kanji-test-maker", version:2, edits:{custom:edits.custom, hidden:edits.hidden}}, null, 1);
   const d = new Date(), pad = n => String(n).padStart(2, "0");
   const r = await offer("漢字テスト_バックアップ_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + ".json", json);
   if(r === "saved") bkMsg("バックアップを保存しました。", "ok");
@@ -843,9 +957,10 @@ $("bkLoad").addEventListener("click", () => {
   rd.onload = () => {
     try{
       const p = JSON.parse(rd.result);
-      if(!p || p.app !== "kanji-test-maker" || !p.state) throw 0;
-      state = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), p.state);
-      persist(); generate(); renderAll(); bkMsg("読みこみました。", "ok");
+      const src = p && p.app === "kanji-test-maker" ? (p.edits || p.state) : null;
+      if(!src || !Array.isArray(src.custom || [])) throw 0;
+      editDraft(e => { e.custom = src.custom || []; e.hidden = src.hidden || {}; });
+      afterDataChange(); bkMsg("読みこみました。「保存してみんなに反映」をおすと、みんなのテストに反映されます。", "ok");
     }catch(e){ bkMsg("このファイルは読みこめません。漢字テストのバックアップファイルか確かめてください。", "err"); }
   };
   rd.onerror = () => bkMsg("ファイルを読みこめませんでした。", "err");
@@ -889,6 +1004,7 @@ fontsReady.then(drawPreview);
 if(document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", drawPreview);
 
 load();
+loadDraft();
 generate();
 renderAll();
 </script>
