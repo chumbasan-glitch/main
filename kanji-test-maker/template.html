@@ -235,7 +235,7 @@ h2.sec{margin:0;font-size:17px}
         <button class="btn red" type="button" id="savePdf">PDFで保存（問題＋答え）</button>
         <button class="btn" type="button" id="saveImgQ">問題を画像で保存</button>
         <button class="btn" type="button" id="saveImgA">答えを画像で保存</button>
-        <span class="status" id="saveStatus">保存したPDFを、エプソンのアプリで開いて印刷してください。</span>
+        <span class="status" id="saveStatus">保存したPDFを開いて、ふだん使っている方法で印刷してください。</span>
       </div>
       <div class="step">
         <div class="step-h">問題の一覧<span class="aside">読み・書きの切りかえと、例文の入れかえができます</span></div>
@@ -741,7 +741,7 @@ function setSaveMode(announce){
   const can = !!dl || !dlChecked;
   $("savePdf").textContent = can ? "PDFで保存（問題＋答え）" : "印刷用の画像を出す（問題＋答え）";
   $("saveImgQ").hidden = $("saveImgA").hidden = !can;
-  if(!can && announce) status("「印刷用の画像を出す」をおして、出てきた画像を長押しで「写真に保存」してください。エプソンのアプリで「写真」として " + paperNow() + " に印刷します。");
+  if(!can && announce) status("「印刷用の画像を出す」をおして、出てきた画像を長押しで「写真に保存」してください。写真として " + paperNow() + " に印刷します。");
 }
 function showImages(list){
   const box = $("imgList"); box.innerHTML = "";
@@ -751,7 +751,7 @@ function showImages(list){
     const img = document.createElement("img"); img.alt = it.label + "のプリント"; img.src = it.canvas.toDataURL("image/png");
     fig.append(cap, img); box.appendChild(fig);
   }
-  $("imgHow").textContent = "エプソンのアプリで「写真」をえらび、用紙を「" + paperNow() + "」、印刷の大きさを「用紙に合わせる」（ふちなしにしない）にして印刷してください。";
+  $("imgHow").textContent = "印刷するときは、用紙を「" + paperNow() + "」、印刷の大きさを「用紙に合わせる」（ふちなしにしない）にして印刷してください。";
   $("imgOverlay").hidden = false;
 }
 getDl();
@@ -815,7 +815,7 @@ $("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () =
   let blob;
   try{ blob = await makePdf(); }catch(err){ status("PDFを作れませんでした。「画像で保存」をためしてください。", "err"); return; }
   const r = await offer(baseName() + ".pdf", blob);
-  if(r === "saved") status("PDFを保存しました（1ページ目：問題、2ページ目：答え）。エプソンのアプリで開いて印刷してください。用紙は " + paperNow() + " を選んでください。", "ok");
+  if(r === "saved") status("PDFを保存しました（1ページ目：問題、2ページ目：答え）。開いて印刷してください。用紙は " + paperNow() + " を選んでください。", "ok");
   else status(...explain(r));
 }));
 async function saveImage(ans, btn){
@@ -825,7 +825,7 @@ async function saveImage(ans, btn){
     const blob = await canvasBlob(c, "image/png");
     await getDl();
     const r = await offer(baseName() + (ans ? "_答え" : "_問題") + ".png", blob);
-    if(r === "saved"){ status("画像を保存しました。エプソンのアプリで「写真」として " + paperNow() + " に印刷してください。", "ok"); return; }
+    if(r === "saved"){ status("画像を保存しました。写真として " + paperNow() + " に印刷してください。", "ok"); return; }
     if(r === "declined"){ status(...explain(r)); return; }
     showImages([{label:ans ? "答え（先生用）" : "問題", canvas:c}]);
     status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
