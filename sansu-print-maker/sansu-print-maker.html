@@ -1,7 +1,7 @@
 <title>算数プリントメーカー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Kaku+Gothic+New:wght@500;700&family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho:wght@400;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
 <style>
 :root{
   --bg:#EDF2FA;
@@ -30,10 +30,10 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;font-size:15px;line-height:1.6;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;font-weight:500;font-size:15px;line-height:1.6;-webkit-tap-highlight-color:transparent}
 .wrap{max-width:1320px;margin:0 auto;padding-inline:16px;padding-block:14px 48px;display:flex;flex-direction:column;gap:16px}
 header.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:3px solid var(--accent);padding-bottom:8px}
-header.top h1{margin:0;color:var(--head);font-family:"Klee One","Hiragino Mincho ProN",serif;font-weight:600;font-size:26px;letter-spacing:.06em}
+header.top h1{margin:0;color:var(--head);font-family:inherit;font-weight:700;font-size:26px;letter-spacing:.06em}
 header.top .sub{color:var(--ink-soft);font-size:13px}
 .layout{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:16px;align-items:start}
 @media (max-width:880px){.layout{grid-template-columns:1fr}}
@@ -92,13 +92,6 @@ header.top .sub{color:var(--ink-soft);font-size:13px}
 .pages figcaption{font-size:12px;color:var(--ink-soft);font-weight:700}
 .pages canvas{display:block;width:100%;max-width:820px;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18)}
 .save{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.fontlist{display:flex;flex-direction:column;gap:6px}
-.fcard{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer;font:inherit}
-.fcard[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
-.fcard .fn{font-size:13px;font-weight:700}
-.fcard .fn small{font-weight:500;color:var(--ink-soft);margin-left:6px}
-.fcard .fs{font-size:21px;line-height:1.4;color:var(--ink)}
-.fcard:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
 .save .grp{display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-basis:100%}
 .save .grp .lbl{min-width:4.5em}
 .save .status{font-size:13px;color:var(--ink-soft);flex-basis:100%}
@@ -195,8 +188,6 @@ header.top .sub{color:var(--ink-soft);font-size:13px}
           <button type="button" data-v="m">中</button>
           <button type="button" data-v="l">大</button>
         </div>
-        <span class="lbl">書体（見本を見て選べます）</span>
-        <div class="fontlist" id="fontList"></div>
         <span class="lbl">点数らん</span>
         <div class="seg" id="segScore">
           <button type="button" data-v="count">問題数（／20問）</button>
@@ -250,17 +241,10 @@ const GRADE_CHARS = {"1": "一右雨円王音下火花貝学気九休玉金空�
 
 /* ================= 基本の道具 ================= */
 const INK = "#1a1a1a", RED = "#d4231b", GRID = "#b9b9b9", SHADE = "#dcdcdc";
-/* 書体（どれも日本語の字形。web はブラウザに読みこむ書体） */
-const JP_SANS = '"Hiragino Sans","Hiragino Kaku Gothic ProN","BIZ UDPGothic","Yu Gothic","Meiryo","Noto Sans JP",sans-serif';
-const JP_SERIF = '"Hiragino Mincho ProN","BIZ UDPMincho","Yu Mincho","Noto Serif JP",serif';
-const FONTS = {
-  kyokasho:{name:"教科書体", note:"Windowsは「UD デジタル 教科書体」、iPadなどは「クレー」", stack:'"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","Klee One",' + JP_SERIF, web:"Klee One", n:600, b:600},
-  klee:{name:"クレー（手書き風）", note:"どの機械でも同じ形", stack:'"Klee One",' + JP_SERIF, web:"Klee One", n:600, b:600},
-  udgothic:{name:"UDゴシック", note:"はっきりした形・読みやすさ重視", stack:'"BIZ UDPGothic",' + JP_SANS, web:"BIZ UDPGothic", n:400, b:700},
-  udmincho:{name:"UD明朝", note:"教科書の本文に近い形", stack:'"BIZ UDPMincho",' + JP_SERIF, web:"BIZ UDPMincho", n:400, b:700},
-  maru:{name:"丸ゴシック", note:"やわらかい形", stack:'"Zen Maru Gothic",' + JP_SANS, web:"Zen Maru Gothic", n:500, b:700}
-};
-let FONT_KEY = "kyokasho";
+/* 書体：すべて丸ゴシック（Zen 丸ゴシック）。読みこむ前やつながらないときも日本語の書体を使う */
+const JP_SANS = '"Hiragino Maru Gothic ProN","Hiragino Sans","BIZ UDPGothic","Yu Gothic","Meiryo","Noto Sans JP",sans-serif';
+const FONTS = {maru:{name:"丸ゴシック", stack:'"Zen Maru Gothic",' + JP_SANS, web:"Zen Maru Gothic", n:500, b:700}};
+const FONT_KEY = "maru";
 
 function makeRng(seed){
   let a = seed >>> 0;
@@ -369,7 +353,7 @@ function makeG(ctx, k){
   const G = {
     k, ctx, capture:null,
     font(size, weight){
-      const f = FONTS[FONT_KEY] || FONTS.kyokasho, w = weight >= 700 ? f.b : weight && weight <= 400 ? 400 : f.n;
+      const f = FONTS[FONT_KEY], w = weight >= 700 ? f.b : weight && weight <= 400 ? 400 : f.n;
       ctx.font = w + " " + (size * k).toFixed(2) + "px " + f.stack;
     },
     width(s, size, weight){ G.font(size, weight); return ctx.measureText(s).width / k; },
@@ -2828,7 +2812,7 @@ async function makePdf(canvases, paper){
 const $ = id => document.getElementById(id);
 const LEVEL_NAMES = {0:"きほん", 1:"ふつう", 2:"チャレンジ", mix:"まぜる"};
 try{ document.documentElement.lang = "ja"; }catch(e){}
-const state = {font:"kyokasho", grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
+const state = {grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
 let view = "q", items = [], groups = [], LAY = null, PAPER_NOW = "A4";
 
 function persist(){ try{ localStorage.setItem("smm-state", JSON.stringify(Object.assign({}, state, {seed:undefined}))); }catch(e){} }
@@ -3014,7 +2998,7 @@ function drawPreview(){
     });
   }, 30);
 }
-function renderAll(){ renderFonts(); renderGrades(); renderUnits(); renderSubs(); renderCount(); renderOptions(); }
+function renderAll(){ renderGrades(); renderUnits(); renderSubs(); renderCount(); renderOptions(); }
 function update(regen){ persist(); renderAll(); if(regen) generate(); else relayout(); }
 
 /* ---------- 保存（PDF・画像） ---------- */
@@ -3161,19 +3145,6 @@ let fontsReady = Promise.resolve();
 function scheduleFonts(){
   fontsReady = fontsReady.then(ensureFonts).then(changed => { if(changed){ mG = null; clearMetrics(groups); relayout(); } }).catch(() => {});
 }
-function renderFonts(){
-  const box = $("fontList"); if(box.childElementCount){ for(const b of box.children) b.setAttribute("aria-pressed", String(b.dataset.v === state.font)); return; }
-  for(const [key, f] of Object.entries(FONTS)){
-    const b = document.createElement("button"); b.type = "button"; b.className = "fcard"; b.dataset.v = key; b.setAttribute("aria-pressed", String(key === state.font));
-    const n = document.createElement("span"); n.className = "fn"; n.textContent = f.name;
-    const sm = document.createElement("small"); sm.textContent = f.note; n.appendChild(sm);
-    const smp = document.createElement("span"); smp.className = "fs"; smp.lang = "ja"; smp.style.fontFamily = f.stack; smp.style.fontWeight = f.n;
-    smp.textContent = "直線と角・頂点　3.14×5＝15.7";
-    b.append(n, smp);
-    b.addEventListener("click", () => { state.font = key; FONT_KEY = key; mG = null; clearMetrics(groups); persist(); renderFonts(); relayout(); });
-    box.appendChild(b);
-  }
-}
 
 function clearMetrics(o){
   const seen = new Set();
@@ -3182,8 +3153,6 @@ function clearMetrics(o){
 }
 
 load();
-if(!FONTS[state.font]) state.font = "kyokasho";
-FONT_KEY = state.font;
 if(!Object.keys(state.alloc).length || selUnits().some(u => state.alloc[u.id] === undefined)) autoSplit();
 renderAll();
 generate();

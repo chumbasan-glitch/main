@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const LEVEL_NAMES = {0:"きほん", 1:"ふつう", 2:"チャレンジ", mix:"まぜる"};
 try{ document.documentElement.lang = "ja"; }catch(e){}
-const state = {font:"kyokasho", grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
+const state = {grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
 let view = "q", items = [], groups = [], LAY = null, PAPER_NOW = "A4";
 
 function persist(){ try{ localStorage.setItem("smm-state", JSON.stringify(Object.assign({}, state, {seed:undefined}))); }catch(e){} }
@@ -188,7 +188,7 @@ function drawPreview(){
     });
   }, 30);
 }
-function renderAll(){ renderFonts(); renderGrades(); renderUnits(); renderSubs(); renderCount(); renderOptions(); }
+function renderAll(){ renderGrades(); renderUnits(); renderSubs(); renderCount(); renderOptions(); }
 function update(regen){ persist(); renderAll(); if(regen) generate(); else relayout(); }
 
 /* ---------- 保存（PDF・画像） ---------- */
@@ -335,19 +335,6 @@ let fontsReady = Promise.resolve();
 function scheduleFonts(){
   fontsReady = fontsReady.then(ensureFonts).then(changed => { if(changed){ mG = null; clearMetrics(groups); relayout(); } }).catch(() => {});
 }
-function renderFonts(){
-  const box = $("fontList"); if(box.childElementCount){ for(const b of box.children) b.setAttribute("aria-pressed", String(b.dataset.v === state.font)); return; }
-  for(const [key, f] of Object.entries(FONTS)){
-    const b = document.createElement("button"); b.type = "button"; b.className = "fcard"; b.dataset.v = key; b.setAttribute("aria-pressed", String(key === state.font));
-    const n = document.createElement("span"); n.className = "fn"; n.textContent = f.name;
-    const sm = document.createElement("small"); sm.textContent = f.note; n.appendChild(sm);
-    const smp = document.createElement("span"); smp.className = "fs"; smp.lang = "ja"; smp.style.fontFamily = f.stack; smp.style.fontWeight = f.n;
-    smp.textContent = "直線と角・頂点　3.14×5＝15.7";
-    b.append(n, smp);
-    b.addEventListener("click", () => { state.font = key; FONT_KEY = key; mG = null; clearMetrics(groups); persist(); renderFonts(); relayout(); });
-    box.appendChild(b);
-  }
-}
 
 function clearMetrics(o){
   const seen = new Set();
@@ -356,8 +343,6 @@ function clearMetrics(o){
 }
 
 load();
-if(!FONTS[state.font]) state.font = "kyokasho";
-FONT_KEY = state.font;
 if(!Object.keys(state.alloc).length || selUnits().some(u => state.alloc[u.id] === undefined)) autoSplit();
 renderAll();
 generate();
