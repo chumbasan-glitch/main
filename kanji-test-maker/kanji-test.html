@@ -177,11 +177,11 @@ h2.sec{margin:0;font-size:17px}
       </div>
 
       <div class="step">
-        <div class="step-h"><span class="n">4</span>問題数<span class="aside" id="rowsInfo"></span></div>
+        <div class="step-h"><span class="n">4</span>問題数（20問まで）<span class="aside" id="rowsInfo"></span></div>
         <div class="row">
           <div class="stepper">
             <button type="button" id="cntMinus" aria-label="1問へらす">−</button>
-            <input id="cnt" type="number" min="1" max="50" inputmode="numeric" aria-label="問題数">
+            <input id="cnt" type="number" min="1" max="20" inputmode="numeric" aria-label="問題数">
             <button type="button" id="cntPlus" aria-label="1問ふやす">＋</button>
           </div>
           <div class="presets" id="presets"></div>
@@ -324,12 +324,14 @@ const isKanji = c => (c >= "一" && c <= "鿿") || c === "々";
 
 /* ---------- 保存 ---------- */
 const STORE = "kanji_test_maker_v1";
+const MAX_Q = 20;
 const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"" };
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
     const raw = localStorage.getItem(STORE);
     if(raw){ const p = JSON.parse(raw); if(p && typeof p === "object") state = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), p); }
+    state.count = Math.max(1, Math.min(MAX_Q, Math.round(+state.count) || 10));
   }catch(e){}
 }
 function persist(){ try{ localStorage.setItem(STORE, JSON.stringify(state)); }catch(e){} }
@@ -658,7 +660,7 @@ function renderChips(){
 }
 function renderCount(){
   $("cnt").value = state.count;
-  const pr = $("presets"); if(!pr.childElementCount) for(const n of [10,20,30,40,50]){
+  const pr = $("presets"); if(!pr.childElementCount) for(const n of [5,10,15,20]){
     const b = document.createElement("button"); b.type = "button"; b.dataset.v = n; b.textContent = n + "問";
     b.addEventListener("click", () => setCount(n)); pr.appendChild(b);
   }
@@ -668,7 +670,7 @@ function renderCount(){
   $("paperAuto").textContent = "おすすめ（" + recommendPaper(state.count) + "）";
 }
 function setCount(n){
-  n = Math.max(1, Math.min(50, Math.round(+n) || 10));
+  n = Math.max(1, Math.min(MAX_Q, Math.round(+n) || 10));
   state.count = n; persist(); generate(); renderAll();
 }
 function sentenceHtml(sen, mode, learned){
