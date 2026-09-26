@@ -1,6 +1,16 @@
 /* ================= 基本の道具 ================= */
 const INK = "#1a1a1a", RED = "#d4231b", GRID = "#b9b9b9", SHADE = "#dcdcdc";
-const FONT = '"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","Klee One","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+/* 書体（どれも日本語の字形。web はブラウザに読みこむ書体） */
+const JP_SANS = '"Hiragino Sans","Hiragino Kaku Gothic ProN","BIZ UDPGothic","Yu Gothic","Meiryo","Noto Sans JP",sans-serif';
+const JP_SERIF = '"Hiragino Mincho ProN","BIZ UDPMincho","Yu Mincho","Noto Serif JP",serif';
+const FONTS = {
+  kyokasho:{name:"教科書体", note:"Windowsは「UD デジタル 教科書体」、iPadなどは「クレー」", stack:'"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","Klee One",' + JP_SERIF, web:"Klee One", n:600, b:600},
+  klee:{name:"クレー（手書き風）", note:"どの機械でも同じ形", stack:'"Klee One",' + JP_SERIF, web:"Klee One", n:600, b:600},
+  udgothic:{name:"UDゴシック", note:"はっきりした形・読みやすさ重視", stack:'"BIZ UDPGothic",' + JP_SANS, web:"BIZ UDPGothic", n:400, b:700},
+  udmincho:{name:"UD明朝", note:"教科書の本文に近い形", stack:'"BIZ UDPMincho",' + JP_SERIF, web:"BIZ UDPMincho", n:400, b:700},
+  maru:{name:"丸ゴシック", note:"やわらかい形", stack:'"Zen Maru Gothic",' + JP_SANS, web:"Zen Maru Gothic", n:500, b:700}
+};
+let FONT_KEY = "kyokasho";
 
 function makeRng(seed){
   let a = seed >>> 0;
@@ -105,15 +115,20 @@ function mkText(tokens){
 
 /* ================= 描画の道具（単位はすべてmm） ================= */
 function makeG(ctx, k){
+  try{ ctx.lang = "ja"; }catch(e){}
   const G = {
-    k, ctx, texts:null,
-    font(size, weight){ ctx.font = (weight || 600) + " " + (size * k).toFixed(2) + "px " + FONT; },
+    k, ctx, capture:null,
+    font(size, weight){
+      const f = FONTS[FONT_KEY] || FONTS.kyokasho, w = weight >= 700 ? f.b : weight && weight <= 400 ? 400 : f.n;
+      ctx.font = w + " " + (size * k).toFixed(2) + "px " + f.stack;
+    },
     width(s, size, weight){ G.font(size, weight); return ctx.measureText(s).width / k; },
     text(s, x, y, o){
       o = o || {}; G.font(o.size || 5, o.weight);
       ctx.fillStyle = o.color || INK; ctx.textAlign = o.align || "left"; ctx.textBaseline = o.base || "middle";
       ctx.fillText(s, x * k, y * k);
       if(o.rbBase && ctx.__rb) ctx.__rb.push(s);
+      if(G.capture) G.capture.push(s);
     },
     stroke(o){
       ctx.strokeStyle = o.color || INK; ctx.lineWidth = (o.w || 0.3) * k;

@@ -1,7 +1,8 @@
 /* ================= 画面 ================= */
 const $ = id => document.getElementById(id);
 const LEVEL_NAMES = {0:"きほん", 1:"ふつう", 2:"チャレンジ", mix:"まぜる"};
-const state = {grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
+try{ document.documentElement.lang = "ja"; }catch(e){}
+const state = {font:"kyokasho", grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
 let view = "q", items = [], groups = [], LAY = null, PAPER_NOW = "A4";
 
 function persist(){ try{ localStorage.setItem("smm-state", JSON.stringify(Object.assign({}, state, {seed:undefined}))); }catch(e){} }
@@ -153,6 +154,7 @@ function relayout(){
   $("pvMeta").textContent = total ? PAPER_NOW + "たて ・ " + total + "問 ・ " + n + "まい ・ " + LEVEL_NAMES[state.level] : "";
   $("cntInfo").textContent = total && total !== state.total ? "（できた問題 " + total + "問）" : "";
   drawPreview();
+  scheduleFonts();
 }
 
 /* ---------- プレビュー ---------- */
@@ -170,7 +172,7 @@ function drawPreview(){
       box.innerHTML = "";
       for(let i = 0; i < want; i++){
         const f = document.createElement("figure"), c = document.createElement("canvas"), cap = document.createElement("figcaption");
-        c.setAttribute("aria-label", "プリントのプレビュー " + (i + 1) + "まいめ");
+        c.setAttribute("aria-label", "プリントのプレビュー " + (i + 1) + "まいめ"); c.lang = "ja";
         cap.textContent = want > 1 ? (i + 1) + "まいめ" : ""; cap.hidden = want < 2;
         f.append(c, cap); box.appendChild(f);
       }
@@ -186,7 +188,7 @@ function drawPreview(){
     });
   }, 30);
 }
-function renderAll(){ renderGrades(); renderUnits(); renderSubs(); renderCount(); renderOptions(); }
+function renderAll(){ renderFonts(); renderGrades(); renderUnits(); renderSubs(); renderCount(); renderOptions(); }
 function update(regen){ persist(); renderAll(); if(regen) generate(); else relayout(); }
 
 /* ---------- 保存（PDF・画像） ---------- */
@@ -313,17 +315,39 @@ $("meateOn").addEventListener("change", () => { state.meateOn = $("meateOn").che
 $("meate").addEventListener("input", () => { state.meate = $("meate").value; state.meateEdited = state.meate !== defaultMeate(); persist(); relayout(); });
 window.addEventListener("resize", drawPreview);
 
-/* ---------- 書体の読みこみ ---------- */
-const fontsReady = (async () => {
-  if(!document.fonts || !document.fonts.load) return;
-  try{
-    await Promise.race([
-      Promise.all([document.fonts.load('600 20px "Klee One"', "算数プリント0123"), document.fonts.load('400 20px "Klee One"', "（）")]),
-      new Promise(r => setTimeout(r, 3000))
-    ]);
-  }catch(e){}
-})();
-fontsReady.then(() => { mG = null; clearMetrics(groups); relayout(); });
+/* ---------- 書体の読みこみ ----------
+   日本語の書体は字ごとに分けて配られるので、プリントに出てくる字を全部読みこんでからかく */
+const loadedChars = {};
+async function ensureFonts(){
+  if(!document.fonts || !document.fonts.load || !LAY || !groups.length) return false;
+  const f = FONTS[FONT_KEY], set = loadedChars[f.web] || (loadedChars[f.web] = new Set());
+  const c = document.createElement("canvas"), G = makeG(c.getContext("2d"), 0.05); G.capture = [];
+  const fs = FS[state.size], opt = printOpt();
+  try{ for(let i = 0; i < LAY.pages.length; i++){ drawPageAt(G, LAY, i, fs, opt, false); drawPageAt(G, LAY, i, fs, opt, true); } }catch(e){}
+  let txt = "";
+  for(const ch of G.capture.join("") + "（）〔〕答え先生用名前めあて点問／0123456789") if(ch.trim() && !set.has(ch)){ set.add(ch); txt += ch; }
+  if(!txt) return false;
+  const ws = [...new Set([f.n, f.b, 400])];
+  try{ await Promise.race([Promise.all(ws.map(w => document.fonts.load(w + ' 20px "' + f.web + '"', txt))), new Promise(r => setTimeout(r, 6000))]); }catch(e){}
+  return true;
+}
+let fontsReady = Promise.resolve();
+function scheduleFonts(){
+  fontsReady = fontsReady.then(ensureFonts).then(changed => { if(changed){ mG = null; clearMetrics(groups); relayout(); } }).catch(() => {});
+}
+function renderFonts(){
+  const box = $("fontList"); if(box.childElementCount){ for(const b of box.children) b.setAttribute("aria-pressed", String(b.dataset.v === state.font)); return; }
+  for(const [key, f] of Object.entries(FONTS)){
+    const b = document.createElement("button"); b.type = "button"; b.className = "fcard"; b.dataset.v = key; b.setAttribute("aria-pressed", String(key === state.font));
+    const n = document.createElement("span"); n.className = "fn"; n.textContent = f.name;
+    const sm = document.createElement("small"); sm.textContent = f.note; n.appendChild(sm);
+    const smp = document.createElement("span"); smp.className = "fs"; smp.lang = "ja"; smp.style.fontFamily = f.stack; smp.style.fontWeight = f.n;
+    smp.textContent = "直線と角・頂点　3.14×5＝15.7";
+    b.append(n, smp);
+    b.addEventListener("click", () => { state.font = key; FONT_KEY = key; mG = null; clearMetrics(groups); persist(); renderFonts(); relayout(); });
+    box.appendChild(b);
+  }
+}
 
 function clearMetrics(o){
   const seen = new Set();
@@ -332,6 +356,8 @@ function clearMetrics(o){
 }
 
 load();
+if(!FONTS[state.font]) state.font = "kyokasho";
+FONT_KEY = state.font;
 if(!Object.keys(state.alloc).length || selUnits().some(u => state.alloc[u.id] === undefined)) autoSplit();
 renderAll();
 generate();
