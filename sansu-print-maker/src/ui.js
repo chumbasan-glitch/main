@@ -162,7 +162,7 @@ function drawPreview(){
   pvTimer = setTimeout(() => {
     const box = $("pages");
     const none = !groups.length;
-    for(const id of ["savePdf", "saveImgQ", "saveImgA"]) $(id).disabled = none;
+    for(const id of ["savePdf", "saveImgQ", "saveImgA", "printQ", "printA"]) $(id).disabled = none;
     if(none){ box.innerHTML = '<div class="empty">単元を1つ以上えらんでください。</div>'; return; }
     const want = LAY.pages.length;
     const figs = [...box.querySelectorAll("figure")];
@@ -200,7 +200,7 @@ async function getDl(){
 function setSaveMode(){
   const can = !!dl || !dlChecked;
   $("savePdf").textContent = can ? "PDFで保存（問題＋答え）" : "印刷用の画像を出す（問題＋答え）";
-  $("saveImgQ").hidden = $("saveImgA").hidden = !can;
+  $("saveImgQ").hidden = $("saveImgA").hidden = $("printQ").hidden = $("printA").hidden = !can;
 }
 function status(msg, kind){ const el = $("saveStatus"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); }
 const PRINT_K = 200 / 25.4;
@@ -262,6 +262,30 @@ async function saveImage(ans, btn){
     status((ans ? "答え" : "問題") + "の画像を保存しました。", "ok");
   });
 }
+/* 印刷用のファイル：開くと印刷の画面が出る */
+function printHtml(cs, ans){
+  const [W, H] = PAPERS[PAPER_NOW];
+  const imgs = cs.map(c => '<img src="' + c.toDataURL("image/png") + '" alt="">').join("");
+  return '<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>' + baseName() + (ans ? "_答え" : "_問題") + '</title>' +
+    '<style>@page{size:' + W + 'mm ' + H + 'mm;margin:0}html,body{margin:0;padding:0;background:#fff}' +
+    'img{display:block;width:' + W + 'mm;height:' + H + 'mm;page-break-after:always;break-after:page}img:last-child{page-break-after:auto;break-after:auto}' +
+    '.note{font:16px sans-serif;padding:12px 16px;background:#e1e9f5;color:#1a2b45}.note button{font:inherit;margin-left:12px;padding:4px 14px}' +
+    '@media print{.note{display:none}}</style></head><body>' +
+    '<div class="note">印刷の画面が出ないときは <button onclick="print()">印刷する</button> をおしてください。用紙は ' + PAPER_NOW + '、倍率は100%（またはページに合わせる）、余白なしにしてください。</div>' +
+    imgs + '<script>window.addEventListener("load",function(){setTimeout(function(){window.print();},400);});<\/script></body></html>';
+}
+async function printPages(ans, btn){
+  await withBusy(btn, async () => {
+    await fontsReady;
+    if(!(await getDl())){ const cs = renderPrint(ans); showImages(cs.map((c, i) => ({label:(ans ? "答え（先生用）" : "問題") + (cs.length > 1 ? "（" + (i + 1) + "まいめ）" : ""), canvas:c}))); return; }
+    status("印刷用のファイルを作っています…");
+    const r = await offer(baseName() + (ans ? "_答え" : "_問題") + "_印刷用.html", printHtml(renderPrint(ans), ans));
+    if(r === "saved") status("印刷用のファイルを保存しました。そのファイルを開くと印刷の画面が出ます。用紙は " + PAPER_NOW + " を選んでください。", "ok");
+    else status(...explain(r));
+  });
+}
+$("printQ").addEventListener("click", e => printPages(false, e.currentTarget));
+$("printA").addEventListener("click", e => printPages(true, e.currentTarget));
 $("saveImgQ").addEventListener("click", e => saveImage(false, e.currentTarget));
 $("saveImgA").addEventListener("click", e => saveImage(true, e.currentTarget));
 $("imgClose").addEventListener("click", () => { $("imgOverlay").hidden = true; });
