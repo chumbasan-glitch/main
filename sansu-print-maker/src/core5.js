@@ -187,6 +187,7 @@ function drawHeader(G, L, fs, opt, ans, pageNo, pageCount){
 }
 function drawPageAt(G, L, pi, fs, opt, ans){
   const page = L.pages[pi];
+  G.rbSeen = new Set();
   G.rect(0, 0, L.PW, L.PH, {fill:"#ffffff", stroke:false});
   drawHeader(G, L, fs, opt, ans, pi + 1, L.pages.length);
   const numW = NUMW(fs);

@@ -384,7 +384,7 @@ function tokMetrics(G, t, fs){
   let m;
   if(t.t === "s") m = {w:G.width(t.s, fs), up:0.62 * fs, dn:0.62 * fs};
   else if(t.t === "sup") m = {w:G.width(t.s, fs * 0.6) + 0.05 * fs, up:0.62 * fs, dn:0.62 * fs};
-  else if(t.t === "rb") m = {w:Math.max(G.width(t.s, fs), G.width(t.r, fs * 0.42)), bw:G.width(t.s, fs), up:1.05 * fs, dn:0.62 * fs};
+  else if(t.t === "rb") m = {w:G.width(t.s, fs), bw:G.width(t.s, fs), up:1.05 * fs, dn:0.62 * fs};
   else if(t.t === "f"){
     const fn = fs * 0.78, wn = Math.max(G.width(t.n, fn), G.width(t.d, fn)) + 0.3 * fs;
     const ww = t.w ? G.width(t.w, fs) + 0.06 * fs : 0;
@@ -417,7 +417,10 @@ function drawTok(G, t, m, x, y, fs, ans, color){
   else if(t.t === "sup") G.text(t.s, x + 0.03 * fs, y - 0.32 * fs, {size:fs * 0.6, color:c});
   else if(t.t === "rb"){
     G.text(t.s, x + (m.w - m.bw) / 2, y, {size:fs, color:c, rbBase:true});
-    G.text(t.r, x + m.w / 2, y - 0.8 * fs, {size:fs * 0.42, color:c, align:"center", weight:600});
+    /* ふりがなは、そのページで最初に出てきたときだけ（赤い答えの中では数えない） */
+    const seen = G.rbSeen;
+    if(!seen || !seen.has(t.s)) G.text(t.r, x + m.w / 2, y - 0.8 * fs, {size:fs * 0.42, color:c, align:"center", weight:600});
+    if(seen && c !== RED) seen.add(t.s);
   }
   else if(t.t === "f"){
     if(t.w) G.text(t.w, x, y, {size:fs, color:c});
@@ -2103,6 +2106,7 @@ function drawHeader(G, L, fs, opt, ans, pageNo, pageCount){
 }
 function drawPageAt(G, L, pi, fs, opt, ans){
   const page = L.pages[pi];
+  G.rbSeen = new Set();
   G.rect(0, 0, L.PW, L.PH, {fill:"#ffffff", stroke:false});
   drawHeader(G, L, fs, opt, ans, pi + 1, L.pages.length);
   const numW = NUMW(fs);
