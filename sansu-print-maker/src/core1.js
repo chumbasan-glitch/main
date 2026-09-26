@@ -77,6 +77,7 @@ function parseMk(s){
       const m = inner.match(/^(?:(\d+)\s+)?([^/]+)\/(.+)$/);
       flush(); out.push({t:"f", w:m[1] || "", n:m[2], d:m[3]}); i = j + 1; continue;
     }
+    if(s[i] === "【"){ const j = s.indexOf("】", i), [b, r] = s.slice(i + 1, j).split("|"); flush(); out.push({t:"rb", s:b, r}); i = j + 1; continue; }
     if(s[i] === "^"){ flush(); out.push({t:"sup", s:s[i + 1]}); i += 2; continue; }
     if(s[i] === "\n"){ flush(); out.push({t:"br"}); i++; continue; }
     buf += s[i]; i++;
@@ -87,7 +88,7 @@ function parseMk(s){
 function mkText(tokens){
   let s = "";
   for(const t of tokens){
-    if(t.t === "s") s += t.s;
+    if(t.t === "s" || t.t === "rb") s += t.s;
     else if(t.t === "f") s += t.w + t.n + t.d;
     else if(t.a) s += mkText(t.a);
   }
@@ -104,7 +105,7 @@ function makeG(ctx, k){
       o = o || {}; G.font(o.size || 5, o.weight);
       ctx.fillStyle = o.color || INK; ctx.textAlign = o.align || "left"; ctx.textBaseline = o.base || "middle";
       ctx.fillText(s, x * k, y * k);
-      if(G.texts) G.texts.push(s);
+      if(o.rbBase && ctx.__rb) ctx.__rb.push(s);
     },
     stroke(o){
       ctx.strokeStyle = o.color || INK; ctx.lineWidth = (o.w || 0.3) * k;
@@ -144,6 +145,7 @@ function tokMetrics(G, t, fs){
   let m;
   if(t.t === "s") m = {w:G.width(t.s, fs), up:0.62 * fs, dn:0.62 * fs};
   else if(t.t === "sup") m = {w:G.width(t.s, fs * 0.6) + 0.05 * fs, up:0.62 * fs, dn:0.62 * fs};
+  else if(t.t === "rb") m = {w:Math.max(G.width(t.s, fs), G.width(t.r, fs * 0.42)), bw:G.width(t.s, fs), up:1.05 * fs, dn:0.62 * fs};
   else if(t.t === "f"){
     const fn = fs * 0.78, wn = Math.max(G.width(t.n, fn), G.width(t.d, fn)) + 0.3 * fs;
     const ww = t.w ? G.width(t.w, fs) + 0.06 * fs : 0;
@@ -174,6 +176,10 @@ function drawTok(G, t, m, x, y, fs, ans, color){
   const c = color || INK;
   if(t.t === "s") G.text(t.s, x, y, {size:fs, color:c});
   else if(t.t === "sup") G.text(t.s, x + 0.03 * fs, y - 0.32 * fs, {size:fs * 0.6, color:c});
+  else if(t.t === "rb"){
+    G.text(t.s, x + (m.w - m.bw) / 2, y, {size:fs, color:c, rbBase:true});
+    G.text(t.r, x + m.w / 2, y - 0.8 * fs, {size:fs * 0.42, color:c, align:"center", weight:600});
+  }
   else if(t.t === "f"){
     if(t.w) G.text(t.w, x, y, {size:fs, color:c});
     const x0 = x + m.ww, cx = x0 + m.wn / 2 + 0.05 * fs;

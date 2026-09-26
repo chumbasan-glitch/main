@@ -157,7 +157,7 @@ function hissanMulItem(a, b, o){
 }
 
 /* ---------- 筆算（わり算） ----------
-   mode: exact わり切れるまで / round 四しゃ五入して r けた / rem 商は一の位まで・あまり */
+   mode: exact わり切れるまで / round 四【捨|しゃ】五入して r けた / rem 商は一の位まで・あまり */
 function divSolve(n, d, mode, r){
   const dD = d.replace(".", ""), dd = dparse(d)[1], D = parseInt(dD, 10);
   const X = n.replace(".", "").split(""), nd = dparse(n)[1], orig = X.length;
@@ -187,9 +187,9 @@ function hissanDivItem(n, d, mode, r, o){
   const cols = Math.max(S.X.length, S.last + 1);
   const rows = 2 + 2 * S.steps.length;
   const noteMk = mode === "exact" ? "" : S.ansText;
-  const lead = mode === "exact" ? "わり切れるまで" : mode === "round" ? (r === 0 ? "四しゃ五入して整数で" : "四しゃ五入して" + F(1, P10(r)) + "の位まで") : "商は一の位まで，あまりも";
+  const lead = mode === "exact" ? "わり切れるまで" : mode === "round" ? (r === 0 ? "四【捨|しゃ】五入して整数で" : "四【捨|しゃ】五入して" + F(1, P10(r)) + "の位まで") : "商は一の位まで，あまりも";
   return Object.assign({cat:"hissan", n:1, lead, S, sig:n + "÷" + d,
-    inst:mode === "exact" ? "わり切れるまで筆算でしましょう。" : mode === "round" ? (r === 0 ? "商を四しゃ五入して，整数で求めましょう。" : "商を四しゃ五入して，" + F(1, P10(r)) + "の位までのがい数で求めましょう。") : "商は一の位まで求めて，あまりも出しましょう。",
+    inst:mode === "exact" ? "わり切れるまで筆算でしましょう。" : mode === "round" ? (r === 0 ? "商を四【捨|しゃ】五入して，整数で求めましょう。" : "商を四【捨|しゃ】五入して，" + F(1, P10(r)) + "の位までのがい数で求めましょう。") : "商は一の位まで求めて，あまりも出しましょう。",
     dims(fs){ return {cs:1.2 * fs, rh:1.3 * fs}; },
     noteW(G, fs){ return noteMk ? G.width(noteMk, fs * 0.9) + 1.2 * fs : 0; },
     minW(G, fs){ const {cs} = this.dims(fs); return (S.dD.length + 0.9 + cols) * cs + this.noteW(G, fs) + 0.3 * fs; },

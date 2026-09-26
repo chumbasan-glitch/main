@@ -159,8 +159,8 @@ function genCongruent(lv, kind){
   if(kind === "corr"){
     const vs = shuffle([0, 1, 2]);
     const cand = [
-      "ちょう点" + N1[vs[0]] + "に対応するちょう点((ちょう点" + L2[vs[0]] + "))",
-      "ちょう点" + L2[vs[1]] + "に対応するちょう点((ちょう点" + N1[vs[1]] + "))",
+      "【頂|ちょう】点" + N1[vs[0]] + "に対応する【頂|ちょう】点((【頂|ちょう】点" + L2[vs[0]] + "))",
+      "【頂|ちょう】点" + L2[vs[1]] + "に対応する【頂|ちょう】点((【頂|ちょう】点" + N1[vs[1]] + "))",
       "辺" + sideName(vs[0], vs[2]) + "に対応する辺((辺" + side2(vs[0], vs[2]) + "))",
       "辺" + side2(vs[1], vs[2]) + "に対応する辺((辺" + sideName(vs[1], vs[2]) + "))",
       "角" + N1[vs[2]] + "に対応する角((角" + L2[vs[2]] + "))"
@@ -189,7 +189,7 @@ function genCongruent(lv, kind){
     for(const [i, j] of shows.sides) sideLabel(G, P[i], P[j], cm(sideLen(i, j)), cen, fs);
     for(const i of shows.angs) angleMark(G, P[i], P[(i + 1) % 3], P[(i + 2) % 3], angR[i] + "°", fs);
   };
-  const inst = kind === "corr" ? "下の2つの三角形は合同です。対応するちょう点，辺，角を答えましょう。" : "下の2つの三角形は合同です。つぎの辺の長さや角の大きさを答えましょう。";
+  const inst = kind === "corr" ? "下の2つの三角形は合同です。対応する【頂|ちょう】点，辺，角を答えましょう。" : "下の2つの三角形は合同です。つぎの辺の長さや角の大きさを答えましょう。";
   return setItem(fw, fh, draw, subs, {inst, lead:"合同な三角形"});
 }
 
@@ -343,15 +343,15 @@ function genGraph(kind, lv){
   const th = pick(GRAPH_THEMES), names = shuffle(th.items), vals = makeShares(lv);
   const lab = names.concat(["その他"]);
   const subs = [];
-  const i1 = ri(0, 3); subs.push(lab[i1] + "のわり合は何%ですか。((" + vals[i1] + "%))");
+  const i1 = ri(0, 3); subs.push(lab[i1] + "の【割|わり】合は何%ですか。((" + vals[i1] + "%))");
   let i2; do{ i2 = ri(0, 3); } while(i2 === i1);
-  subs.push(lab[i2] + "のわり合は何%ですか。((" + vals[i2] + "%))");
+  subs.push(lab[i2] + "の【割|わり】合は何%ですか。((" + vals[i2] + "%))");
   if(lv >= 1){
     const pairs = []; for(let a = 0; a < 4; a++) for(let b = 0; b < 4; b++) if(a !== b && vals[a] > vals[b] && (vals[a] * 10) % vals[b] === 0) pairs.push([a, b]);
     if(pairs.length){ const [a, b] = pick(pairs); subs.push(lab[a] + "は，" + lab[b] + "の何倍ですか。((" + ds(vals[a] * 10 / vals[b], 1) + "倍))"); }
   }
   if(lv === 2){ const tot = pick([200, 300, 400, 500]), i3 = ri(0, 3); subs.push("全体が" + tot + th.u + "のとき，" + lab[i3] + "は何" + th.u + "ですか。((" + tot * vals[i3] / 100 + th.u + "))"); }
-  const text = "下の" + (kind === "pie" ? "円グラフ" : "帯グラフ") + "は，" + th.t + "を調べて，わり合を表したものです。";
+  const text = "下の" + (kind === "pie" ? "円グラフ" : "帯グラフ") + "は，" + th.t + "を調べて，【割|わり】合を表したものです。";
   if(kind === "pie"){
     const draw = (G, x, y, w, h, fs) => {
       const r = Math.min(w, h) / 2 - 3.5, cx = x + w / 2, cy = y + h / 2;
@@ -549,7 +549,7 @@ function genNetDraw(lv){
   const ans = (G, bx, by, bw, bh, fs) => { drawNet(G, S, realPlace(S.all, bx, by, bw, bh), 10, RED); G.text("（実際の大きさ・かき方の一例）", bx + bw - 1.5, by + bh - 2.5, {size:fs * 0.55, color:RED, align:"right"}); };
   const name = kind === "cyl" ? "円柱" : kind === "p3" ? "三角柱" : "四角柱";
   return drawItem(52, 44, drawFig, BW, BH, ans,
-    {inst:"つぎの立体のてん開図を，実際の大きさで四角の中にかきましょう。", lead:name + "のてん開図", sig:kind + JSON.stringify(v)});
+    {inst:"つぎの立体の【展|てん】開図を，実際の大きさで四角の中にかきましょう。", lead:name + "の【展|てん】開図", sig:kind + JSON.stringify(v)});
 }
 /* 展開図から長さを読み取る */
 function genNetRead(lv){
@@ -574,5 +574,5 @@ function genNetRead(lv){
     drawToks(G, parseMk(cm(h)), t[0] + 1, (t[1] + b[1]) / 2, fs * 0.8, false);
   };
   const q = lv === 2 ? `イ((${cm(d)}))` : `ア((${cm(W)}))`;
-  return figItem(FIGW + 6, FIGH + 18, draw, q, {sig:lv + ":" + d + ":" + h, inst:lv === 2 ? "下の円柱のてん開図で，イの長さを求めましょう。円周率は3.14とします。" : "下の円柱のてん開図で，アの長さを求めましょう。円周率は3.14とします。", lead:"てん開図の長さ"});
+  return figItem(FIGW + 6, FIGH + 18, draw, q, {sig:lv + ":" + d + ":" + h, inst:lv === 2 ? "下の円柱の【展|てん】開図で，イの長さを求めましょう。円周率は3.14とします。" : "下の円柱の【展|てん】開図で，アの長さを求めましょう。円周率は3.14とします。", lead:"【展|てん】開図の長さ"});
 }
