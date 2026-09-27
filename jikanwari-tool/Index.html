@@ -55,6 +55,7 @@
   .box ul { margin: 6px 0 0; padding-left: 20px; }
   .off { background: #9e9e9e; color: #fff; }
   .cellbtn { width: 3.2em; font: inherit; font-size: 13px; border: 1px solid #c9c4b8; border-radius: 4px; background: #fff; cursor: pointer; padding: 2px 0; }
+  .cellbtn.wide { width: 5em; }
   .cellbtn.x { background: #6b6b6b; color: #fff; border-color: #6b6b6b; }
   .progress { height: 14px; background: #e7e3da; border-radius: 7px; overflow: hidden; margin: 8px 0; }
   .progress > div { height: 100%; background: var(--main); width: 0; transition: width .2s; }
@@ -187,6 +188,7 @@ var STEPS = [
   { title: '教科の一部を別の場所で', render: renderVariants },
   { title: 'このツールで組む教科', render: renderAuto },
   { title: '専科・講師の担当', render: renderTeachers },
+  { title: '講師などの勤務', render: renderTeacherOff },
   { title: '先に決まっている時間', render: renderFixed },
   { title: '教科の希望', render: renderPrefs },
   { title: '同じ時間にそろえる授業', render: renderSyncs },
@@ -447,6 +449,26 @@ function commitDrafts() {
   return n;
 }
 
+function renderTeacherOff() {
+  var h = '<h2>講師・少人数・TTなどの先生の、勤務できない時間を教えてください</h2>' +
+    '<p class="lead">専科の先生は担任と同じ勤務なので、ここには出ません。勤務がない時間をクリックして「×」にしてください。曜日や時間の見出しをクリックすると、まとめて切りかえられます（例：月曜は出勤しない、午後だけ勤務）。</p>';
+  var list = A.teachers.filter(function (t) { return t.kind !== '専科'; });
+  if (!list.length) return h + '<div class="box note">専科以外の先生が入っていないので、この質問はとばして大丈夫です。</div>';
+  A.teachers.forEach(function (t, ti) {
+    if (t.kind === '専科') return;
+    t.off = t.off || {};
+    h += '<div class="item"><b>' + esc(t.name || '先生' + (ti + 1)) + '</b>（' + esc(t.kind) + '）<table class="t"><tr><th></th>' +
+      A.days.map(function (d, di) { return '<th><button class="cellbtn" data-a="offDay" data-i="' + ti + '" data-d="' + di + '">' + d + '</button></th>'; }).join('') + '</tr>' +
+      range(1, A.maxPeriods).map(function (p) {
+        return '<tr><th><button class="cellbtn wide" data-a="offPeriod" data-i="' + ti + '" data-p="' + p + '">' + p + '時間目</button></th>' + A.days.map(function (d, di) {
+          var x = t.off[di + '-' + p];
+          return '<td><button class="cellbtn' + (x ? ' x' : '') + '" data-a="offCell" data-i="' + ti + '" data-d="' + di + '" data-p="' + p + '">' + (x ? '×' : '勤務') + '</button></td>';
+        }).join('') + '</tr>';
+      }).join('') + '</table></div>';
+  });
+  return h;
+}
+
 function renderFixed() {
   var h = '<h2>先に決まっている時間はありますか？</h2>' +
     '<p class="lead">全校朝会、委員会、クラブなど、授業を入れない時間です。自動で組むときはこの時間を空けておき、時間割には「内容」をそのまま出します。</p>';
@@ -611,6 +633,7 @@ document.addEventListener('change', function (e) {
     if (sj.display === el.dataset.old) sj.display = v;
   } else v = el.value;
   setPath(k, v);
+  if (/^teachers\.\d+\.kind$/.test(k) && v === '専科') getPath(k.replace(/\.kind$/, '')).off = {};
   if (k === 'maxPeriods') JW.GRADES.forEach(function (g) { A.periods[g] = (A.periods[g] || []).map(function (p) { return Math.min(p, v); }); });
   result = null;
   // 文字や数字を入れたあとは、すぐに画面を書き直すと、続けて押したボタンが効かなくなるので少し待つ
@@ -639,8 +662,8 @@ function fixAnswers(x) {
   var d = JW.defaultAnswers();
   ['teachers', 'fixed', 'prefs', 'syncs', 'variants', 'rooms'].forEach(function (k) { if (!x[k]) x[k] = d[k]; });
   if (!x.rules) x.rules = d.rules;
-  // 専科・講師は毎日勤務として扱う（勤務できない時間の質問はなくした）
-  (x.teachers || []).forEach(function (t) { t.jobs = t.jobs || []; t.off = {}; });
+  // 専科は担任と同じく毎日勤務として扱う
+  (x.teachers || []).forEach(function (t) { t.jobs = t.jobs || []; t.off = t.kind === '専科' ? {} : (t.off || {}); });
   x.rooms.forEach(function (r) { r.count = r.count || 1; r.grades = r.grades || [[]]; });
   x.subjects.forEach(function (s) { if (s.auto === undefined) s.auto = true; });
   x.variants.forEach(function (v) { if (v.auto === undefined) v.auto = true; });
@@ -726,6 +749,19 @@ var actions = {
     render();
   },
   delJob: function (d) { A.teachers[+d.i].jobs.splice(+d.j, 1); render(); },
+  offCell: function (d) { var o = A.teachers[+d.i].off, k = d.d + '-' + d.p; if (o[k]) delete o[k]; else o[k] = true; render(); },
+  offDay: function (d) {
+    var o = A.teachers[+d.i].off, ps = range(1, A.maxPeriods);
+    var all = ps.every(function (p) { return o[d.d + '-' + p]; });
+    ps.forEach(function (p) { if (all) delete o[d.d + '-' + p]; else o[d.d + '-' + p] = true; });
+    render();
+  },
+  offPeriod: function (d) {
+    var o = A.teachers[+d.i].off;
+    var all = A.days.every(function (x, di) { return o[di + '-' + d.p]; });
+    A.days.forEach(function (x, di) { if (all) delete o[di + '-' + d.p]; else o[di + '-' + d.p] = true; });
+    render();
+  },
   addFixed: function () { A.fixed.push({ grades: [], day: 0, period: 1, label: '' }); render(); },
   delFixed: function (d) { A.fixed.splice(+d.i, 1); render(); },
   fixedAll: function (d) { A.fixed[+d.i].grades = JW.GRADES.slice(); render(); },
