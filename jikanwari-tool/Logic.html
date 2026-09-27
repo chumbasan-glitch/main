@@ -24,9 +24,25 @@ var JW = (function () {
     var hours = {};
     GRADES.forEach(function (g, i) { hours[g] = weekly[i]; });
     var s = { id: id, name: name, display: display, hours: hours, room: '', roomGrades: [],
-      maxPerDay: 1, pairs: 0, active: false };
+      maxPerDay: 1, pairs: 0, active: false, auto: true };
     for (var k in (opt || {})) s[k] = opt[k];
     return s;
+  }
+
+  // 特別教室：count＝部屋の数、grades[k]＝k番目の部屋を使う学年（空＝全学年）
+  function room(name, cap) { return { name: name, cap: cap, count: 1, grades: [[]] }; }
+  var CIRCLED = '①②③④⑤⑥⑦⑧⑨';
+  function roomLabel(r, k) { return (+r.count || 1) > 1 ? r.name + CIRCLED.charAt(k) : r.name; }
+  // 1部屋ずつに分けた特別教室の一覧
+  function physicalRooms(A) {
+    var list = [];
+    (A.rooms || []).forEach(function (r) {
+      var n = Math.max(1, +r.count || 1);
+      for (var k = 0; k < n; k++) {
+        list.push({ kind: r.name, label: roomLabel(r, k), cap: Math.max(1, +r.cap || 1), grades: ((r.grades || [])[k] || []).slice() });
+      }
+    });
+    return list;
   }
 
   function perGrade(v) { var o = {}; GRADES.forEach(function (g) { o[g] = v; }); return o; }
@@ -64,13 +80,12 @@ var JW = (function () {
         subj('gakkatsu', '学級活動', '学級活動', [1, 1, 1, 1, 1, 1])
       ],
       rooms: [
-        { name: '体育館', cap: 2 }, { name: '校庭', cap: 3 }, { name: '音楽室', cap: 1 },
-        { name: '図工室', cap: 1 }, { name: '理科室', cap: 1 }, { name: '家庭科室', cap: 1 },
-        { name: '図書館', cap: 1 }, { name: 'PC室', cap: 1 }
+        room('体育館', 2), room('校庭', 3), room('音楽室', 1), room('図工室', 1), room('理科室', 1),
+        room('家庭科室', 1), room('図書館', 1), room('PC室', 1)
       ],
       variants: [
-        { id: 'v_tosho', subject: 'kokugo', name: '図書', display: 'と', room: '図書館', hours: perGrade(1) },
-        { id: 'v_taiikukan', subject: 'taiiku', name: '体育館体育', display: 'た', room: '体育館', hours: perGrade(1) }
+        { id: 'v_tosho', subject: 'kokugo', name: '図書', display: 'と', room: '図書館', hours: perGrade(1), auto: true },
+        { id: 'v_taiikukan', subject: 'taiiku', name: '体育館体育', display: 'た', room: '体育館', hours: perGrade(1), auto: true }
       ],
       teachers: [],
       fixed: [],
@@ -138,9 +153,11 @@ var JW = (function () {
   }
 
   /* ---------- 入力内容から、組み立て用のデータを作る ---------- */
-  function buildModel(A) {
+  // opt.includeManual … 担任が入れる教科（ツールで組まない教科）のコマも作る（チェック用）
+  function buildModel(A, opt) {
+    opt = opt || {};
     var D = A.days.length, MP = A.maxPeriods, S = D * MP;
-    var errors = [];
+    var errors = [], notes = [];
     var classes = [];
     GRADES.forEach(function (g) {
       var n = +A.classCounts[g] || 0;
@@ -171,11 +188,44 @@ var JW = (function () {
       });
     });
 
+    // 特別教室：同じ種類の部屋を、その学年が使える部屋のまとまり（pool）にする
+    var phys = physicalRooms(A);
+    var rooms = {}, poolName = {}, poolRooms = {};
+    var noRoomMsg = {};
+    function poolFor(kind, g) {
+      if (!kind) return '';
+      var idx = [];
+      phys.forEach(function (r, i) { if (r.kind === kind && (!r.grades.length || r.grades.indexOf(g) >= 0)) idx.push(i); });
+      if (!idx.length) {
+        if (phys.some(function (r) { return r.kind === kind; }) && !noRoomMsg[kind + g]) {
+          noRoomMsg[kind + g] = 1;
+          errors.push(g + '年が使える' + kind + 'がありません（質問「特別教室」で使う学年を確認してください）。');
+        }
+        return '';
+      }
+      var key = kind + '#' + idx.join(',');
+      if (!rooms[key]) {
+        rooms[key] = idx.reduce(function (t, i) { return t + phys[i].cap; }, 0);
+        poolName[key] = idx.length === 1 ? phys[idx[0]].label : kind;
+        poolRooms[key] = idx;
+      }
+      return key;
+    }
+
     var units = [];
     var classUnits = classes.map(function () { return []; });
-    function addUnit(ci, s, variant, display, room) {
-      var u = { id: units.length, cls: ci, subj: s.id, variant: variant, display: display, room: room || '',
-        teachers: [], sync: null, pair: -1, prefs: [], active: !!s.active };
+    var manualCount = classes.map(function () { return 0; });
+    var manualList = {};
+    function addUnit(ci, s, variant, display, roomKind, auto) {
+      if (!auto) {
+        manualCount[ci]++;
+        var mk = classes[ci].grade + '年 ' + display;
+        manualList[mk] = (manualList[mk] || 0) + 1;
+        if (!opt.includeManual) return { id: -1 };
+      }
+      var u = { id: units.length, cls: ci, subj: s.id, variant: variant, display: display,
+        room: poolFor(roomKind, classes[ci].grade), teachers: [], sync: null, pair: -1, prefs: [],
+        active: !!s.active, manual: !auto };
       units.push(u);
       classUnits[ci].push(u.id);
       return u;
@@ -195,10 +245,12 @@ var JW = (function () {
           base = 0;
         }
         var baseUnits = [];
-        for (var k = 0; k < base; k++) baseUnits.push(addUnit(ci, s, null, s.display || s.name, subjectRoom(s, g)));
+        var sAuto = s.auto !== false;
+        for (var k = 0; k < base; k++) baseUnits.push(addUnit(ci, s, null, s.display || s.name, subjectRoom(s, g), sAuto));
         vs.forEach(function (v) {
-          for (var k = 0; k < (+v.hours[g] || 0); k++) addUnit(ci, s, v.id, v.display || v.name, v.room);
+          for (var k = 0; k < (+v.hours[g] || 0); k++) addUnit(ci, s, v.id, v.display || v.name, v.room, v.auto !== false);
         });
+        baseUnits = baseUnits.filter(function (u) { return u.id >= 0; });
         var np = Math.min(+s.pairs || 0, Math.floor(baseUnits.length / 2));
         for (var p = 0; p < np; p++) {
           var a = baseUnits[p * 2], b = baseUnits[p * 2 + 1];
@@ -208,6 +260,15 @@ var JW = (function () {
     });
 
     function matches(u, target) { return u.subj === target || u.variant === target; }
+    function isAuto(target) {
+      var s = subjectById(A, target);
+      if (s) return s.auto !== false || A.variants.some(function (v) { return v.subject === s.id && v.auto !== false; });
+      var v = variantById(A, target);
+      return !!v && v.auto !== false;
+    }
+    function offNote(what, target) {
+      notes.push(what + '：' + targetName(A, target) + 'はこのツールで組まない教科なので、この設定は使いません。');
+    }
 
     // 同じ時間にそろえる授業
     var syncMembers = {};
@@ -215,6 +276,7 @@ var JW = (function () {
       var cis = (sg.classes || []).map(function (k) { return classIndex[k]; })
         .filter(function (x) { return x !== undefined; });
       if (cis.length < 2) return;
+      if (!opt.includeManual && !isAuto(sg.target)) return offNote('同じ時間にそろえる授業', sg.target);
       var cnt = +sg.count || 0;
       var ok = true;
       var picks = cis.map(function (ci) {
@@ -249,8 +311,9 @@ var JW = (function () {
       (t.jobs || []).forEach(function (j) {
         var ci = classIndex[j.cls];
         if (ci === undefined) return;
+        if (!isAuto(j.target)) { if (!opt.includeManual) offNote(teachers[ti].name, j.target); return; }
         var pool = classUnits[ci].map(function (id) { return units[id]; })
-          .filter(function (u) { return matches(u, j.target) && u.teachers.indexOf(ti) < 0; });
+          .filter(function (u) { return matches(u, j.target) && !u.manual && u.teachers.indexOf(ti) < 0; });
         var n = j.hours === 'all' ? pool.length : (+j.hours || 0);
         if (pool.length < n) {
           errors.push(teachers[ti].name + '：' + classes[ci].label + 'の' + targetName(A, j.target) +
@@ -289,9 +352,6 @@ var JW = (function () {
       return { mode: p.mode, mask: mask, text: prefText(A, p) };
     });
 
-    var rooms = {};
-    (A.rooms || []).forEach(function (r) { rooms[r.name] = Math.max(1, +r.cap || 1); });
-
     var maxPerDay = {}, subjName = {}, subjTotal = {};
     A.subjects.forEach(function (s) {
       maxPerDay[s.id] = Math.max(1, +s.maxPerDay || 1);
@@ -300,35 +360,40 @@ var JW = (function () {
 
     // 特別教室に入りきるか
     Object.keys(rooms).forEach(function (r) {
-      var need = units.filter(function (u) { return u.room === r; }).length;
+      var need = units.filter(function (u) { return u.room === r && !u.manual; }).length;
       var slots = 0;
       for (var s = 0; s < S; s++) {
         if (classes.some(function (c, ci) { return avail[ci][s]; })) slots++;
       }
-      if (need > slots * rooms[r]) errors.push(r + '：使う授業が週' + need + 'コマあり、上限' + rooms[r] + 'クラス×' + slots +
+      if (need > slots * rooms[r]) errors.push(poolName[r] + '（' + roomUsers(r) + '）：使う授業が週' + need + 'コマあり、上限' + rooms[r] + 'クラス×' + slots +
         'コマ＝' + (slots * rooms[r]) + 'コマをこえています。上限を上げるか、使う学年やコマ数を見直してください。');
     });
+    function roomUsers(r) {
+      var gs = GRADES.filter(function (g) { return units.some(function (u) { return u.room === r && classes[u.cls].grade === g; }); });
+      return gs.length ? gs.join('・') + '年' : '';
+    }
     Object.keys(syncMembers).forEach(function (key) {
       if (key.split(':')[1] !== '0') return;
       var cis = syncMembers[key];
       var u = units.filter(function (x) { return x.sync === key; })[0];
       if (u && u.room && cis.length > (rooms[u.room] || 99)) errors.push('同じ時間にそろえる授業：' +
-        listText(cis.map(function (ci) { return classes[ci].label; })) + 'を' + u.room + 'でそろえると、上限' +
+        listText(cis.map(function (ci) { return classes[ci].label; })) + 'を' + poolName[u.room] + 'でそろえると、上限' +
         rooms[u.room] + 'クラスをこえます。');
     });
 
     // コマ数の過不足
     classes.forEach(function (c, ci) {
       var free = avail[ci].filter(Boolean).length;
-      var need = classUnits[ci].length;
+      var need = classUnits[ci].filter(function (id) { return !units[id].manual; }).length + manualCount[ci];
       if (need > free) errors.push(c.label + '：授業が週' + need + 'コマあるのに、使えるコマは' + free +
         'コマです（' + (need - free) + 'コマ入りません）。');
     });
 
     return { A: A, D: D, MP: MP, S: S, classes: classes, classIndex: classIndex, avail: avail,
       fixedLabel: fixedLabel, units: units, classUnits: classUnits, syncMembers: syncMembers,
-      teachers: teachers, prefs: prefs, rooms: rooms, maxPerDay: maxPerDay, subjName: subjName,
-      rules: A.rules || {}, errors: errors };
+      teachers: teachers, prefs: prefs, rooms: rooms, poolName: poolName, poolRooms: poolRooms, phys: phys,
+      maxPerDay: maxPerDay, subjName: subjName, manualList: manualList,
+      rules: A.rules || {}, errors: errors, notes: uniq(notes) };
   }
 
   /* ---------- 評価（点数が小さいほどよい時間割） ---------- */
@@ -375,7 +440,7 @@ var JW = (function () {
       var cap = M.rooms[r] || 99;
       if (rc[r].length > cap) {
         cost += W.hard * (rc[r].length - cap);
-        if (out) out.push({ level: 'hard', kind: 'room', slot: s, text: r + '：' + slotName(M.A, s) + 'に' +
+        if (out) out.push({ level: 'hard', kind: 'room', slot: s, text: M.poolName[r] + '：' + slotName(M.A, s) + 'に' +
           rc[r].length + 'クラス（' + listText(rc[r].map(function (c) { return M.classes[c].label; })) +
           '）が入っています。上限は' + cap + 'クラスです。' });
       }
@@ -696,8 +761,15 @@ var JW = (function () {
       hard: issues.filter(function (x) { return x.level === 'hard'; }).map(function (x) { return x.text; }),
       soft: issues.filter(function (x) { return x.level === 'soft'; }).map(function (x) { return x.text; }),
       errors: M.errors,
+      notes: M.notes,
+      manual: Object.keys(M.manualList).map(function (k) { return k + '　週' + M.manualList[k] / countIn(M, k) + 'コマ'; }),
       table: buildTable(M, st)
     };
+  }
+
+  function countIn(M, key) {
+    var g = +key.charAt(0);
+    return M.classes.filter(function (c) { return c.grade === g; }).length || 1;
   }
 
   // スプレッドシートに書き出す表
@@ -731,11 +803,32 @@ var JW = (function () {
       var cells = occupancy(function (u) { return u.teachers.indexOf(ti) >= 0; });
       return { label: t.name, cells: cells, off: t.off.slice() };
     });
-    var roomRows = (A.rooms || []).map(function (r) {
-      return { label: r.name, cells: occupancy(function (u) { return u.room === r.name; }) };
-    });
+    var roomRows = roomRowsOf(M, st);
     return { title: (A.name ? A.name + '　' : '') + '時間割一覧', days: A.days.slice(), maxPeriods: M.MP,
       classRows: classRows, teacherRows: teacherRows, roomRows: roomRows };
+  }
+
+  // 特別教室の行（1部屋ずつ）。同じ種類の部屋が2つ以上あるときは、前の部屋から順に割りふる
+  function roomRowsOf(M, st) {
+    var rows = M.phys.map(function (r) {
+      var gs = r.grades.length ? '（' + r.grades.join('・') + '年）' : '';
+      return { label: r.label + gs, cells: [] };
+    });
+    for (var s = 0; s < M.S; s++) {
+      var inRoom = M.phys.map(function () { return []; });
+      Object.keys(M.poolRooms).forEach(function (key) {
+        var idx = M.poolRooms[key];
+        for (var ci = 0; ci < M.classes.length; ci++) {
+          var id = st.grid[ci][s];
+          if (id < 0 || M.units[id].room !== key) continue;
+          var k = 0;
+          while (k < idx.length - 1 && inRoom[idx[k]].length >= M.phys[idx[k]].cap) k++;
+          inRoom[idx[k]].push(M.classes[ci].short);
+        }
+      });
+      rows.forEach(function (r, i) { r.cells.push(inRoom[i].join('・')); });
+    }
+    return rows;
   }
 
   /* ---------- スプレッドシートで手直ししたあとのチェック ---------- */
@@ -744,7 +837,7 @@ var JW = (function () {
   }
 
   function check(A, sheet) {
-    var M = buildModel(A);
+    var M = buildModel(A, { includeManual: true });
     var st = newState(M);
     var must = [], better = [];
     var byLabel = {}, byShort = {};
@@ -782,9 +875,14 @@ var JW = (function () {
         used[id] = true;
         place(st, ci, s, id);
       }
-      var lack = {};
-      M.classUnits[ci].forEach(function (x) { if (!used[x]) lack[M.units[x].display] = (lack[M.units[x].display] || 0) + 1; });
+      var lack = {}, lackManual = {};
+      M.classUnits[ci].forEach(function (x) {
+        if (used[x]) return;
+        var L = M.units[x].manual ? lackManual : lack;
+        L[M.units[x].display] = (L[M.units[x].display] || 0) + 1;
+      });
       Object.keys(lack).forEach(function (k) { must.push(c.label + ' ' + k + '：' + lack[k] + 'コマ足りません。'); });
+      Object.keys(lackManual).forEach(function (k) { better.push(c.label + ' ' + k + '：担任が入れる教科が、まだ' + lackManual[k] + 'コマ入っていません。'); });
       Object.keys(extra).forEach(function (k) { must.push(c.label + ' ' + k + '：' + extra[k] + 'コマ多いです。'); });
     });
     M.classes.forEach(function (c, ci) { if (!seenRow[ci]) must.push(c.label + 'の行が見つかりません。'); });
@@ -874,18 +972,7 @@ var JW = (function () {
       });
     });
 
-    var roomRows = (A.rooms || []).map(function (r) {
-      var cells = [];
-      for (var s = 0; s < M.S; s++) {
-        var names = [];
-        for (var ci = 0; ci < M.classes.length; ci++) {
-          var id = st.grid[ci][s];
-          if (id >= 0 && M.units[id].room === r.name) names.push(M.classes[ci].short);
-        }
-        cells.push(names.join('・'));
-      }
-      return { label: r.name, cells: cells };
-    });
+    var roomRows = roomRowsOf(M, st);
     return { must: uniq(must), better: uniq(better), roomRows: roomRows };
   }
 
@@ -895,7 +982,7 @@ var JW = (function () {
     DAYS: DAYS, GRADES: GRADES, STD: STD, weeksOf: weeksOf, defaultAnswers: defaultAnswers, uid: uid,
     className: className, classLabel: classLabel, classShort: classShort, targetName: targetName,
     targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText,
-    buildModel: buildModel, solve: solve, check: check
+    buildModel: buildModel, solve: solve, check: check, physicalRooms: physicalRooms, roomLabel: roomLabel
   };
 })();
 if (typeof module !== 'undefined') module.exports = JW;
