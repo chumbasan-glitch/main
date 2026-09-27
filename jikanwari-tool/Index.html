@@ -10,7 +10,7 @@
     --field: #ffffff; --soft: #f1eee7; --hover: #ebe7de; --track: #e7e3da; --item: #fcfbf8;
     --main: #2f6f5e; --main-weak: #e3efe9; --on-main: #ffffff; --link: #2f6f5e;
     --warn: #b3261e; --warn-weak: #fbe9e7; --note: #fff6d6;
-    --cell-fixed: #e6e6e6; --cell-none: #9e9e9e; --cell-empty: #fff3c4; --cell-line: #cfcac0; --day-line: #555555;
+    --cell-fixed: #e6e6e6; --cell-none: #9e9e9e; --cell-empty: #fff3c4; --cell-sat: #e6f0fa; --cell-line: #cfcac0; --day-line: #555555;
     --x-bg: #6b6b6b; --x-ink: #ffffff; --toast-bg: #333333; --toast-ink: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
@@ -20,7 +20,7 @@
     --field: #121615; --soft: #28302e; --hover: #2c3533; --track: #2f3836; --item: #1a201f;
     --main: #2f6f5e; --main-weak: #1f3a33; --on-main: #ffffff; --link: #7fd1b6;
     --warn: #ff8f85; --warn-weak: #3b2321; --note: #3a3320;
-    --cell-fixed: #3a403e; --cell-none: #5f6664; --cell-empty: #4a4121; --cell-line: #3f4a46; --day-line: #b9c1bd;
+    --cell-fixed: #3a403e; --cell-none: #5f6664; --cell-empty: #4a4121; --cell-sat: #1f3140; --cell-line: #3f4a46; --day-line: #b9c1bd;
     --x-bg: #a6aea9; --x-ink: #151a19; --toast-bg: #e7eae6; --toast-ink: #151a19;
     }
   }
@@ -30,7 +30,7 @@
     --field: #121615; --soft: #28302e; --hover: #2c3533; --track: #2f3836; --item: #1a201f;
     --main: #2f6f5e; --main-weak: #1f3a33; --on-main: #ffffff; --link: #7fd1b6;
     --warn: #ff8f85; --warn-weak: #3b2321; --note: #3a3320;
-    --cell-fixed: #3a403e; --cell-none: #5f6664; --cell-empty: #4a4121; --cell-line: #3f4a46; --day-line: #b9c1bd;
+    --cell-fixed: #3a403e; --cell-none: #5f6664; --cell-empty: #4a4121; --cell-sat: #1f3140; --cell-line: #3f4a46; --day-line: #b9c1bd;
     --x-bg: #a6aea9; --x-ink: #151a19; --toast-bg: #e7eae6; --toast-ink: #151a19;
   }
   * { box-sizing: border-box; }
@@ -91,7 +91,7 @@
   table.pv th .c { font-weight: bold; }
   .blocks { display: flex; flex-wrap: wrap; gap: 14px 3.6em; margin-top: 16px; }
   .blk-t { font-weight: bold; font-size: 13px; margin-bottom: 2px; }
-  table.pv td.fx { background: var(--cell-fixed); } table.pv td.no { background: var(--cell-none); } table.pv td.em { background: var(--cell-empty); }
+  table.pv td.fx { background: var(--cell-fixed); } table.pv td.no { background: var(--cell-none); } table.pv td.em { background: var(--cell-empty); } table.pv td.sa { background: var(--cell-sat); }
   table.pv th.sec { text-align: left; background: var(--main-weak); padding: 2px 6px; }
   table.pv th.day { border-left: 2px solid var(--day-line); } table.pv td.dl { border-left: 2px solid var(--day-line); }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--toast-bg); color: var(--toast-ink); padding: 8px 18px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; }
@@ -192,12 +192,14 @@ function periodChecks(path, arr) {
   }).join('') + '</span>';
 }
 // 先に決まっている時間を引いた、使えるコマ数
+// 土曜日を時数に数えないときは、土曜日のコマを入れない
+function countDay(d) { return A.days[d] !== '土' || !!A.satCount; }
 function freeSlots(g) {
-  var n = (A.periods[g] || []).reduce(function (a, b) { return a + (+b || 0); }, 0);
+  var n = (A.periods[g] || []).reduce(function (a, b, d) { return a + (countDay(d) ? (+b || 0) : 0); }, 0);
   var seen = {};
   (A.fixed || []).forEach(function (f) {
     var k = f.day + '-' + f.period;
-    if ((f.grades || []).indexOf(g) >= 0 && !seen[k] && (+f.period) <= (+(A.periods[g] || [])[f.day] || 0)) { seen[k] = 1; n--; }
+    if (countDay(+f.day) && (f.grades || []).indexOf(g) >= 0 && !seen[k] && (+f.period) <= (+(A.periods[g] || [])[f.day] || 0)) { seen[k] = 1; n--; }
   });
   return n;
 }
@@ -217,6 +219,7 @@ var STEPS = [
   { title: 'このツールで組む教科', render: renderAuto },
   { title: '専科・講師の担当', render: renderTeachers },
   { title: '講師などの勤務', render: renderTeacherOff },
+  { title: '専科・講師の曜日', render: renderTeacherDays },
   { title: '先に決まっている時間', render: renderFixed },
   { title: '教科の希望', render: renderPrefs },
   { title: '同じ時間にそろえる授業', render: renderSyncs },
@@ -293,11 +296,18 @@ function renderClassNames() {
 function renderPeriods() {
   var h = '<h2>学年ごとに、曜日のコマ数を教えてください</h2><p class="lead">朝会やクラブなど、授業以外の時間もふくめた「その日の時間数」です（クラブなどは、あとの質問「先に決まっている時間」で入れます）。</p>';
   h += '<div class="row">1日のいちばん多いコマ数：<select data-k="maxPeriods" data-t="num">' + opts([5, 6, 7], A.maxPeriods) + '</select>' +
-    '<label><input type="checkbox" data-a="toggleSat"' + (A.days.length > 5 ? ' checked' : '') + '> 土曜日も授業がある（毎週ある場合）</label></div>';
+    '<label><input type="checkbox" data-a="toggleSat"' + (A.days.length > 5 ? ' checked' : '') + '> 土曜日も授業がある</label></div>';
+  if (A.days.length > 5) {
+    h += '<div class="item"><div class="row"><b>土曜日の授業を、週の時数に数えますか？</b></div>' +
+      '<label class="choice' + (!A.satCount ? ' on' : '') + '"><input type="radio" name="sat" data-k="satCount" data-t="radio-false"' + (!A.satCount ? ' checked' : '') + '> 数えない（学期に1回程度など）' +
+      '<div class="small">時間割に土曜日の列を出しますが、ツールでは授業を入れません。先生が手で入れてください。チェックでも土曜日は数えません。</div></label>' +
+      '<label class="choice' + (A.satCount ? ' on' : '') + '"><input type="radio" name="sat" data-k="satCount" data-t="radio-true"' + (A.satCount ? ' checked' : '') + '> 数える（毎週ある）' +
+      '<div class="small">土曜日もふつうのコマとして、ツールが授業を入れます。</div></label></div>';
+  }
   h += '<table class="t"><tr><th></th>' + A.days.map(function (d) { return '<th>' + d + '</th>'; }).join('') + '<th>週の合計</th></tr>';
   JW.GRADES.forEach(function (g) {
     if (!(+A.classCounts[g])) return;
-    var sum = (A.periods[g] || []).reduce(function (a, b) { return a + (+b || 0); }, 0);
+    var sum = (A.periods[g] || []).reduce(function (a, b, d) { return a + (countDay(d) ? (+b || 0) : 0); }, 0);
     h += '<tr><th>' + g + '年</th>' + A.days.map(function (d, i) {
       return '<td><select data-k="periods.' + g + '.' + i + '" data-t="num">' + opts(range(0, A.maxPeriods), (A.periods[g] || [])[i]) + '</select></td>';
     }).join('') + '<td><b>' + sum + '</b></td></tr>';
@@ -498,6 +508,32 @@ function renderTeacherOff() {
   return h;
 }
 
+function renderTeacherDays() {
+  var h = '<h2>専科・講師の先生の、曜日の決め方を教えてください</h2>' +
+    '<p class="lead">「まとめる」にすると、同じ学年の授業をできるだけ同じ曜日に入れます（例：3年の音楽は全クラス月・木）。' +
+    '「この学年はこの曜日だけ」にチェックすると、その学年の授業はチェックした曜日にしか入れません（例：講師は5年を火曜、6年を木曜）。チェックなしの学年は、どの曜日でもかまいません。</p>';
+  if (!A.teachers.length) return h + '<div class="box note">専科・講師の先生が入っていないので、この質問はとばして大丈夫です。</div>';
+  A.teachers.forEach(function (t, ti) {
+    t.gradeDays = t.gradeDays || {};
+    var grades = [];
+    t.jobs.forEach(function (j) { var g = +String(j.cls).split('-')[0]; if (grades.indexOf(g) < 0) grades.push(g); });
+    grades.sort();
+    h += '<div class="item"><div class="row"><b>' + esc(t.name || '先生' + (ti + 1)) + '</b>（' + esc(t.kind) + '）</div>' +
+      '<label class="choice' + (t.groupGrade ? ' on' : '') + '"><input type="checkbox" data-k="teachers.' + ti + '.groupGrade" data-t="bool"' + (t.groupGrade ? ' checked' : '') + '> 同じ学年の授業を、できるだけ同じ曜日にまとめる</label>';
+    if (grades.length) {
+      h += '<div class="small">この学年はこの曜日だけ：</div><table class="t"><tr><th></th>' + A.days.map(function (d) { return '<th>' + d + '</th>'; }).join('') + '</tr>' +
+        grades.map(function (g) {
+          return '<tr><th>' + g + '年</th>' + A.days.map(function (d, di) {
+            var on = (t.gradeDays[g] || []).indexOf(di) >= 0;
+            return '<td><input type="checkbox" data-k="teachers.' + ti + '.gradeDays.' + g + '" data-t="arr" value="' + di + '"' + (on ? ' checked' : '') + '></td>';
+          }).join('') + '</tr>';
+        }).join('') + '</table>';
+    } else h += '<p class="small">担当がまだありません（質問「専科・講師の担当」で入れてください）。</p>';
+    h += '</div>';
+  });
+  return h;
+}
+
 function renderFixed() {
   var h = '<h2>先に決まっている時間はありますか？</h2>' +
     '<p class="lead">全校朝会、委員会、クラブなど、授業を入れない時間です。自動で組むときはこの時間を空けておき、時間割には「内容」をそのまま出します。</p>';
@@ -620,7 +656,7 @@ function previewTable(t) {
     t.days.forEach(function (d, di) {
       for (var p = 0; p < dayP[di]; p++) {
         var c = r.cells[di * MP + p];
-        var k = c.k === 'fixed' ? 'fx' : c.k === 'none' ? 'no' : c.k === 'empty' ? 'em' : '';
+        var k = c.k === 'fixed' ? 'fx' : c.k === 'none' ? 'no' : c.k === 'empty' ? 'em' : c.k === 'sat' ? 'sa' : '';
         h += '<td class="' + k + (p === 0 ? ' dl' : '') + '">' + cellDiv(c.t) + '</td>';
       }
     });
@@ -720,7 +756,12 @@ function fixAnswers(x) {
   ['teachers', 'fixed', 'prefs', 'syncs', 'variants', 'rooms'].forEach(function (k) { if (!x[k]) x[k] = d[k]; });
   if (!x.rules) x.rules = d.rules;
   // 専科は担任と同じく毎日勤務として扱う
-  (x.teachers || []).forEach(function (t) { t.jobs = t.jobs || []; t.off = t.kind === '専科' ? {} : (t.off || {}); });
+  (x.teachers || []).forEach(function (t) {
+    t.jobs = t.jobs || []; t.off = t.kind === '専科' ? {} : (t.off || {});
+    t.gradeDays = t.gradeDays || {};
+    if (t.groupGrade === undefined) t.groupGrade = t.kind === '専科';
+  });
+  if (x.satCount === undefined) x.satCount = false;
   x.rooms.forEach(function (r) { r.count = r.count || 1; r.grades = r.grades || [[]]; });
   x.subjects.forEach(function (s) { if (s.auto === undefined) s.auto = true; });
   x.variants.forEach(function (v) { if (v.auto === undefined) v.auto = true; });
@@ -797,7 +838,7 @@ var actions = {
     A.variants.forEach(function (v) { v.auto = d.v === '1'; });
     render();
   },
-  addTeacher: function () { commitDrafts(); A.teachers.push({ id: JW.uid('t_'), name: '', kind: '専科', off: {}, jobs: [] }); render(); },
+  addTeacher: function () { commitDrafts(); A.teachers.push({ id: JW.uid('t_'), name: '', kind: '専科', off: {}, jobs: [], groupGrade: true, gradeDays: {} }); render(); },
   delTeacher: function (d) { if (confirm('この先生を削除しますか？')) { A.teachers.splice(+d.i, 1); render(); } },
   addJob: function (d) {
     var t = A.teachers[+d.i], dr = draftOf(t);
@@ -837,7 +878,10 @@ var actions = {
       JW.GRADES.forEach(function (g) { A.periods[g] = (A.periods[g] || []).slice(0, 5); });
       A.fixed = A.fixed.filter(function (f) { return +f.day < 5; });
       A.prefs.forEach(function (p) { p.days = (p.days || []).filter(function (x) { return x < 5; }); });
-      A.teachers.forEach(function (t) { Object.keys(t.off || {}).forEach(function (k) { if (k.split('-')[0] === '5') delete t.off[k]; }); });
+      A.teachers.forEach(function (t) {
+        Object.keys(t.off || {}).forEach(function (k) { if (k.split('-')[0] === '5') delete t.off[k]; });
+        Object.keys(t.gradeDays || {}).forEach(function (g) { t.gradeDays[g] = t.gradeDays[g].filter(function (x) { return x < 5; }); });
+      });
     } else {
       A.days = A.days.concat(['土']);
       JW.GRADES.forEach(function (g) { A.periods[g] = (A.periods[g] || []).concat([0]); });

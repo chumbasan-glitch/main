@@ -177,12 +177,21 @@ var JW = (function () {
       }
       return arr;
     });
+    // 土曜日を時数に数えない場合は、ツールでは土曜日に授業を入れない（先生が手で入れる）
+    var satFree = classes.map(function () { return {}; });
+    A.days.forEach(function (dn, d) {
+      if (dn !== '土' || A.satCount) return;
+      classes.forEach(function (c, ci) {
+        for (var p = 0; p < MP; p++) if (avail[ci][d * MP + p]) { avail[ci][d * MP + p] = false; satFree[ci][d * MP + p] = true; }
+      });
+    });
     var fixedLabel = classes.map(function () { return {}; });
     (A.fixed || []).forEach(function (f) {
       var s = (+f.day) * MP + (+f.period - 1);
       classes.forEach(function (c, ci) {
-        if ((f.grades || []).indexOf(c.grade) >= 0 && avail[ci][s]) {
+        if ((f.grades || []).indexOf(c.grade) >= 0 && (avail[ci][s] || satFree[ci][s])) {
           avail[ci][s] = false;
+          delete satFree[ci][s];
           fixedLabel[ci][s] = f.label || '行事';
         }
       });
@@ -305,7 +314,14 @@ var JW = (function () {
         var d = Math.floor(s / MP), p = s % MP + 1;
         off.push(!!(t.off && t.off[d + '-' + p]));
       }
-      return { name: t.name || '（名前なし）', off: off, expect: {} };
+      // 学年ごとの曜日の指定（その学年はこの曜日だけ）
+      var dayOk = {};
+      Object.keys(t.gradeDays || {}).forEach(function (g) {
+        var ds = t.gradeDays[g] || [];
+        if (!ds.length) return;
+        dayOk[g] = A.days.map(function (x, d) { return ds.indexOf(d) >= 0; });
+      });
+      return { name: t.name || '（名前なし）', off: off, expect: {}, dayOk: dayOk, group: !!t.groupGrade };
     });
     (A.teachers || []).forEach(function (t, ti) {
       (t.jobs || []).forEach(function (j) {
@@ -330,6 +346,7 @@ var JW = (function () {
     });
 
     teachers.forEach(function (t, ti) {
+      t.units = units.filter(function (u) { return u.teachers.indexOf(ti) >= 0; }).map(function (u) { return u.id; });
       var keys = {};
       units.forEach(function (u) { if (u.teachers.indexOf(ti) >= 0) keys[u.sync || ('u' + u.id)] = 1; });
       var need = Object.keys(keys).length;
@@ -390,7 +407,7 @@ var JW = (function () {
     });
 
     return { A: A, D: D, MP: MP, S: S, classes: classes, classIndex: classIndex, avail: avail,
-      fixedLabel: fixedLabel, units: units, classUnits: classUnits, syncMembers: syncMembers,
+      fixedLabel: fixedLabel, satFree: satFree, units: units, classUnits: classUnits, syncMembers: syncMembers,
       teachers: teachers, prefs: prefs, rooms: rooms, poolName: poolName, poolRooms: poolRooms, phys: phys,
       maxPerDay: maxPerDay, subjName: subjName, manualList: manualList,
       rules: A.rules || {}, errors: errors, notes: uniq(notes) };
@@ -400,9 +417,9 @@ var JW = (function () {
   function weights(M, level) {
     var r = M.rules;
     var w = { hard: 100, pref: 8, daily: r.dailyMax ? 20 : 0, pair: r.pairs ? 40 : 0,
-      spread: r.spread ? 3 : 0, active: r.active ? 4 : 0 };
+      spread: r.spread ? 3 : 0, active: r.active ? 4 : 0, group: 6 };
     if (level >= 1) w.pref = 1;               // 希望をゆるめる
-    if (level >= 2) { w.daily = Math.min(w.daily, 3); w.pair = Math.min(w.pair, 3); w.spread = Math.min(w.spread, 1); w.active = Math.min(w.active, 1); } // 組み方のルールもゆるめる
+    if (level >= 2) { w.daily = Math.min(w.daily, 3); w.pair = Math.min(w.pair, 3); w.spread = Math.min(w.spread, 1); w.active = Math.min(w.active, 1); w.group = 1; } // 組み方のルールもゆるめる
     return w;
   }
 
@@ -461,6 +478,45 @@ var JW = (function () {
     return isPairSlots(M.MP, a, b);
   }
 
+  // その先生がその時間に持てないか（勤務がない／学年の曜日指定の外）
+  function teacherBad(M, t, g, s) {
+    var T = M.teachers[t];
+    if (T.off[s]) return 'off';
+    var ok = T.dayOk[g];
+    if (ok && !ok[Math.floor(s / M.MP)]) return 'day';
+    return '';
+  }
+  function unitBad(M, u, s) {
+    var g = M.classes[u.cls].grade;
+    for (var i = 0; i < u.teachers.length; i++) if (teacherBad(M, u.teachers[i], g, s)) return true;
+    return false;
+  }
+
+  // 同じ学年の授業を、できるだけ同じ曜日にまとめる（先生ごと）
+  function evalTeacher(M, st, t, W, out) {
+    var T = M.teachers[t];
+    if (!T.group || !W.group) return 0;
+    var cost = 0, byGrade = {};
+    for (var i = 0; i < T.units.length; i++) {
+      var u = M.units[T.units[i]], s = st.pos[u.id];
+      if (s < 0) continue;
+      var g = M.classes[u.cls].grade;
+      var G = byGrade[g] || (byGrade[g] = { days: {}, per: {} });
+      G.days[Math.floor(s / M.MP)] = 1;
+      G.per[u.cls] = (G.per[u.cls] || 0) + 1;
+    }
+    for (var g in byGrade) {
+      var G = byGrade[g], n = Object.keys(G.days).length;
+      var ideal = Math.max.apply(null, Object.keys(G.per).map(function (k) { return G.per[k]; }));
+      if (n > ideal) {
+        cost += W.group * (n - ideal);
+        if (out) out.push({ level: 'soft', kind: 'group', text: T.name + '：' + g + '年の授業が' + n + 'つの曜日（' +
+          Object.keys(G.days).sort().map(function (d) { return M.A.days[d]; }).join('・') + '）に分かれています（できれば' + ideal + 'つ）。' });
+      }
+    }
+    return cost;
+  }
+
   function evalClass(M, st, c, W, out) {
     var cost = 0, MP = M.MP, D = M.D;
     var row = st.grid[c], lab = M.classes[c].label;
@@ -473,11 +529,11 @@ var JW = (function () {
       var u = M.units[id];
       var d = Math.floor(s / MP);
       for (var i = 0; i < u.teachers.length; i++) {
-        var t = u.teachers[i];
-        if (M.teachers[t].off[s]) {
+        var t = u.teachers[i], why = teacherBad(M, t, M.classes[c].grade, s);
+        if (why) {
           cost += W.hard;
           if (out) out.push({ level: 'hard', kind: 'off', unit: id, text: M.teachers[t].name + '：' + slotName(M.A, s) +
-            'は勤務がないのに、' + lab + 'の' + u.display + 'が入っています。' });
+            (why === 'off' ? 'は勤務がないのに、' : 'は' + M.classes[c].grade + '年の授業をする曜日ではないのに、') + lab + 'の' + u.display + 'が入っています。' });
         }
       }
       for (i = 0; i < u.prefs.length; i++) {
@@ -582,11 +638,13 @@ var JW = (function () {
     var M = this.M, st = this.st, W = this.W;
     this.cc = M.classes.map(function (c, ci) { return evalClass(M, st, ci, W); });
     this.sc = []; for (var s = 0; s < M.S; s++) this.sc.push(evalSlot(M, st, s, W));
-    this.total = this.cc.reduce(function (a, b) { return a + b; }, 0) + this.sc.reduce(function (a, b) { return a + b; }, 0);
+    this.tc = M.teachers.map(function (t, ti) { return evalTeacher(M, st, ti, W); });
+    this.total = this.cc.reduce(function (a, b) { return a + b; }, 0) + this.sc.reduce(function (a, b) { return a + b; }, 0) +
+      this.tc.reduce(function (a, b) { return a + b; }, 0);
   };
   Solver.prototype.setLevel = function (lv) { this.level = lv; this.W = weights(this.M, lv); this.recalc(); };
   Solver.prototype.hardCount = function () {
-    var M = this.M, st = this.st, W = { hard: 1, pref: 0, daily: 0, pair: 0, spread: 0, active: 0 };
+    var M = this.M, st = this.st, W = { hard: 1, pref: 0, daily: 0, pair: 0, spread: 0, active: 0, group: 0 };
     var n = 0;
     for (var c = 0; c < M.classes.length; c++) n += evalClass(M, st, c, W);
     for (var s = 0; s < M.S; s++) n += evalSlot(M, st, s, W);
@@ -613,13 +671,29 @@ var JW = (function () {
     for (i = 0; i < aff.length; i++) if (!M.avail[aff[i]][a] || !M.avail[aff[i]][b]) return;
     var before = this.sc[a] + this.sc[b];
     for (i = 0; i < aff.length; i++) before += this.cc[aff[i]];
+    // 動かす授業を持っている先生（まとめる設定の先生だけ）
+    var ts = [];
+    if (this.W.group) {
+      for (i = 0; i < aff.length; i++) {
+        var pair2 = [st.grid[aff[i]][a], st.grid[aff[i]][b]];
+        for (k = 0; k < 2; k++) {
+          if (pair2[k] < 0) continue;
+          var tl = M.units[pair2[k]].teachers;
+          for (m = 0; m < tl.length; m++) if (M.teachers[tl[m]].group && ts.indexOf(tl[m]) < 0) ts.push(tl[m]);
+        }
+      }
+      for (i = 0; i < ts.length; i++) before += this.tc[ts[i]];
+    }
     this.swap(aff, a, b);
     var W = this.W, nc = [], after = 0;
     for (i = 0; i < aff.length; i++) { nc.push(evalClass(M, st, aff[i], W)); after += nc[i]; }
     var na = evalSlot(M, st, a, W), nb = evalSlot(M, st, b, W);
     after += na + nb;
+    var nt = [];
+    for (i = 0; i < ts.length; i++) { nt.push(evalTeacher(M, st, ts[i], W)); after += nt[i]; }
     var delta = after - before;
     if (delta <= 0 || rnd() < Math.exp(-delta / T)) {
+      for (i = 0; i < ts.length; i++) this.tc[ts[i]] = nt[i];
       for (i = 0; i < aff.length; i++) this.cc[aff[i]] = nc[i];
       this.sc[a] = na; this.sc[b] = nb;
       this.total += delta;
@@ -644,7 +718,7 @@ var JW = (function () {
       var ids = u.sync ? M.syncMembers[u.sync].map(function (ci) { return st.grid[ci][s]; }) : [id];
       ids.forEach(function (x) { if (x >= 0) { st.grid[M.units[x].cls][s] = -1; st.pos[x] = -1; removed.push(x); } });
     }
-    var W = { hard: 1, pref: 0, daily: 0, pair: 0, spread: 0, active: 0 };
+    var W = { hard: 1, pref: 0, daily: 0, pair: 0, spread: 0, active: 0, group: 0 };
     for (var guard = 0; guard < 2000; guard++) {
       var found = false;
       for (var s = 0; s < M.S && !found; s++) {
@@ -662,7 +736,7 @@ var JW = (function () {
       for (c = 0; c < M.classes.length && !found; c++) {
         for (s = 0; s < M.S; s++) {
           id = st.grid[c][s];
-          if (id >= 0 && M.units[id].teachers.some(function (t) { return M.teachers[t].off[s]; })) { unplace(id); found = true; break; }
+          if (id >= 0 && unitBad(M, M.units[id], s)) { unplace(id); found = true; break; }
         }
       }
       if (!found) break;
@@ -682,7 +756,7 @@ var JW = (function () {
         if (ids.some(function (x) { return x === undefined; })) return;
         ids.forEach(function (x, k) { place(st, cis[k], s, x); });
         var ok = evalSlot(M, st, s, W) === 0 && ids.every(function (x) {
-          return !M.units[x].teachers.some(function (t) { return M.teachers[t].off[s]; });
+          return !unitBad(M, M.units[x], s);
         });
         var cost = 0;
         if (ok) cis.forEach(function (ci) { cost += evalClass(M, st, ci, fullW); });
@@ -749,6 +823,7 @@ var JW = (function () {
     var W = weights(M, 0), out = [];
     for (var c = 0; c < M.classes.length; c++) evalClass(M, st, c, W, out);
     for (var s = 0; s < M.S; s++) evalSlot(M, st, s, W, out);
+    for (var t = 0; t < M.teachers.length; t++) evalTeacher(M, st, t, W, out);
     return out;
   }
 
@@ -787,6 +862,7 @@ var JW = (function () {
         var d = Math.floor(s / M.MP), p = s % M.MP + 1;
         var inDay = p <= (+(A.periods[c.grade] || [])[d] || 0);
         if (M.fixedLabel[ci][s]) cells.push({ t: M.fixedLabel[ci][s], k: 'fixed' });
+        else if (M.satFree[ci][s]) cells.push({ t: '', k: 'sat' });
         else if (!inDay) cells.push({ t: '', k: 'none' });
         else if (st.grid[ci][s] >= 0) cells.push({ t: M.units[st.grid[ci][s]].display, k: 'lesson' });
         else cells.push({ t: '', k: 'empty' });
@@ -879,7 +955,7 @@ var JW = (function () {
           if (t !== fx) must.push(c.label + ' ' + slotName(A, s) + '：先に決まっている「' + fx + '」が「' + (t || '空き') + '」になっています。');
           continue;
         }
-        if (!t) continue;
+        if (!t || M.satFree[ci][s]) continue;
         if (!M.avail[ci][s]) { must.push(c.label + ' ' + slotName(A, s) + '：授業のない時間に「' + t + '」が入っています。'); continue; }
         var dm = dispMap[t];
         if (!dm) { must.push(c.label + ' ' + slotName(A, s) + '：「' + t + '」は教科の表示名にありません。'); continue; }
@@ -967,6 +1043,11 @@ var JW = (function () {
           else count[cis[k]] = (count[cis[k]] || 0) + 1;
         });
         if (T.off[s]) must.push(T.name + '：' + slotName(A, s) + 'は勤務がないのに、授業（' + listText(names) + '）が入っています。');
+        cis.forEach(function (ci, k) {
+          if (ci === undefined || M.satFree[ci][s]) return;
+          var g = M.classes[ci].grade, ok = T.dayOk[g];
+          if (ok && !ok[Math.floor(s / M.MP)]) must.push(T.name + '：' + slotName(A, s) + 'は' + g + '年の授業をする曜日ではないのに、' + names[k] + 'の授業が入っています。');
+        });
         if (names.length > 1) {
           var together = Object.keys(M.syncMembers).some(function (key) {
             return cis.every(function (ci) { return M.syncMembers[key].indexOf(ci) >= 0; });

@@ -166,7 +166,7 @@ function writeTimetable(table, saveName) {
   if (sh.getMaxColumns() < cols) sh.insertColumnsAfter(sh.getMaxColumns(), cols - sh.getMaxColumns());
   if (sh.getMaxRows() < lastRow) sh.insertRowsAfter(sh.getMaxRows(), lastRow - sh.getMaxRows());
 
-  var W = '#ffffff', HEAD = '#dfe8f5', FIXED = '#e6e6e6', NONE = '#9e9e9e', EMPTY = '#fff3c4', OFF = '#d9d9d9';
+  var W = '#ffffff', HEAD = '#dfe8f5', FIXED = '#e6e6e6', NONE = '#9e9e9e', EMPTY = '#fff3c4', OFF = '#d9d9d9', SAT = '#e6f0fa';
   var vals = [], bgs = [];
   for (var r = 0; r < lastRow; r++) {
     var v = [], b = [];
@@ -190,7 +190,7 @@ function writeTimetable(table, saveName) {
     put(r, 1, cr.label, HEAD);
     slotCols.forEach(function (sIdx, j) {
       var cell = cr.cells[sIdx];
-      put(r, 2 + j, cell.t, cell.k === 'fixed' ? FIXED : cell.k === 'none' ? NONE : cell.k === 'empty' ? EMPTY : W);
+      put(r, 2 + j, cell.t, cell.k === 'fixed' ? FIXED : cell.k === 'none' ? NONE : cell.k === 'empty' ? EMPTY : cell.k === 'sat' ? SAT : W);
     });
   });
 
