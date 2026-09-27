@@ -92,6 +92,7 @@ var JW = (function () {
       fixed: [],
       prefs: [],
       pins: [],
+      module: { on: false, days: [], target: 'kokugo', per: 3, count: 1, grades: GRADES.slice(), label: '' },
       syncs: [],
       rules: { dailyMax: true, pairs: true, spread: true, active: true }
     };
@@ -164,6 +165,12 @@ var JW = (function () {
       });
     });
     return list;
+  }
+
+  // モジュールで数える時間（例：3回で1時間）
+  function moduleHours(mod) {
+    var per = Math.max(1, +mod.per || 3);
+    return Math.floor((mod.days || []).length / per) * Math.max(1, +mod.count || 1);
   }
 
   /* ---------- 入力内容から、組み立て用のデータを作る ---------- */
@@ -259,6 +266,9 @@ var JW = (function () {
       var g = c.grade;
       A.subjects.forEach(function (s) {
         var h = +s.hours[g] || 0;
+        // モジュール（朝の短い時間）で数える分は、普通の時間から引く
+        var mod = A.module;
+        if (mod && mod.on && mod.target === s.id && (mod.grades || []).indexOf(g) >= 0) h = Math.max(0, h - moduleHours(mod));
         if (h <= 0) return;
         var vs = A.variants.filter(function (v) { return v.subject === s.id && (+v.hours[g] || 0) > 0; });
         var vsum = vs.reduce(function (t, v) { return t + (+v.hours[g] || 0); }, 0);
@@ -310,7 +320,7 @@ var JW = (function () {
         if (!ds.length) return;
         dayOk[g] = A.days.map(function (x, d) { return ds.indexOf(d) >= 0; });
       });
-      return { name: t.name || '（名前なし）', off: off, expect: {}, dayOk: dayOk, group: !!t.groupGrade, dayRoom: t.dayRoom || {} };
+      return { name: t.name || '（名前なし）', off: off, expect: {}, dayOk: dayOk, group: !!t.groupGrade, chain: !!t.chainGrade, dayRoom: t.dayRoom || {} };
     });
     (A.teachers || []).forEach(function (t, ti) {
       (t.jobs || []).forEach(function (j) {
@@ -496,9 +506,9 @@ var JW = (function () {
   function weights(M, level) {
     var r = M.rules;
     var w = { hard: 100, pref: 8, daily: r.dailyMax ? 20 : 0, pair: r.pairs ? 40 : 0,
-      spread: r.spread ? 3 : 0, active: r.active ? 4 : 0, group: 6 };
+      spread: r.spread ? 3 : 0, active: r.active ? 4 : 0, group: 6, chain: 3 };
     if (level >= 1) w.pref = 1;               // 希望をゆるめる
-    if (level >= 2) { w.daily = Math.min(w.daily, 3); w.pair = Math.min(w.pair, 3); w.spread = Math.min(w.spread, 1); w.active = Math.min(w.active, 1); w.group = 1; } // 組み方のルールもゆるめる
+    if (level >= 2) { w.daily = Math.min(w.daily, 3); w.pair = Math.min(w.pair, 3); w.spread = Math.min(w.spread, 1); w.active = Math.min(w.active, 1); w.group = 1; w.chain = 1; } // 組み方のルールもゆるめる
     return w;
   }
 
@@ -586,8 +596,8 @@ var JW = (function () {
   // 同じ学年の授業を、できるだけ同じ曜日にまとめる（先生ごと）
   function evalTeacher(M, st, t, W, out) {
     var T = M.teachers[t];
-    if (!T.group || !W.group) return 0;
-    var cost = 0, byGrade = {};
+    if ((!T.group && !T.chain) || !W.group) return 0;
+    var cost = 0, byGrade = {}, byDay = {};
     for (var i = 0; i < T.units.length; i++) {
       var u = M.units[T.units[i]], s = st.pos[u.id];
       if (s < 0) continue;
@@ -595,7 +605,27 @@ var JW = (function () {
       var G = byGrade[g] || (byGrade[g] = { days: {}, per: {} });
       G.days[Math.floor(s / M.MP)] = 1;
       G.per[u.cls] = (G.per[u.cls] || 0) + 1;
+      if (T.chain) (byDay[Math.floor(s / M.MP)] = byDay[Math.floor(s / M.MP)] || {})[s % M.MP] = g;
     }
+    // 同じ日に、同じ学年の授業を続けて入れる（1組→2組→3組…）
+    if (T.chain) {
+      for (var dd in byDay) {
+        var ps = Object.keys(byDay[dd]).map(Number).sort(function (a, b) { return a - b; });
+        var grades = {}, changes = 0, gaps = 0;
+        ps.forEach(function (p, i) {
+          grades[byDay[dd][p]] = 1;
+          if (i && byDay[dd][ps[i - 1]] !== byDay[dd][p]) changes++;
+          else if (i && p - ps[i - 1] > 1) gaps++;
+        });
+        var pen = changes - (Object.keys(grades).length - 1) + gaps;
+        if (pen > 0) {
+          cost += W.chain * pen;
+          if (out) out.push({ level: 'soft', kind: 'chain', t: t, d: +dd, text: T.name + '：' + M.A.days[dd] + '曜日の授業で、同じ学年が続いていないところがあります（' +
+            ps.map(function (p) { return (p + 1) + '時間目' + byDay[dd][p] + '年'; }).join('・') + '）。' });
+        }
+      }
+    }
+    if (!T.group) return cost;
     for (var g in byGrade) {
       var G = byGrade[g], n = Object.keys(G.days).length;
       var ideal = Math.max.apply(null, Object.keys(G.per).map(function (k) { return G.per[k]; }));
@@ -786,7 +816,7 @@ var JW = (function () {
       slots.forEach(function (s) {
         var x = st.grid[c][s];
         if (x < 0) return;
-        M.units[x].teachers.forEach(function (t) { if (M.teachers[t].group && ts.indexOf(t) < 0) ts.push(t); });
+        M.units[x].teachers.forEach(function (t) { if ((M.teachers[t].group || M.teachers[t].chain) && ts.indexOf(t) < 0) ts.push(t); });
       });
     }
     collectTeachers();
@@ -850,7 +880,7 @@ var JW = (function () {
         for (k = 0; k < 2; k++) {
           if (pair2[k] < 0) continue;
           var tl = M.units[pair2[k]].teachers;
-          for (m = 0; m < tl.length; m++) if (M.teachers[tl[m]].group && ts.indexOf(tl[m]) < 0) ts.push(tl[m]);
+          for (m = 0; m < tl.length; m++) if ((M.teachers[tl[m]].group || M.teachers[tl[m]].chain) && ts.indexOf(tl[m]) < 0) ts.push(tl[m]);
         }
       }
       for (i = 0; i < ts.length; i++) before += this.tc[ts[i]];
@@ -1293,6 +1323,11 @@ var JW = (function () {
         add('group:' + x.t, T.name + '：同じ学年の授業を同じ曜日にまとめきれませんでした',
           x.g + '年の授業が' + x.n + 'つの曜日に分かれました（できれば' + x.ideal + 'つ）。同じ曜日にすると、クラスの時間割や教室と合わない時間がありました。',
           [RETRY, '質問「専科・講師の曜日」で、学年ごとに曜日を決める（例：' + x.g + '年は月・木）'], x.g + '年');
+      } else if (x.kind === 'chain') {
+        var T2 = M.teachers[x.t];
+        add('chain:' + x.t, T2.name + '：同じ学年の授業を続けきれませんでした',
+          '同じ日に同じ学年の授業を続けようとしましたが、クラスの時間割（ほかの専科や講師の時間、1日の上限など）と合わない時間がありました。',
+          [RETRY, '質問「専科・講師の曜日」で、学年ごとに曜日を決めると続けやすくなります'], dayName(x.d));
       } else if (x.level === 'hard') {
         add('hard:' + x.kind, '必ず守る条件を守れませんでした', x.text, [RETRY], '');
       }
@@ -1343,7 +1378,10 @@ var JW = (function () {
       return { label: t.name, title: t.name + (subs.length ? '（' + subs.join('・') + '）' : ''), cells: cells, off: t.off.slice() };
     });
     var roomRows = roomRowsOf(M, st);
+    var mod = A.module && A.module.on && (A.module.days || []).length ? A.module : null;
+    var modTarget = mod ? (subjectById(A, mod.target) || {}) : {};
     return { title: (A.name ? A.name + '　' : '') + '時間割一覧', days: A.days.slice(), maxPeriods: M.MP, dayPeriods: dayPeriods,
+      module: mod ? { days: mod.days.slice().sort(), grades: (mod.grades || []).slice(), label: (mod.label || '').trim() || modTarget.display || modTarget.name || 'モジュール' } : null,
       classRows: classRows, teacherRows: teacherRows, roomRows: roomRows };
   }
 
@@ -1534,7 +1572,7 @@ var JW = (function () {
     DAYS: DAYS, GRADES: GRADES, STD: STD, weeksOf: weeksOf, defaultAnswers: defaultAnswers, uid: uid,
     className: className, classLabel: classLabel, classShort: classShort, targetName: targetName,
     targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText,
-    buildModel: buildModel, solve: solve, check: check, physicalRooms: physicalRooms, roomLabel: roomLabel
+    buildModel: buildModel, solve: solve, check: check, moduleHours: moduleHours, physicalRooms: physicalRooms, roomLabel: roomLabel
   };
 })();
 if (typeof module !== 'undefined') module.exports = JW;

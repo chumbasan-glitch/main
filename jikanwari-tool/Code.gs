@@ -144,8 +144,15 @@ function writeTimetable(table, saveName) {
   var dayP = table.dayPeriods;
   var maxP = Math.max.apply(null, dayP.concat([1]));
   // 上の表の列 → コマ（曜日×時間）
-  var slotCols = [];
-  for (var d = 0; d < D; d++) for (var p = 0; p < dayP[d]; p++) slotCols.push(d * MP + p);
+  // モジュール（朝）の列は、その曜日の1時間目の前に入れる（'M'＋曜日の番号）
+  var mod = table.module, modDays = mod ? mod.days : [];
+  var slotCols = [], dayW = [];
+  for (var d = 0; d < D; d++) {
+    var hasM = dayP[d] && modDays.indexOf(d) >= 0;
+    if (hasM) slotCols.push('M' + d);
+    for (var p = 0; p < dayP[d]; p++) slotCols.push(d * MP + p);
+    dayW.push(dayP[d] ? dayP[d] + (hasM ? 1 : 0) : 0);
+  }
   var topCols = 1 + slotCols.length;
 
   // 下の表：先生（全員）と、使っている特別教室
@@ -179,16 +186,19 @@ function writeTimetable(table, saveName) {
   put(1, 1, table.title);
   var col = 2;
   for (d = 0; d < D; d++) {
-    if (!dayP[d]) continue;
+    if (!dayW[d]) continue;
     put(2, col, days[d], HEAD);
-    for (p = 0; p < dayP[d]; p++) put(3, col + p, p + 1, HEAD);
-    col += dayP[d];
+    var off0 = dayW[d] - dayP[d];
+    if (off0) put(3, col, '朝', HEAD);
+    for (p = 0; p < dayP[d]; p++) put(3, col + off0 + p, p + 1, HEAD);
+    col += dayW[d];
   }
   put(2, 1, 'クラス', HEAD); put(3, 1, '', HEAD);
   table.classRows.forEach(function (cr, i) {
     var r = classStart + i;
     put(r, 1, cr.label, HEAD);
     slotCols.forEach(function (sIdx, j) {
+      if (typeof sIdx === 'string') { put(r, 2 + j, mod.grades.indexOf(cr.grade) >= 0 ? mod.label : '', '#eef4ea'); return; }
       var cell = cr.cells[sIdx];
       put(r, 2 + j, cell.t, cell.k === 'fixed' ? FIXED : cell.k === 'none' ? NONE : cell.k === 'empty' ? EMPTY : cell.k === 'sat' ? SAT : W);
     });
@@ -223,9 +233,9 @@ function writeTimetable(table, saveName) {
   sh.getRange(1, 1, 1, cols).merge().setFontSize(14).setFontWeight('bold').setHorizontalAlignment('left');
   col = 2;
   for (d = 0; d < D; d++) {
-    if (!dayP[d]) continue;
-    if (dayP[d] > 1) sh.getRange(2, col, 1, dayP[d]).merge();
-    col += dayP[d];
+    if (!dayW[d]) continue;
+    if (dayW[d] > 1) sh.getRange(2, col, 1, dayW[d]).merge();
+    col += dayW[d];
   }
   sh.getRange(2, 1, 2, topCols).setFontWeight('bold');
   sh.getRange(classStart, 1, classCount, 1).setFontWeight('bold');
@@ -235,9 +245,9 @@ function writeTimetable(table, saveName) {
   sh.getRange(2, 1, classCount + 2, topCols).setBorder(true, true, true, true, true, true, '#888888', SOLID);
   col = 2;
   for (d = 0; d < D; d++) {
-    if (!dayP[d]) continue;
-    sh.getRange(2, col, classCount + 2, dayP[d]).setBorder(true, true, true, true, null, null, '#000000', MED);
-    col += dayP[d];
+    if (!dayW[d]) continue;
+    sh.getRange(2, col, classCount + 2, dayW[d]).setBorder(true, true, true, true, null, null, '#000000', MED);
+    col += dayW[d];
   }
   sh.getRange(2, 1, classCount + 2, topCols).setBorder(true, true, true, true, null, null, '#000000', MED);
   var prevGrade = null;
@@ -293,7 +303,7 @@ function readTimetable() {
   var classRows = [];
   for (var i = 0; i < L.classCount; i++) {
     var r = L.classStart + i, cells = emptyCells();
-    L.slotCols.forEach(function (s, j) { cells[s] = at(r, 2 + j); });
+    L.slotCols.forEach(function (s, j) { if (typeof s !== 'string') cells[s] = at(r, 2 + j); });
     classRows.push({ label: at(r, 1), cells: cells });
   }
   var teacherRows = L.blocks.filter(function (b) { return b.kind === 't'; }).map(function (b) {
