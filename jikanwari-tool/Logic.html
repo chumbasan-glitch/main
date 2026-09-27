@@ -957,49 +957,59 @@ var JW = (function () {
   };
 
   // 全体の流れ。onProgress(割合, メッセージ) を途中で呼ぶ。done(結果) で終わる。
+  // 全部入らなかったときは、別の組み方で最大 TRIES 回まで試し、いちばんよいものを返す。
   function solve(A, opts) {
     opts = opts || {};
-    var M = buildModel(A);
-    var sv = new Solver(M, opts.seed);
-    var nUnits = M.units.length || 1;
-    var base = Math.max(60000, Math.min(400000, nUnits * 600));
-    var plan = [
-      { level: 0, iters: base, msg: 'すべての条件を守って組んでいます' },
-      { level: 1, iters: Math.floor(base / 2), msg: '希望をゆるめて組み直しています' },
-      { level: 2, iters: Math.floor(base / 2), msg: '組み方のルールもゆるめて組み直しています' }
-    ];
-    var phase = 0, it = 0, chunk = 5000;
-    var relaxed = 0;
-    var totalIters = base * 2;
-
-    function temp(p) { var t0 = 30, t1 = 0.3; return t0 * Math.pow(t1 / t0, p); }
-    function progress() {
-      var doneIters = 0;
-      for (var i = 0; i < phase; i++) doneIters += plan[i].iters;
-      return Math.min(0.99, (doneIters + it) / totalIters);
-    }
-    function finish() {
-      if (sv.hardCount() > 0) sv.removeConflicts();
-      sv.setLevel(0);
-      return makeResult(M, sv.st, relaxed);
-    }
-    function run() {
-      while (true) {
-        var P = plan[phase];
-        var end = Math.min(P.iters, it + chunk);
-        for (; it < end; it++) sv.step(temp(it / P.iters));
-        if (opts.onProgress) opts.onProgress(progress(), P.msg);
-        if (it < P.iters) { if (opts.async) return setTimeout(run, 0); continue; }
-        // この段階が終わった
-        if (sv.hardCount() === 0 || phase === plan.length - 1) break;
-        phase++; it = 0; relaxed = phase;
-        sv.setLevel(plan[phase].level);
+    var TRIES = opts.tries || 3;
+    var seed0 = opts.seed || (Date.now() % 2147483647) || 1;
+    var best = null, attempt = 0;
+    function score(res) { return res.unplaced.length * 1000 + res.hard.length * 1000 + res.soft.length; }
+    function once(done) {
+      var M = buildModel(A);
+      var sv = new Solver(M, (seed0 + attempt * 7919) % 2147483647 || 1);
+      var nUnits = M.units.length || 1;
+      var base = Math.max(60000, Math.min(400000, nUnits * 600));
+      var plan = [
+        { level: 0, iters: base, msg: 'すべての条件を守って組んでいます' },
+        { level: 1, iters: Math.floor(base / 2), msg: '希望をゆるめて組み直しています' },
+        { level: 2, iters: Math.floor(base / 2), msg: '組み方のルールもゆるめて組み直しています' }
+      ];
+      var phase = 0, it = 0, chunk = 5000, relaxed = 0, totalIters = base * 2;
+      function temp(p) { var t0 = 30, t1 = 0.3; return t0 * Math.pow(t1 / t0, p); }
+      function progress() {
+        var doneIters = 0;
+        for (var i = 0; i < phase; i++) doneIters += plan[i].iters;
+        return Math.min(0.99, (attempt + Math.min(1, (doneIters + it) / totalIters)) / TRIES);
       }
-      var res = finish();
-      if (opts.done) opts.done(res);
-      return res;
+      function run() {
+        while (true) {
+          var P = plan[phase];
+          var end = Math.min(P.iters, it + chunk);
+          for (; it < end; it++) sv.step(temp(it / P.iters));
+          if (opts.onProgress) opts.onProgress(progress(), (attempt ? '別の組み方で試しています（' + (attempt + 1) + '回目）：' : '') + P.msg);
+          if (it < P.iters) { if (opts.async) return setTimeout(run, 0); continue; }
+          if (sv.hardCount() === 0 || phase === plan.length - 1) break;
+          phase++; it = 0; relaxed = phase;
+          sv.setLevel(plan[phase].level);
+        }
+        if (sv.hardCount() > 0) sv.removeConflicts();
+        sv.setLevel(0);
+        return done(makeResult(M, sv.st, relaxed));
+      }
+      return run();
     }
-    return run();
+    function next(res) {
+      if (!best || score(res) < score(best)) best = res;
+      attempt++;
+      var perfect = !best.unplaced.length && !best.hard.length;
+      if (perfect || attempt >= TRIES) {
+        best.attempts = attempt;
+        if (opts.done) opts.done(best);
+        return best;
+      }
+      return once(next);
+    }
+    return once(next);
   }
 
   /* ---------- 結果をまとめる ---------- */

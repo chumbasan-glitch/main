@@ -265,7 +265,11 @@ function renderStart() {
   h += '<h3>新しく作る</h3><div class="item"><div class="row">名前（年度）<input type="text" class="m" id="newName" value="' + y + '年度"></div>' +
     '<div class="row">最初の答え<select id="loadFrom">' + opts([{ v: '', t: '最初から答える（標準の値が入っています）' }].concat(saves.map(function (s) { return { v: s.name, t: '「' + s.name + '」の答えを読み込んで直す' }; })), startView.loadFrom) + '</select></div>' +
     '<div class="row"><button class="btn primary" data-a="create">はじめる</button></div></div>' +
-    '<p class="small">前年度の答えを読み込むと、クラス数や専科の先生など、変わったところだけ直せば使えます。</p>';
+    '<p class="small">前年度の答えを読み込むと、クラス数や専科の先生など、変わったところだけ直せば使えます。</p>' +
+    '<details class="item"><summary>書き出した答えの文字を貼りつけて始める</summary>' +
+    '<p class="small">ほかのパソコンや相談用に書き出した答え（「{」で始まる長い文字）を貼りつけてください。</p>' +
+    '<textarea id="importText" rows="4" style="width:100%"></textarea>' +
+    '<div class="row"><button class="btn" data-a="importAnswers">貼りつけた答えで始める</button></div></details>';
   return h;
 }
 
@@ -687,13 +691,17 @@ function renderSolve() {
   if (result && !running) h += renderResult();
   h += '<hr style="border:0;border-top:1px solid var(--line);margin:24px 0"><h3>スプレッドシートで手直ししたあと</h3>' +
     '<p class="small">「時間割一覧」シートを手で直したら、このボタンで重なりや時数のずれを確認できます。スプレッドシートのメニュー「時間割ツール」→「時間割をチェックする」からもできます。</p>' +
-    '<button class="btn" data-a="check">スプレッドシートの時間割をチェックする</button><div id="checkOut"></div>';
+    '<button class="btn" data-a="check">スプレッドシートの時間割をチェックする</button><div id="checkOut"></div>' +
+    '<hr style="border:0;border-top:1px solid var(--line);margin:24px 0"><h3>答えを書き出す（相談用）</h3>' +
+    '<p class="small">うまく組めないときに、答えをそのまま相談相手に渡したり、ほかのパソコンで続きをしたりできます。下のボタンで文字にし、コピーして渡してください。名前（先生の名前など）もふくまれます。</p>' +
+    '<button class="btn" data-a="exportAnswers">答えを文字にする</button><div id="exportOut"></div>';
   return h;
 }
 
 function renderResult() {
   var r = result, h = '';
   if (!r.unplaced.length && !r.hard.length) h += '<div class="box good"><b>' + (r.manual.length ? 'ツールで組む教科は、' : '') + '全部の授業が入りました。</b></div>';
+  if (r.attempts > 1) h += '<div class="box note">1回では全部入らなかったため、別の組み方で' + r.attempts + '回試し、いちばんよかったものを出しています。</div>';
   if (r.relaxed) h += '<div class="box note">すべての条件を守ると組めなかったため、' + (r.relaxed >= 2 ? '希望と組み方のルール' : '希望') + 'をゆるめて組みました。</div>';
   if (r.manual.length) h += '<details class="box note"><summary><b>担任が入れる教科（ツールで組まない教科）</b>…黄色い空きに入れてください（1クラスあたり）</summary><ul>' + r.manual.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details>';
   if (r.unplaced.length) h += '<div class="box warn"><b>入らなかったコマ（' + r.unplaced.length + '件）</b>…時間割の黄色い空きに、手で入れてください。<ul>' + r.unplaced.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
@@ -973,6 +981,29 @@ var actions = {
   addFixed: function () { A.fixed.push({ grades: [], day: 0, period: 1, label: '' }); render(); },
   delFixed: function (d) { A.fixed.splice(+d.i, 1); render(); },
   fixedAll: function (d) { A.fixed[+d.i].grades = JW.GRADES.slice(); render(); },
+  exportAnswers: function () {
+    var box = document.getElementById('exportOut');
+    box.innerHTML = '<textarea id="exportText" rows="5" style="width:100%" readonly></textarea><div class="row"><button class="btn small" data-a="copyExport">コピー</button><span class="small" id="copyMsg"></span></div>';
+    var ta = document.getElementById('exportText');
+    ta.value = JSON.stringify(A);
+    ta.focus(); ta.select();
+  },
+  copyExport: function () {
+    var ta = document.getElementById('exportText'), msg = document.getElementById('copyMsg');
+    ta.select();
+    var done = function () { msg.textContent = 'コピーしました'; };
+    var fallback = function () { try { document.execCommand('copy'); done(); } catch (e) { msg.textContent = '文字を選んだ状態にしました。Ctrl＋C（Macは⌘＋C）でコピーしてください。'; } };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, fallback); else fallback();
+  },
+  importAnswers: function () {
+    var text = document.getElementById('importText').value.trim(), name = document.getElementById('newName').value.trim();
+    if (!name) return alert('名前（年度）を入れてください。');
+    var x;
+    try { x = JSON.parse(text); } catch (e) { return alert('貼りつけた文字が読めませんでした。書き出した文字を全部貼りつけてください。'); }
+    if (!x || !x.subjects || !x.classCounts) return alert('時間割作成ツールの答えではないようです。');
+    A = fixAnswers(x); A.name = name; saveName = name; result = null;
+    saveNow().then(function () { go(1); });
+  },
   addPin: function () {
     var t = A.teachers.filter(function (x) { return x.kind !== '専科'; })[0];
     A.pins.push({ teacher: t ? t.id : '', cls: '', target: '', day: 0, period: 1 }); render();
