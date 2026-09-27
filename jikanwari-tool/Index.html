@@ -463,7 +463,12 @@ function renderTeachers() {
       '<select id="jt' + ti + '" data-draft="' + t.id + '" data-f="target">' + targetOpts(dr.target) + '</select>' +
       '<select id="jh' + ti + '" data-draft="' + t.id + '" data-f="hours">' + opts([{ v: 'all', t: 'その教科の全部' }].concat(range(1, 10).map(function (n) { return { v: n, t: '週' + n + 'コマ' }; })), dr.hours) + '</select>' +
       '<button class="btn small" data-a="addJob" data-i="' + ti + '">追加</button></div>' +
-      '<div class="small">「学年でまとめて」を選ぶと、チェックした学年の全クラスに同じ担当を追加します。例：3〜6年の音楽を全部。「追加」を押し忘れても、「先生を追加」や「次へ」を押したときに追加します。</div></div>';
+      '<div class="small">「学年でまとめて」を選ぶと、チェックした学年の全クラスに同じ担当を追加します。例：3〜6年の音楽を全部。「追加」を押し忘れても、「先生を追加」や「次へ」を押したときに追加します。</div>' +
+      '<div class="row" style="margin-top:8px"><b>曜日ごとの教室：</b>' + A.days.map(function (d, di) {
+        return '<label>' + d + '<select data-k="teachers.' + ti + '.dayRoom.' + di + '">' +
+          opts([{ v: '', t: '教科の設定どおり' }, { v: '__class', t: '普通教室' }].concat(A.rooms.map(function (r) { return { v: r.name, t: r.name }; })), (t.dayRoom || {})[di] || '') + '</select></label>';
+      }).join(' ') + '</div>' +
+      '<div class="small">音楽室が重なる日だけ普通教室にする、などに使います。「教科の設定どおり」は、質問「教科の表示名と場所」で決めた教室です。</div></div>';
   });
   h += '<button class="btn" data-a="addTeacher">＋ 先生を追加</button>';
   return h;
@@ -508,6 +513,14 @@ function renderTeacherOff() {
   return h;
 }
 
+// 勤務する曜日（専科は毎日。ほかの先生は、全部の時間が「×」の曜日を除く）
+function workDays(t) {
+  return A.days.map(function (d, di) { return di; }).filter(function (di) {
+    if (t.kind === '専科') return true;
+    return range(1, A.maxPeriods).some(function (p) { return !(t.off || {})[di + '-' + p]; });
+  });
+}
+
 function renderTeacherDays() {
   var h = '<h2>専科・講師の先生の、曜日の決め方を教えてください</h2>' +
     '<p class="lead">「まとめる」にすると、同じ学年の授業をできるだけ同じ曜日に入れます（例：3年の音楽は全クラス月・木）。' +
@@ -520,14 +533,18 @@ function renderTeacherDays() {
     grades.sort();
     h += '<div class="item"><div class="row"><b>' + esc(t.name || '先生' + (ti + 1)) + '</b>（' + esc(t.kind) + '）</div>' +
       '<label class="choice' + (t.groupGrade ? ' on' : '') + '"><input type="checkbox" data-k="teachers.' + ti + '.groupGrade" data-t="bool"' + (t.groupGrade ? ' checked' : '') + '> 同じ学年の授業を、できるだけ同じ曜日にまとめる</label>';
-    if (grades.length) {
-      h += '<div class="small">この学年はこの曜日だけ：</div><table class="t"><tr><th></th>' + A.days.map(function (d) { return '<th>' + d + '</th>'; }).join('') + '</tr>' +
+    var wd = workDays(t);
+    if (grades.length && wd.length) {
+      h += '<div class="small">この学年はこの曜日だけ（' + (t.kind === '専科' ? '専科は毎日勤務' : '質問「講師などの勤務」で勤務する曜日') + '）：</div><table class="t"><tr><th></th>' +
+        wd.map(function (di) { return '<th>' + A.days[di] + '</th>'; }).join('') + '</tr>' +
         grades.map(function (g) {
-          return '<tr><th>' + g + '年</th>' + A.days.map(function (d, di) {
+          return '<tr><th>' + g + '年</th>' + wd.map(function (di) {
             var on = (t.gradeDays[g] || []).indexOf(di) >= 0;
             return '<td><input type="checkbox" data-k="teachers.' + ti + '.gradeDays.' + g + '" data-t="arr" value="' + di + '"' + (on ? ' checked' : '') + '></td>';
           }).join('') + '</tr>';
         }).join('') + '</table>';
+    } else if (grades.length) {
+      h += '<p class="small">勤務する曜日がありません（質問「講師などの勤務」を確かめてください）。</p>';
     } else h += '<p class="small">担当がまだありません（質問「専科・講師の担当」で入れてください）。</p>';
     h += '</div>';
   });
@@ -549,8 +566,8 @@ function renderFixed() {
 }
 
 function renderPrefs() {
-  var h = '<h2>教科を入れる時間の希望はありますか？</h2>' +
-    '<p class="lead">例：「1・2年の国語は午前中（1〜4時間目）に入れる」「体育は1時間目に入れない」。希望はできるだけ守りますが、守れないときは最後に一覧で知らせます。</p>';
+  var h = '<h2>教科を入れる時間の希望や、固定したい授業はありますか？</h2>' +
+    '<p class="lead">例：「1・2年の国語は午前中（1〜4時間目）に入れる」「体育は1時間目に入れない」。希望ごとに「絶対に守る」か「できれば守る」を選べます。守れなかった希望は最後に一覧で知らせます。</p>';
   h += '<div class="row noprint">例から追加：<button class="btn small" data-a="prefPreset" data-p="morning">低学年の国語は午前中</button> <button class="btn small" data-a="prefPreset" data-p="pe1">体育は1時間目に入れない</button></div>';
   A.prefs.forEach(function (p, i) {
     h += '<div class="item"><div class="row">学年' + gradeChecks('prefs.' + i + '.grades', p.grades) + '</div>' +
@@ -558,9 +575,28 @@ function renderPrefs() {
       '<select data-k="prefs.' + i + '.mode">' + opts([{ v: 'only', t: 'この時間に入れる' }, { v: 'avoid', t: 'この時間に入れない' }], p.mode) + '</select></div>' +
       '<div class="row">曜日' + dayChecks('prefs.' + i + '.days', p.days) + '<span class="small">（チェックなし＝全部の曜日）</span></div>' +
       '<div class="row">時間' + periodChecks('prefs.' + i + '.periods', p.periods) + '<span class="small">（チェックなし＝全部の時間）</span></div>' +
-      '<div class="row"><span class="small">→ ' + esc(JW.prefText(A, p)) + '</span><button class="btn small del" data-a="delPref" data-i="' + i + '">削除</button></div></div>';
+      '<div class="row chips"><label><input type="radio" name="strict' + i + '" data-k="prefs.' + i + '.strict" data-t="radio-true"' + (p.strict ? ' checked' : '') + '>絶対に守る</label>' +
+      '<label><input type="radio" name="strict' + i + '" data-k="prefs.' + i + '.strict" data-t="radio-false"' + (!p.strict ? ' checked' : '') + '>できれば守る</label></div>' +
+      '<div class="row"><span class="small">→ ' + esc(JW.prefText(A, p)) + (p.strict ? '（絶対に守る）' : '') + '</span><button class="btn small del" data-a="delPref" data-i="' + i + '">削除</button></div></div>';
   });
   h += '<button class="btn small" data-a="addPref">＋ 追加する</button>';
+  h += '<p class="small">「絶対に守る」は、守れないときは入らなかったコマとして知らせます。「できれば守る」は、組めないときはゆるめます。</p>';
+
+  // 授業の固定
+  var classes = allClasses();
+  h += '<h3 style="margin-top:28px">授業の固定</h3><p class="small">「理科講師の5年1組の理科は火曜2時間目」のように、その時間に必ず入れる授業です。先生を選ぶと、その先生の担当だけが選べます。</p>';
+  A.pins.forEach(function (pn, i) {
+    var t = A.teachers.filter(function (x) { return x.id === pn.teacher; })[0];
+    var cl = t ? classes.filter(function (c) { return t.jobs.some(function (j) { return j.cls === c.key; }); }) : classes;
+    var tg = t ? JW.targetList(A).filter(function (x) { return t.jobs.some(function (j) { return j.target === x.id && (!pn.cls || j.cls === pn.cls); }); }) : JW.targetList(A);
+    h += '<div class="item"><div class="row">先生<select data-k="pins.' + i + '.teacher">' + opts([{ v: '', t: '指定なし' }].concat(A.teachers.map(function (x) { return { v: x.id, t: x.name || '（名前なし）' }; })), pn.teacher) + '</select>' +
+      'クラス<select data-k="pins.' + i + '.cls">' + opts([{ v: '', t: '選んでください' }].concat(cl.map(function (c) { return { v: c.key, t: c.label }; })), pn.cls) + '</select>' +
+      '教科<select data-k="pins.' + i + '.target">' + opts([{ v: '', t: '選んでください' }].concat(tg.map(function (x) { return { v: x.id, t: x.name }; })), pn.target) + '</select></div>' +
+      '<div class="row"><select data-k="pins.' + i + '.day" data-t="num">' + opts(A.days.map(function (d, di) { return { v: di, t: d + '曜日' }; }), pn.day) + '</select>' +
+      '<select data-k="pins.' + i + '.period" data-t="num">' + opts(range(1, A.maxPeriods).map(function (p) { return { v: p, t: p + '時間目' }; }), pn.period) + '</select>に固定' +
+      '<button class="btn small" data-a="copyPin" data-i="' + i + '">複製</button><button class="btn small del" data-a="delPin" data-i="' + i + '">削除</button></div></div>';
+  });
+  h += '<button class="btn small" data-a="addPin">＋ 授業を固定する</button>';
   return h;
 }
 
@@ -719,6 +755,7 @@ document.addEventListener('change', function (e) {
     var old = el.dataset.old;
     // 教室の名前を変えたら、使っているところも変える
     A.subjects.forEach(function (s) { if (s.room === old) s.room = v; });
+    A.teachers.forEach(function (t) { Object.keys(t.dayRoom || {}).forEach(function (d) { if (t.dayRoom[d] === old) t.dayRoom[d] = v; }); });
     A.variants.forEach(function (x) { if (x.room === old) x.room = v; });
   } else if (t === 'sname') {
     v = el.value.trim() || el.dataset.old;
@@ -727,6 +764,12 @@ document.addEventListener('change', function (e) {
   } else v = el.value;
   setPath(k, v);
   if (/^teachers\.\d+\.kind$/.test(k) && v === '専科') getPath(k.replace(/\.kind$/, '')).off = {};
+  if (/^pins\.\d+\.teacher$/.test(k)) { var pn = getPath(k.replace(/\.teacher$/, '')); pn.cls = ''; pn.target = ''; }
+  if (/^pins\.\d+\.cls$/.test(k)) {
+    var pn2 = getPath(k.replace(/\.cls$/, '')), tt = A.teachers.filter(function (x) { return x.id === pn2.teacher; })[0];
+    var js = tt ? tt.jobs.filter(function (j) { return j.cls === v; }) : [];
+    if (js.length === 1) pn2.target = js[0].target;
+  }
   if (k === 'maxPeriods') JW.GRADES.forEach(function (g) { A.periods[g] = (A.periods[g] || []).map(function (p) { return Math.min(p, v); }); });
   result = null;
   // 文字や数字を入れたあとは、すぐに画面を書き直すと、続けて押したボタンが効かなくなるので少し待つ
@@ -762,6 +805,8 @@ function fixAnswers(x) {
     if (t.groupGrade === undefined) t.groupGrade = t.kind === '専科';
   });
   if (x.satCount === undefined) x.satCount = false;
+  if (!x.pins) x.pins = [];
+  (x.teachers || []).forEach(function (t) { t.dayRoom = t.dayRoom || {}; });
   x.rooms.forEach(function (r) { r.count = r.count || 1; r.grades = r.grades || [[]]; });
   x.subjects.forEach(function (s) { if (s.auto === undefined) s.auto = true; });
   x.variants.forEach(function (v) { if (v.auto === undefined) v.auto = true; });
@@ -809,6 +854,7 @@ var actions = {
     var alive = function (x) { return gone.indexOf(x.target) < 0; };
     A.prefs = A.prefs.filter(alive);
     A.syncs = A.syncs.filter(alive);
+    A.pins = A.pins.filter(alive);
     A.teachers.forEach(function (t) { t.jobs = t.jobs.filter(alive); });
     render();
   },
@@ -818,6 +864,7 @@ var actions = {
     A.rooms.splice(+d.i, 1);
     A.subjects.forEach(function (s) { if (s.room === r.name) s.room = ''; });
     A.variants.forEach(function (v) { if (v.room === r.name) v.room = ''; });
+    A.teachers.forEach(function (t) { Object.keys(t.dayRoom || {}).forEach(function (d) { if (t.dayRoom[d] === r.name) delete t.dayRoom[d]; }); });
     render();
   },
   addVariant: function () {
@@ -830,6 +877,7 @@ var actions = {
     var alive = function (x) { return x.target !== id; };
     A.prefs = A.prefs.filter(alive);
     A.syncs = A.syncs.filter(alive);
+    A.pins = A.pins.filter(alive);
     A.teachers.forEach(function (t) { t.jobs = t.jobs.filter(alive); });
     render();
   },
@@ -839,7 +887,13 @@ var actions = {
     render();
   },
   addTeacher: function () { commitDrafts(); A.teachers.push({ id: JW.uid('t_'), name: '', kind: '専科', off: {}, jobs: [], groupGrade: true, gradeDays: {} }); render(); },
-  delTeacher: function (d) { if (confirm('この先生を削除しますか？')) { A.teachers.splice(+d.i, 1); render(); } },
+  delTeacher: function (d) {
+    if (!confirm('この先生を削除しますか？')) return;
+    var id = A.teachers[+d.i].id;
+    A.teachers.splice(+d.i, 1);
+    A.pins.forEach(function (p) { if (p.teacher === id) p.teacher = ''; });
+    render();
+  },
   addJob: function (d) {
     var t = A.teachers[+d.i], dr = draftOf(t);
     if (!dr.cls && !dr.grades.length) return alert('クラスを選ぶか、学年にチェックを入れてください。');
@@ -863,6 +917,12 @@ var actions = {
   addFixed: function () { A.fixed.push({ grades: [], day: 0, period: 1, label: '' }); render(); },
   delFixed: function (d) { A.fixed.splice(+d.i, 1); render(); },
   fixedAll: function (d) { A.fixed[+d.i].grades = JW.GRADES.slice(); render(); },
+  addPin: function () {
+    var t = A.teachers.filter(function (x) { return x.kind !== '専科'; })[0];
+    A.pins.push({ teacher: t ? t.id : '', cls: '', target: '', day: 0, period: 1 }); render();
+  },
+  copyPin: function (d) { var p = A.pins[+d.i]; A.pins.splice(+d.i + 1, 0, { teacher: p.teacher, cls: p.cls, target: p.target, day: p.day, period: p.period }); render(); },
+  delPin: function (d) { A.pins.splice(+d.i, 1); render(); },
   addPref: function () { A.prefs.push({ grades: [], target: A.subjects[0].id, mode: 'only', days: [], periods: [] }); render(); },
   delPref: function (d) { A.prefs.splice(+d.i, 1); render(); },
   prefPreset: function (d) {
