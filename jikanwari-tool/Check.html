@@ -4,12 +4,23 @@
 <meta charset="utf-8">
 <base target="_top">
 <style>
-  body { font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 14px; line-height: 1.6; color: #2b2b2b; margin: 8px 12px; }
+  :root {
+    --bg: #ffffff; --ink: #2b2b2b; --sub: #6b6b6b; --main: #2f6f5e; --on-main: #ffffff;
+    --warn-weak: #fbe9e7; --note: #fff6d6; --good: #e3efe9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #1e2423; --ink: #e7eae6; --sub: #a6aea9; --main: #2f6f5e; --on-main: #ffffff;
+      --warn-weak: #3b2321; --note: #3a3320; --good: #1f3a33;
+    }
+  }
+  body { font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 14px; line-height: 1.6; color: var(--ink); background: var(--bg); margin: 8px 12px; }
   .box { border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
-  .warn { background: #fbe9e7; } .note { background: #fff6d6; } .good { background: #e3efe9; }
+  .warn { background: var(--warn-weak); } .note { background: var(--note); } .good { background: var(--good); }
   ul { margin: 6px 0 0; padding-left: 20px; }
-  .small { font-size: 12px; color: #6b6b6b; }
-  button { font: inherit; border: 1px solid #2f6f5e; background: #2f6f5e; color: #fff; padding: 6px 14px; border-radius: 8px; cursor: pointer; }
+  .small { font-size: 12px; color: var(--sub); }
+  button { font: inherit; border: 1px solid var(--main); background: var(--main); color: var(--on-main); padding: 6px 14px; border-radius: 8px; cursor: pointer; }
 </style>
 </head>
 <body>
