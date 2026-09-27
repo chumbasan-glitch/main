@@ -105,7 +105,7 @@ var JW = (function () {
     return n || ((i + 1) + '組');
   }
   function classLabel(A, g, i) { return g + '年' + className(A, g, i); }
-  // 下の表で使う短い名前（3年松組→3松、3年1組→3-1）
+  // 表で使う短い名前（3年A組→3A、3年1組→3-1）
   function classShort(A, g, i) {
     var n = className(A, g, i).replace(/組$/, '');
     return /^[0-9０-９]+$/.test(n) ? g + '-' + n : g + n;
@@ -154,6 +154,18 @@ var JW = (function () {
     return targetName(A, p.target) + 'を' + when + (p.mode === 'avoid' ? 'に入れない' : 'に入れる');
   }
 
+  // 授業の固定と、「先に決まっている時間」で教科を選んだもの（学年の全クラス）をまとめる
+  function allPins(A, classes) {
+    var list = (A.pins || []).slice();
+    (A.fixed || []).forEach(function (f) {
+      if (!f.target) return;
+      classes.forEach(function (c) {
+        if ((f.grades || []).indexOf(c.grade) >= 0) list.push({ teacher: '', cls: c.key, target: f.target, day: f.day, period: f.period, fromFixed: true });
+      });
+    });
+    return list;
+  }
+
   /* ---------- 入力内容から、組み立て用のデータを作る ---------- */
   // opt.includeManual … 担任が入れる教科（ツールで組まない教科）のコマも作る（チェック用）
   function buildModel(A, opt) {
@@ -189,6 +201,7 @@ var JW = (function () {
     });
     var fixedLabel = classes.map(function () { return {}; });
     (A.fixed || []).forEach(function (f) {
+      if (f.target) return; // 教科を選んだ時間は、その教科の授業として固定する（下の allPins）
       var s = (+f.day) * MP + (+f.period - 1);
       classes.forEach(function (c, ci) {
         if ((f.grades || []).indexOf(c.grade) >= 0 && (avail[ci][s] || satFree[ci][s])) {
@@ -403,7 +416,7 @@ var JW = (function () {
     // 授業の固定（このクラスのこの授業を、この時間に）
     var tIndex = {};
     (A.teachers || []).forEach(function (t, ti) { tIndex[t.id] = ti; });
-    (A.pins || []).forEach(function (pn) {
+    allPins(A, classes).forEach(function (pn) {
       var ci = classIndex[pn.cls];
       if (ci === undefined || !pn.target) return;
       var s = (+pn.day) * MP + (+pn.period - 1), c = classes[ci];
@@ -413,7 +426,19 @@ var JW = (function () {
       var pool = classUnits[ci].map(function (id) { return units[id]; })
         .filter(function (u) { return matches(u, pn.target) && u.pin === undefined && !u.sync; })
         .sort(function (a, b) { return ti === undefined ? 0 : ((b.teachers.indexOf(ti) >= 0) - (a.teachers.indexOf(ti) >= 0)); });
-      if (!pool.length) { errors.push('授業の固定：' + what + 'に入れる授業がありません（組まない教科か、時数が足りません）。'); return; }
+      if (!pool.length) {
+        // 組まない教科でも、時間を決めて固定したものはツールで入れる
+        var mu = units.filter(function (u) { return u.cls === ci && u.manual && matches(u, pn.target) && u.pin === undefined; })[0];
+        if (mu) {
+          mu.manual = false;
+          classUnits[ci].push(mu.id);
+          manualCount[ci]--;
+          var mk2 = c.grade + '年 ' + mu.display;
+          if (--manualList[mk2] <= 0) delete manualList[mk2];
+          pool = [mu];
+        }
+      }
+      if (!pool.length) { errors.push((pn.fromFixed ? '先に決まっている時間：' : '授業の固定：') + what + 'に入れる授業がありません（組まない教科か、時数が足りません）。'); return; }
       if (ti !== undefined && pool[0].teachers.indexOf(ti) < 0) notes.push('授業の固定：' + what + 'は、' + teachers[ti].name + 'の担当ではありません。');
       pool[0].pin = s;
     });
@@ -456,7 +481,7 @@ var JW = (function () {
     });
 
     return { A: A, D: D, MP: MP, S: S, classes: classes, classIndex: classIndex, avail: avail,
-      fixedLabel: fixedLabel, satFree: satFree, units: units, pins: A.pins || [], classUnits: classUnits, syncMembers: syncMembers,
+      fixedLabel: fixedLabel, satFree: satFree, units: units, pins: allPins(A, classes), classUnits: classUnits, syncMembers: syncMembers,
       teachers: teachers, prefs: prefs, rooms: rooms, poolName: poolName, poolRooms: poolRooms, poolGradeCap: poolGradeCap, phys: phys,
       maxPerDay: maxPerDay, subjName: subjName, manualList: manualList,
       rules: A.rules || {}, errors: errors, notes: uniq(notes) };
@@ -1061,6 +1086,20 @@ var JW = (function () {
         return v.subj === u.subj && v.variant === u.variant && v.teachers.join() === u.teachers.join() && v.prefs.join() === u.prefs.join();
       });
     }
+    // 「先に決まっている時間」に教科の名前が自由に書かれていたら、教科として選び直すよう案内する
+    function fixedAsSubject(g) {
+      var names = {};
+      A.subjects.forEach(function (sj) { names[sj.name] = sj.name; names[sj.display || sj.name] = sj.name; });
+      A.variants.forEach(function (v) { names[v.display || v.name] = v.name; });
+      var ABBR = { '学活': '学級活動', '総合': '総合的な学習の時間', '道': '道徳', '外活': '外国語活動' };
+      var out = [];
+      (A.fixed || []).forEach(function (f) {
+        if (f.target || (f.grades || []).indexOf(g) < 0) return;
+        var hit = names[f.label] || ABBR[f.label];
+        if (hit) out.push('質問「先に決まっている時間」の「' + f.label + '」（' + A.days[f.day] + f.period + '）は、内容を「教科」にして「' + hit + '」を選ぶ（その教科の時数に数えます）');
+      });
+      return out;
+    }
     var overflow = {};
     M.classes.forEach(function (c, ci) {
       var free = M.avail[ci].filter(Boolean).length, need = M.classUnits[ci].length;
@@ -1074,7 +1113,7 @@ var JW = (function () {
         var ov = overflow[u.cls];
         add('overflow:' + g, g + '年：授業のコマ数が、使えるコマより多いです',
           '授業が週' + ov.need + 'コマあるのに、1日のコマ数から先に決まっている時間を引くと、使えるコマは' + ov.free + 'コマです（' + (ov.need - ov.free) + 'コマ入りません）。',
-          ['質問「教科の週の時数」で時数を減らす', '質問「1日のコマ数」でコマ数を増やす', '質問「先に決まっている時間」を見直す'], c.label);
+          fixedAsSubject(g).concat(['質問「教科の週の時数」で時数を減らす', '質問「1日のコマ数」でコマ数を増やす', '質問「先に決まっている時間」を見直す']), c.label);
         return;
       }
       var cand = candidates(u), kin = sameKind(u);
@@ -1331,7 +1370,7 @@ var JW = (function () {
     // 先生は下の表を見てチェックするので、ここでは外す
     M.units.forEach(function (u) { u.teachers = []; delete u.pin; });
     // 授業の固定は、表のその時間にその授業が入っているかで確かめる
-    (A.pins || []).forEach(function (pn) {
+    M.pins.forEach(function (pn) {
       var ci = M.classIndex[pn.cls];
       if (ci === undefined || !pn.target) return;
       var s = (+pn.day) * M.MP + (+pn.period - 1), id = st.grid[ci][s];

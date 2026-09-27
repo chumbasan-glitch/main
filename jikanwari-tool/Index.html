@@ -204,7 +204,7 @@ function freeSlots(g) {
   var seen = {};
   (A.fixed || []).forEach(function (f) {
     var k = f.day + '-' + f.period;
-    if (countDay(+f.day) && (f.grades || []).indexOf(g) >= 0 && !seen[k] && (+f.period) <= (+(A.periods[g] || [])[f.day] || 0)) { seen[k] = 1; n--; }
+    if (!f.target && countDay(+f.day) && (f.grades || []).indexOf(g) >= 0 && !seen[k] && (+f.period) <= (+(A.periods[g] || [])[f.day] || 0)) { seen[k] = 1; n--; }
   });
   return n;
 }
@@ -277,12 +277,12 @@ function renderClassCounts() {
 }
 
 function renderClassNames() {
-  var h = '<h2>クラスに特別な呼び名はありますか？</h2><p class="lead">「1組・2組」ではなく「松組・竹組」のような呼び名を使っている場合は「はい」を選んでください。</p>';
+  var h = '<h2>クラスに特別な呼び名はありますか？</h2><p class="lead">「1組・2組」ではなく「A組・B組」のような呼び名を使っている場合は「はい」を選んでください。</p>';
   h += '<label class="choice' + (!A.useCustomNames ? ' on' : '') + '"><input type="radio" name="un" data-k="useCustomNames" data-t="radio-false"' + (!A.useCustomNames ? ' checked' : '') + '> いいえ（1組・2組…）</label>';
-  h += '<label class="choice' + (A.useCustomNames ? ' on' : '') + '"><input type="radio" name="un" data-k="useCustomNames" data-t="radio-true"' + (A.useCustomNames ? ' checked' : '') + '> はい（松組・竹組…など）</label>';
+  h += '<label class="choice' + (A.useCustomNames ? ' on' : '') + '"><input type="radio" name="un" data-k="useCustomNames" data-t="radio-true"' + (A.useCustomNames ? ' checked' : '') + '> はい（A組・B組…など）</label>';
   if (A.useCustomNames) {
     var maxN = Math.max.apply(null, JW.GRADES.map(function (g) { return +A.classCounts[g] || 0; }));
-    h += '<div class="item"><div class="row">全学年に同じ呼び名を入れる：<input type="text" class="lg" id="bulkNames" placeholder="例：松組,竹組,梅組,月組"><button class="btn small" data-a="bulkNames">全学年に入れる</button></div>' +
+    h += '<div class="item"><div class="row">全学年に同じ呼び名を入れる：<input type="text" class="lg" id="bulkNames" placeholder="例：A組,B組,C組,D組"><button class="btn small" data-a="bulkNames">全学年に入れる</button></div>' +
       '<div class="small">「,」または「、」で区切って、1組目から順に入れてください。</div></div>';
     h += '<div class="scroll"><table class="t"><tr><th></th>' + range(1, maxN).map(function (i) { return '<th>' + i + 'クラス目</th>'; }).join('') + '</tr>';
     JW.GRADES.forEach(function (g) {
@@ -293,7 +293,7 @@ function renderClassNames() {
         return '<td>' + (i < n ? '<input type="text" class="s" data-k="classNames.' + g + '.' + i + '" value="' + esc(A.classNames[g][i] || '') + '" placeholder="' + (i + 1) + '組">' : '') + '</td>';
       }).join('') + '</tr>';
     });
-    h += '</table></div><p class="small">下の表（専科・特別教室）では「3松」「4竹」のように短く表示します。</p>';
+    h += '</table></div><p class="small">表では「3A」「4B」のように短く表示します。</p>';
   }
   return h;
 }
@@ -570,15 +570,27 @@ function renderTeacherDays() {
   return h;
 }
 
+// 「教科以外」に教科の名前が書かれていたら知らせる
+function fixedWarn(f) {
+  if (f.target || !f.label) return '';
+  var ABBR = { '学活': '学級活動', '総合': '総合的な学習の時間', '外活': '外国語活動' };
+  var hit = A.subjects.filter(function (s) { return s.name === f.label || s.display === f.label || ABBR[f.label] === s.name; })[0];
+  return hit ? '<div class="box warn small">「' + esc(f.label) + '」は教科の名前です。内容を「教科」にして「' + esc(hit.name) + '」を選ぶと、' + esc(hit.name) + 'の時数に数えます（今のままだと数えないので、コマが足りなくなります）。</div>' : '';
+}
+
 function renderFixed() {
   var h = '<h2>先に決まっている時間はありますか？</h2>' +
-    '<p class="lead">全校朝会、委員会、クラブなど、授業を入れない時間です。自動で組むときはこの時間を空けておき、時間割には「内容」をそのまま出します。</p>';
+    '<p class="lead">全校朝会、委員会、クラブなど、時間が先に決まっているものです。内容は「教科以外」か「教科」から選びます。</p>' +
+    '<ul class="small"><li><b>教科以外</b>（朝会・クラブ・委員会など）：授業を入れずに空けておき、時間割には書いた内容をそのまま出します。時数には数えません。</li>' +
+    '<li><b>教科</b>（例：6年の月曜6時間目は学級活動）：その時間はその教科の授業として、時数に数えます。教科の授業を「教科以外」で書くと、時数に数えられず、コマが足りなくなります。</li></ul>';
   A.fixed.forEach(function (f, i) {
     h += '<div class="item"><div class="row">学年' + gradeChecks('fixed.' + i + '.grades', f.grades) + '<button class="btn small" data-a="fixedAll" data-i="' + i + '">全校</button></div>' +
       '<div class="row"><select data-k="fixed.' + i + '.day" data-t="num">' + opts(A.days.map(function (d, di) { return { v: di, t: d + '曜日' }; }), f.day) + '</select>' +
       '<select data-k="fixed.' + i + '.period" data-t="num">' + opts(range(1, A.maxPeriods).map(function (p) { return { v: p, t: p + '時間目' }; }), f.period) + '</select>' +
-      '内容<input type="text" class="m" data-k="fixed.' + i + '.label" value="' + esc(f.label) + '" placeholder="例：クラブ">' +
-      '<button class="btn small del" data-a="delFixed" data-i="' + i + '">削除</button></div></div>';
+      '内容<select data-k="fixed.' + i + '.kind">' + opts([{ v: 'other', t: '教科以外' }, { v: 'subject', t: '教科' }], f.target ? 'subject' : 'other') + '</select>' +
+      (f.target ? '<select data-k="fixed.' + i + '.target">' + targetOpts(f.target) + '</select>'
+        : '<input type="text" class="m" data-k="fixed.' + i + '.label" value="' + esc(f.label) + '" placeholder="例：クラブ">') +
+      '<button class="btn small del" data-a="delFixed" data-i="' + i + '">削除</button></div>' + fixedWarn(f) + '</div>';
   });
   h += '<button class="btn small" data-a="addFixed">＋ 追加する</button><p class="small">ない場合は、そのまま「次へ」で大丈夫です。</p>';
   return h;
@@ -799,6 +811,12 @@ document.addEventListener('change', function (e) {
   } else v = el.value;
   setPath(k, v);
   if (/^teachers\.\d+\.kind$/.test(k) && v === '専科') getPath(k.replace(/\.kind$/, '')).off = {};
+  if (/^fixed\.\d+\.kind$/.test(k)) {
+    var fx = getPath(k.replace(/\.kind$/, ''));
+    delete fx.kind;
+    if (v === 'subject') { if (!fx.target) fx.target = A.subjects[0].id; }
+    else delete fx.target;
+  }
   if (/^pins\.\d+\.teacher$/.test(k)) { var pn = getPath(k.replace(/\.teacher$/, '')); pn.cls = ''; pn.target = ''; }
   if (/^pins\.\d+\.cls$/.test(k)) {
     var pn2 = getPath(k.replace(/\.cls$/, '')), tt = A.teachers.filter(function (x) { return x.id === pn2.teacher; })[0];
