@@ -201,8 +201,10 @@ async function getDl(){
 }
 function setSaveMode(){
   const can = !!dl || !dlChecked;
-  $("savePdf").textContent = can ? "PDFで保存（問題＋答え）" : "印刷用の画像を出す（問題＋答え）";
-  $("saveImgQ").hidden = $("saveImgA").hidden = $("printQ").hidden = $("printA").hidden = !can;
+  /* タブレットなど保存ができない画面では、印刷ボタンで印刷用の画像を出す */
+  $("savePdf").textContent = can ? "PDFで保存（問題＋答え）" : "問題と答えの画像をまとめて出す";
+  $("saveImgQ").hidden = $("saveImgA").hidden = !can;
+  if(!can && !setSaveMode.noted){ setSaveMode.noted = true; status("「問題を印刷する」「答えを印刷する」をおすと，印刷用の画像が出ます。画像を長押しして「共有」→「プリント」で印刷できます。"); }
 }
 function status(msg, kind){ const el = $("saveStatus"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); }
 const PRINT_K = 200 / 25.4;
@@ -223,7 +225,7 @@ function showImages(list){
     cap.textContent = it.label; img.alt = it.label; img.src = it.canvas.toDataURL("image/png");
     fig.append(cap, img); box.appendChild(fig);
   }
-  $("imgHow").textContent = "印刷するときは、用紙を「" + PAPER_NOW + "」、大きさを「用紙に合わせる」（ふちなしにしない）にしてください。";
+  $("imgHow").textContent = "画像を1まいずつ長押しして「共有」→「プリント」をえらぶと，そのまま印刷できます。「写真に保存」してから，プリンターのアプリで印刷することもできます。用紙は「" + PAPER_NOW + "」，大きさは「用紙に合わせる」（ふちなしにしない）にしてください。";
   $("imgOverlay").hidden = false;
 }
 async function offer(filename, data){
@@ -241,7 +243,7 @@ $("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () =
   if(!(await getDl())){
     const q = renderPrint(false), a = renderPrint(true);
     showImages(q.map((c, i) => ({label:"問題" + (q.length > 1 ? "（" + (i + 1) + "まいめ）" : ""), canvas:c})).concat(a.map((c, i) => ({label:"答え（先生用）" + (a.length > 1 ? "（" + (i + 1) + "まいめ）" : ""), canvas:c}))));
-    status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
+    status("画像を表示しました。長押しして「共有」→「プリント」で印刷できます。", "ok");
     return;
   }
   status("PDFを作っています…");
