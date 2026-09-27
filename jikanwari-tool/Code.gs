@@ -198,7 +198,7 @@ function writeTimetable(table, saveName) {
     var r = classStart + i;
     put(r, 1, cr.label, HEAD);
     slotCols.forEach(function (sIdx, j) {
-      if (typeof sIdx === 'string') { put(r, 2 + j, mod.grades.indexOf(cr.grade) >= 0 ? mod.label : '', '#eef4ea'); return; }
+      if (typeof sIdx === 'string') { put(r, 2 + j, mod.grades.indexOf(cr.grade) >= 0 ? mod.labels[sIdx.slice(1)] : '', '#eef4ea'); return; }
       var cell = cr.cells[sIdx];
       put(r, 2 + j, cell.t, cell.k === 'fixed' ? FIXED : cell.k === 'none' ? NONE : cell.k === 'empty' ? EMPTY : cell.k === 'sat' ? SAT : W);
     });

@@ -92,7 +92,7 @@ var JW = (function () {
       fixed: [],
       prefs: [],
       pins: [],
-      module: { on: false, days: [], target: 'kokugo', per: 3, count: 1, grades: GRADES.slice(), label: '' },
+      module: { on: false, per: 3, count: 1, grades: GRADES.slice(), slots: {} },
       syncs: [],
       rules: { dailyMax: true, pairs: true, spread: true, active: true }
     };
@@ -168,9 +168,20 @@ var JW = (function () {
   }
 
   // モジュールで数える時間（例：3回で1時間）
-  function moduleHours(mod) {
+  // モジュールの曜日ごとの内容 { 曜日: { kind: 'subject'|'other', target, text, label } }（古い形もここで読みかえる）
+  function moduleSlots(mod) {
+    if (!mod || !mod.on) return {};
+    if (mod.slots) return mod.slots;
+    var out = {};
+    (mod.days || []).forEach(function (d) { out[d] = { kind: 'subject', target: mod.target, label: mod.label || '' }; });
+    return out;
+  }
+  // モジュールでその教科を何時間と数えるか（例：3回で1時間）
+  function moduleHours(mod, subjId) {
+    var slots = moduleSlots(mod), n = 0;
+    Object.keys(slots).forEach(function (d) { var x = slots[d]; if (x && x.kind === 'subject' && x.target === subjId) n++; });
     var per = Math.max(1, +mod.per || 3);
-    return Math.floor((mod.days || []).length / per) * Math.max(1, +mod.count || 1);
+    return Math.floor(n / per) * Math.max(1, +mod.count || 1);
   }
 
   /* ---------- 入力内容から、組み立て用のデータを作る ---------- */
@@ -268,7 +279,7 @@ var JW = (function () {
         var h = +s.hours[g] || 0;
         // モジュール（朝の短い時間）で数える分は、普通の時間から引く
         var mod = A.module;
-        if (mod && mod.on && mod.target === s.id && (mod.grades || []).indexOf(g) >= 0) h = Math.max(0, h - moduleHours(mod));
+        if (mod && mod.on && (mod.grades || []).indexOf(g) >= 0) h = Math.max(0, h - moduleHours(mod, s.id));
         if (h <= 0) return;
         var vs = A.variants.filter(function (v) { return v.subject === s.id && (+v.hours[g] || 0) > 0; });
         var vsum = vs.reduce(function (t, v) { return t + (+v.hours[g] || 0); }, 0);
@@ -1378,10 +1389,14 @@ var JW = (function () {
       return { label: t.name, title: t.name + (subs.length ? '（' + subs.join('・') + '）' : ''), cells: cells, off: t.off.slice() };
     });
     var roomRows = roomRowsOf(M, st);
-    var mod = A.module && A.module.on && (A.module.days || []).length ? A.module : null;
-    var modTarget = mod ? (subjectById(A, mod.target) || {}) : {};
+    var mslots = moduleSlots(A.module), mdays = Object.keys(mslots).filter(function (d) { return mslots[d] && mslots[d].kind && mslots[d].kind !== 'none'; }).map(Number).sort();
+    var mod = mdays.length ? A.module : null, mlabels = {};
+    mdays.forEach(function (d) {
+      var x = mslots[d], sj = x.kind === 'subject' ? (subjectById(A, x.target) || {}) : {};
+      mlabels[d] = (x.label || '').trim() || (x.kind === 'subject' ? (sj.display || sj.name || '') : (x.text || '').trim()) || 'モジュール';
+    });
     return { title: (A.name ? A.name + '　' : '') + '時間割一覧', days: A.days.slice(), maxPeriods: M.MP, dayPeriods: dayPeriods,
-      module: mod ? { days: mod.days.slice().sort(), grades: (mod.grades || []).slice(), label: (mod.label || '').trim() || modTarget.display || modTarget.name || 'モジュール' } : null,
+      module: mod ? { days: mdays, grades: (mod.grades || []).slice(), labels: mlabels } : null,
       classRows: classRows, teacherRows: teacherRows, roomRows: roomRows };
   }
 
@@ -1572,7 +1587,7 @@ var JW = (function () {
     DAYS: DAYS, GRADES: GRADES, STD: STD, weeksOf: weeksOf, defaultAnswers: defaultAnswers, uid: uid,
     className: className, classLabel: classLabel, classShort: classShort, targetName: targetName,
     targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText,
-    buildModel: buildModel, solve: solve, check: check, moduleHours: moduleHours, physicalRooms: physicalRooms, roomLabel: roomLabel
+    buildModel: buildModel, solve: solve, check: check, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel
   };
 })();
 if (typeof module !== 'undefined') module.exports = JW;

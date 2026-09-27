@@ -211,7 +211,8 @@ function freeSlots(g) {
 // 普通の時間に入れる授業の合計（モジュールで数える分は引く）
 function moduleHoursFor(g) {
   var m = A.module;
-  return m && m.on && (m.grades || []).indexOf(g) >= 0 && JW.subjectById(A, m.target) ? JW.moduleHours(m) : 0;
+  if (!m || !m.on || (m.grades || []).indexOf(g) < 0) return 0;
+  return A.subjects.reduce(function (t, s) { return t + JW.moduleHours(m, s.id); }, 0);
 }
 function totalHours(g) { return A.subjects.reduce(function (a, s) { return a + (+s.hours[g] || 0); }, 0) - moduleHoursFor(g); }
 
@@ -382,26 +383,40 @@ function gradeCapHtml(r, i) {
 
 function renderModule() {
   var m = A.module;
+  m.slots = JW.moduleSlots(m); delete m.days; delete m.target; delete m.label;
   var h = '<h2>モジュール（朝の短い時間）はありますか？</h2>' +
-    '<p class="lead">朝の15分などの短い時間に教科を行い、何回かで1時間と数える場合に入れます（例：国語を月・水・金の朝に行い、3回で国語1時間）。' +
-    'ここで数えた時間は、その教科の時数から引き、残りを普通の時間に組みます。時間割には、1時間目の前に「朝」の列を出します。</p>';
+    '<p class="lead">朝の15分などの短い時間です。曜日ごとに、内容を「教科」か「教科外」から選びます。時間割には、1時間目の前に「朝」の列を出します。</p>' +
+    '<ul class="small"><li><b>教科</b>（例：国語）：「3回で1時間」のように、その教科の時数に数えます。数えた時間は質問「教科の週の時数」の時数から引き、残りを普通の時間に組みます。</li>' +
+    '<li><b>教科外</b>（例：読書、朝会、計算タイム）：時数には数えません。内容を書いてください。</li></ul>';
   h += '<label class="choice' + (!m.on ? ' on' : '') + '"><input type="radio" name="modon" data-k="module.on" data-t="radio-false"' + (!m.on ? ' checked' : '') + '> ない</label>';
   h += '<label class="choice' + (m.on ? ' on' : '') + '"><input type="radio" name="modon" data-k="module.on" data-t="radio-true"' + (m.on ? ' checked' : '') + '> ある</label>';
-  if (m.on) {
-    var hrs = JW.moduleHours(m), sj = JW.subjectById(A, m.target);
-    h += '<div class="item"><div class="row">曜日' + dayChecks('module.days', m.days) + '</div>' +
-      '<div class="row">学年' + gradeChecks('module.grades', m.grades) + '</div>' +
-      '<div class="row">教科<select data-k="module.target">' + opts(A.subjects.map(function (x) { return { v: x.id, t: x.name }; }), m.target) + '</select>' +
-      '<select data-k="module.per" data-t="num">' + opts(range(1, 6).map(function (n) { return { v: n, t: n + '回で' }; }), m.per) + '</select>' +
-      '<select data-k="module.count" data-t="num">' + opts(range(1, 3).map(function (n) { return { v: n, t: n + '時間' }; }), m.count) + '</select>と数える</div>' +
-      '<div class="row">表に出す文字<input type="text" class="s" data-k="module.label" value="' + esc(m.label) + '" placeholder="' + esc(sj ? sj.display : '') + '"></div>' +
-      '<div class="small">→ 週' + m.days.length + '回で、' + esc(sj ? sj.name : '') + 'を' + hrs + '時間と数えます。' +
-      (hrs && sj ? JW.GRADES.filter(function (g) { return (m.grades || []).indexOf(g) >= 0 && +A.classCounts[g]; }).map(function (g) {
+  if (!m.on) return h;
+  h += '<div class="item"><div class="row">学年' + gradeChecks('module.grades', m.grades) + '</div>' +
+    '<table class="t"><tr><th>曜日</th><th class="l">内容</th><th class="l">教科／教科外の内容</th><th class="l">表に出す文字</th></tr>' +
+    A.days.map(function (d, di) {
+      var x = m.slots[di] || { kind: 'none' }, kind = x.kind || 'none';
+      var mid = kind === 'subject' ? '<select data-k="module.slots.' + di + '.target">' + opts(A.subjects.map(function (sj) { return { v: sj.id, t: sj.name }; }), x.target) + '</select>'
+        : kind === 'other' ? '<input type="text" class="m" data-k="module.slots.' + di + '.text" value="' + esc(x.text || '') + '" placeholder="例：読書">' : '';
+      var ph = kind === 'subject' ? ((JW.subjectById(A, x.target) || {}).display || '') : (x.text || '');
+      return '<tr><th>' + d + '</th><td class="l"><select data-k="module.slots.' + di + '.kind">' +
+        opts([{ v: 'none', t: 'なし' }, { v: 'subject', t: '教科' }, { v: 'other', t: '教科外' }], kind) + '</select></td>' +
+        '<td class="l">' + mid + '</td><td class="l">' + (kind === 'none' ? '' : '<input type="text" class="s" data-k="module.slots.' + di + '.label" value="' + esc(x.label || '') + '" placeholder="' + esc(ph) + '">') + '</td></tr>';
+    }).join('') + '</table>' +
+    '<div class="row">教科のモジュールは<select data-k="module.per" data-t="num">' + opts(range(1, 6).map(function (n) { return { v: n, t: n + '回で' }; }), m.per) + '</select>' +
+    '<select data-k="module.count" data-t="num">' + opts(range(1, 3).map(function (n) { return { v: n, t: n + '時間' }; }), m.count) + '</select>と数える</div>';
+  // 教科ごとのまとめ
+  var sums = A.subjects.map(function (sj) {
+    var n = Object.keys(m.slots).filter(function (d) { var x = m.slots[d]; return x && x.kind === 'subject' && x.target === sj.id; }).length;
+    if (!n) return '';
+    var hrs = JW.moduleHours(m, sj.id), rest = n % Math.max(1, +m.per || 3);
+    return '<li>' + esc(sj.name) + '：週' + n + '回 → ' + hrs + '時間と数えます' +
+      (rest ? '<span class="ng">（' + rest + '回は' + m.per + '回に足りないので数えません）</span>' : '') + '。' +
+      JW.GRADES.filter(function (g) { return (m.grades || []).indexOf(g) >= 0 && +A.classCounts[g]; }).map(function (g) {
         return g + '年は普通の時間に' + Math.max(0, (+sj.hours[g] || 0) - hrs) + 'コマ';
-      }).join('、') : '') + '</div>' +
-      (m.days.length % Math.max(1, +m.per || 3) ? '<div class="box warn small">曜日の数が「' + m.per + '回で」で割り切れません。あまりの回は時数に数えません。</div>' : '') + '</div>';
-  }
-  return h;
+      }).join('、') + '</li>';
+  }).join('');
+  if (sums) h += '<ul class="small">' + sums + '</ul>';
+  return h + '</div>';
 }
 
 function renderRooms() {
@@ -776,7 +791,7 @@ function previewTable(t) {
   t.classRows.forEach(function (r) {
     h += '<tr><th>' + cellDiv(r.label) + '</th>';
     t.days.forEach(function (d, di) {
-      if (hasM(di)) h += '<td class="mo dl">' + cellDiv(mod.grades.indexOf(r.grade) >= 0 ? mod.label : '') + '</td>';
+      if (hasM(di)) h += '<td class="mo dl">' + cellDiv(mod.grades.indexOf(r.grade) >= 0 ? mod.labels[di] : '') + '</td>';
       for (var p = 0; p < dayP[di]; p++) {
         var c = r.cells[di * MP + p];
         var k = c.k === 'fixed' ? 'fx' : c.k === 'none' ? 'no' : c.k === 'empty' ? 'em' : c.k === 'sat' ? 'sa' : '';
@@ -858,6 +873,10 @@ document.addEventListener('change', function (e) {
   } else v = el.value;
   setPath(k, v);
   if (/^teachers\.\d+\.kind$/.test(k) && v === '専科') getPath(k.replace(/\.kind$/, '')).off = {};
+  if (/^module\.slots\.\d+\.kind$/.test(k) && v === 'subject') {
+    var ms = getPath(k.replace(/\.kind$/, ''));
+    if (!ms.target) ms.target = (A.subjects.filter(function (x) { return x.id === 'kokugo'; })[0] || A.subjects[0]).id;
+  }
   if (/^fixed\.\d+\.kind$/.test(k)) {
     var fx = getPath(k.replace(/\.kind$/, ''));
     delete fx.kind;
