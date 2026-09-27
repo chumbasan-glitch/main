@@ -363,7 +363,7 @@ function drawSoroban(G, x, y, w, h, fs, digits, onesIdx){
     for(let k = 0; k < 4; k++){ const cy = k < up ? beam + bh / 2 + 0.1 + k * bh : bot - bh / 2 - 0.3 - (3 - k) * bh; bead(cx, cy); }
     if((onesIdx - i) % 3 === 0) G.dot(cx, beam, 0.45, "#ffffff"), G.dot(cx, beam, 0.3);
   }
-  const cx = bx + (onesIdx + 0.5) * rw; G.text("一の位", cx, bot + 2.8, {size:fs * 0.55, align:"center"});
+  const cx = bx + (onesIdx + 0.5) * rw; G.text(knows("位") ? "一の位" : "一のくらい", cx, bot + 2.8, {size:fs * 0.55, align:"center"});
 }
 unit4(13, "そろばん", "11月", "そろばんで数を表したり計算したりしよう", [
   {id:"a", name:"そろばんの数を読む", gen(lv){

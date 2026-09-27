@@ -144,9 +144,10 @@ function makeG(ctx, k){
     arc(cx, cy, r, a0, a1, o){
       o = o || {};
       ctx.beginPath();
-      if(o.fill){ ctx.moveTo(cx * k, cy * k); }
+      const full = Math.abs(a1 - a0) >= 2 * Math.PI - 1e-6;
+      if(o.fill && !full){ ctx.moveTo(cx * k, cy * k); }
       ctx.arc(cx * k, cy * k, r * k, a0, a1, !!o.ccw);
-      if(o.fill){ ctx.closePath(); ctx.fillStyle = o.fill; ctx.fill(); }
+      if(o.fill){ if(!full) ctx.closePath(); ctx.fillStyle = o.fill; ctx.fill(); }
       if(o.stroke !== false) G.stroke(o);
     },
     ellipse(cx, cy, rx, ry, a0, a1, o){ ctx.beginPath(); ctx.ellipse(cx * k, cy * k, rx * k, ry * k, 0, a0, a1); G.stroke(o || {}); },

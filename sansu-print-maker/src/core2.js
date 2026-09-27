@@ -2,6 +2,8 @@
    cat: calc 計算・短い問題 / hissan 筆算 / fig 図・表 / word 文章題
    inst: 大きい問題の指示文　lead: まぜたときに問題の前につける短い指示  */
 const NUMW = fs => 1.55 * fs;
+/* その学年までに習った漢字か（学年が決まっていないときは習ったとみなす） */
+const knows = ch => !LEARNED || [...ch].every(c => LEARNED.has(c));
 function drawNum(G, x, y, n, fs){
   const r = 0.47 * fs;
   G.arc(x + r + 0.05 * fs, y, r, 0, Math.PI * 2, {w:0.25});
@@ -41,7 +43,7 @@ function wordItem(text, shiki, answer, o){
       const p = this.parts(G, W, fs);
       drawBlock(G, p.lines, x, y, fs, ans, 0.3 * fs);
       let yy = y + p.tb.h + 0.35 * fs;
-      G.text("式", x, yy + 0.7 * fs, {size:fs});
+      G.text(knows("式") ? "式" : "しき", x, yy + 0.7 * fs, {size:fs});
       if(ans){
         let sy = yy;
         for(const l of sh){ const m = lineMetrics(G, l, fs); sy += m.up; drawToks(G, l, x + 1.8 * fs, sy + 0.08 * fs, fs, false, RED); sy += m.dn + 0.3 * fs; }
@@ -49,7 +51,7 @@ function wordItem(text, shiki, answer, o){
       yy += p.shH;
       const lw = Math.min(W * 0.5, Math.max(W * 0.34, p.am.w + 3 * fs)), lx = x + W - lw;
       const ly = yy + p.ansH - 0.25 * fs;
-      G.text("答え", lx - 0.4 * fs, ly - 0.62 * fs, {size:fs, align:"right"});
+      G.text(knows("答") ? "答え" : "こたえ", lx - 0.4 * fs, ly - 0.62 * fs, {size:fs, align:"right"});
       G.line(lx, ly, x + W, ly, {w:0.3});
       if(ans) drawToks(G, an, lx + (lw - p.am.w) / 2, ly - p.am.dn - 0.15 * fs, fs, false, RED);
     }

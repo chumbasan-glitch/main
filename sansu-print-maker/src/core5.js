@@ -32,7 +32,11 @@ function buildItems(st){
   return out;
 }
 
-const GENERIC = {calc:"つぎの問題に答えましょう。", hissan:"筆算でしましょう。", fig:"つぎの問題に答えましょう。", word:"つぎの問題に答えましょう。"};
+function genericInst(cat){
+  const q = knows("問答") ? "つぎの問題に答えましょう。" : knows("答") ? "つぎの　もんだいに　答えましょう。" : "つぎの　もんだいに　こたえましょう。";
+  if(cat === "hissan") return knows("筆算") ? "筆算でしましょう。" : "ひっ算で　しましょう。";
+  return q;
+}
 function groupList(list){
   const out = [], cats = [];
   for(const it of list) if(!cats.includes(it.cat)) cats.push(it.cat);
@@ -55,7 +59,7 @@ function makeGroups(items, order){
   }
   for(const g of groups){
     const same = g.items.every(i => i.inst === g.items[0].inst);
-    g.inst = same ? g.items[0].inst : GENERIC[g.items[0].cat];
+    g.inst = same ? g.items[0].inst : genericInst(g.items[0].cat);
     g.n = g.items.reduce((s, i) => s + i.n, 0);
     for(const i of g.items) i.showLead = !same;
     g.instT = parseMk(g.inst);
@@ -147,7 +151,8 @@ function layoutPages(G, groups, paper, fs, opt){
   return {pages, PW, PH, fits:pages.length === 1};
 }
 function ptsText(g){
-  if(g.each != null) return g.n > 1 ? `各${g.each}点〔${g.total}〕` : `${g.each}点`;
+  const ten = knows("点") ? "点" : "てん";
+  if(g.each != null) return g.n > 1 ? (knows("各") ? `各${g.each}${ten}〔${g.total}〕` : `1つ${g.each}${ten}〔${g.total}〕`) : `${g.each}${ten}`;
   if(g.total != null) return `〔${g.total}〕`;
   return "";
 }
@@ -174,7 +179,7 @@ function drawHeader(G, L, fs, opt, ans, pageNo, pageCount){
     G.text(best.l2, x0 + fs, y0 + hh / 2 + ts * 0.62, {size:ts, weight:700});
   }
   G.text(opt.grade <= 2 ? "なまえ" : "名前", x0 + titleW + 0.6 * fs, y0 + 0.75 * fs, {size:fs * 0.62});
-  if(opt.score === "100") G.text("点", x0 + CW - 0.6 * fs, y0 + hh - 0.8 * fs, {size:fs * 0.8, align:"right"});
+  if(opt.score === "100") G.text(knows("点") ? "点" : "てん", x0 + CW - 0.6 * fs, y0 + hh - 0.8 * fs, {size:fs * 0.8, align:"right"});
   else G.text("／" + opt.total + (opt.grade <= 2 ? "もん" : "問"), x0 + CW - 0.6 * fs, y0 + hh - 0.8 * fs, {size:fs * 0.8, align:"right"});
   if(ans) G.text("答え（先生用）", x0 + CW, y0 - 3.2, {size:fs * 0.75, color:RED, align:"right", weight:700});
   if(pageCount > 1) G.text(pageNo + "／" + pageCount, x0 + CW / 2, L.PH - MARGIN + 1, {size:fs * 0.6, align:"center"});
@@ -208,7 +213,7 @@ function drawPageAt(G, L, pi, fs, opt, ans){
           const fu = it.firstUp ? it.firstUp(G, cell.cw, fs) : 0.62 * fs;
           drawNum(G, x, y + fu, cell.num, fs); x += numW;
         }
-        if(cell.pts != null) G.text("（" + cell.pts + "点）", cell.x + cell.w, op.y + 0.5 * fs, {size:fs * 0.55, align:"right"});
+        if(cell.pts != null) G.text("（" + cell.pts + (knows("点") ? "点" : "てん") + "）", cell.x + cell.w, op.y + 0.5 * fs, {size:fs * 0.55, align:"right"});
         it.draw(G, x, y, cell.cw, fs, ans, cell.num);
       }
     }
