@@ -354,16 +354,28 @@ function renderHours() {
   return h;
 }
 
+// 学年ごとの上限（例：校庭は3クラスまで、5・6年が使うときは単独）
+function gradeCapHtml(r, i) {
+  var gc = r.gradeCap || {}, set = Object.keys(gc).filter(function (g) { return +gc[g] > 0; });
+  var sum = set.length ? set.map(function (g) { return g + '年は' + (+gc[g] === 1 ? '単独' : gc[g] + 'クラスまで'); }).join('、') : 'すべての学年で同じ';
+  return '<details class="gcap"' + (set.length ? ' open' : '') + '><summary class="small">学年ごとの上限：' + esc(sum) + '</summary>' +
+    '<div class="chips">' + JW.GRADES.map(function (g) {
+      return '<label>' + g + '年<select data-k="rooms.' + i + '.gradeCap.' + g + '" data-t="num">' +
+        opts([{ v: 0, t: '同じ' }].concat(range(1, Math.max(1, +r.cap || 1)).map(function (n) { return { v: n, t: n === 1 ? '単独' : n + 'クラス' }; })), gc[g] || 0) + '</select></label>';
+    }).join('') + '</div></details>';
+}
+
 function renderRooms() {
   var h = '<h2>特別教室の数と、同時に使えるクラス数を教えてください</h2>' +
     '<p class="lead">同じ教室が2つ以上ある場合は「数」を変え、それぞれの部屋を使う学年を選んでください（例：音楽室①は4〜6年、音楽室②は1〜3年）。' +
-    '「同時に使えるクラス数」は1部屋あたりの数です（体育館を半面ずつ使うなら2）。</p>';
+    '「同時に使えるクラス数」は1部屋あたりの数です（体育館を半面ずつ使うなら2）。' +
+    '学年によって上限がちがう場合は「学年ごとの上限」を開いてください（例：校庭は3クラスまで、5・6年は単独）。</p>';
   h += '<table class="t"><tr><th class="l">教室の名前</th><th>数</th><th>同時に使えるクラス数<div class="small">（1部屋あたり）</div></th><th class="l">使う学年<div class="small">（チェックなし＝全学年）</div></th><th></th></tr>';
   A.rooms.forEach(function (r, i) {
     var n = Math.max(1, +r.count || 1);
     h += '<tr><td class="l"><input type="text" class="m" data-k="rooms.' + i + '.name" data-t="room" data-old="' + esc(r.name) + '" value="' + esc(r.name) + '"></td>' +
       '<td><select data-k="rooms.' + i + '.count" data-t="num">' + opts(range(1, 6), n) + '</select></td>' +
-      '<td><select data-k="rooms.' + i + '.cap" data-t="num">' + opts(range(1, 8), r.cap) + '</select> クラスまで</td>' +
+      '<td><select data-k="rooms.' + i + '.cap" data-t="num">' + opts(range(1, 8), r.cap) + '</select> クラスまで' + gradeCapHtml(r, i) + '</td>' +
       '<td class="l">' + range(0, n - 1).map(function (k) {
         return '<div>' + (n > 1 ? '<b>' + esc(JW.roomLabel(r, k)) + '</b> ' : '') + gradeChecks('rooms.' + i + '.grades.' + k, (r.grades || [])[k]) + '</div>';
       }).join('') + '</td>' +
@@ -570,7 +582,7 @@ function renderPrefs() {
     '<p class="lead">例：「1・2年の国語は午前中（1〜4時間目）に入れる」「体育は1時間目に入れない」。希望ごとに「絶対に守る」か「できれば守る」を選べます。守れなかった希望は最後に一覧で知らせます。</p>';
   h += '<div class="row noprint">例から追加：<button class="btn small" data-a="prefPreset" data-p="morning">低学年の国語は午前中</button> <button class="btn small" data-a="prefPreset" data-p="pe1">体育は1時間目に入れない</button></div>';
   A.prefs.forEach(function (p, i) {
-    h += '<div class="item"><div class="row">学年' + gradeChecks('prefs.' + i + '.grades', p.grades) + '</div>' +
+    h += '<div class="item"><div class="row">学年' + gradeChecks('prefs.' + i + '.grades', p.grades) + '<span class="small">（チェックなし＝全学年）</span></div>' +
       '<div class="row"><select data-k="prefs.' + i + '.target">' + targetOpts(p.target) + '</select>を' +
       '<select data-k="prefs.' + i + '.mode">' + opts([{ v: 'only', t: 'この時間に入れる' }, { v: 'avoid', t: 'この時間に入れない' }], p.mode) + '</select></div>' +
       '<div class="row">曜日' + dayChecks('prefs.' + i + '.days', p.days) + '<span class="small">（チェックなし＝全部の曜日）</span></div>' +
@@ -629,14 +641,14 @@ function renderRules() {
   }
   var h = '<h2>組み方のルールを確認してください</h2><p class="lead">チェックしたルールをできるだけ守って組みます。</p>';
   h += tog('dailyMax', '同じ教科は1日の上限まで', '上限は下の表で教科ごとに決められます（国語は2回まで、など）。');
-  h += tog('pairs', '2時間続きにする教科', '図画工作や家庭科の調理実習など。下の表で週に何回かを決めます。続きにするのは1・2、3・4、5・6時間目の組み合わせだけです（2・3時間目などにはしません）。');
+  h += tog('pairs', '2時間続きにする教科', '下の表で教科ごとに決めます。続きにするのは1・2、3・4、5・6時間目の組み合わせだけです（2・3時間目などにはしません）。図画工作と家庭は、最初から「すべて2時間続き（必ず）」になっていて、このチェックを外しても必ず守ります。');
   h += tog('spread', '同じ教科が特定の曜日にかたよらない', '算数が月・火・水に集中しない、など。');
   h += tog('active', '体育などの動きのある教科が続かない', '下の表で「動きのある教科」にチェックした教科が、2時間続けて入らないようにします。');
   h += '<div class="scroll"><table class="t"><tr><th class="l">教科</th><th>1日の上限</th><th>2時間続きの回数（週）</th><th>動きのある教科</th></tr>';
   A.subjects.forEach(function (s, si) {
     h += '<tr><td class="l">' + esc(s.name) + '</td>' +
       '<td><select data-k="subjects.' + si + '.maxPerDay" data-t="num">' + opts(range(1, 4).map(function (n) { return { v: n, t: n + '回' }; }), s.maxPerDay) + '</select></td>' +
-      '<td><select data-k="subjects.' + si + '.pairs" data-t="num">' + opts(range(0, 3).map(function (n) { return { v: n, t: n ? n + '回' : 'なし' }; }), s.pairs) + '</select></td>' +
+      '<td><select data-k="subjects.' + si + '.pairs" data-t="hours">' + opts(range(0, 3).map(function (n) { return { v: n, t: n ? n + '回（できれば）' : 'なし' }; }).concat([{ v: 'all', t: 'すべて2時間続き（必ず）' }]), s.pairs) + '</select></td>' +
       '<td><input type="checkbox" data-k="subjects.' + si + '.active" data-t="bool"' + (s.active ? ' checked' : '') + '></td></tr>';
   });
   h += '</table></div><p class="small">2時間続きは、1日の上限が2回以上の教科にしてください（続けて入れると、その日は1回と数えます）。</p>';
@@ -666,7 +678,7 @@ function renderResult() {
   if (r.relaxed) h += '<div class="box note">すべての条件を守ると組めなかったため、' + (r.relaxed >= 2 ? '希望と組み方のルール' : '希望') + 'をゆるめて組みました。</div>';
   if (r.manual.length) h += '<details class="box note"><summary><b>担任が入れる教科（ツールで組まない教科）</b>…黄色い空きに入れてください（1クラスあたり）</summary><ul>' + r.manual.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details>';
   if (r.unplaced.length) h += '<div class="box warn"><b>入らなかったコマ（' + r.unplaced.length + '件）</b>…時間割の黄色い空きに、手で入れてください。<ul>' + r.unplaced.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
-  if (r.hard.length) h += '<div class="box warn"><b>重なり</b><ul>' + r.hard.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+  if (r.hard.length) h += '<div class="box warn"><b>必ず守る条件で、守れなかったもの</b><ul>' + r.hard.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
   if (r.soft.length) h += '<details class="box note"' + (r.soft.length <= 10 ? ' open' : '') + '><summary><b>守れなかった希望・ルール（' + r.soft.length + '件）</b></summary><ul>' + r.soft.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details>';
   h += '<div class="row noprint" style="margin:12px 0"><button class="btn primary" data-a="write">スプレッドシートに書き出す</button> <button class="btn" data-a="pdf">A3のPDFを作る</button> <span id="writeMsg" class="small"></span></div>';
   h += '<div class="scroll">' + previewTable(r.table) + '</div>';
@@ -806,6 +818,9 @@ function fixAnswers(x) {
   });
   if (x.satCount === undefined) x.satCount = false;
   if (!x.pins) x.pins = [];
+  x.rooms.forEach(function (r) { r.gradeCap = r.gradeCap || {}; });
+  // 図工・家庭は、すべて2時間続き（必ず）
+  x.subjects.forEach(function (s) { if ((s.id === 'zukou' || s.id === 'katei') && s.pairs !== 'all') s.pairs = 'all'; });
   (x.teachers || []).forEach(function (t) { t.dayRoom = t.dayRoom || {}; });
   x.rooms.forEach(function (r) { r.count = r.count || 1; r.grades = r.grades || [[]]; });
   x.subjects.forEach(function (s) { if (s.auto === undefined) s.auto = true; });
