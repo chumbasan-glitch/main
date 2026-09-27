@@ -86,9 +86,11 @@
   .progress > div { height: 100%; background: var(--main); width: 0; transition: width .2s; }
   table.pv { border-collapse: collapse; font-size: 11px; table-layout: fixed; }
   table.pv th, table.pv td { border: 1px solid var(--cell-line); padding: 0; text-align: center; }
-  table.pv .c { width: 3.8em; height: 2.7em; display: flex; align-items: center; justify-content: center; overflow: hidden; line-height: 1.15; word-break: break-all; padding: 0 1px; }
-  table.pv .c.sm { font-size: 9.5px; }
-  table.pv .c.lbl { width: 8em; justify-content: flex-start; padding-left: 4px; font-weight: bold; }
+  table.pv .c { width: 3.6em; height: 2.4em; display: flex; align-items: center; justify-content: center; overflow: hidden; line-height: 1.1; word-break: break-all; padding: 0 1px; font-size: 12px; }
+  table.pv .c.f3 { font-size: 10.5px; } table.pv .c.f4 { font-size: 9px; } table.pv .c.f9 { font-size: 8px; }
+  table.pv th .c { font-weight: bold; }
+  .blocks { display: flex; flex-wrap: wrap; gap: 14px 3.6em; margin-top: 16px; }
+  .blk-t { font-weight: bold; font-size: 13px; margin-bottom: 2px; }
   table.pv td.fx { background: var(--cell-fixed); } table.pv td.no { background: var(--cell-none); } table.pv td.em { background: var(--cell-empty); }
   table.pv th.sec { text-align: left; background: var(--main-weak); padding: 2px 6px; }
   table.pv th.day { border-left: 2px solid var(--day-line); } table.pv td.dl { border-left: 2px solid var(--day-line); }
@@ -290,7 +292,8 @@ function renderClassNames() {
 
 function renderPeriods() {
   var h = '<h2>学年ごとに、曜日のコマ数を教えてください</h2><p class="lead">朝会やクラブなど、授業以外の時間もふくめた「その日の時間数」です（クラブなどは、あとの質問「先に決まっている時間」で入れます）。</p>';
-  h += '<div class="row">1日のいちばん多いコマ数：<select data-k="maxPeriods" data-t="num">' + opts([5, 6, 7], A.maxPeriods) + '</select></div>';
+  h += '<div class="row">1日のいちばん多いコマ数：<select data-k="maxPeriods" data-t="num">' + opts([5, 6, 7], A.maxPeriods) + '</select>' +
+    '<label><input type="checkbox" data-a="toggleSat"' + (A.days.length > 5 ? ' checked' : '') + '> 土曜日も授業がある（毎週ある場合）</label></div>';
   h += '<table class="t"><tr><th></th>' + A.days.map(function (d) { return '<th>' + d + '</th>'; }).join('') + '<th>週の合計</th></tr>';
   JW.GRADES.forEach(function (g) {
     if (!(+A.classCounts[g])) return;
@@ -598,22 +601,50 @@ function renderResult() {
   return h;
 }
 
+// 文字数が多いマスは、文字を小さくして表示する
+function fitClass(t) { var n = String(t == null ? '' : t).length; return n <= 2 ? '' : n === 3 ? ' f3' : n <= 8 ? ' f4' : ' f9'; }
+function cellDiv(t) { return '<div class="c' + fitClass(t) + '">' + esc(t) + '</div>'; }
+
+// スプレッドシートと同じ形のプレビュー
 function previewTable(t) {
-  var MP = t.maxPeriods;
-  var h = '<table class="pv"><tr><th rowspan="2"><div class="c lbl"></div></th>' + t.days.map(function (d) { return '<th class="day" colspan="' + MP + '">' + d + '</th>'; }).join('') + '</tr><tr>' +
-    t.days.map(function () { return range(1, MP).map(function (p, i) { return '<th' + (i === 0 ? ' class="day"' : '') + '><div class="c">' + p + '</div></th>'; }).join(''); }).join('') + '</tr>';
-  function row(label, cells, cls) {
-    return '<tr><th><div class="c lbl">' + esc(label) + '</div></th>' + cells.map(function (c, i) {
-      var k = cls ? cls(c, i) : '', t = typeof c === 'object' ? c.t : c;
-      return '<td class="' + k + (i % MP === 0 ? ' dl' : '') + '"><div class="c' + (String(t).length > 4 ? ' sm' : '') + '">' + esc(t) + '</div></td>';
-    }).join('') + '</tr>';
-  }
-  t.classRows.forEach(function (r) { h += row(r.label, r.cells, function (c) { return c.k === 'fixed' ? 'fx' : c.k === 'none' ? 'no' : c.k === 'empty' ? 'em' : ''; }); });
-  var n = t.days.length * MP + 1;
-  if (t.teacherRows.length) { h += '<tr><th colspan="' + n + '" class="sec">専科・講師</th></tr>'; t.teacherRows.forEach(function (r) { h += row(r.label, r.cells, function (c, i) { return r.off[i] ? 'fx' : ''; }); }); }
-  h += '<tr><th colspan="' + n + '" class="sec">特別教室</th></tr>';
-  t.roomRows.forEach(function (r) { h += row(r.label, r.cells); });
-  return h + '</table>';
+  var MP = t.maxPeriods, D = t.days.length;
+  var dayP = t.dayPeriods || t.days.map(function () { return MP; });
+  var maxP = Math.max.apply(null, dayP.concat([1]));
+  var h = '<table class="pv"><tr><th rowspan="2">' + cellDiv('') + '</th>';
+  t.days.forEach(function (d, di) { if (dayP[di]) h += '<th class="day" colspan="' + dayP[di] + '">' + esc(d) + '</th>'; });
+  h += '</tr><tr>';
+  t.days.forEach(function (d, di) { for (var p = 0; p < dayP[di]; p++) h += '<th' + (p === 0 ? ' class="day"' : '') + '>' + cellDiv(p + 1) + '</th>'; });
+  h += '</tr>';
+  t.classRows.forEach(function (r) {
+    h += '<tr><th>' + cellDiv(r.label) + '</th>';
+    t.days.forEach(function (d, di) {
+      for (var p = 0; p < dayP[di]; p++) {
+        var c = r.cells[di * MP + p];
+        var k = c.k === 'fixed' ? 'fx' : c.k === 'none' ? 'no' : c.k === 'empty' ? 'em' : '';
+        h += '<td class="' + k + (p === 0 ? ' dl' : '') + '">' + cellDiv(c.t) + '</td>';
+      }
+    });
+    h += '</tr>';
+  });
+  h += '</table>';
+
+  // 下：先生・特別教室ごとの小さな表を、左から詰めて並べる
+  var blocks = t.teacherRows.map(function (r) { return { title: r.title || r.label, cells: r.cells, off: r.off }; })
+    .concat(t.roomRows.filter(function (r) { return r.cells.some(function (c) { return c; }); }).map(function (r) { return { title: r.label, cells: r.cells }; }));
+  h += '<div class="blocks">' + blocks.map(function (b) {
+    var x = '<div class="blk"><div class="blk-t">' + esc(b.title) + '</div><table class="pv"><tr><th>' + cellDiv('') + '</th>' +
+      t.days.map(function (d) { return '<th>' + cellDiv(d) + '</th>'; }).join('') + '</tr>';
+    for (var p = 0; p < maxP; p++) {
+      x += '<tr><th>' + cellDiv(p + 1) + '</th>';
+      for (var di = 0; di < D; di++) {
+        var sIdx = di * MP + p, k = p >= dayP[di] ? 'no' : (b.off && b.off[sIdx]) ? 'fx' : '';
+        x += '<td class="' + k + '">' + cellDiv(b.cells[sIdx] || '') + '</td>';
+      }
+      x += '</tr>';
+    }
+    return x + '</table></div>';
+  }).join('') + '</div>';
+  return h;
 }
 
 /* ---------- 入力の反映 ---------- */
@@ -800,6 +831,20 @@ var actions = {
     render();
   },
   addSync: function () { A.syncs.push({ classes: [], target: A.subjects[0].id, count: 1 }); render(); },
+  toggleSat: function (d, el) {
+    if (A.days.length > 5) {
+      A.days = A.days.slice(0, 5);
+      JW.GRADES.forEach(function (g) { A.periods[g] = (A.periods[g] || []).slice(0, 5); });
+      A.fixed = A.fixed.filter(function (f) { return +f.day < 5; });
+      A.prefs.forEach(function (p) { p.days = (p.days || []).filter(function (x) { return x < 5; }); });
+      A.teachers.forEach(function (t) { Object.keys(t.off || {}).forEach(function (k) { if (k.split('-')[0] === '5') delete t.off[k]; }); });
+    } else {
+      A.days = A.days.concat(['土']);
+      JW.GRADES.forEach(function (g) { A.periods[g] = (A.periods[g] || []).concat([0]); });
+    }
+    result = null;
+    render();
+  },
   delSync: function (d) { A.syncs.splice(+d.i, 1); render(); },
   copySync: function (d) {
     var sg = A.syncs[+d.i];

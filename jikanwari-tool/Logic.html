@@ -791,7 +791,11 @@ var JW = (function () {
         else if (st.grid[ci][s] >= 0) cells.push({ t: M.units[st.grid[ci][s]].display, k: 'lesson' });
         else cells.push({ t: '', k: 'empty' });
       }
-      return { label: c.label, grade: c.grade, cells: cells };
+      return { label: c.short, full: c.label, grade: c.grade, cells: cells };
+    });
+    // 曜日ごとの列の数（その曜日にいちばん多い時間数）
+    var dayPeriods = A.days.map(function (d, di) {
+      return M.classes.reduce(function (mx, c) { return Math.max(mx, Math.min(M.MP, +(A.periods[c.grade] || [])[di] || 0)); }, 0);
     });
     function occupancy(filter) {
       var cells = [];
@@ -807,10 +811,16 @@ var JW = (function () {
     }
     var teacherRows = M.teachers.map(function (t, ti) {
       var cells = occupancy(function (u) { return u.teachers.indexOf(ti) >= 0; });
-      return { label: t.name, cells: cells, off: t.off.slice() };
+      // 見出しは「名前（担当する教科）」
+      var subs = [];
+      ((A.teachers[ti] || {}).jobs || []).forEach(function (j) {
+        var n = targetName(A, j.target);
+        if (subs.indexOf(n) < 0 && t.name.indexOf(n) < 0) subs.push(n);
+      });
+      return { label: t.name, title: t.name + (subs.length ? '（' + subs.join('・') + '）' : ''), cells: cells, off: t.off.slice() };
     });
     var roomRows = roomRowsOf(M, st);
-    return { title: (A.name ? A.name + '　' : '') + '時間割一覧', days: A.days.slice(), maxPeriods: M.MP,
+    return { title: (A.name ? A.name + '　' : '') + '時間割一覧', days: A.days.slice(), maxPeriods: M.MP, dayPeriods: dayPeriods,
       classRows: classRows, teacherRows: teacherRows, roomRows: roomRows };
   }
 
@@ -847,7 +857,7 @@ var JW = (function () {
     var st = newState(M);
     var must = [], better = [];
     var byLabel = {}, byShort = {};
-    M.classes.forEach(function (c, ci) { byLabel[c.label] = ci; byShort[c.short] = ci; });
+    M.classes.forEach(function (c, ci) { byLabel[c.label] = ci; byLabel[c.short] = ci; byShort[c.short] = ci; });
 
     // 表示名 → 教科
     var dispMap = {};

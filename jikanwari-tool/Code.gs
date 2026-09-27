@@ -120,116 +120,152 @@ function saveAnswers(name, json) {
 
 /* ---------------- 時間割の書き出し ---------------- */
 
+// すべてのマスを同じ大きさにそろえる（ピクセル）
+var CELL_W = 42, CELL_H = 24;
+
+// Googleスプレッドシートには「縮小して全体を表示」がないので、文字数で文字の大きさを変える
+function fontSizeFor_(t) {
+  var n = String(t == null ? '' : t).length;
+  return n <= 2 ? 10 : n === 3 ? 9 : n <= 8 ? 7 : 6;
+}
+
+/**
+ * 「時間割一覧」シートを作る
+ *   上：クラスごとの時間割（曜日ごとに、その曜日にある時間の数だけ列を作る）
+ *   下：専科・講師と特別教室の表（曜日×時間の小さな表を、左から詰めて並べる）
+ */
 function writeTimetable(table, saveName) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(TABLE_SHEET);
   if (sh) sh.clear(); else sh = ss.insertSheet(TABLE_SHEET, 0);
   sh.getRange(1, 1, sh.getMaxRows(), sh.getMaxColumns()).breakApart();
 
-  var D = table.days.length, MP = table.maxPeriods, N = D * MP;
-  var cols = N + 1;
+  var days = table.days, D = days.length, MP = table.maxPeriods;
+  var dayP = table.dayPeriods;
+  var maxP = Math.max.apply(null, dayP.concat([1]));
+  // 上の表の列 → コマ（曜日×時間）
+  var slotCols = [];
+  for (var d = 0; d < D; d++) for (var p = 0; p < dayP[d]; p++) slotCols.push(d * MP + p);
+  var topCols = 1 + slotCols.length;
+
+  // 下の表：先生（全員）と、使っている特別教室
+  var blocks = [];
+  table.teacherRows.forEach(function (t) { blocks.push({ kind: 't', label: t.label, title: t.title || t.label, cells: t.cells, off: t.off }); });
+  table.roomRows.forEach(function (r) {
+    if (r.cells.some(function (c) { return c; })) blocks.push({ kind: 'r', label: r.label, title: r.label, cells: r.cells });
+  });
+  var blockW = 1 + D, stride = blockW + 1, blockH = 2 + maxP, bandStride = blockH + 1;
+  var perBand = Math.max(1, Math.floor((topCols + 1) / stride));
+  var bands = Math.ceil(blocks.length / perBand);
+
+  var cols = Math.max(topCols, perBand * stride - 1);
+  var classStart = 4, classCount = table.classRows.length;
+  var bottomStart = classStart + classCount + 1;
+  var lastRow = Math.max(bottomStart - 1, bottomStart + bands * bandStride - 2);
+
   if (sh.getMaxColumns() < cols) sh.insertColumnsAfter(sh.getMaxColumns(), cols - sh.getMaxColumns());
-
-  var rows = [];
-  var formats = []; // 背景色
-  function push(vals, bg) { rows.push(vals); formats.push(bg); }
-  var blank = function () { var a = []; for (var i = 0; i < cols; i++) a.push(''); return a; };
-
-  // 見出し
-  var r1 = blank(); r1[0] = table.title; push(r1, null);
-  var r2 = blank(); r2[0] = 'クラス';
-  for (var d = 0; d < D; d++) r2[1 + d * MP] = table.days[d];
-  push(r2, null);
-  var r3 = blank(); r3[0] = '';
-  for (d = 0; d < D; d++) for (var p = 0; p < MP; p++) r3[1 + d * MP + p] = p + 1;
-  push(r3, null);
-
-  var classStart = rows.length + 1;
-  table.classRows.forEach(function (cr) {
-    var v = [cr.label], bg = ['#ffffff'];
-    cr.cells.forEach(function (c) {
-      v.push(c.t);
-      bg.push(c.k === 'fixed' ? '#e6e6e6' : c.k === 'none' ? '#9e9e9e' : c.k === 'empty' ? '#fff3c4' : '#ffffff');
-    });
-    push(v, bg);
-  });
-  var classEnd = rows.length;
-
-  push(blank(), null);
-  var tHead = rows.length + 1;
-  var th = blank(); th[0] = '専科・講師'; push(th, null);
-  var teacherStart = rows.length + 1;
-  table.teacherRows.forEach(function (tr) {
-    var v = [tr.label], bg = ['#ffffff'];
-    tr.cells.forEach(function (c, i) { v.push(c); bg.push(tr.off && tr.off[i] ? '#d9d9d9' : '#ffffff'); });
-    push(v, bg);
-  });
-  var rHead = rows.length + 1;
-  var rh = blank(); rh[0] = '特別教室'; push(rh, null);
-  var roomStart = rows.length + 1;
-  table.roomRows.forEach(function (rr) { push([rr.label].concat(rr.cells), null); });
-  var lastRow = rows.length;
-
   if (sh.getMaxRows() < lastRow) sh.insertRowsAfter(sh.getMaxRows(), lastRow - sh.getMaxRows());
-  var all = sh.getRange(1, 1, lastRow, cols);
-  all.setNumberFormat('@').setValues(rows);
-  all.setFontSize(8).setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true)
-    .setFontFamily('Noto Sans JP');
-  var bgs = formats.map(function (f) {
-    if (f) { var a = f.slice(); while (a.length < cols) a.push('#ffffff'); return a; }
-    var w = []; for (var i = 0; i < cols; i++) w.push('#ffffff'); return w;
-  });
-  all.setBackgrounds(bgs);
 
-  // 見出しの形
-  sh.getRange(1, 1, 1, cols).merge().setFontSize(14).setFontWeight('bold').setHorizontalAlignment('left');
-  for (d = 0; d < D; d++) sh.getRange(2, 2 + d * MP, 1, MP).merge();
-  sh.getRange(2, 1, 2, 1).merge();
-  sh.getRange(2, 1, 2, cols).setBackground('#dfe8f5').setFontWeight('bold');
-  [tHead, rHead].forEach(function (r) {
-    sh.getRange(r, 1, 1, cols).merge().setBackground('#dfe8f5').setFontWeight('bold').setHorizontalAlignment('left');
-  });
-  sh.getRange(classStart, 1, classEnd - classStart + 1, 1).setFontWeight('bold').setHorizontalAlignment('left');
-  if (lastRow >= teacherStart) sh.getRange(teacherStart, 1, lastRow - teacherStart + 1, 1).setHorizontalAlignment('left');
-
-  // 罫線（曜日の区切りと学年の区切りを太く）
-  var SOLID = SpreadsheetApp.BorderStyle.SOLID, MED = SpreadsheetApp.BorderStyle.SOLID_MEDIUM;
-  function grid(r, n) {
-    if (n <= 0) return;
-    sh.getRange(r, 1, n, cols).setBorder(true, true, true, true, true, true, '#888888', SOLID);
-    for (var d = 0; d < D; d++) sh.getRange(r, 2 + d * MP, n, MP).setBorder(null, true, null, true, null, null, '#000000', MED);
-    sh.getRange(r, 1, n, cols).setBorder(true, true, true, true, null, null, '#000000', MED);
+  var W = '#ffffff', HEAD = '#dfe8f5', FIXED = '#e6e6e6', NONE = '#9e9e9e', EMPTY = '#fff3c4', OFF = '#d9d9d9';
+  var vals = [], bgs = [];
+  for (var r = 0; r < lastRow; r++) {
+    var v = [], b = [];
+    for (var c = 0; c < cols; c++) { v.push(''); b.push(W); }
+    vals.push(v); bgs.push(b);
   }
-  grid(2, classEnd - 1);
+  function put(r, c, val, bg) { vals[r - 1][c - 1] = val; if (bg) bgs[r - 1][c - 1] = bg; }
+
+  // 上の表
+  put(1, 1, table.title);
+  var col = 2;
+  for (d = 0; d < D; d++) {
+    if (!dayP[d]) continue;
+    put(2, col, days[d], HEAD);
+    for (p = 0; p < dayP[d]; p++) put(3, col + p, p + 1, HEAD);
+    col += dayP[d];
+  }
+  put(2, 1, 'クラス', HEAD); put(3, 1, '', HEAD);
+  table.classRows.forEach(function (cr, i) {
+    var r = classStart + i;
+    put(r, 1, cr.label, HEAD);
+    slotCols.forEach(function (sIdx, j) {
+      var cell = cr.cells[sIdx];
+      put(r, 2 + j, cell.t, cell.k === 'fixed' ? FIXED : cell.k === 'none' ? NONE : cell.k === 'empty' ? EMPTY : W);
+    });
+  });
+
+  // 下の表（左から詰めて並べる）
+  var layoutBlocks = [];
+  blocks.forEach(function (bk, i) {
+    var r0 = bottomStart + Math.floor(i / perBand) * bandStride;
+    var c0 = 1 + (i % perBand) * stride;
+    put(r0, c0, bk.title);
+    for (var d = 0; d < D; d++) put(r0 + 1, c0 + 1 + d, days[d], HEAD);
+    put(r0 + 1, c0, '', HEAD);
+    for (var p = 0; p < maxP; p++) {
+      put(r0 + 2 + p, c0, p + 1, HEAD);
+      for (d = 0; d < D; d++) {
+        var sIdx = d * MP + p;
+        var none = p >= dayP[d];
+        put(r0 + 2 + p, c0 + 1 + d, bk.cells[sIdx] || '', none ? NONE : (bk.off && bk.off[sIdx]) ? OFF : W);
+      }
+    }
+    layoutBlocks.push({ kind: bk.kind, label: bk.label, row: r0, col: c0 });
+  });
+
+  var all = sh.getRange(1, 1, lastRow, cols);
+  all.setNumberFormat('@').setValues(vals).setBackgrounds(bgs)
+    .setHorizontalAlignment('center').setVerticalAlignment('middle')
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP).setFontFamily('Noto Sans JP')
+    .setFontSizes(vals.map(function (row) { return row.map(fontSizeFor_); }));
+
+  // 見出し・結合
+  sh.getRange(1, 1, 1, cols).merge().setFontSize(14).setFontWeight('bold').setHorizontalAlignment('left');
+  col = 2;
+  for (d = 0; d < D; d++) {
+    if (!dayP[d]) continue;
+    if (dayP[d] > 1) sh.getRange(2, col, 1, dayP[d]).merge();
+    col += dayP[d];
+  }
+  sh.getRange(2, 1, 2, topCols).setFontWeight('bold');
+  sh.getRange(classStart, 1, classCount, 1).setFontWeight('bold');
+
+  // 罫線
+  var SOLID = SpreadsheetApp.BorderStyle.SOLID, MED = SpreadsheetApp.BorderStyle.SOLID_MEDIUM;
+  sh.getRange(2, 1, classCount + 2, topCols).setBorder(true, true, true, true, true, true, '#888888', SOLID);
+  col = 2;
+  for (d = 0; d < D; d++) {
+    if (!dayP[d]) continue;
+    sh.getRange(2, col, classCount + 2, dayP[d]).setBorder(true, true, true, true, null, null, '#000000', MED);
+    col += dayP[d];
+  }
+  sh.getRange(2, 1, classCount + 2, topCols).setBorder(true, true, true, true, null, null, '#000000', MED);
   var prevGrade = null;
   table.classRows.forEach(function (cr, i) {
     if (prevGrade !== null && cr.grade !== prevGrade) {
-      sh.getRange(classStart + i, 1, 1, cols).setBorder(true, null, null, null, null, null, '#000000', MED);
+      sh.getRange(classStart + i, 1, 1, topCols).setBorder(true, null, null, null, null, null, '#000000', MED);
     }
     prevGrade = cr.grade;
   });
-  grid(tHead, lastRow - tHead + 1);
+  layoutBlocks.forEach(function (bk) {
+    sh.getRange(bk.row, bk.col, 1, blockW).merge().setHorizontalAlignment('left').setFontWeight('bold').setFontSize(9)
+      .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+    var g = sh.getRange(bk.row + 1, bk.col, 1 + maxP, blockW);
+    g.setBorder(true, true, true, true, true, true, '#888888', SOLID);
+    g.setBorder(true, true, true, true, null, null, '#000000', MED);
+    sh.getRange(bk.row + 1, bk.col, 1 + maxP, 1).setFontWeight('bold');
+  });
 
-  // 列の幅と行の高さ：タイトル以外の行はすべて同じ高さ、時間の列はすべて同じ幅にそろえる
-  // （A3横に1枚でおさまるように、行の数から高さを決める）
-  var LABEL_W = 96, CELL_W = 44;
-  sh.setColumnWidth(1, LABEL_W);
-  sh.setColumnWidths(2, N, CELL_W);
-  var pageH = Math.round((LABEL_W + N * CELL_W) / 1.414);
-  var rowH = Math.max(20, Math.min(40, Math.floor((pageH - 30) / Math.max(1, lastRow - 1))));
-  sh.setRowHeight(1, 30);
-  // 文字が多いマスがあっても高さが変わらないように、高さを固定する
-  sh.setRowHeightsForced(2, lastRow - 1, rowH);
+  // 高さも幅もすべて同じにする（文字が多くても高さが変わらないように固定）
+  sh.setColumnWidths(1, cols, CELL_W);
+  sh.setRowHeightsForced(1, lastRow, CELL_H);
   if (sh.getMaxRows() > lastRow) sh.deleteRows(lastRow + 1, sh.getMaxRows() - lastRow);
   if (sh.getMaxColumns() > cols) sh.deleteColumns(cols + 1, sh.getMaxColumns() - cols);
   sh.setHiddenGridlines(true);
 
-  var props = PropertiesService.getDocumentProperties();
-  props.setProperty('layout', JSON.stringify({
-    saveName: saveName, cols: cols,
-    classStart: classStart, classCount: classEnd - classStart + 1,
-    teacherStart: teacherStart, teacherCount: rHead - teacherStart,
-    roomStart: roomStart, roomCount: lastRow - roomStart + 1
+  PropertiesService.getDocumentProperties().setProperty('layout', JSON.stringify({
+    saveName: saveName, D: D, MP: MP, maxP: maxP, slotCols: slotCols,
+    classStart: classStart, classCount: classCount, blocks: layoutBlocks
   }));
   ss.setActiveSheet(sh);
   return ss.getUrl() + '#gid=' + sh.getSheetId();
@@ -240,49 +276,68 @@ function writeTimetable(table, saveName) {
 function layout_() {
   var s = PropertiesService.getDocumentProperties().getProperty('layout');
   if (!s) throw new Error('まだ時間割が書き出されていません。入力画面で時間割を作り、書き出してください。');
-  return JSON.parse(s);
+  var L = JSON.parse(s);
+  if (!L.slotCols) throw new Error('時間割の形が新しくなりました。入力画面からもう一度書き出してください。');
+  return L;
 }
 
 function readTimetable() {
   var L = layout_();
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TABLE_SHEET);
   if (!sh) throw new Error('「' + TABLE_SHEET + '」シートがありません。');
-  function rowsOf(start, n) {
-    if (n <= 0) return [];
-    return sh.getRange(start, 1, n, L.cols).getDisplayValues().map(function (r) {
-      return { label: r[0], cells: r.slice(1) };
-    });
+  var S = L.D * L.MP;
+  var values = sh.getDataRange().getDisplayValues();
+  function at(r, c) { return (values[r - 1] || [])[c - 1] || ''; }
+  function emptyCells() { var a = []; for (var i = 0; i < S; i++) a.push(''); return a; }
+
+  var classRows = [];
+  for (var i = 0; i < L.classCount; i++) {
+    var r = L.classStart + i, cells = emptyCells();
+    L.slotCols.forEach(function (s, j) { cells[s] = at(r, 2 + j); });
+    classRows.push({ label: at(r, 1), cells: cells });
   }
+  var teacherRows = L.blocks.filter(function (b) { return b.kind === 't'; }).map(function (b) {
+    var cells = emptyCells();
+    for (var d = 0; d < L.D; d++) for (var p = 0; p < L.maxP; p++) cells[d * L.MP + p] = at(b.row + 2 + p, b.col + 1 + d);
+    return { label: b.label, cells: cells };
+  });
   var json = loadSave(L.saveName);
   if (!json) throw new Error('「' + L.saveName + '」の答えが保存データにありません。');
-  return {
-    saveName: L.saveName,
-    answers: json,
-    classRows: rowsOf(L.classStart, L.classCount),
-    teacherRows: rowsOf(L.teacherStart, L.teacherCount)
-  };
+  return { saveName: L.saveName, answers: json, classRows: classRows, teacherRows: teacherRows };
 }
 
 function writeCheckResult(result) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var L = layout_();
-  // 下の「特別教室」は上の表から作り直す
+  // 下の「特別教室」の表は、上の表から作り直す
   var sh = ss.getSheetByName(TABLE_SHEET);
-  if (sh && result.roomRows && result.roomRows.length === L.roomCount) {
-    sh.getRange(L.roomStart, 2, L.roomCount, L.cols - 1).setValues(result.roomRows.map(function (r) { return r.cells; }));
+  if (sh && result.roomRows) {
+    var byLabel = {};
+    result.roomRows.forEach(function (r) { byLabel[r.label] = r.cells; });
+    L.blocks.forEach(function (b) {
+      if (b.kind !== 'r' || !byLabel[b.label]) return;
+      var rows = [];
+      for (var p = 0; p < L.maxP; p++) {
+        var row = [];
+        for (var d = 0; d < L.D; d++) row.push(byLabel[b.label][d * L.MP + p] || '');
+        rows.push(row);
+      }
+      sh.getRange(b.row + 2, b.col + 1, L.maxP, L.D).setValues(rows)
+        .setFontSizes(rows.map(function (row) { return row.map(fontSizeFor_); }));
+    });
   }
   var cs = ss.getSheetByName(CHECK_SHEET);
   if (cs) cs.clear(); else cs = ss.insertSheet(CHECK_SHEET);
-  var rows = [['チェックした日時', Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm')], ['', '']];
-  rows.push(['必ず直すところ', result.must.length ? result.must.length + '件' : 'ありません']);
-  result.must.forEach(function (t) { rows.push(['', t]); });
-  rows.push(['', '']);
-  rows.push(['できれば直すところ', result.better.length ? result.better.length + '件' : 'ありません']);
-  result.better.forEach(function (t) { rows.push(['', t]); });
-  cs.getRange(1, 1, rows.length, 2).setValues(rows);
+  var out = [['チェックした日時', Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm')], ['', '']];
+  out.push(['必ず直すところ', result.must.length ? result.must.length + '件' : 'ありません']);
+  result.must.forEach(function (t) { out.push(['', t]); });
+  out.push(['', '']);
+  out.push(['できれば直すところ', result.better.length ? result.better.length + '件' : 'ありません']);
+  result.better.forEach(function (t) { out.push(['', t]); });
+  cs.getRange(1, 1, out.length, 2).setValues(out);
   cs.setColumnWidth(1, 150);
   cs.setColumnWidth(2, 720);
-  cs.getRange(1, 1, rows.length, 1).setFontWeight('bold');
+  cs.getRange(1, 1, out.length, 1).setFontWeight('bold');
   return true;
 }
 
