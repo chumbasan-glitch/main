@@ -173,7 +173,7 @@ function writeTimetable(table, saveName) {
   if (sh.getMaxRows() < lastRow) sh.insertRowsAfter(sh.getMaxRows(), lastRow - sh.getMaxRows());
   var all = sh.getRange(1, 1, lastRow, cols);
   all.setNumberFormat('@').setValues(rows);
-  all.setFontSize(9).setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true)
+  all.setFontSize(8).setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true)
     .setFontFamily('Noto Sans JP');
   var bgs = formats.map(function (f) {
     if (f) { var a = f.slice(); while (a.length < cols) a.push('#ffffff'); return a; }
@@ -210,18 +210,16 @@ function writeTimetable(table, saveName) {
   });
   grid(tHead, lastRow - tHead + 1);
 
-  // 列の幅と行の高さ（A3横で、上半分にクラス、下半分に専科・特別教室）
-  sh.setColumnWidth(1, 84);
-  sh.setColumnWidths(2, N, 40);
-  var pageH = Math.round((84 + N * 40) / 1.414);
-  var topRows = Math.max(1, classEnd - classStart + 1);
-  var bottomRows = Math.max(1, lastRow - tHead + 1);
-  sh.setRowHeight(1, 28);
-  sh.setRowHeights(2, 2, 18);
-  var half = Math.floor(pageH / 2) - 28 - 36;
-  sh.setRowHeights(classStart, topRows, Math.max(18, Math.floor(half / topRows)));
-  sh.setRowHeight(classEnd + 1, 8);
-  sh.setRowHeights(tHead, bottomRows, Math.max(18, Math.floor((Math.floor(pageH / 2) - 8) / bottomRows)));
+  // 列の幅と行の高さ：タイトル以外の行はすべて同じ高さ、時間の列はすべて同じ幅にそろえる
+  // （A3横に1枚でおさまるように、行の数から高さを決める）
+  var LABEL_W = 96, CELL_W = 44;
+  sh.setColumnWidth(1, LABEL_W);
+  sh.setColumnWidths(2, N, CELL_W);
+  var pageH = Math.round((LABEL_W + N * CELL_W) / 1.414);
+  var rowH = Math.max(20, Math.min(40, Math.floor((pageH - 30) / Math.max(1, lastRow - 1))));
+  sh.setRowHeight(1, 30);
+  // 文字が多いマスがあっても高さが変わらないように、高さを固定する
+  sh.setRowHeightsForced(2, lastRow - 1, rowH);
   if (sh.getMaxRows() > lastRow) sh.deleteRows(lastRow + 1, sh.getMaxRows() - lastRow);
   if (sh.getMaxColumns() > cols) sh.deleteColumns(cols + 1, sh.getMaxColumns() - cols);
   sh.setHiddenGridlines(true);

@@ -399,7 +399,7 @@ var JW = (function () {
   /* ---------- 評価（点数が小さいほどよい時間割） ---------- */
   function weights(M, level) {
     var r = M.rules;
-    var w = { hard: 100, pref: 8, daily: r.dailyMax ? 20 : 0, pair: r.pairs ? 20 : 0,
+    var w = { hard: 100, pref: 8, daily: r.dailyMax ? 20 : 0, pair: r.pairs ? 40 : 0,
       spread: r.spread ? 3 : 0, active: r.active ? 4 : 0 };
     if (level >= 1) w.pref = 1;               // 希望をゆるめる
     if (level >= 2) { w.daily = Math.min(w.daily, 3); w.pair = Math.min(w.pair, 3); w.spread = Math.min(w.spread, 1); w.active = Math.min(w.active, 1); } // 組み方のルールもゆるめる
@@ -448,11 +448,17 @@ var JW = (function () {
     return cost;
   }
 
+  // 2時間続きは 1・2、3・4、5・6時間目の組み合わせだけ（2・3などは続きにしない）
+  function isPairSlots(MP, a, b) {
+    var lo = Math.min(a, b);
+    return Math.abs(a - b) === 1 && Math.floor(a / MP) === Math.floor(b / MP) && (lo % MP) % 2 === 0;
+  }
+
   function adjacentPair(M, st, u) {
     if (u.pair < 0) return false;
     var a = st.pos[u.id], b = st.pos[u.pair];
     if (a < 0 || b < 0) return false;
-    return Math.floor(a / M.MP) === Math.floor(b / M.MP) && Math.abs(a - b) === 1;
+    return isPairSlots(M.MP, a, b);
   }
 
   function evalClass(M, st, c, W, out) {
@@ -490,7 +496,7 @@ var JW = (function () {
       if (u.pair > u.id && st.pos[u.pair] >= 0 && !half) {
         cost += W.pair;
         if (out && W.pair) out.push({ level: 'soft', kind: 'pair', text: lab + ' ' + M.subjName[u.subj] +
-          '：2時間続きになっていません（' + slotName(M.A, s) + '・' + slotName(M.A, st.pos[u.pair]) + '）。' });
+          '：2時間続き（1・2／3・4／5・6時間目）になっていません（' + slotName(M.A, s) + '・' + slotName(M.A, st.pos[u.pair]) + '）。' });
       }
       if (u.active && s % MP > 0 && row[s - 1] >= 0) {
         var prev = M.units[row[s - 1]];
@@ -906,7 +912,7 @@ var JW = (function () {
         list.forEach(function (u) { if (st.pos[u.id] >= 0) at[st.pos[u.id]] = u; });
         for (var s = 0; s + 1 < M.S && made < np; s++) {
           var a = at[s], b = at[s + 1];
-          if (a && b && a.pair < 0 && b.pair < 0 && (s + 1) % M.MP !== 0) { a.pair = b.id; b.pair = a.id; made++; }
+          if (a && b && a.pair < 0 && b.pair < 0 && isPairSlots(M.MP, s, s + 1)) { a.pair = b.id; b.pair = a.id; made++; }
         }
         var rest = list.filter(function (u) { return u.pair < 0; });
         for (var k = 0; made < np && k + 1 < rest.length; k += 2, made++) { rest[k].pair = rest[k + 1].id; rest[k + 1].pair = rest[k].id; }
