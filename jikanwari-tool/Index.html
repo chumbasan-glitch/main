@@ -586,13 +586,15 @@ function renderFixed() {
   var h = '<h2>先に決まっている時間はありますか？</h2>' +
     '<p class="lead">全校朝会、委員会、クラブなど、時間が先に決まっているものです。内容は「教科以外」か「教科」から選びます。</p>' +
     '<ul class="small"><li><b>教科以外</b>（朝会・クラブ・委員会など）：授業を入れずに空けておき、時間割には書いた内容をそのまま出します。時数には数えません。</li>' +
-    '<li><b>教科</b>（例：6年の月曜6時間目は学級活動）：その時間はその教科の授業として、時数に数えます。教科の授業を「教科以外」で書くと、時数に数えられず、コマが足りなくなります。</li></ul>';
+    '<li><b>教科</b>（例：6年の月曜6時間目は学級活動）：その時間はその教科の授業として、時数に数えます。教科の授業を「教科以外」で書くと、時数に数えられず、コマが足りなくなります。</li>' +
+    '<li>委員会・クラブを<b>教科の時数として数える</b>場合（例：市民科にふくめる）は、「教科」で「市民科」を選び、「表に出す文字」に「委／ク」などと書いてください。</li></ul>';
   A.fixed.forEach(function (f, i) {
     h += '<div class="item"><div class="row">学年' + gradeChecks('fixed.' + i + '.grades', f.grades) + '<button class="btn small" data-a="fixedAll" data-i="' + i + '">全校</button></div>' +
       '<div class="row"><select data-k="fixed.' + i + '.day" data-t="num">' + opts(A.days.map(function (d, di) { return { v: di, t: d + '曜日' }; }), f.day) + '</select>' +
       '<select data-k="fixed.' + i + '.period" data-t="num">' + opts(range(1, A.maxPeriods).map(function (p) { return { v: p, t: p + '時間目' }; }), f.period) + '</select>' +
       '内容<select data-k="fixed.' + i + '.kind">' + opts([{ v: 'other', t: '教科以外' }, { v: 'subject', t: '教科' }], f.target ? 'subject' : 'other') + '</select>' +
-      (f.target ? '<select data-k="fixed.' + i + '.target">' + targetOpts(f.target) + '</select>'
+      (f.target ? '<select data-k="fixed.' + i + '.target">' + targetOpts(f.target) + '</select>' +
+        '表に出す文字<input type="text" class="s" data-k="fixed.' + i + '.label" value="' + esc(f.label) + '" placeholder="教科名のまま">'
         : '<input type="text" class="m" data-k="fixed.' + i + '.label" value="' + esc(f.label) + '" placeholder="例：クラブ">') +
       '<button class="btn small del" data-a="delFixed" data-i="' + i + '">削除</button></div>' + fixedWarn(f) + '</div>';
   });
@@ -663,7 +665,7 @@ function renderRules() {
     return '<label class="choice' + (r[k] ? ' on' : '') + '"><input type="checkbox" data-k="rules.' + k + '" data-t="bool"' + (r[k] ? ' checked' : '') + '> ' + text + '<div class="small">' + sub + '</div></label>';
   }
   var h = '<h2>組み方のルールを確認してください</h2><p class="lead">チェックしたルールをできるだけ守って組みます。</p>';
-  h += tog('dailyMax', '同じ教科は1日の上限まで', '上限は下の表で教科ごとに決められます（国語は2回まで、など）。');
+  h += tog('dailyMax', '同じ教科は1日の上限まで（必ず守る）', '上限は下の表で教科ごとに決められます（国語は2回まで、など）。チェックしていると、上限をこえて入れることはありません。');
   h += tog('pairs', '2時間続きにする教科', '下の表で教科ごとに決めます。続きにするのは1・2、3・4、5・6時間目の組み合わせだけです（2・3時間目などにはしません）。図画工作と家庭は、最初から「すべて2時間続き（必ず）」になっていて、このチェックを外しても必ず守ります。');
   h += tog('spread', '同じ教科が特定の曜日にかたよらない', '算数が月・火・水に集中しない、など。');
   h += tog('active', '体育などの動きのある教科が続かない', '下の表で「動きのある教科」にチェックした教科が、2時間続けて入らないようにします。');

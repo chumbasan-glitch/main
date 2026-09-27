@@ -160,7 +160,7 @@ var JW = (function () {
     (A.fixed || []).forEach(function (f) {
       if (!f.target) return;
       classes.forEach(function (c) {
-        if ((f.grades || []).indexOf(c.grade) >= 0) list.push({ teacher: '', cls: c.key, target: f.target, day: f.day, period: f.period, fromFixed: true });
+        if ((f.grades || []).indexOf(c.grade) >= 0) list.push({ teacher: '', cls: c.key, target: f.target, day: f.day, period: f.period, fromFixed: true, label: (f.label || '').trim() });
       });
     });
     return list;
@@ -325,8 +325,12 @@ var JW = (function () {
           n = pool.length;
         }
         // 組む教科のコマ、2時間続きのコマから先に持つ
+        // 教科を担当するときは、教科の一部（と・た など）ではなく普通のコマから持つ
+        var bySubject = !!subjectById(A, j.target);
         pool.sort(function (a, b) {
-          return (a.teachers.length - b.teachers.length) || ((a.manual ? 1 : 0) - (b.manual ? 1 : 0)) || ((b.pair >= 0) - (a.pair >= 0));
+          return (a.teachers.length - b.teachers.length) ||
+            (bySubject ? ((a.variant ? 1 : 0) - (b.variant ? 1 : 0)) : 0) ||
+            ((a.manual ? 1 : 0) - (b.manual ? 1 : 0)) || ((b.pair >= 0) - (a.pair >= 0));
         });
         pool.slice(0, n).forEach(function (u) { u.teachers.push(ti); u.manual = false; });
         teachers[ti].expect[ci] = (teachers[ti].expect[ci] || 0) + n;
@@ -441,6 +445,7 @@ var JW = (function () {
       if (!pool.length) { errors.push((pn.fromFixed ? '先に決まっている時間：' : '授業の固定：') + what + 'に入れる授業がありません（組まない教科か、時数が足りません）。'); return; }
       if (ti !== undefined && pool[0].teachers.indexOf(ti) < 0) notes.push('授業の固定：' + what + 'は、' + teachers[ti].name + 'の担当ではありません。');
       pool[0].pin = s;
+      if (pn.label) pool[0].display = pn.label; // 例：市民科として数え、表には「委／ク」と出す
     });
 
     var maxPerDay = {}, subjName = {}, subjTotal = {};
@@ -655,9 +660,9 @@ var JW = (function () {
     for (d = 0; d < D; d++) {
       for (var sj in perDay[d]) {
         var over = Math.ceil(perDay[d][sj]) - M.maxPerDay[sj];
-        if (over > 0) {
-          cost += W.daily * over;
-          if (out && W.daily) out.push({ level: 'soft', kind: 'daily', cls: c, subj: sj, d: d, text: lab + ' ' + M.subjName[sj] + '：' +
+        if (over > 0 && M.rules.dailyMax) {
+          cost += W.hard * over;
+          if (out) out.push({ level: 'hard', kind: 'daily', cls: c, subj: sj, d: d, text: lab + ' ' + M.subjName[sj] + '：' +
             M.A.days[d] + '曜日に' + Math.ceil(perDay[d][sj]) + '回入っています（1日' + M.maxPerDay[sj] + '回まで）。' });
         }
       }
@@ -874,6 +879,18 @@ var JW = (function () {
       place(st, x, a, ub); place(st, x, b, ua);
     }
   };
+  // その授業の日に、同じ教科が1日の上限より多く入っているか
+  function dailyOver(M, st, c, id) {
+    var u = M.units[id], s0 = st.pos[id];
+    if (s0 < 0 || u.pin !== undefined) return false;
+    var d = Math.floor(s0 / M.MP), n = 0;
+    for (var p = 0; p < M.MP; p++) {
+      var x = st.grid[c][d * M.MP + p];
+      if (x >= 0 && M.units[x].subj === u.subj) n += adjacentPair(M, st, M.units[x]) ? 0.5 : 1;
+    }
+    return Math.ceil(n) > M.maxPerDay[u.subj];
+  }
+
   // 重なりが残ったコマを外し、ほかの空きに入れられないか試す
   Solver.prototype.removeConflicts = function () {
     var M = this.M, st = this.st, self = this;
@@ -903,6 +920,8 @@ var JW = (function () {
         for (s = 0; s < M.S; s++) {
           id = st.grid[c][s];
           if (id >= 0 && unitBad(M, M.units[id], s)) { unplace(id); found = true; break; }
+          // 1日の上限をこえている
+          if (id >= 0 && M.rules.dailyMax && dailyOver(M, st, c, id)) { unplace(id); found = true; break; }
           // 必ず2時間続きの授業が、続きになっていない
           if (id >= 0 && M.units[id].pairHard && !adjacentPair(M, st, M.units[id])) { unplace(id); unplace(M.units[id].pair); found = true; break; }
         }
@@ -922,7 +941,7 @@ var JW = (function () {
           var b1 = b0 + 1;
           if (b0 % M.MP % 2 !== 0 || b1 % M.MP === 0 || !M.avail[u.cls][b1] || st.grid[u.cls][b0] >= 0 || st.grid[u.cls][b1] >= 0) return;
           place(st, u.cls, b0, u.id); place(st, u.cls, b1, v.id);
-          var ok = evalSlot(M, st, b0, W) === 0 && evalSlot(M, st, b1, W) === 0 && !unitBad(M, u, b0) && !unitBad(M, v, b1);
+          var ok = evalSlot(M, st, b0, W) === 0 && evalSlot(M, st, b1, W) === 0 && !unitBad(M, u, b0) && !unitBad(M, v, b1) && evalClass(M, st, u.cls, W) === 0;
           var cost = ok ? evalClass(M, st, u.cls, fullW) : 0;
           st.grid[u.cls][b0] = st.grid[u.cls][b1] = -1; st.pos[u.id] = st.pos[v.id] = -1;
           if (ok && cost < bestPC) { bestPC = cost; bestP = b0; }
@@ -941,7 +960,7 @@ var JW = (function () {
         ids.forEach(function (x, k) { place(st, cis[k], s, x); });
         var ok = evalSlot(M, st, s, W) === 0 && ids.every(function (x) {
           return !unitBad(M, M.units[x], s);
-        });
+        }) && cis.every(function (ci) { return evalClass(M, st, ci, W) === 0; });
         var cost = 0;
         if (ok) cis.forEach(function (ci) { cost += evalClass(M, st, ci, fullW); });
         ids.forEach(function (x, k) { st.grid[cis[k]][s] = -1; st.pos[x] = -1; });
@@ -1038,9 +1057,26 @@ var JW = (function () {
       soft: issues.filter(function (x) { return x.level === 'soft'; }).map(function (x) { return x.text; }),
       errors: M.errors,
       notes: M.notes,
-      manual: Object.keys(M.manualList).map(function (k) { return k + '　週' + M.manualList[k] / countIn(M, k) + 'コマ'; }),
+      manual: manualSummary(M),
       table: buildTable(M, st)
     };
+  }
+
+  // 担任が入れる分（学年ごと・教科ごと）。クラスで時数がちがうときは「週3〜4コマ」
+  function manualSummary(M) {
+    var by = {}, order = [];
+    M.units.forEach(function (u) {
+      if (!u.manual) return;
+      var k = M.classes[u.cls].grade + '年 ' + u.display;
+      if (!by[k]) { by[k] = {}; order.push(k); }
+      by[k][u.cls] = (by[k][u.cls] || 0) + 1;
+    });
+    return order.map(function (k) {
+      var g = +k.charAt(0);
+      var ns = M.classes.map(function (c, ci) { return c.grade === g ? (by[k][ci] || 0) : null; }).filter(function (x) { return x !== null; });
+      var lo = Math.min.apply(null, ns), hi = Math.max.apply(null, ns);
+      return k + '　週' + (lo === hi ? lo : lo + '〜' + hi) + 'コマ';
+    });
   }
 
   function countIn(M, key) {
@@ -1133,6 +1169,19 @@ var JW = (function () {
         add('few:' + cf.causes.join() + u.subj, cand.length ? unitName(u) + '：入れられる時間が足りません' : unitName(u) + '：入れられる時間が1つもありません',
           why + (cand.length ? '入れられる時間は' + cand.length + 'コマ（' + cand.map(function (s) { return slotName(A, s); }).join('・') + '）しかないのに、' + unitName(u) + 'が週' + kin.length + 'コマあります。' : 'この授業を入れられる時間がなくなります。'),
           cf.fixes.length ? cf.fixes : [RETRY], item);
+        return;
+      }
+      // 1日の上限と、入れられる曜日の数
+      var cdays = {};
+      cand.forEach(function (s) { cdays[Math.floor(s / M.MP)] = 1; });
+      var cdn = Object.keys(cdays).length, mx = M.maxPerDay[u.subj];
+      var sameSubj = M.classUnits[u.cls].filter(function (id) { return M.units[id].subj === u.subj; }).length;
+      if (M.rules.dailyMax && cdn * mx < sameSubj) {
+        var cf3 = causesFor(u);
+        add('daymax:' + u.subj + cf3.causes.join(), unitName(u) + '：1日の上限では入りきりません',
+          (cf3.causes.length ? cf3.causes.join('と、') + 'で、' : '') + unitName(u) + 'を入れられる曜日は' + Object.keys(cdays).map(function (d) { return A.days[d]; }).join('・') +
+          'の' + cdn + '日だけです。1日' + mx + '回までだと' + (cdn * mx) + 'コマしか入りませんが、週' + sameSubj + 'コマあります。',
+          cf3.fixes.concat(['質問「組み方のルール」で、' + M.subjName[u.subj] + 'の1日の上限を見直す']), item);
         return;
       }
       if (u.pairHard) {
