@@ -501,7 +501,7 @@ var JW = (function () {
       var keys = Object.keys(tk[t]);
       if (keys.length > 1) {
         cost += W.hard * (keys.length - 1);
-        if (out) out.push({ level: 'hard', kind: 'teacher', slot: s, text: M.teachers[t].name + '：' + slotName(M.A, s) +
+        if (out) out.push({ level: 'hard', kind: 'teacher', slot: s, t: +t, text: M.teachers[t].name + '：' + slotName(M.A, s) +
           'に' + listText(keys.map(function (k) { return M.classes[tk[t][k][0]].label; })) + 'の授業が重なっています。' });
       }
     }
@@ -514,7 +514,7 @@ var JW = (function () {
       }
       if (rc[r].length > cap) {
         cost += W.hard * (rc[r].length - cap);
-        if (out) out.push({ level: 'hard', kind: 'room', slot: s, text: M.poolName[r] + '：' + slotName(M.A, s) + 'に' +
+        if (out) out.push({ level: 'hard', kind: 'room', slot: s, room: r, text: M.poolName[r] + '：' + slotName(M.A, s) + 'に' +
           rc[r].length + 'クラス（' + listText(rc[r].map(function (c) { return M.classes[c].label; })) +
           '）が入っています。' + (capBy || '上限は') + cap + 'クラス' + (cap === 1 && capBy ? '（単独）' : '') + 'です。' });
       }
@@ -571,7 +571,7 @@ var JW = (function () {
       var ideal = Math.max.apply(null, Object.keys(G.per).map(function (k) { return G.per[k]; }));
       if (n > ideal) {
         cost += W.group * (n - ideal);
-        if (out) out.push({ level: 'soft', kind: 'group', text: T.name + '：' + g + '年の授業が' + n + 'つの曜日（' +
+        if (out) out.push({ level: 'soft', kind: 'group', t: t, g: +g, n: n, ideal: ideal, text: T.name + '：' + g + '年の授業が' + n + 'つの曜日（' +
           Object.keys(G.days).sort().map(function (d) { return M.A.days[d]; }).join('・') + '）に分かれています（できれば' + ideal + 'つ）。' });
       }
     }
@@ -593,7 +593,7 @@ var JW = (function () {
         var t = u.teachers[i], why = teacherBad(M, t, M.classes[c].grade, s);
         if (why) {
           cost += W.hard;
-          if (out) out.push({ level: 'hard', kind: 'off', unit: id, text: M.teachers[t].name + '：' + slotName(M.A, s) +
+          if (out) out.push({ level: 'hard', kind: 'off', unit: id, t: t, why: why, cls: c, text: M.teachers[t].name + '：' + slotName(M.A, s) +
             (why === 'off' ? 'は勤務がないのに、' : 'は' + M.classes[c].grade + '年の授業をする曜日ではないのに、') + lab + 'の' + u.display + 'が入っています。' });
         }
       }
@@ -601,13 +601,13 @@ var JW = (function () {
         var p = M.prefs[u.prefs[i]];
         if (prefBad(p, s)) {
           cost += p.strict ? W.hard : W.pref;
-          if (out) out.push({ level: p.strict ? 'hard' : 'soft', kind: 'pref', text: lab + ' ' + slotName(M.A, s) + 'の' + u.display +
+          if (out) out.push({ level: p.strict ? 'hard' : 'soft', kind: 'pref', pi: u.prefs[i], cls: c, subj: u.subj, text: lab + ' ' + slotName(M.A, s) + 'の' + u.display +
             '：「' + p.text + '」' + (p.strict ? '（絶対に守る）' : '') + 'の希望を守れませんでした。' });
         }
       }
       if (u.pin !== undefined && u.pin !== s) {
         cost += W.hard;
-        if (out) out.push({ level: 'hard', kind: 'pin', text: lab + 'の' + u.display + '：' + slotName(M.A, u.pin) + 'に固定していますが、' + slotName(M.A, s) + 'に入っています。' });
+        if (out) out.push({ level: 'hard', kind: 'pin', cls: c, text: lab + 'の' + u.display + '：' + slotName(M.A, u.pin) + 'に固定していますが、' + slotName(M.A, s) + 'に入っています。' });
       }
       var half = adjacentPair(M, st, u);
       perDay[d][u.subj] = (perDay[d][u.subj] || 0) + (half ? 0.5 : 1);
@@ -615,14 +615,14 @@ var JW = (function () {
 
       if (u.pair > u.id && st.pos[u.pair] >= 0 && !half) {
         cost += u.pairHard ? W.hard : W.pair;
-        if (out && (W.pair || u.pairHard)) out.push({ level: u.pairHard ? 'hard' : 'soft', kind: 'pair', text: lab + ' ' + M.subjName[u.subj] +
+        if (out && (W.pair || u.pairHard)) out.push({ level: u.pairHard ? 'hard' : 'soft', kind: 'pair', cls: c, subj: u.subj, text: lab + ' ' + M.subjName[u.subj] +
           '：2時間続き（1・2／3・4／5・6時間目）になっていません（' + slotName(M.A, s) + '・' + slotName(M.A, st.pos[u.pair]) + '）。' });
       }
       if (u.active && s % MP > 0 && row[s - 1] >= 0) {
         var prev = M.units[row[s - 1]];
         if (prev.active && prev.pair !== id) {
           cost += W.active;
-          if (out && W.active) out.push({ level: 'soft', kind: 'active', text: lab + ' ' + slotName(M.A, s - 1) + '・' +
+          if (out && W.active) out.push({ level: 'soft', kind: 'active', cls: c, d: d, text: lab + ' ' + slotName(M.A, s - 1) + '・' +
             slotName(M.A, s) + '：動きのある教科（' + prev.display + '・' + u.display + '）が続いています。' });
         }
       }
@@ -632,7 +632,7 @@ var JW = (function () {
         var over = Math.ceil(perDay[d][sj]) - M.maxPerDay[sj];
         if (over > 0) {
           cost += W.daily * over;
-          if (out && W.daily) out.push({ level: 'soft', kind: 'daily', text: lab + ' ' + M.subjName[sj] + '：' +
+          if (out && W.daily) out.push({ level: 'soft', kind: 'daily', cls: c, subj: sj, d: d, text: lab + ' ' + M.subjName[sj] + '：' +
             M.A.days[d] + '曜日に' + Math.ceil(perDay[d][sj]) + '回入っています（1日' + M.maxPerDay[sj] + '回まで）。' });
         }
       }
@@ -645,7 +645,7 @@ var JW = (function () {
         var ideal = D / n, pen = 0;
         for (i = 0; i + 1 < n; i++) pen += Math.max(0, ideal - (ds[i + 1] - ds[i]));
         cost += W.spread * pen;
-        if (out && pen >= 1) out.push({ level: 'soft', kind: 'spread', text: lab + ' ' + M.subjName[sj] + '：曜日がかたよっています（' +
+        if (out && pen >= 1) out.push({ level: 'soft', kind: 'spread', cls: c, subj: sj, text: lab + ' ' + M.subjName[sj] + '：曜日がかたよっています（' +
           ds.map(function (x) { return M.A.days[x]; }).join('・') + '）。' });
       }
     }
@@ -996,6 +996,7 @@ var JW = (function () {
       agg[k] = (agg[k] || 0) + 1;
     });
     return {
+      advice: diagnose(M, st, issues, unplaced),
       model: M, state: st, relaxed: relaxed,
       unplaced: Object.keys(agg).map(function (k) { return k + '　' + agg[k] + 'コマ'; }),
       hard: issues.filter(function (x) { return x.level === 'hard'; }).map(function (x) { return x.text; }),
@@ -1010,6 +1011,195 @@ var JW = (function () {
   function countIn(M, key) {
     var g = +key.charAt(0);
     return M.classes.filter(function (c) { return c.grade === g; }).length || 1;
+  }
+
+  /* ---------- 守れなかった理由と直し方 ---------- */
+  function diagnose(M, st, issues, unplaced) {
+    var A = M.A, groups = {}, order = [];
+    function add(key, title, reason, fixes, item) {
+      if (!groups[key]) { groups[key] = { title: title, reason: reason, fixes: fixes, items: [] }; order.push(key); }
+      if (item && groups[key].items.indexOf(item) < 0) groups[key].items.push(item);
+    }
+    function dayName(d) { return A.days[d] + '曜'; }
+    function subjOf(id) { return subjectById(A, id) || { name: M.subjName[id] || id, maxPerDay: 1 }; }
+    // そのクラスで、授業を入れられる曜日の数
+    function usableDays(ci) {
+      var n = 0;
+      for (var d = 0; d < M.D; d++) { for (var p = 0; p < M.MP; p++) if (M.avail[ci][d * M.MP + p]) { n++; break; } }
+      return n;
+    }
+    function classHours(ci, sj) { return M.classUnits[ci].filter(function (id) { return M.units[id].subj === sj; }).length; }
+    // 必ず守る条件だけで、その授業を入れられる時間
+    function candidates(u, test) {
+      var list = [];
+      for (var s = 0; s < M.S; s++) if (M.avail[u.cls][s] && !(test || unitBad)(M, u, s)) list.push(s);
+      return list;
+    }
+    var RETRY = '「もう一度組む」を押すと、別の組み方を試します。';
+    function unitName(u) { var nm = M.subjName[u.subj]; return u.variant ? nm + '（' + u.display + '）' : nm; }
+    // その授業を入れられる時間をしぼっている条件
+    function causesFor(u) {
+      var g = M.classes[u.cls].grade;
+        var causes = [], fixes = [];
+        u.teachers.forEach(function (t) {
+          var T = M.teachers[t];
+          var byOff = candidates(u, function (M2, uu, s) { return T.off[s]; });
+          var byDay = candidates(u, function (M2, uu, s) { var ok = T.dayOk[g]; return ok && !ok[Math.floor(s / M.MP)]; });
+          if (byOff.length < M.S / 2) { causes.push(T.name + 'の勤務'); fixes.push('質問「講師などの勤務」で、' + T.name + 'の勤務できる時間を増やす'); }
+          if (T.dayOk[g]) { causes.push(T.name + 'の' + g + '年の曜日の指定（' + A.days.filter(function (x, d) { return T.dayOk[g][d]; }).join('・') + '）'); fixes.push('質問「専科・講師の曜日」で、' + T.name + 'の' + g + '年の曜日を増やす'); }
+        });
+        u.prefs.forEach(function (pi) {
+          var p = M.prefs[pi];
+          if (p.strict) { causes.push('絶対に守る希望「' + p.text + '」'); fixes.push('質問「教科の希望」で「' + p.text + '」を「できれば守る」にするか、時間を広げる'); }
+        });
+        if (u.pin !== undefined) { causes.push('授業の固定（' + slotName(A, u.pin) + '）'); fixes.push('質問「教科の希望」の授業の固定を見直す'); }
+      return { causes: causes, fixes: fixes };
+    }
+    // 同じクラスで、同じ条件がかかる授業（同じ教科・同じ先生・同じ希望）
+    function sameKind(u) {
+      return M.classUnits[u.cls].map(function (id) { return M.units[id]; }).filter(function (v) {
+        return v.subj === u.subj && v.variant === u.variant && v.teachers.join() === u.teachers.join() && v.prefs.join() === u.prefs.join();
+      });
+    }
+    var overflow = {};
+    M.classes.forEach(function (c, ci) {
+      var free = M.avail[ci].filter(Boolean).length, need = M.classUnits[ci].length;
+      if (need > free) overflow[ci] = { free: free, need: need };
+    });
+
+    // 入らなかったコマ
+    unplaced.forEach(function (u) {
+      var c = M.classes[u.cls], g = c.grade, item = c.label + ' ' + unitName(u);
+      if (overflow[u.cls]) {
+        var ov = overflow[u.cls];
+        add('overflow:' + g, g + '年：授業のコマ数が、使えるコマより多いです',
+          '授業が週' + ov.need + 'コマあるのに、1日のコマ数から先に決まっている時間を引くと、使えるコマは' + ov.free + 'コマです（' + (ov.need - ov.free) + 'コマ入りません）。',
+          ['質問「教科の週の時数」で時数を減らす', '質問「1日のコマ数」でコマ数を増やす', '質問「先に決まっている時間」を見直す'], c.label);
+        return;
+      }
+      var cand = candidates(u), kin = sameKind(u);
+      if (cand.length < kin.length) {
+        var cf = causesFor(u);
+        var why = cf.causes.length ? cf.causes.join('と、') + 'を合わせると、' : '必ず守る条件を合わせると、';
+        add('few:' + cf.causes.join() + u.subj, cand.length ? unitName(u) + '：入れられる時間が足りません' : unitName(u) + '：入れられる時間が1つもありません',
+          why + (cand.length ? '入れられる時間は' + cand.length + 'コマ（' + cand.map(function (s) { return slotName(A, s); }).join('・') + '）しかないのに、' + unitName(u) + 'が週' + kin.length + 'コマあります。' : 'この授業を入れられる時間がなくなります。'),
+          cf.fixes.length ? cf.fixes : [RETRY], item);
+        return;
+      }
+      if (u.pairHard) {
+        var blocks = 0;
+        for (var s = 0; s + 1 < M.S; s++) if (s % M.MP % 2 === 0 && M.avail[u.cls][s] && M.avail[u.cls][s + 1] && (s + 1) % M.MP) blocks++;
+        var need = M.classUnits[u.cls].filter(function (id) { return M.units[id].pairHard && M.units[id].pair > id; }).length;
+        if (blocks - need < 2) {
+          add('blocks:' + u.cls, '2時間続きを入れる場所が足りません', c.label + 'は、1・2／3・4／5・6時間目がそろって空いているところが' + blocks + 'か所しかなく、2時間続きが' + need + '組あります（先に決まっている時間や、5時間の日で区切られています）。',
+            ['質問「先に決まっている時間」を、2時間続きを区切らない時間に動かす', '2時間続きにする教科を減らす（質問「組み方のルール」）'], item);
+          return;
+        }
+      }
+      // 先生の曜日の指定の中に、その学年の授業が入りきらない
+      var dayFull = u.teachers.filter(function (t) {
+        var T = M.teachers[t], ok = T.dayOk[g];
+        if (!ok) return false;
+        var n = T.units.filter(function (id) { return M.classes[M.units[id].cls].grade === g; }).length, k = 0;
+        for (var s3 = 0; s3 < M.S; s3++) if (ok[Math.floor(s3 / M.MP)] && !T.off[s3]) k++;
+        if (n < k - 1) return false;
+        var dn = A.days.filter(function (x, d) { return ok[d]; }).join('・');
+        add('dayfull:' + t + ':' + g, T.name + '：' + g + '年の授業が指定の曜日に' + (n > k ? '入りきりません' : 'ぎりぎりです'),
+          T.name + 'の' + g + '年の授業は週' + n + 'コマありますが、指定の曜日（' + dn + '）に' + T.name + 'が授業できるのは' + k + 'コマ' +
+          (n > k ? 'だけです。' : 'です。ほとんど空きがないため、クラスの時間割と合わない時間が出ました。'),
+          ['質問「専科・講師の曜日」で、' + T.name + 'の' + g + '年の曜日を増やす', '質問「講師などの勤務」で、その曜日の勤務を増やす'], item);
+        return true;
+      });
+      if (dayFull.length) return;
+      // 先生が混んでいる
+      var busyT = u.teachers.filter(function (t) {
+        var T = M.teachers[t], can = T.off.filter(function (x) { return !x; }).length;
+        return T.units.length >= can * 0.8;
+      });
+      if (busyT.length) {
+        busyT.forEach(function (t) {
+          var T = M.teachers[t], can = T.off.filter(function (x) { return !x; }).length;
+          add('busyT:' + t, T.name + 'の時間がいっぱいです', T.name + 'の担当は週' + T.units.length + 'コマで、勤務できる' + can + 'コマのほとんどを使っています。クラスの授業や教室の都合と合う時間が残りませんでした。',
+            ['質問「専科・講師の担当」で担当を減らす（ほかの先生や担任に回す）', '質問「講師などの勤務」で勤務を増やす', RETRY], item);
+        });
+        return;
+      }
+      // 教室が混んでいる
+      var rk = u.room;
+      if (rk) {
+        var use = M.units.filter(function (x) { return x.room === rk && !x.manual; }).length, cap = M.rooms[rk];
+        var slots = 0; for (var s2 = 0; s2 < M.S; s2++) if (M.classes.some(function (cc, ci) { return M.avail[ci][s2]; })) slots++;
+        if (use >= slots * cap * 0.75) {
+          add('room:' + rk, M.poolName[rk] + 'が混んでいます', M.poolName[rk] + 'を使う授業が週' + use + 'コマあり、使える枠（' + cap + 'クラス×' + slots + 'コマ＝' + (cap * slots) + '）のほとんどを使っています。',
+            ['質問「特別教室」で上限を上げる、または学年ごとの上限を見直す', '質問「教科の表示名と場所」で、この教室を使う学年を減らす', '質問「専科・講師の担当」の「曜日ごとの教室」で、普通教室の日を作る'], item);
+          return;
+        }
+      }
+      add('other', 'ほかの条件と重なって、空きがなくなりました', '先生・教室・必ず守る条件が重なり、このクラスの空いている時間と合いませんでした。',
+        [RETRY, '「絶対に守る」にしている希望を「できれば守る」にする', '専科・講師の曜日の指定を減らす'], item);
+    });
+
+    issues.forEach(function (x) {
+      var c = x.cls !== undefined ? M.classes[x.cls] : null;
+      if (x.kind === 'daily') {
+        var sj = subjOf(x.subj), h = classHours(x.cls, x.subj), ud = usableDays(x.cls), mx = M.maxPerDay[x.subj];
+        // 必ず守る条件で、その教科を入れられる曜日
+        var u0 = M.units[M.classUnits[x.cls].filter(function (id) { return M.units[id].subj === x.subj; })[0]];
+        var cdays = {};
+        if (u0) candidates(u0).forEach(function (s) { cdays[Math.floor(s / M.MP)] = 1; });
+        var cd = Object.keys(cdays).length;
+        if (u0 && cd < ud && h > cd * mx) {
+          var cf2 = causesFor(u0);
+          add('daily-days:' + c.grade + x.subj + cf2.causes.join(), c.grade + '年の' + sj.name + '：入れられる曜日が少なすぎます',
+            (cf2.causes.length ? cf2.causes.join('と、') + 'で、' : '') + sj.name + 'を入れられる曜日は' + Object.keys(cdays).map(function (d) { return A.days[d]; }).join('・') +
+            'の' + cd + '日だけです。週' + h + 'コマを1日' + mx + '回までにすると、' + (cd * mx) + 'コマしか入りません。',
+            cf2.fixes.concat(['質問「組み方のルール」で、' + sj.name + 'の1日の上限を' + Math.ceil(h / Math.max(1, cd)) + '回にする']), c.label);
+        } else if (h > ud * mx) {
+          add('daily-max:' + c.grade + x.subj, c.grade + '年の' + sj.name + '：1日の上限では入りきりません',
+            sj.name + 'は週' + h + 'コマありますが、授業のある日は' + ud + '日なので、1日' + mx + '回までだと最大' + (ud * mx) + 'コマしか入りません。',
+            ['質問「組み方のルール」で、' + sj.name + 'の1日の上限を' + Math.ceil(h / ud) + '回にする'], c.label);
+        } else {
+          add('daily:' + x.subj, sj.name + '：同じ日に上限より多く入りました',
+            '週' + h + 'コマは1日' + mx + '回までで入る数ですが、専科・講師の曜日、希望、2時間続きなどと合わせると、ほかの日に入れられませんでした。',
+            [RETRY, '質問「組み方のルール」で、' + sj.name + 'の1日の上限を' + (mx + 1) + '回にする', sj.name + 'にかかわる希望や曜日の指定を減らす'], c.label);
+        }
+      } else if (x.kind === 'pref') {
+        var p = M.prefs[x.pi], ok = 0;
+        for (var s = 0; s < M.S; s++) if (M.avail[x.cls][s] && (p.mode === 'avoid' ? !p.mask[s] : p.mask[s])) ok++;
+        var n = M.classUnits[x.cls].filter(function (id) { return M.units[id].prefs.indexOf(x.pi) >= 0; }).length;
+        if (n > ok) {
+          add('pref-few:' + x.pi, '希望「' + p.text + '」：時間が足りません',
+            'この希望に合う時間は' + ok + 'コマしかないのに、当てはまる授業が週' + n + 'コマあります。',
+            ['質問「教科の希望」で、曜日や時間を広げる'], c.label);
+        } else {
+          add('pref:' + x.pi, '希望「' + p.text + '」を守れませんでした',
+            '希望に合う時間はありますが、専科・講師の担当、教室の上限、そろえる授業など、必ず守る条件を優先しました。',
+            [RETRY, 'どうしても守りたいときは、質問「教科の希望」で「絶対に守る」にする（ほかの授業が動きます）'], c.label);
+        }
+      } else if (x.kind === 'pair') {
+        var sj2 = subjOf(x.subj);
+        add('pair:' + x.subj, sj2.name + '：2時間続きになりませんでした',
+          '「できれば2時間続き」の設定なので、ほかの条件を優先しました。',
+          ['質問「組み方のルール」で、' + sj2.name + 'を「すべて2時間続き（必ず）」にする', RETRY], c.label);
+      } else if (x.kind === 'spread') {
+        var sj3 = subjOf(x.subj);
+        add('spread:' + x.subj, sj3.name + '：曜日がかたよりました',
+          '専科・講師の曜日や、ほかの授業との重なりで、間をあけて入れられませんでした。',
+          [RETRY, '気にならなければ、そのままで大丈夫です'], c.label);
+      } else if (x.kind === 'active') {
+        add('active', '体育などの動きのある教科が続きました',
+          '動きのある教科の時数が多く、1日の中で間をあけきれませんでした。',
+          [RETRY, '質問「組み方のルール」で、動きのある教科のチェックを見直す'], c.label + ' ' + dayName(x.d));
+      } else if (x.kind === 'group') {
+        var T = M.teachers[x.t];
+        add('group:' + x.t, T.name + '：同じ学年の授業を同じ曜日にまとめきれませんでした',
+          x.g + '年の授業が' + x.n + 'つの曜日に分かれました（できれば' + x.ideal + 'つ）。同じ曜日にすると、クラスの時間割や教室と合わない時間がありました。',
+          [RETRY, '質問「専科・講師の曜日」で、学年ごとに曜日を決める（例：' + x.g + '年は月・木）'], x.g + '年');
+      } else if (x.level === 'hard') {
+        add('hard:' + x.kind, '必ず守る条件を守れませんでした', x.text, [RETRY], '');
+      }
+    });
+    return order.map(function (k) { return groups[k]; });
   }
 
   // スプレッドシートに書き出す表
