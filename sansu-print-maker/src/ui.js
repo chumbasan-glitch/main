@@ -47,7 +47,7 @@ function renderGrades(){
     box.appendChild(b);
   }
   segSet("grades", state.grade);
-  $("gradeNote").textContent = "いまは5・6年";
+  $("gradeNote").textContent = "いまは4〜6年";
 }
 function renderUnits(){
   const box = $("units"); box.innerHTML = "";

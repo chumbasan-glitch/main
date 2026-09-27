@@ -536,9 +536,9 @@ function drawNet(G, S, T, s, color){
   for(const l of S.L) G.poly(l.map(T), {close:false, w:0.4, color});
   for(const [cx, cy, r] of S.C){ const p = T([cx, cy]); G.arc(p[0], p[1], r * s, 0, 2 * Math.PI, {w:0.4, color}); }
 }
-function genNetDraw(lv){
-  const kind = lv === 0 ? "cyl" : lv === 1 ? pick(["p3", "p4"]) : pick(["cyl", "p4"]);
-  const v = kind === "cyl" ? (lv === 2 ? {d:3, h:ri(2, 3)} : {d:2, h:ri(2, 4)}) : kind === "p3" ? {a:3, b:4, c:5, h:ri(2, 3)} : {a:ri(2, 4), b:pick([1, 2]), h:ri(2, 4)};
+function genNetDraw(lv, kindFix, g4){
+  const kind = kindFix || (lv === 0 ? "cyl" : lv === 1 ? pick(["p3", "p4"]) : pick(["cyl", "p4"]));
+  const v = kind === "cyl" ? (lv === 2 ? {d:3, h:ri(2, 3)} : {d:2, h:ri(2, 4)}) : kind === "p3" ? {a:3, b:4, c:5, h:ri(2, 3)} : (g4 && lv === 0 ? {a:2, b:2, h:2} : {a:ri(2, 4), b:pick([1, 2]), h:ri(2, 4)});
   const S = netShapes(kind, v), bb = bbox(S.all);
   const BW = Math.max(90, Math.ceil(bb.w * 10 + 14)), BH = Math.max(64, Math.ceil(bb.h * 10 + 14));
   const drawFig = (G, x, y, w, h, fs) => {
@@ -546,10 +546,10 @@ function genNetDraw(lv){
     else if(kind === "p3") drawPrism3(G, x, y, w, h, fs, v.a, v.b, v.c, v.h);
     else drawPrism4(G, x, y, w, h, fs, v.a, v.b, v.h);
   };
-  const ans = (G, bx, by, bw, bh, fs) => { drawNet(G, S, realPlace(S.all, bx, by, bw, bh), 10, RED); G.text("（実際の大きさ・かき方の一例）", bx + bw - 1.5, by + bh - 2.5, {size:fs * 0.55, color:RED, align:"right"}); };
+  const ans = (G, bx, by, bw, bh, fs) => { drawNet(G, S, realPlace(S.all, bx, by, bw, bh), 10, RED); G.text(g4 ? "（本当の大きさ・かき方の一例）" : "（実際の大きさ・かき方の一例）", bx + bw - 1.5, by + bh - 2.5, {size:fs * 0.55, color:RED, align:"right"}); };
   const name = kind === "cyl" ? "円柱" : kind === "p3" ? "三角柱" : "四角柱";
   return drawItem(52, 44, drawFig, BW, BH, ans,
-    {inst:"つぎの立体の【展|てん】開図を，実際の大きさで四角の中にかきましょう。", lead:name + "の【展|てん】開図", sig:kind + JSON.stringify(v)});
+    {inst:g4 ? "つぎの立体の【展|てん】開図を，本当の大きさで四角の中にかきましょう。" : "つぎの立体の【展|てん】開図を，実際の大きさで四角の中にかきましょう。", lead:(g4 && kind === "p4" ? (v.a === v.b && v.b === v.h ? "立方体" : "直方体") : name) + "の【展|てん】開図", sig:kind + JSON.stringify(v)});
 }
 /* 展開図から長さを読み取る */
 function genNetRead(lv){

@@ -178,8 +178,13 @@ function divSolve(n, d, mode, r){
   const qInt = parseInt(qDig.map(q => q.v).join(""), 10), qDec = Math.max(0, last - onesP);
   let ansText;
   if(mode === "exact") ansText = ds(qInt, qDec);
-  else if(mode === "round") ansText = "約" + ds(Math.round(qInt / 10), r);
-  else ansText = ds(qInt, 0) + "あまり" + ds(cur, dd + Math.max(0, nd - dd));
+  else if(mode === "round"){ const rv = String(Math.round(qInt / 10)).padStart(r + 1, "0"); ansText = "約" + (r ? rv.slice(0, -r) + "." + rv.slice(-r) : rv); }
+  else {
+    /* あまり：わる数に合わせて動かす前の、もとの小数点の位置で表す（残りのけたもおろす） */
+    const e = Math.max(orig - 1, last);
+    const remInt = parseInt(String(cur) + X.slice(last + 1, e + 1).join(""), 10);
+    ansText = ds(qInt, 0) + "あまり" + ds(remInt, Math.max(0, e - onesIdx));
+  }
   return {dD, dd, D, X, orig, onesIdx, onesP, added, steps, qDig, last, qInt, qDec, ansText, rem:cur};
 }
 function hissanDivItem(n, d, mode, r, o){
@@ -226,11 +231,11 @@ function hissanDivItem(n, d, mode, r, o){
         const ps = String(st.prod); put(ps, row, st.col, RED);
         G.line(xb + (st.col - ps.length + 1) * cs, y + (row + 1) * rh, xb + (st.col + 1) * cs, y + (row + 1) * rh, {w:0.3, color:RED});
         row++;
-        const upto = j < S.steps.length - 1 ? S.steps[j + 1].col : S.last;
+        const upto = j < S.steps.length - 1 ? S.steps[j + 1].col : (mode === "rem" ? Math.max(S.last, S.orig - 1) : S.last);
         let v = String(st.rem); for(let c = st.col + 1; c <= upto; c++) v += S.X[c];
         v = String(parseInt(v, 10));
         put(v, row, upto, RED);
-        if(mode === "rem" && j === S.steps.length - 1 && S.dd) G.dot(xb + (S.onesIdx + 1) * cs, y + row * rh + rh * 0.8, 0.14 * fs, RED);
+        if(mode === "rem" && j === S.steps.length - 1 && Math.max(S.last, S.orig - 1) > S.onesIdx) G.dot(xb + (S.onesIdx + 1) * cs, y + row * rh + rh * 0.8, 0.14 * fs, RED);
         row++;
       });
       if(noteMk) G.text(noteMk, xb + cols * cs + 0.8 * fs, ry(0), {size:fs * 0.9, color:RED});

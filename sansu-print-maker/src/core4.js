@@ -549,7 +549,7 @@ unit5(20, "データの活用", "3月", "データから，いろいろなこと
 
 /* 21 5年のまとめ（ほかの単元の問題をまぜる） */
 function findSub(ref){ const [u, s] = ref.split("."); const U = GRADES_ALL().find(x => x.id === u); return U.subs.find(x => x.id === s); }
-const GRADES_ALL = () => [].concat(typeof U5 !== "undefined" ? U5 : [], typeof U6 !== "undefined" ? U6 : []);
+const GRADES_ALL = () => [].concat(typeof U4 !== "undefined" ? U4 : [], typeof U5 !== "undefined" ? U5 : [], typeof U6 !== "undefined" ? U6 : []);
 const pool = refs => ({gen(lv){ return findSub(pick(refs)).gen(lv); }});
 unit5(21, "5年のまとめ", "3月", "5年で学習したことをふりかえろう", [
   Object.assign({id:"a", name:"数と計算"}, pool(["5-1.b", "5-1.c", "5-5.c", "5-5.e", "5-7.c", "5-7.b", "5-8.b", "5-11.a", "5-11.d", "5-11.e", "5-12.b", "5-12.a", "5-13.b"])),
