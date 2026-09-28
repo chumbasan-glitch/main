@@ -212,7 +212,7 @@ function freeSlots(g) {
 function moduleHoursFor(g) {
   var m = A.module;
   if (!m || !m.on || (m.grades || []).indexOf(g) < 0) return 0;
-  return A.subjects.reduce(function (t, s) { return t + JW.moduleHours(m, s.id); }, 0);
+  return A.subjects.reduce(function (t, s) { return t + JW.moduleHours(m, s.id, A); }, 0);
 }
 function totalHours(g) { return A.subjects.reduce(function (a, s) { return a + (+s.hours[g] || 0); }, 0) - moduleHoursFor(g); }
 
@@ -408,8 +408,10 @@ function renderModule() {
   var sums = A.subjects.map(function (sj) {
     var n = Object.keys(m.slots).filter(function (d) { var x = m.slots[d]; return x && x.kind === 'subject' && x.target === sj.id; }).length;
     if (!n) return '';
-    var hrs = JW.moduleHours(m, sj.id), rest = n % Math.max(1, +m.per || 3);
-    return '<li>' + esc(sj.name) + '：週' + n + '回 → ' + hrs + '時間と数えます' +
+    var sat = A.days.indexOf('土'), satN = sat >= 0 && !A.satCount && m.slots[sat] && m.slots[sat].kind === 'subject' && m.slots[sat].target === sj.id ? 1 : 0;
+    n -= satN;
+    var hrs = JW.moduleHours(m, sj.id, A), rest = n % Math.max(1, +m.per || 3);
+    return '<li>' + esc(sj.name) + '：週' + n + '回' + (satN ? '（土曜日は数えません）' : '') + ' → ' + hrs + '時間と数えます' +
       (rest ? '<span class="ng">（' + rest + '回は' + m.per + '回に足りないので数えません）</span>' : '') + '。' +
       JW.GRADES.filter(function (g) { return (m.grades || []).indexOf(g) >= 0 && +A.classCounts[g]; }).map(function (g) {
         return g + '年は普通の時間に' + Math.max(0, (+sj.hours[g] || 0) - hrs) + 'コマ';
@@ -513,6 +515,8 @@ function renderTeachers() {
     h += '<div class="item"><div class="row"><b>先生' + (ti + 1) + '</b>名前<input type="text" class="m" data-k="teachers.' + ti + '.name" value="' + esc(t.name) + '" placeholder="例：音楽専科（山田）">' +
       '種類<select data-k="teachers.' + ti + '.kind">' + opts(['専科', '講師', '少人数', 'TT', 'その他'], t.kind) + '</select>' +
       (t.kind === 'その他' ? '<input type="text" class="s" data-k="teachers.' + ti + '.kindOther" value="' + esc(t.kindOther || '') + '" placeholder="例：ALT">' : '') +
+      '時間割での表し方<select data-k="teachers.' + ti + '.cellMode">' + opts([{ v: '', t: '教科名のまま' }, { v: 'bracket', t: '【　】' }, { v: 'text', t: '自由に書く' }], t.cellMode || '') + '</select>' +
+      (t.cellMode === 'text' ? '<input type="text" class="s" data-k="teachers.' + ti + '.cellText" value="' + esc(t.cellText || '') + '" placeholder="例：補">' : '') +
       '<button class="btn small del" data-a="delTeacher" data-i="' + ti + '">この先生を削除</button></div>';
     if (t.jobs.length) {
       h += '<table class="t"><tr><th class="l">クラス</th><th class="l">教科</th><th>コマ数</th><th></th></tr>' + t.jobs.map(function (j, ji) {
