@@ -350,8 +350,3 @@ if(!Object.keys(state.alloc).length || selUnits().some(u => state.alloc[u.id] ==
 renderAll();
 generate();
 
-/* ---------- バージョン表示 ---------- */
-(() => { const b = $("verBtn"), p = $("verLog"); if(!b || !p) return;
-  b.addEventListener("click", e => { e.stopPropagation(); p.hidden = !p.hidden; b.setAttribute("aria-expanded", String(!p.hidden)); });
-  document.addEventListener("click", e => { if(!p.hidden && !p.contains(e.target)){ p.hidden = true; b.setAttribute("aria-expanded", "false"); } });
-})();
