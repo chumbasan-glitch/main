@@ -69,6 +69,13 @@ header.top .sub{color:var(--ink-soft);font-size:13px}
 .step{display:flex;flex-direction:column;gap:8px}
 .step-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
 .step-h .n{width:24px;height:24px;border-radius:50%;background:var(--ink);color:var(--surface);display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+.fold{border-top:1px solid var(--line);padding-top:12px}
+.fold>summary{list-style:none;cursor:pointer;user-select:none;-webkit-user-select:none}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary .aside{text-align:right}
+.fold>summary .chev{flex:none;width:9px;height:9px;border-right:2px solid var(--ink-soft);border-bottom:2px solid var(--ink-soft);transform:rotate(45deg);margin:0 4px 4px 2px;transition:transform .15s}
+.fold[open]>summary .chev{transform:rotate(-135deg);margin:4px 4px 0 2px}
+.fold-body{display:flex;flex-direction:column;gap:8px;padding-top:10px}
 .step-h .aside{margin-left:auto;font-weight:500;font-size:12.5px;color:var(--ink-soft)}
 .hint{font-size:12.5px;color:var(--ink-soft);margin:0}
 .seg{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:10px;flex-wrap:wrap}
@@ -204,57 +211,72 @@ h2.sec{margin:0;font-size:17px}
         <p class="hint">「半分ずつ」は、前半が読み、後半が書きになります。作ったあとで、1問ずつ切りかえられます。</p>
       </div>
 
-      <div class="step">
-        <div class="step-h"><span class="n">6</span>プリント</div>
-        <span class="hint">解答欄</span>
-        <div class="seg" id="segBox">
-          <button type="button" data-v="long">通常</button>
-          <button type="button" data-v="grid">マス目</button>
-        </div>
-        <span class="hint">点数らん</span>
-        <div class="seg" id="segScore">
-          <button type="button" data-v="count" id="scoreCount">問題数（／10）</button>
-          <button type="button" data-v="100">100点満点（／100）</button>
-        </div>
-        <span class="hint">問題文の文字の大きさ</span>
-        <div class="stepper">
-          <button type="button" id="fszMinus" aria-label="文字を小さく">－</button>
-          <span class="fsz-lbl" id="fszLbl">ふつう</span>
-          <button type="button" id="fszPlus" aria-label="文字を大きく">＋</button>
-        </div>
-        <p class="hint" id="fszNote" hidden>これ以上は用紙に入らないため、大きくできません。</p>
-        <span class="hint">ボーナス欄（10問以下のとき）</span>
-        <div class="seg" id="segBonus">
-          <button type="button" data-v="off">つけない</button>
-          <button type="button" data-v="on">つける</button>
-        </div>
-        <div id="bonusOpts" hidden>
-          <span class="hint">解答欄：ボーナス欄の大きさ</span>
-          <div class="seg" id="segBratio">
-            <button type="button" data-v="2">2:8</button>
-            <button type="button" data-v="3">3:7</button>
-            <button type="button" data-v="4">4:6</button>
-            <button type="button" data-v="5">5:5</button>
-            <button type="button" data-v="6">6:4</button>
-            <button type="button" data-v="7">7:3</button>
-            <button type="button" data-v="8">8:2</button>
+      <details class="fold" id="fold6">
+        <summary class="step-h"><span class="n">6</span>問題文<span class="aside" id="sum6"></span><span class="chev" aria-hidden="true"></span></summary>
+        <div class="fold-body">
+          <span class="hint">文字の大きさ</span>
+          <div class="stepper">
+            <button type="button" id="fszMinus" aria-label="文字を小さく">－</button>
+            <span class="fsz-lbl" id="fszLbl">ふつう</span>
+            <button type="button" id="fszPlus" aria-label="文字を大きく">＋</button>
+          </div>
+          <p class="hint" id="fszNote" hidden>これ以上は用紙に入らないため、大きくできません。</p>
+          <span class="hint">新出漢字（この学年で習う漢字）を□でかこむ</span>
+          <div class="seg" id="segNewbox">
+            <button type="button" data-v="off">かこまない</button>
+            <button type="button" data-v="on">かこむ</button>
           </div>
         </div>
-        <span class="hint">新出漢字（この学年で習う漢字）を□でかこむ</span>
-        <div class="seg" id="segNewbox">
-          <button type="button" data-v="off">かこまない</button>
-          <button type="button" data-v="on">かこむ</button>
+      </details>
+
+      <details class="fold" id="fold7">
+        <summary class="step-h"><span class="n">7</span>解答欄<span class="aside" id="sum7"></span><span class="chev" aria-hidden="true"></span></summary>
+        <div class="fold-body">
+          <span class="hint">解答欄の形</span>
+          <div class="seg" id="segBox">
+            <button type="button" data-v="long">通常</button>
+            <button type="button" data-v="grid">マス目</button>
+          </div>
+          <span class="hint">ボーナス欄（10問以下のとき）</span>
+          <div class="seg" id="segBonus">
+            <button type="button" data-v="off">つけない</button>
+            <button type="button" data-v="on">つける</button>
+          </div>
+          <div id="bonusOpts" hidden>
+            <span class="hint">解答欄：ボーナス欄の大きさ</span>
+            <div class="seg" id="segBratio">
+              <button type="button" data-v="2">2:8</button>
+              <button type="button" data-v="3">3:7</button>
+              <button type="button" data-v="4">4:6</button>
+              <button type="button" data-v="5">5:5</button>
+              <button type="button" data-v="6">6:4</button>
+              <button type="button" data-v="7">7:3</button>
+              <button type="button" data-v="8">8:2</button>
+            </div>
+          </div>
+          <p class="hint" id="bonusNote" hidden>11問以上のときは、ボーナス欄はつきません。</p>
         </div>
-        <p class="hint" id="bonusNote" hidden>11問以上のときは、ボーナス欄はつきません。</p>
-        <div class="seg" id="segPaper">
-          <button type="button" data-v="auto" id="paperAuto">おすすめ</button>
-          <button type="button" data-v="A4">A4</button>
-          <button type="button" data-v="B4">B4</button>
-          <button type="button" data-v="A3">A3</button>
+      </details>
+
+      <details class="fold" id="fold8">
+        <summary class="step-h"><span class="n">8</span>用紙と見出し<span class="aside" id="sum8"></span><span class="chev" aria-hidden="true"></span></summary>
+        <div class="fold-body">
+          <span class="hint">用紙の大きさ</span>
+          <div class="seg" id="segPaper">
+            <button type="button" data-v="auto" id="paperAuto">おすすめ</button>
+            <button type="button" data-v="A4">A4</button>
+            <button type="button" data-v="B4">B4</button>
+            <button type="button" data-v="A3">A3</button>
+          </div>
+          <span class="hint">点数欄</span>
+          <div class="seg" id="segScore">
+            <button type="button" data-v="count" id="scoreCount">問題数（／10）</button>
+            <button type="button" data-v="100">100点満点（／100）</button>
+          </div>
+          <label class="hint" for="label">回数など（自由に書けます）</label>
+          <input class="textin" id="label" type="text" maxlength="14" placeholder="例：第３回　／　１学期まとめ">
         </div>
-        <label class="hint" for="label">回数など（自由に書けます）</label>
-        <input class="textin" id="label" type="text" maxlength="14" placeholder="例：第３回　／　１学期まとめ">
-      </div>
+      </details>
     </section>
 
     <section class="panel" aria-label="できあがり">
@@ -794,7 +816,11 @@ function renderOptions(){
   $("fszLbl").textContent = FSZ_NAMES[state.fsz] || "ふつう";
   $("fszMinus").disabled = state.fsz <= -2; $("fszPlus").disabled = state.fsz >= 2;
   setSeg($("segScore"), state.score); $("scoreCount").textContent = "問題数（／" + (qs.length || state.count) + "）";
-  setSeg($("segBonus"), state.bonus); setSeg($("segNewbox"), state.newbox); setSeg($("segBratio"), state.bratio);
+  setSeg($("segBonus"), state.bonus);
+  const bFit0 = (qs.length || state.count) <= 10;
+  $("sum6").textContent = (FSZ_NAMES[state.fsz] || "ふつう") + "・" + (state.newbox === "on" ? "□あり" : "□なし");
+  $("sum7").textContent = (state.box === "grid" ? "マス目" : "通常") + "・" + (state.bonus === "on" && bFit0 ? "ボーナス " + state.bratio + ":" + (10 - state.bratio) : "ボーナスなし");
+  $("sum8").textContent = paperNow() + (state.paper === "auto" ? "（おすすめ）" : "") + "・" + (state.score === "100" ? "／100" : "／" + (qs.length || state.count)) + (state.label ? "・" + state.label : ""); setSeg($("segNewbox"), state.newbox); setSeg($("segBratio"), state.bratio);
   const bOn = state.bonus === "on", bFit = (qs.length || state.count) <= 10;
   $("bonusOpts").hidden = !(bOn && bFit); $("bonusNote").hidden = !(bOn && !bFit);
   setSeg($("segView"), view);
