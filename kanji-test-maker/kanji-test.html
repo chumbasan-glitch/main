@@ -161,7 +161,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>漢字小テストメーカー</h1>
     <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver" title="このページの版">ver 8.0（2026.9.28）</span>
+    <span class="ver" title="このページの版">ver 8.1（2026.9.28）</span>
   </header>
 
   <div class="layout">
@@ -708,7 +708,7 @@ function drawPage(canvas, answer, pxPerMm){
           } else for(let t = 0; t < n; t++) cellBox(lx - c / 2, y + t * c, c);
           let yy = y;
           for(const sg of x.segs){
-            const sh = sg.n * c, L2 = [...sg.rd].length, rf = Math.min(c * 0.2, fs * 0.75, sh / L2); setFont(rf, 500);
+            const sh = sg.n * c, L2 = [...sg.rd].length, rf = Math.min(c * 0.3, fs * 1.05, sh / L2); setFont(rf, 500);
             vtext(sg.rd, rx + rf * 0.65, yy + (sh - rf * L2) / 2, rf); yy += sh;
           }
           if(answer){ ctx.fillStyle = RED; setFont(c * 0.72); x.base.forEach((ch, t) => vchar(ch, lx, y + t * c + c / 2, c * 0.72)); ctx.fillStyle = INK; }
