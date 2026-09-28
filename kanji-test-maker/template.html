@@ -63,6 +63,7 @@ body{
 header.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
 header.top h1{margin:0;font-family:"Klee One","Hiragino Mincho ProN",serif;font-weight:600;font-size:26px;letter-spacing:.06em}
 header.top .sub{color:var(--ink-soft);font-size:13px}
+header.top .ver{margin-left:auto;color:var(--ink-soft);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .layout{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;align-items:start}
 @media (max-width:860px){.layout{grid-template-columns:1fr}}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:16px;min-width:0}
@@ -160,6 +161,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>漢字小テストメーカー</h1>
     <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
+    <span class="ver" title="このページの版">ver 2.0（2026.9.28）</span>
   </header>
 
   <div class="layout">
