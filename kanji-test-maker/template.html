@@ -351,7 +351,7 @@ let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
     const raw = localStorage.getItem(STORE);
-    if(raw){ const p = JSON.parse(raw); if(p && typeof p === "object") state = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), p); }
+    if(raw){ const p = JSON.parse(raw); if(p && typeof p === "object") state = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), p);  state.bonus = "off"; /* ボーナス欄は開くたびに「つけない」から */ }
     state.count = Math.max(1, Math.min(MAX_Q, Math.round(+state.count) || 10));
   }catch(e){}
 }
