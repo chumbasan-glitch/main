@@ -185,7 +185,7 @@ h2.sec{margin:0;font-size:17px}
       </div>
 
       <div class="step">
-        <div class="step-h"><span class="n">4</span>問題数（20問まで）<span class="aside" id="rowsInfo"></span></div>
+        <div class="step-h"><span class="n">4</span>問題数（20問まで、または25問・50問）<span class="aside" id="rowsInfo"></span></div>
         <div class="row">
           <div class="stepper">
             <button type="button" id="cntMinus" aria-label="1問へらす">−</button>
@@ -382,18 +382,17 @@ const isKanji = c => (c >= "一" && c <= "鿿") || c === "々";
 /* ---------- 保存 ---------- */
 const STORE = "kanji_test_maker_v1";
 const MAX_Q = 20;
-/* 大きいテスト：1・2年は25問（8・8・9）、3〜6年は50問（13・13・13・11） */
-const BIG = g => g <= 2 ? 25 : 50;
+/* 大きいテスト：25問（8・8・9）と50問（13・13・13・11）。どの学年でも選べる */
 const isBig = n => n === 25 || n === 50;
 const SPLITS = {25:[8, 8, 9], 50:[13, 13, 13, 11]};
-function fixCount(n, g){ n = Math.round(+n) || 10; if(isBig(n)) return BIG(g); return Math.max(1, Math.min(MAX_Q, n)); }
+function fixCount(n){ n = Math.round(+n) || 10; if(isBig(n)) return n; if(n > MAX_Q) return n > 25 ? 50 : 25; return Math.max(1, n); }
 const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count" };
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
     const raw = localStorage.getItem(STORE);
     if(raw){ const p = JSON.parse(raw); if(p && typeof p === "object") state = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), p);  state.bonus = "off"; /* ボーナス欄は開くたびに「つけない」から */ }
-    state.count = fixCount(state.count, state.grade);
+    state.count = fixCount(state.count);
   }catch(e){}
 }
 function persist(){ try{ localStorage.setItem(STORE, JSON.stringify(state)); }catch(e){} }
@@ -839,7 +838,6 @@ function renderGrades(){
     const b = document.createElement("button"); b.type = "button"; b.dataset.v = g; b.textContent = g + "年";
     b.addEventListener("click", () => {
       if(state.grade === g) return; state.grade = g;
-      if(isBig(state.count)) state.count = BIG(g);
       if(!state.sel[g]) state.sel[g] = unitsOf(g).length ? [unitsOf(g)[0].no] : [];
       persist(); generate(); renderAll();
     });
@@ -880,7 +878,7 @@ function renderChips(){
 }
 function renderCount(){
   $("cnt").value = state.count;
-  const pr = $("presets"); pr.innerHTML = ""; for(const n of [5, 10, 15, 20, BIG(state.grade)]){
+  const pr = $("presets"); pr.innerHTML = ""; for(const n of [5, 10, 15, 20, 25, 50]){
     const b = document.createElement("button"); b.type = "button"; b.dataset.v = n; b.textContent = n + "問";
     b.addEventListener("click", () => setCount(n)); pr.appendChild(b);
   }
@@ -891,9 +889,13 @@ function renderCount(){
 }
 function setCount(n){
   n = Math.round(+n) || 10;
-  if(isBig(state.count) && n === state.count - 1) n = MAX_Q;        /* 25・50問から－で20問へ */
-  else if(n > MAX_Q) n = BIG(state.grade);                            /* 20問から＋で25・50問へ */
-  state.count = fixCount(n, state.grade); persist(); generate(); renderAll();
+  /* ＋－は 20→25→50 の順に進む */
+  if(state.count === 50 && n === 49) n = 25;
+  else if(state.count === 25 && n === 24) n = MAX_Q;
+  else if(state.count === 25 && n === 26) n = 50;
+  else if(state.count === 50 && n > 50) n = 50;
+  else if(n > MAX_Q && !isBig(n)) n = 25;
+  state.count = fixCount(n); persist(); generate(); renderAll();
 }
 function sentenceHtml(sen, mode, learned){
   let h = "", open = false;
