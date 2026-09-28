@@ -977,6 +977,13 @@ let dl = null, dlChecked = false;
 async function getDl(){
   if(dl) return dl;
   try{ if(window.claude && typeof window.claude.use === "function") dl = await window.claude.use("downloads"); }catch(e){ dl = null; }
+  /* 校内LAN用（kanji-test-local.html）は、ブラウザのふつうのダウンロードで保存する */
+  if(!dl && window.KTM_LOCAL) dl = {save:async ({filename, data}) => {
+    const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], {type:"application/json"}));
+    const a = document.createElement("a"); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }};
   const first = !dlChecked; dlChecked = true; setSaveMode(first);
   return dl;
 }

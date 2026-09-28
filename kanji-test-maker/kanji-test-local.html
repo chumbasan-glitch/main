@@ -1,8 +1,7 @@
 <!--ktm-start-->
-<title>漢字小テストメーカー</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<title>漢字小テストメーカー（校内LAN用）</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; media-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'">
+<script>window.KTM_LOCAL = true;</script>
 <style>
 :root{
   --bg:#F6ECEC;
@@ -55,13 +54,13 @@
 [hidden]{display:none!important}
 body{
   margin:0;background:var(--bg);color:var(--ink);
-  font-family:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+  font-family:"BIZ UDPGothic","BIZ UDPゴシック","Meiryo","メイリオ","Hiragino Sans","Yu Gothic",sans-serif;
   font-size:15px;line-height:1.6;
   -webkit-tap-highlight-color:transparent;
 }
 .wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:14px 48px;display:flex;flex-direction:column;gap:16px}
 header.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
-header.top h1{margin:0;font-family:"Klee One","Hiragino Mincho ProN",serif;font-weight:600;font-size:26px;letter-spacing:.06em}
+header.top h1{margin:0;font-family:"UD Digi Kyokasho N-B","UD デジタル 教科書体 N-B","Klee One","Hiragino Mincho ProN",serif;font-weight:600;font-size:26px;letter-spacing:.06em}
 header.top .sub{color:var(--ink-soft);font-size:13px}
 header.top .ver{margin-left:auto;color:var(--ink-soft);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .layout{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;align-items:start}
@@ -88,7 +87,7 @@ header.top .ver{margin-left:auto;color:var(--ink-soft);font-size:12px;white-spac
 .unit:last-child{border-bottom:none}
 .unit input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--accent)}
 .unit .nm{font-weight:700;font-size:14px;line-height:1.4}
-.unit .ks{grid-column:2;font-family:"Klee One",serif;font-size:15px;color:var(--ink-soft);letter-spacing:.12em}
+.unit .ks{grid-column:2;font-family:"UD Digi Kyokasho N-B","UD デジタル 教科書体 N-B","Klee One",serif;font-size:15px;color:var(--ink-soft);letter-spacing:.12em}
 .unit.on{background:var(--accent-soft)}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .btn{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;font-size:14px;padding:8px 14px;border-radius:9px;cursor:pointer}
@@ -99,7 +98,7 @@ header.top .ver{margin-left:auto;color:var(--ink-soft);font-size:12px;white-spac
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .link{background:none;border:none;color:var(--accent);font:inherit;font-weight:700;font-size:13px;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:2px 0}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--ink);font-family:"Klee One",serif;font-weight:600;font-size:20px;width:42px;height:42px;border-radius:8px;cursor:pointer;padding:0;line-height:1}
+.chip{border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--ink);font-family:"UD Digi Kyokasho N-B","UD デジタル 教科書体 N-B","Klee One",serif;font-weight:600;font-size:20px;width:42px;height:42px;border-radius:8px;cursor:pointer;padding:0;line-height:1}
 .chip.off{border-color:var(--line);background:var(--surface);color:var(--ink-soft);text-decoration:line-through;opacity:.6}
 .stepper{display:flex;align-items:center;gap:8px}
 .stepper button{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:20px;font-weight:700;cursor:pointer}
@@ -122,8 +121,8 @@ header.top .ver{margin-left:auto;color:var(--ink-soft);font-size:12px;white-spac
 .q{display:grid;grid-template-columns:34px 40px auto 1fr auto;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line)}
 .q:last-child{border-bottom:none}
 .q .no{font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums;text-align:right}
-.q .k{font-family:"Klee One",serif;font-weight:600;font-size:22px;text-align:center}
-.q .s{font-family:"Klee One",serif;font-size:15px;min-width:0}
+.q .k{font-family:"UD Digi Kyokasho N-B","UD デジタル 教科書体 N-B","Klee One",serif;font-weight:600;font-size:22px;text-align:center}
+.q .s{font-family:"UD Digi Kyokasho N-B","UD デジタル 教科書体 N-B","Klee One",serif;font-size:15px;min-width:0}
 .q .s u{text-decoration-color:var(--red);text-decoration-thickness:2px;text-underline-offset:3px}
 .q .seg button{padding:5px 9px;font-size:13px}
 @media (max-width:560px){.q{grid-template-columns:30px 34px 1fr}.q .s{grid-column:1/-1}.q .seg{grid-column:3}.q .alt{grid-column:1/-1;justify-self:start}}
@@ -131,7 +130,7 @@ header.top .ver{margin-left:auto;color:var(--ink-soft);font-size:12px;white-spac
 .ed-list{display:flex;flex-direction:column;gap:8px}
 .card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
 .card.hidden{opacity:.55;background:var(--surface-2)}
-.card .txt{font-family:"Klee One",serif;font-size:17px}
+.card .txt{font-family:"UD Digi Kyokasho N-B","UD デジタル 教科書体 N-B","Klee One",serif;font-size:17px}
 .card .txt u{text-decoration-color:var(--red);text-decoration-thickness:2px;text-underline-offset:4px}
 .card .meta{font-size:12.5px;color:var(--ink-soft)}
 .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:99px;background:var(--surface-2);color:var(--ink-soft);margin-right:6px}
@@ -572,7 +571,7 @@ const PAPERS = {A4:[297,210], B4:[364,257], A3:[420,297]};
 function rowsOf(n){ return SPLITS[n] ? SPLITS[n].length : Math.max(1, Math.ceil(n / 10)); }
 function recommendPaper(n){ return n === 50 ? "A3" : n === 25 ? "B4" : rowsOf(n) <= 2 ? "A4" : "B4"; }
 function paperNow(){ return state.paper === "auto" ? recommendPaper(qs.length || state.count) : state.paper; }
-const FONT = '"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","Klee One","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+const FONT = '"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","UD Digi Kyokasho N-B","UD デジタル 教科書体 N-B","Klee One","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
 const ROT = new Set([..."ー－―〜～…‥（）「」『』()-—［］【】〔〕"]);
 const SMALL = new Set([..."ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ"]);
 const PUNC = new Set([..."、。，．"]);
