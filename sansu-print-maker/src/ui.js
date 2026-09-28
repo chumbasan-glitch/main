@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const LEVEL_NAMES = {0:"きほん", 1:"ふつう", 2:"チャレンジ", mix:"まぜる"};
 try{ document.documentElement.lang = "ja"; }catch(e){}
-const state = {grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
+const state = {grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", hdr2:"on", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
 let view = "q", items = [], groups = [], LAY = null, PAPER_NOW = "A4";
 
 function persist(){ try{ localStorage.setItem("smm-state", JSON.stringify(Object.assign({}, state, {seed:undefined}))); }catch(e){} }
@@ -117,7 +117,7 @@ function renderCount(){
 }
 function renderOptions(){
   segSet("segLevel", state.level); segSet("segOrder", state.order); segSet("segPaper", state.paper);
-  segSet("segOver", state.over); segSet("segSize", state.size); segSet("segScore", state.score); segSet("segView", view);
+  segSet("segOver", state.over); segSet("segSize", state.size); segSet("segScore", state.score); segSet("segHdr2", state.hdr2); segSet("segView", view);
   $("segScore").querySelector('[data-v="count"]').textContent = "問題数（／" + state.total + "問）";
   $("meateOn").checked = state.meateOn;
   $("meate").disabled = !state.meateOn;
@@ -129,7 +129,7 @@ function renderOptions(){
 let mG = null;
 function measureG(){ if(!mG){ const c = document.createElement("canvas"); mG = makeG(c.getContext("2d"), 4); } return mG; }
 function printOpt(){
-  return {title:titleText(), grade:state.grade, score:state.score === "100" && groups.reduce((s, g) => s + g.n, 0) <= 100 ? "100" : "count", total:groups.reduce((s, g) => s + g.n, 0), meate:state.meateOn ? state.meate.trim() : ""};
+  return {title:titleText(), grade:state.grade, score:state.score === "100" && groups.reduce((s, g) => s + g.n, 0) <= 100 ? "100" : "count", total:groups.reduce((s, g) => s + g.n, 0), hdr2:state.hdr2 !== "off", meate:state.meateOn ? state.meate.trim() : ""};
 }
 function generate(){
   items = buildItems(state);
@@ -304,6 +304,7 @@ bindSeg("segPaper", v => { state.paper = v; update(false); });
 bindSeg("segOver", v => { state.over = v; update(false); });
 bindSeg("segSize", v => { state.size = v; update(false); });
 bindSeg("segScore", v => { state.score = v; update(false); });
+bindSeg("segHdr2", v => { state.hdr2 = v; update(false); });
 bindSeg("segView", v => { view = v; segSet("segView", view); drawPreview(); });
 const setTotal = v => { state.total = Math.max(1, Math.min(60, v | 0)); autoSplit(); update(true); };
 $("cntMinus").addEventListener("click", () => setTotal(state.total - 1));

@@ -4,6 +4,7 @@ function subsOn(st, u){ const off = (st.subsOff[u.id] || []); return u.subs.filt
 
 function buildItems(st){
   R = makeRng(st.seed);
+  if(typeof SCENE_USE !== "undefined") SCENE_USE.clear();
   setLearned(st.grade);
   const out = [];
   for(const u of unitsOf(st.grade)){
@@ -37,13 +38,20 @@ function genericInst(cat){
   if(cat === "hissan") return knows("筆算") ? "筆算でしましょう。" : "ひっ算で　しましょう。";
   return q;
 }
+/* 文章題は、細かい内容（sub）が交互になるようにならべて、同じ種類の問題が続かないようにする */
+function spread(list){
+  if(!list.length || list[0].cat !== "word") return list;
+  const bk = []; for(const it of list){ let b = bk.find(x => x.s === it.sub); if(!b) bk.push(b = {s:it.sub, a:[]}); b.a.push(it); }
+  const out = []; for(let k = 0; out.length < list.length; k++) for(const b of bk) if(b.a[k]) out.push(b.a[k]);
+  return out;
+}
 function groupList(list){
   const out = [], cats = [];
   for(const it of list) if(!cats.includes(it.cat)) cats.push(it.cat);
   for(const cat of cats){
     const ci = list.filter(i => i.cat === cat), insts = [];
     for(const it of ci) if(!insts.includes(it.inst)) insts.push(it.inst);
-    const parts = insts.map(t => ci.filter(i => i.inst === t));
+    const parts = insts.map(t => spread(ci.filter(i => i.inst === t)));
     const big = parts.filter(p => p.reduce((s, i) => s + i.n, 0) >= 2), small = parts.filter(p => !big.includes(p));
     const rest = small.flat();
     parts.forEach(p => { if(big.includes(p)) out.push({items:p}); else if(p === small[0]) out.push({items:rest}); });
@@ -106,8 +114,9 @@ function layoutPages(G, groups, paper, fs, opt){
   const CW = PW - 2 * MARGIN, bottom = PH - MARGIN - 5;
   const top0 = MARGIN + hdrH(fs) + (opt.meate ? meateH(fs) + 0.8 * fs : 0) + 1.3 * fs;
   const indent = 0.9 * fs, availW = CW - indent, gapX = 1.6 * fs, numW = NUMW(fs);
-  const pages = [{ops:[]}]; let y = top0;
-  const newPage = () => { pages.push({ops:[]}); y = top0; };
+  const topRest = opt.hdr2 === false ? MARGIN + 0.4 * fs : top0;
+  const pages = [{ops:[]}]; let y = top0, pageTop = top0;
+  const newPage = () => { pages.push({ops:[]}); y = pageTop = topRest; };
   groups.forEach((g, gi) => {
     const ptsTxt = opt.score === "100" ? ptsText(g) : "";
     const ptsW = ptsTxt ? G.width(ptsTxt, fs * 0.7) + 1.5 * fs : 0;
@@ -140,7 +149,7 @@ function layoutPages(G, groups, paper, fs, opt){
       });
       const rowGap = 1.3 * fs;
       const need = h + (ri_ === 0 ? gh : 0);
-      if(y + need > bottom && y > top0 + 1) newPage();
+      if(y + need > bottom && y > pageTop + 1) newPage();
       if(ri_ === 0){ pages[pages.length - 1].ops.push({t:"group", g, gi, y, instLines, ptsTxt}); y += gh; }
       pages[pages.length - 1].ops.push({t:"row", row, y, h});
       y += h + rowGap;
@@ -160,6 +169,11 @@ function ptsText(g){
 /* ================= ページを描く ================= */
 function drawHeader(G, L, fs, opt, ans, pageNo, pageCount){
   const PW = L.PW, CW = PW - 2 * MARGIN, x0 = MARGIN, y0 = MARGIN, hh = hdrH(fs);
+  if(pageNo > 1 && opt.hdr2 === false){
+    if(ans) G.text("答え（先生用）", x0 + CW, y0 - 3.2, {size:fs * 0.75, color:RED, align:"right", weight:700});
+    G.text(pageNo + "／" + pageCount, x0 + CW / 2, L.PH - MARGIN + 1, {size:fs * 0.6, align:"center"});
+    return;
+  }
   const scoreW = Math.max(26, 5.6 * fs), nameW = Math.max(62, CW * 0.36), titleW = CW - scoreW - nameW;
   G.rect(x0, y0, CW, hh, {w:0.6});
   G.line(x0 + titleW, y0, x0 + titleW, y0 + hh, {w:0.4});
