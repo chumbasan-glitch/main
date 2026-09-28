@@ -146,7 +146,10 @@ header.top .ver{margin-left:auto;color:var(--ink-soft);font-size:12px;white-spac
 @media (max-width:860px){.two{grid-template-columns:1fr}}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
 .overlay .box{background:var(--surface);border-radius:14px;padding:16px;max-width:900px;width:100%;max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
-.overlay img{width:100%;border:1px solid var(--line);-webkit-touch-callout:default}
+/* 画像の画面：長押しで文字が選ばれないようにし、画像だけ長押しで保存できるようにする */
+.overlay{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.overlay img{display:block;width:100%;border:1px solid var(--line);-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto;touch-action:manipulation}
+.imglist .wait{padding:40px 0;text-align:center;color:var(--ink-soft);font-weight:700}
 .imglist{display:flex;flex-direction:column;gap:14px}
 .imglist figure{margin:0;display:flex;flex-direction:column;gap:4px}
 .imglist figcaption{font-weight:700}
@@ -161,7 +164,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>漢字小テストメーカー</h1>
     <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver" title="このページの版">ver 8.1（2026.9.28）</span>
+    <span class="ver" title="このページの版">ver 8.2（2026.9.28）</span>
   </header>
 
   <div class="layout">
@@ -352,7 +355,7 @@ h2.sec{margin:0;font-size:17px}
 
 <div class="overlay" id="imgOverlay" hidden>
   <div class="box">
-    <strong>画像を長押しして「写真に保存」をえらんでください</strong>
+    <strong>画像の上を、指を動かさずに1秒ほど長押しして「写真に保存」をえらんでください</strong>
     <p class="hint" id="imgHow"></p>
     <div class="row"><button class="btn primary" type="button" id="imgClose">閉じる</button></div>
     <div id="imgList" class="imglist"></div>
@@ -986,16 +989,21 @@ function setSaveMode(announce){
   $("saveImgQ").hidden = $("saveImgA").hidden = !can;
   if(!can && announce) status("「印刷用の画像を出す」をおして、出てきた画像を長押しで「写真に保存」してください。写真として " + paperNow() + " に印刷します。");
 }
-function showImages(list){
+async function showImages(list){
   const box = $("imgList"); box.innerHTML = "";
+  const wait = document.createElement("p"); wait.className = "wait"; wait.textContent = "画像を準備しています…"; box.appendChild(wait);
+  $("imgHow").textContent = "印刷するときは、用紙を「" + paperNow() + "」、印刷の大きさを「用紙に合わせる」（ふちなしにしない）にして印刷してください。";
+  $("imgOverlay").hidden = false;
+  /* PNGより軽いJPEGにして、読みこみ終わってから見せる（長押しがきくように） */
+  const figs = [];
   for(const it of list){
     const fig = document.createElement("figure");
     const cap = document.createElement("figcaption"); cap.textContent = it.label;
-    const img = document.createElement("img"); img.alt = it.label + "のプリント"; img.src = it.canvas.toDataURL("image/png");
-    fig.append(cap, img); box.appendChild(fig);
+    const img = document.createElement("img"); img.alt = it.label + "のプリント"; img.src = it.canvas.toDataURL("image/jpeg", 0.9);
+    try{ await img.decode(); }catch(e){}
+    fig.append(cap, img); figs.push(fig);
   }
-  $("imgHow").textContent = "印刷するときは、用紙を「" + paperNow() + "」、印刷の大きさを「用紙に合わせる」（ふちなしにしない）にして印刷してください。";
-  $("imgOverlay").hidden = false;
+  box.innerHTML = ""; figs.forEach(f => box.appendChild(f));
 }
 getDl();
 function status(msg, kind){ const el = $("saveStatus"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); }
@@ -1050,7 +1058,7 @@ $("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () =
   await fontsReady;
   if(!(await getDl())){
     const pages = [false, true].map(ans => { const c = document.createElement("canvas"); drawPage(c, ans, PRINT_PX); return {label:ans ? "答え（先生用）" : "問題", canvas:c}; });
-    showImages(pages);
+    await showImages(pages);
     status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
     return;
   }
