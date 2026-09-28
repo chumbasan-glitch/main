@@ -3617,7 +3617,7 @@ unit3(6, "長さ", "7月", "長い長さのたんいや表し方を考えよう"
   }}
 ]);
 
-/* 円と球：箱にボールがならんでいる図 */
+/* 円と球：箱に球がならんでいる図 */
 function genBalls(lv){
   const r = ri(2, 6), n = ri(2, lv === 2 ? 4 : 3), rows = lv === 2 ? 2 : 1;
   const draw = (G, x, y, w, h, fs) => {
@@ -3628,16 +3628,16 @@ function genBalls(lv){
     G.text(cm(r), bx + 1.5 * R_, by + R_ - 1.5, {size:fs * 0.7, align:"center"});
   };
   const q = lv === 2 ? `たての長さ((${4 * r}cm))　横の長さ((${2 * r * n}cm))` : `箱の横の長さ((${2 * r * n}cm))`;
-  return figItem(62, lv === 2 ? 34 : 24, draw, q, {inst:`同じ大きさのボールが，箱にぴったり入っています。ボールの半${KEI}は図のとおりです。`, lead:"円と球", sig:"b" + r + n + rows});
+  return figItem(62, lv === 2 ? 34 : 24, draw, q, {inst:`同じ大きさの球が，箱にぴったり入っています。球の半${KEI}は図のとおりです。`, lead:"円と球", sig:"b" + r + n + rows});
 }
 unit3(7, "円と球", "9月", "まるい形のとくちょうやかき方を調べよう", [
   {id:"a", name:`半${KEI}と直${KEI}`.replace(/【(.)\|[^】]*】/g, "$1"), gen(lv){
     const r = ri(2, 12);
     if(lv === 0) return L(`半${KEI}が${r}cmの円の直${KEI}((${2 * r}cm))`, K_Q, "円");
     if(lv === 1) return L(`直${KEI}が${2 * r}cmの円の半${KEI}((${r}cm))`, K_Q, "円");
-    return L(`直${KEI}が${2 * r}cmのボールの半${KEI}((${r}cm))`, K_Q, "球");
+    return R() < 0.5 ? L(`直${KEI}が${2 * r}cmの球の半${KEI}((${r}cm))`, K_Q, "球") : L(`半${KEI}が${r}cmの球の直${KEI}((${2 * r}cm))`, K_Q, "球");
   }},
-  {id:"b", name:"ボールのならんだ箱", gen(lv){ return genBalls(lv); }}
+  {id:"b", name:"球のならんだ箱", gen(lv){ return genBalls(lv); }}
 ]);
 
 unit3(8, "あまりのあるわり算", "9月", "わり算のあまりの意味を考えよう", [
