@@ -1,8 +1,8 @@
-import json
+import json, os
 g={}
 for l in open('grades.txt'):
   k,v=l.strip().split(':'); g[int(k)]=v
-units={}; sent={}
+units={}; sent={}; short={}
 for gr in (1,2,3,4,5,6):
   units[gr]=[]
   for l in open('units%d.txt'%gr):
@@ -12,7 +12,12 @@ for gr in (1,2,3,4,5,6):
     l=l.rstrip('\n')
     if not l.strip(): continue
     p=l.split('\t'); sent[p[0]]=p[1:]
-data='const GRADE_CHARS = %s;\nconst UNITS = %s;\nconst SENT = %s;'%(json.dumps(g,ensure_ascii=False),json.dumps(units,ensure_ascii=False),json.dumps(sent,ensure_ascii=False))
+  if os.path.exists('short%d.txt'%gr):
+    for l in open('short%d.txt'%gr):
+      l=l.rstrip('\n')
+      if not l.strip(): continue
+      p=l.split('\t'); short[p[0]]=p[1:]
+data='const GRADE_CHARS = %s;\nconst UNITS = %s;\nconst SENT = %s;\nconst SHORT = %s;'%(json.dumps(g,ensure_ascii=False),json.dumps(units,ensure_ascii=False),json.dumps(sent,ensure_ascii=False),json.dumps(short,ensure_ascii=False))
 t=open('template.html').read().replace('/*DATA*/',data)
 # 公開中のページで先生が反映した例文の変更を引きつぐ
 import os

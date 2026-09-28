@@ -236,6 +236,7 @@ h2.sec{margin:0;font-size:17px}
           <div class="seg" id="segBox">
             <button type="button" data-v="long">通常</button>
             <button type="button" data-v="grid">マス目</button>
+            <button type="button" data-v="guide">補助線付き</button>
           </div>
           <span class="hint">ボーナス欄（10問以下のとき）</span>
           <div class="seg" id="segBonus">
@@ -381,13 +382,18 @@ const isKanji = c => (c >= "一" && c <= "鿿") || c === "々";
 /* ---------- 保存 ---------- */
 const STORE = "kanji_test_maker_v1";
 const MAX_Q = 20;
+/* 大きいテスト：1・2年は25問（8・8・9）、3〜6年は50問（13・13・13・11） */
+const BIG = g => g <= 2 ? 25 : 50;
+const isBig = n => n === 25 || n === 50;
+const SPLITS = {25:[8, 8, 9], 50:[13, 13, 13, 11]};
+function fixCount(n, g){ n = Math.round(+n) || 10; if(isBig(n)) return BIG(g); return Math.max(1, Math.min(MAX_Q, n)); }
 const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count" };
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
     const raw = localStorage.getItem(STORE);
     if(raw){ const p = JSON.parse(raw); if(p && typeof p === "object") state = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), p);  state.bonus = "off"; /* ボーナス欄は開くたびに「つけない」から */ }
-    state.count = Math.max(1, Math.min(MAX_Q, Math.round(+state.count) || 10));
+    state.count = fixCount(state.count, state.grade);
   }catch(e){}
 }
 function persist(){ try{ localStorage.setItem(STORE, JSON.stringify(state)); }catch(e){} }
@@ -440,7 +446,22 @@ function allSentences(k){
   return builtins(k).concat(own);
 }
 function activeSentences(k){ return allSentences(k).filter(s => !edits.hidden[s.id]); }
+/* 25・50問用の短い文（SHORT）。まだ無い字は、ふつうの例文のうち短いものを使う */
+const shortCache = {};
+function shortSentences(k){
+  if(!shortCache[k]){
+    if(SHORT[k]) shortCache[k] = SHORT[k].map((s, i) => ({id:k + "#s" + i, kanji:k, items:parseMarkup(s), custom:false, short:true}));
+    else {
+      const len = s => s.items.reduce((a, it) => a + [...(it.base || it.text)].length, 0);
+      const b = builtins(k).slice().sort((x, y) => len(x) - len(y));
+      shortCache[k] = b.filter(x => len(x) <= 9).length ? b.filter(x => len(x) <= 9) : b.slice(0, 1);
+    }
+  }
+  return shortCache[k];
+}
+function sentencesFor(k){ return isBig(state.count) ? shortSentences(k).filter(s => !edits.hidden[s.id]) : activeSentences(k); }
 function findSentence(id){
+  if(id.includes("#s")) return shortSentences(id.split("#")[0]).find(s => s.id === id) || null;
   const k = id.includes("#") ? id.split("#")[0] : (edits.custom.find(c => c.id === id) || {}).kanji;
   return k ? allSentences(k).find(s => s.id === id) : null;
 }
@@ -515,7 +536,7 @@ function generate(){
   }
   const decks = {}, used = {};
   qs = list.map((e, i) => {
-    if(!decks[e.k]){ decks[e.k] = shuffle(activeSentences(e.k).map(s => s.id)); used[e.k] = 0; }
+    if(!decks[e.k]){ decks[e.k] = shuffle(sentencesFor(e.k).map(s => s.id)); used[e.k] = 0; }
     const d = decks[e.k]; const sid = d[used[e.k]++ % d.length];
     let mode;
     if(state.rw === "read") mode = "read";
@@ -526,7 +547,7 @@ function generate(){
   });
 }
 function altSentence(i){
-  const q = qs[i]; const ids = activeSentences(q.kanji).map(s => s.id);
+  const q = qs[i]; const ids = sentencesFor(q.kanji).map(s => s.id);
   if(ids.length < 2) return;
   const inUse = new Set(qs.filter((x, j) => j !== i && x.kanji === q.kanji).map(x => x.sid));
   const start = ids.indexOf(q.sid);
@@ -541,8 +562,8 @@ function validateQs(){
 
 /* ---------- 用紙とレイアウト ---------- */
 const PAPERS = {A4:[297,210], B4:[364,257], A3:[420,297]};
-function rowsOf(n){ return Math.max(1, Math.ceil(n / 10)); }
-function recommendPaper(n){ return rowsOf(n) <= 2 ? "A4" : "B4"; }
+function rowsOf(n){ return SPLITS[n] ? SPLITS[n].length : Math.max(1, Math.ceil(n / 10)); }
+function recommendPaper(n){ return n === 50 ? "A3" : n === 25 ? "B4" : rowsOf(n) <= 2 ? "A4" : "B4"; }
 function paperNow(){ return state.paper === "auto" ? recommendPaper(qs.length || state.count) : state.paper; }
 const FONT = '"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","Klee One","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
 const ROT = new Set([..."ー－―〜～…‥（）「」『』()-—［］【】〔〕"]);
@@ -570,6 +591,15 @@ function drawPage(canvas, answer, pxPerMm){
   const line = (x1, y1, x2, y2, w) => { ctx.lineWidth = P(w); ctx.beginPath(); ctx.moveTo(P(x1), P(y1)); ctx.lineTo(P(x2), P(y2)); ctx.stroke(); };
   const rect = (x, y, w, h, lw) => { ctx.lineWidth = P(lw); ctx.strokeRect(P(x), P(y), P(w), P(h)); };
   const INK = "#1a1a1a", RED = "#D0271D";
+  /* マス目1つ（補助線付きなら十字の点線を薄く） */
+  const cellBox = (x, y, c) => {
+    rect(x, y, c, c, 0.35);
+    if(state.box === "guide"){
+      ctx.save(); ctx.strokeStyle = "#B8B8B8"; ctx.setLineDash([P(0.8), P(0.7)]);
+      line(x + c / 2, y + 0.4, x + c / 2, y + c - 0.4, 0.2); line(x + 0.4, y + c / 2, x + c - 0.4, y + c / 2, 0.2);
+      ctx.restore();
+    }
+  };
   ctx.strokeStyle = INK; ctx.fillStyle = INK;
 
   const M = 10, low = state.grade <= 2;
@@ -611,6 +641,93 @@ function drawPage(canvas, answer, pxPerMm){
   }
 
   /* 問題 */
+  if(isBig(qs.length)){ drawBig(); return {W, H, paper}; }
+  function drawBig(){
+    const splits = SPLITS[qs.length], R = splits.length, C = Math.max(...splits);
+    const x1 = W - M - hw - 5, x0 = M, cw = (x1 - x0) / C, gap = 4;
+    const rh = (H - 2 * M - (R - 1) * gap) / R, nd = Math.min(cw * 0.42, 7), V = rh - nd - 3;
+    const learned = currentLearned(), K = 3.2; /* □は文字の約3倍 */
+    const CMAX = qs.length === 25 ? 20 : 15;  /* □のめやす：25問は2cm、50問は1.5cm */
+    /* 書き：文の中に□（右に読みがな）／読み：傍線を引き、その右に大きな（　） */
+    const toks = qs.map(q => {
+      const sen = findSentence(q.sid), out = [];
+      for(const it of sen.items){
+        if(q.mode === "write" && it.tgt && it.base){
+          const last = out[out.length - 1], seg = {n:[...it.base].length, rd:rdMain(it)};
+          if(last && last.t === "box"){ last.base.push(...it.base); last.segs.push(seg); }
+          else out.push({t:"box", base:[...it.base], segs:[seg]});
+          continue;
+        }
+        let str;
+        if(it.tgt) str = q.mode === "read" ? (it.base || it.text) : it.text;
+        else if(it.base) str = [...it.base].every(learned) ? it.base : rdMain(it);
+        else str = it.text;
+        for(const ch of str) out.push({t:"ch", ch, line:q.mode === "read" && it.tgt});
+      }
+      const sen2 = findSentence(q.sid);
+      return {mode:q.mode, out, rd:targetRead(sen2), alt:targetReadAlt(sen2)};
+    });
+    /* 読みの（　）：どの問題も同じ大きさ・位置（文の頭から、□3つ分の長さ） */
+    const bLen = () => 3 * K; /* 文字何個分か */
+    const units = X => X.mode === "write" ? X.out.reduce((a, t) => a + (t.t === "ch" ? 1 : t.base.length * K), 0) : Math.max(X.out.length, bLen());
+    const maxU = Math.max(...toks.map(units));
+    let fs = Math.min(V / maxU, cw * 0.88 / (K * 1.3), CMAX / K);
+    const lv = Number(state.fsz) || 0, want = fs * [0.8, 0.9, 1, 1.12, 1.25][lv + 2];
+    if(want > fs + 0.01) fszCapped = true;
+    fs = Math.min(fs, want);
+    const c = fs * K;
+    let i = 0;
+    splits.forEach((cnt, r) => {
+      const top = M + r * (rh + gap);
+      if(r > 0){ ctx.strokeStyle = "#999"; line(x0, top - gap / 2, x1, top - gap / 2, 0.2); ctx.strokeStyle = INK; }
+      for(let col = 0; col < cnt; col++, i++){
+        const cx = x1 - col * cw - cw / 2, X = toks[i], bw2 = c * 0.75;
+        const lx = X.mode === "write" ? cx - c * 0.15 : cx - bw2 * 0.45;
+        ctx.lineWidth = P(0.25); ctx.beginPath(); ctx.arc(P(cx), P(top + nd / 2), P(nd * 0.45), 0, Math.PI * 2); ctx.stroke();
+        const num = String(i + 1); setFont(nd * (num.length < 2 ? 0.62 : 0.5), 600);
+        ctx.fillText(num, P(cx), P(top + nd / 2 + nd * 0.03));
+        let y = top + nd + 3, ls = -1, yT = -1;
+        const endLine = () => { if(ls >= 0){ line(lx + fs * 0.62, ls + fs * 0.05, lx + fs * 0.62, y - fs * 0.05, Math.max(0.3, fs * 0.07)); ls = -1; } };
+        for(const x of X.out){
+          if(x.t === "ch"){
+            if(x.line && ls < 0){ ls = y; if(yT < 0) yT = y; }
+            if(!x.line) endLine();
+            setFont(fs); vchar(x.ch, lx, y + fs / 2, fs); y += fs; continue;
+          }
+          endLine();
+          const n = x.base.length, h = n * c, rx = lx + c / 2;
+          if(state.box === "long"){
+            rect(lx - c / 2, y, c, h, 0.35);
+            ctx.save(); ctx.setLineDash([P(0.8), P(0.7)]); ctx.strokeStyle = "#888";
+            for(let t = 1; t < n; t++) line(lx - c / 2, y + t * c, lx + c / 2, y + t * c, 0.2);
+            ctx.restore();
+          } else for(let t = 0; t < n; t++) cellBox(lx - c / 2, y + t * c, c);
+          let yy = y;
+          for(const sg of x.segs){
+            const sh = sg.n * c, L2 = [...sg.rd].length, rf = Math.min(c * 0.2, fs * 0.75, sh / L2); setFont(rf, 500);
+            vtext(sg.rd, rx + rf * 0.65, yy + (sh - rf * L2) / 2, rf); yy += sh;
+          }
+          if(answer){ ctx.fillStyle = RED; setFont(c * 0.72); x.base.forEach((ch, t) => vchar(ch, lx, y + t * c + c / 2, c * 0.72)); ctx.fillStyle = INK; }
+          y += h;
+        }
+        endLine();
+        if(X.mode === "read" && yT >= 0){
+          /* 問題の右に大きな（　） */
+          const bx0 = lx + fs * 0.9, bx1 = bx0 + bw2, bc = (bx0 + bx1) / 2, yb0 = top + nd + 3, yb1 = yb0 + bLen() * fs;
+          const k = Math.min(3, bw2 * 0.28);
+          ctx.lineWidth = P(0.35); ctx.beginPath();
+          ctx.moveTo(P(bx0), P(yb0 + k)); ctx.quadraticCurveTo(P(bc), P(yb0 - k * 0.7), P(bx1), P(yb0 + k));
+          ctx.moveTo(P(bx0), P(yb1 - k)); ctx.quadraticCurveTo(P(bc), P(yb1 + k * 0.7), P(bx1), P(yb1 - k));
+          ctx.stroke();
+          if(answer){
+            const t = X.alt ? X.rd + "（" + X.alt + "）" : X.rd, tm = [...t].length, hh = yb1 - yb0 - 2 * k;
+            ctx.fillStyle = RED; const af = Math.min(bw2 * 0.62, hh / tm); setFont(af);
+            vtext(t, bc, yb0 + k + (hh - af * tm) / 2, af); ctx.fillStyle = INK;
+          }
+        }
+      }
+    });
+  }
   const lw = bonus ? 10 : 0;
   const x1 = W - M - hw - 5 - lw, x0 = M, mainW = x1 - x0;
   const R = rowsOf(qs.length), gap = 5;
@@ -691,9 +808,9 @@ function drawPage(canvas, answer, pxPerMm){
       const yb = top + rh - boxH, chars = [...x.ans], m = chars.length;
       const aH = bonus ? (boxH - 3) * Number(state.bratio) / 10 : boxH;
       if(bonus) rect(cx - bw / 2, yb + aH + 3, bw, boxH - 3 - aH, 0.35);
-      if(state.box === "grid"){
+      if(state.box !== "long"){
         const cell = Math.min(bw, aH / A);
-        for(let t = 0; t < m; t++) rect(cx - cell / 2, yb + t * cell, cell, cell, 0.35);
+        for(let t = 0; t < m; t++) cellBox(cx - cell / 2, yb + t * cell, cell);
         if(answer){
           ctx.fillStyle = RED; setFont(cell * 0.72); chars.forEach((ch, t) => vchar(ch, cx, yb + t * cell + cell / 2, cell * 0.72));
           if(x.alt){ const alt = "（" + x.alt + "）", sf = Math.min(cw * 0.16, aH / alt.length); setFont(sf); vtext(alt, cx - cell / 2 - sf * 0.6, yb, sf); }
@@ -722,6 +839,7 @@ function renderGrades(){
     const b = document.createElement("button"); b.type = "button"; b.dataset.v = g; b.textContent = g + "年";
     b.addEventListener("click", () => {
       if(state.grade === g) return; state.grade = g;
+      if(isBig(state.count)) state.count = BIG(g);
       if(!state.sel[g]) state.sel[g] = unitsOf(g).length ? [unitsOf(g)[0].no] : [];
       persist(); generate(); renderAll();
     });
@@ -762,7 +880,7 @@ function renderChips(){
 }
 function renderCount(){
   $("cnt").value = state.count;
-  const pr = $("presets"); if(!pr.childElementCount) for(const n of [5,10,15,20]){
+  const pr = $("presets"); pr.innerHTML = ""; for(const n of [5, 10, 15, 20, BIG(state.grade)]){
     const b = document.createElement("button"); b.type = "button"; b.dataset.v = n; b.textContent = n + "問";
     b.addEventListener("click", () => setCount(n)); pr.appendChild(b);
   }
@@ -772,8 +890,10 @@ function renderCount(){
   $("paperAuto").textContent = "おすすめ（" + recommendPaper(state.count) + "）";
 }
 function setCount(n){
-  n = Math.max(1, Math.min(MAX_Q, Math.round(+n) || 10));
-  state.count = n; persist(); generate(); renderAll();
+  n = Math.round(+n) || 10;
+  if(isBig(state.count) && n === state.count - 1) n = MAX_Q;        /* 25・50問から－で20問へ */
+  else if(n > MAX_Q) n = BIG(state.grade);                            /* 20問から＋で25・50問へ */
+  state.count = fixCount(n, state.grade); persist(); generate(); renderAll();
 }
 function sentenceHtml(sen, mode, learned){
   let h = "", open = false;
@@ -802,7 +922,7 @@ function renderQList(){
     setSeg(seg, q.mode);
     const s = document.createElement("span"); s.className = "s"; s.innerHTML = sentenceHtml(sen, q.mode, learned);
     const alt = document.createElement("button"); alt.type = "button"; alt.className = "btn small alt"; alt.textContent = "別の文";
-    alt.disabled = activeSentences(q.kanji).length < 2;
+    alt.disabled = sentencesFor(q.kanji).length < 2;
     alt.addEventListener("click", () => { altSentence(i); renderQList(); drawPreview(); });
     row.append(no, k, seg, s, alt); el.appendChild(row);
   });
@@ -817,7 +937,7 @@ function renderOptions(){
   setSeg($("segBonus"), state.bonus);
   const bFit0 = (qs.length || state.count) <= 10;
   $("sum6").textContent = (FSZ_NAMES[state.fsz] || "ふつう") + "・" + (state.newbox === "on" ? "□あり" : "□なし");
-  $("sum7").textContent = (state.box === "grid" ? "マス目" : "通常") + "・" + (state.bonus === "on" && bFit0 ? "ボーナス " + state.bratio + ":" + (10 - state.bratio) : "ボーナスなし");
+  $("sum7").textContent = ({grid:"マス目", guide:"補助線付き"}[state.box] || "通常") + "・" + (state.bonus === "on" && bFit0 ? "ボーナス " + state.bratio + ":" + (10 - state.bratio) : "ボーナスなし");
   $("sum8").textContent = paperNow() + (state.paper === "auto" ? "（おすすめ）" : "") + "・" + (state.score === "100" ? "／100" : "／" + (qs.length || state.count)) + (state.label ? "・" + state.label : ""); setSeg($("segNewbox"), state.newbox); setSeg($("segBratio"), state.bratio);
   const bOn = state.bonus === "on", bFit = (qs.length || state.count) <= 10;
   $("bonusOpts").hidden = !(bOn && bFit); $("bonusNote").hidden = !(bOn && !bFit);

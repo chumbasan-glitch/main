@@ -4,6 +4,8 @@
 """
 import re, sys
 G = int(sys.argv[1]) if len(sys.argv) > 1 else 6
+PRE = sys.argv[2] if len(sys.argv) > 2 else 'sent'  # short なら25・50問用の短い文
+LIMIT = 10  # 短い文の長さの上限（表示される字数）
 
 def iskanji(c): return '一' <= c <= '鿿' or c == '々'
 
@@ -52,7 +54,7 @@ def covers(r, got):
 
 tok = re.compile(r'\{([^{}|]+)\|([^{}|]+)\}|\[|\]|([^{}\[\]])')
 errs = 0; seen = set(); maxlen = 0; total = 0
-for ln, l in enumerate(open('sent%d.txt' % G), 1):
+for ln, l in enumerate(open('%s%d.txt' % (PRE, G)), 1):
     l = l.rstrip('\n')
     if not l.strip(): continue
     parts = l.split('\t'); k = parts[0]; seen.add(k); u = unit[k]
@@ -86,8 +88,14 @@ for ln, l in enumerate(open('sent%d.txt' % G), 1):
         if ntgt != 1: print(ln, k, 'targets', ntgt, s); errs += 1
         if not any(it[3] and k in it[1] for it in items): print(ln, k, 'target missing kanji', s); errs += 1
         r = reading_of(items, k)
-        if r: got.append(r)
+        if r:
+            got.append(r)
+            if PRE == 'short' and G != 2 and not any(covers(x, [r]) or norm(hira(x)).startswith(norm(r[0] + r[1])) for x in READ[k]): print(ln, k, 'reading not in textbook', r, s); errs += 1
         maxlen = max(maxlen, len(vis))
+        if PRE == 'short':
+            nk = sum(len(it[1]) for it in items if it[3] and it[0] == 'r')
+            if nk > 2: print(ln, k, 'target over 2 kanji', s); errs += 1
+            if len(vis) > LIMIT: print(ln, k, 'too long', len(vis), vis); errs += 1
     lack = [r for r in READ[k] if not covers(r, got)]
     if lack: print('reading not covered', k, lack, got); errs += 1
 print('missing', set(unit) - seen, 'errors', errs, 'sentences', total, 'maxlen', maxlen)
