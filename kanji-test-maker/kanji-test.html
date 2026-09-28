@@ -211,6 +211,11 @@ h2.sec{margin:0;font-size:17px}
           <button type="button" data-v="long">通常</button>
           <button type="button" data-v="grid">マス目</button>
         </div>
+        <span class="hint">点数らん</span>
+        <div class="seg" id="segScore">
+          <button type="button" data-v="count" id="scoreCount">問題数（／10）</button>
+          <button type="button" data-v="100">100点満点（／100）</button>
+        </div>
         <span class="hint">問題文の文字の大きさ</span>
         <div class="stepper">
           <button type="button" id="fszMinus" aria-label="文字を小さく">－</button>
@@ -356,7 +361,7 @@ const isKanji = c => (c >= "一" && c <= "鿿") || c === "々";
 /* ---------- 保存 ---------- */
 const STORE = "kanji_test_maker_v1";
 const MAX_Q = 20;
-const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0 };
+const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count" };
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
@@ -566,7 +571,7 @@ function drawPage(canvas, answer, pxPerMm){
   ctx.strokeStyle = INK; rect(c1x - scoreW / 2, scoreY, scoreW, scoreH, 0.35);
   const sfs = scoreW * 0.26; setFont(sfs, 600);
   ctx.textAlign = "right"; ctx.textBaseline = "alphabetic";
-  ctx.fillText("／" + qs.length, P(c1x + scoreW / 2 - 1.2), P(H - M - 1.6));
+  ctx.fillText("／" + (state.score === "100" ? 100 : qs.length), P(c1x + scoreW / 2 - 1.2), P(H - M - 1.6));
   if(bonus){
     rect(c1x - scoreW / 2, bsY, scoreW, scoreH, 0.35);
     ctx.fillText("点", P(c1x + scoreW / 2 - 1.2), P(bsY + scoreH - 1.6));
@@ -788,6 +793,7 @@ function renderOptions(){
   const FSZ_NAMES = {"-2":"小さめ", "-1":"やや小さめ", "0":"ふつう", "1":"やや大きめ", "2":"大きめ"};
   $("fszLbl").textContent = FSZ_NAMES[state.fsz] || "ふつう";
   $("fszMinus").disabled = state.fsz <= -2; $("fszPlus").disabled = state.fsz >= 2;
+  setSeg($("segScore"), state.score); $("scoreCount").textContent = "問題数（／" + (qs.length || state.count) + "）";
   setSeg($("segBonus"), state.bonus); setSeg($("segNewbox"), state.newbox); setSeg($("segBratio"), state.bratio);
   const bOn = state.bonus === "on", bFit = (qs.length || state.count) <= 10;
   $("bonusOpts").hidden = !(bOn && bFit); $("bonusNote").hidden = !(bOn && !bFit);
@@ -1106,6 +1112,7 @@ bindSeg("segPaper", "paper", false);
 bindSeg("segBonus", "bonus", false);
 bindSeg("segBratio", "bratio", false);
 bindSeg("segNewbox", "newbox", false);
+bindSeg("segScore", "score", false);
 for(const [id, d] of [["fszMinus", -1], ["fszPlus", 1]]) $(id).addEventListener("click", () => {
   state.fsz = Math.max(-2, Math.min(2, (Number(state.fsz) || 0) + d)); persist(); renderAll();
 });
