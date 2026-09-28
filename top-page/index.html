@@ -1,0 +1,137 @@
+<title>授業プリント工房</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#F3F1EC;
+  --surface:#FFFFFF;
+  --ink:#24262B;
+  --ink-soft:#626772;
+  --line:#DCD8CF;
+  /* ツールごとの色（color: に書く名前） */
+  --enji:#8E2A3A;    --enji-soft:#F5E1E4;
+  --ai:#1E5FB4;      --ai-soft:#DAE7F8;
+  --matcha:#3F7A3A;  --matcha-soft:#E1EEDC;
+  --yamabuki:#A8660B;--yamabuki-soft:#FBEBCF;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16171A; --surface:#202227; --ink:#ECEDEF; --ink-soft:#A6ABB5; --line:#34373E;
+    --enji:#E297A2; --enji-soft:#3E252B;
+    --ai:#7EB2F2; --ai-soft:#1D3456;
+    --matcha:#93C98B; --matcha-soft:#233A22;
+    --yamabuki:#F0B75A; --yamabuki-soft:#3F2F14;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16171A; --surface:#202227; --ink:#ECEDEF; --ink-soft:#A6ABB5; --line:#34373E;
+  --enji:#E297A2; --enji-soft:#3E252B;
+  --ai:#7EB2F2; --ai-soft:#1D3456;
+  --matcha:#93C98B; --matcha-soft:#233A22;
+  --yamabuki:#F0B75A; --yamabuki-soft:#3F2F14;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
+  font-weight:500;font-size:15px;line-height:1.7;
+}
+.wrap{max-width:960px;margin:0 auto;padding-inline:16px;padding-block:40px 56px;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-direction:column;gap:6px;border-bottom:2px solid var(--ink);padding-bottom:14px}
+header h1{margin:0;font-family:"Klee One","Hiragino Mincho ProN",serif;font-weight:600;font-size:30px;letter-spacing:.08em;text-wrap:balance}
+header p{margin:0;color:var(--ink-soft);font-size:14px}
+.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr));gap:16px}
+.tool{
+  --c:var(--ai);--c-soft:var(--ai-soft);
+  display:grid;grid-template-columns:72px 1fr;gap:6px 16px;align-items:start;
+  background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:18px;
+  color:inherit;text-decoration:none;transition:border-color .15s,transform .15s;
+}
+.tool:hover{border-color:var(--c);transform:translateY(-2px)}
+.tool:focus-visible{outline:3px solid var(--c);outline-offset:2px}
+.tool .mark{
+  grid-row:1 / span 4;width:72px;height:72px;border-radius:12px;background:var(--c-soft);color:var(--c);
+  display:flex;align-items:center;justify-content:center;
+  font-family:"Klee One","Hiragino Mincho ProN",serif;font-weight:600;font-size:40px;line-height:1;
+}
+.tool h2{margin:0;font-size:19px;font-weight:700;line-height:1.4;color:var(--c)}
+.tool .desc{margin:0;font-size:14px;color:var(--ink)}
+.tool .tags{display:flex;flex-wrap:wrap;gap:6px}
+.tool .tags span{font-size:12px;font-weight:700;padding:1px 9px;border-radius:99px;background:var(--c-soft);color:var(--c)}
+.tool .go{font-size:14px;font-weight:700;color:var(--c);margin-top:4px}
+.color-enji{--c:var(--enji);--c-soft:var(--enji-soft)}
+.color-ai{--c:var(--ai);--c-soft:var(--ai-soft)}
+.color-matcha{--c:var(--matcha);--c-soft:var(--matcha-soft)}
+.color-yamabuki{--c:var(--yamabuki);--c-soft:var(--yamabuki-soft)}
+footer{font-size:13px;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:14px}
+@media (max-width:480px){
+  .tool{grid-template-columns:56px 1fr;padding:14px}
+  .tool .mark{width:56px;height:56px;font-size:32px}
+  header h1{font-size:25px}
+}
+@media (prefers-reduced-motion: reduce){.tool{transition:none}.tool:hover{transform:none}}
+</style>
+
+<div class="wrap" lang="ja">
+  <header>
+    <h1>授業プリント工房</h1>
+    <p>使いたいツールをえらんでください。ツールは新しいタブでひらきます。</p>
+  </header>
+
+  <main class="tools" id="tools" aria-label="ツールの一覧"></main>
+
+  <footer>ツールはこれからも増やしていきます。</footer>
+</div>
+
+<script>
+"use strict";
+/* ================= ツールの一覧 =================
+   ツールを増やすときは、下の TOOLS に1つ追加するだけです。
+     name  : ツールの名前
+     desc  : ひとことの説明
+     tags  : 小さなラベル（いくつでも）
+     mark  : 左の四角に出す1文字
+     color : enji（臙脂）/ ai（青）/ matcha（緑）/ yamabuki（山吹）
+     url   : ツールのリンク
+   上にあるものから順にならびます。 */
+const TOOLS = [
+  {
+    name:"漢字小テストメーカー",
+    desc:"学年と単元をえらぶと、縦書きの漢字小テスト（問題と答え）ができます。",
+    tags:["1〜6年","光村図書","読み・書き"],
+    mark:"漢",
+    color:"enji",
+    url:"https://claude.ai/artifact/LL6mK2p3Rb8kuc4JXiazPB"
+  },
+  {
+    name:"算数プリントメーカー",
+    desc:"学年と単元をえらぶと、計算・図形・文章題のプリント（問題と答え）ができます。",
+    tags:["1〜6年","学校図書","レベル3段階"],
+    mark:"算",
+    color:"ai",
+    url:"https://claude.ai/artifact/NiJf5hrWQC1EHQdxdH7kUj"
+  }
+];
+
+const box = document.getElementById("tools");
+for(const t of TOOLS){
+  const a = document.createElement("a");
+  a.className = "tool color-" + (t.color || "ai");
+  a.href = t.url;
+  a.target = "_blank";
+  a.rel = "noopener";
+  const mark = document.createElement("span");
+  mark.className = "mark"; mark.setAttribute("aria-hidden", "true"); mark.textContent = t.mark || t.name[0];
+  const h = document.createElement("h2"); h.textContent = t.name;
+  const d = document.createElement("p"); d.className = "desc"; d.textContent = t.desc || "";
+  const tags = document.createElement("div"); tags.className = "tags";
+  for(const s of t.tags || []){ const sp = document.createElement("span"); sp.textContent = s; tags.appendChild(sp); }
+  const go = document.createElement("span"); go.className = "go"; go.textContent = "ひらく →";
+  a.append(mark, h, d, tags, go);
+  box.appendChild(a);
+}
+</script>
