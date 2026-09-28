@@ -623,6 +623,7 @@ function renderTeacherDays() {
 
 // 「教科以外」に教科の名前が書かれていたら知らせる
 function fixedWarn(f) {
+  if (A.days[+f.day] === '土' && !A.satCount) return '<div class="small">土曜日は時数に数えない設定なので、時間割に表示するだけです（教科を選んでも時数には数えません）。</div>';
   if (f.target || !f.label) return '';
   var ABBR = { '学活': '学級活動', '総合': '総合的な学習の時間', '外活': '外国語活動' };
   var hit = A.subjects.filter(function (s) { return s.name === f.label || s.display === f.label || ABBR[f.label] === s.name; })[0];

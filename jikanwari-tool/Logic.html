@@ -155,11 +155,14 @@ var JW = (function () {
     return targetName(A, p.target) + 'を' + when + (p.mode === 'avoid' ? 'に入れない' : 'に入れる');
   }
 
+  // 時数に数えない土曜日か
+  function satOnly(A, d) { return A.days[+d] === '土' && !A.satCount; }
+
   // 授業の固定と、「先に決まっている時間」で教科を選んだもの（学年の全クラス）をまとめる
   function allPins(A, classes) {
     var list = (A.pins || []).slice();
     (A.fixed || []).forEach(function (f) {
-      if (!f.target) return;
+      if (!f.target || satOnly(A, f.day)) return;
       classes.forEach(function (c) {
         if ((f.grades || []).indexOf(c.grade) >= 0) list.push({ teacher: '', cls: c.key, target: f.target, day: f.day, period: f.period, fromFixed: true, label: (f.label || '').trim() });
       });
@@ -219,13 +222,15 @@ var JW = (function () {
     });
     var fixedLabel = classes.map(function () { return {}; });
     (A.fixed || []).forEach(function (f) {
-      if (f.target) return; // 教科を選んだ時間は、その教科の授業として固定する（下の allPins）
+      if (f.target && !satOnly(A, f.day)) return; // 教科を選んだ時間は、その教科の授業として固定する（下の allPins）
       var s = (+f.day) * MP + (+f.period - 1);
+      // 数えない土曜日は、教科を選んでも表に出すだけ（時数には数えない）
+      var text = (f.label || '').trim() || (f.target ? ((subjectById(A, f.target) || {}).display || targetName(A, f.target)) : '') || '行事';
       classes.forEach(function (c, ci) {
         if ((f.grades || []).indexOf(c.grade) >= 0 && (avail[ci][s] || satFree[ci][s])) {
           avail[ci][s] = false;
           delete satFree[ci][s];
-          fixedLabel[ci][s] = f.label || '行事';
+          fixedLabel[ci][s] = text;
         }
       });
     });
@@ -1372,9 +1377,9 @@ var JW = (function () {
         var names = [];
         for (var ci = 0; ci < M.classes.length; ci++) {
           var id = st.grid[ci][s];
-          if (id >= 0 && filter(M.units[id])) names.push(M.classes[ci].short);
+          if (id >= 0 && filter(M.units[id])) names.push(ci);
         }
-        cells.push(names.join('・'));
+        cells.push(compactNames(M, names));
       }
       return cells;
     }
@@ -1386,7 +1391,10 @@ var JW = (function () {
         var n = targetName(A, j.target);
         if (subs.indexOf(n) < 0 && t.name.indexOf(n) < 0) subs.push(n);
       });
-      return { label: t.name, title: t.name + (subs.length ? '（' + subs.join('・') + '）' : ''), cells: cells, off: t.off.slice() };
+      var keys = {};
+      t.units.forEach(function (id) { if (st.pos[id] >= 0) keys[M.units[id].sync || id] = 1; });
+      var n = Object.keys(keys).length;
+      return { label: t.name, title: t.name + (subs.length ? '（' + subs.join('・') + '）' : '') + (n ? '週' + n + '時間' : ''), cells: cells, off: t.off.slice() };
     });
     var roomRows = roomRowsOf(M, st);
     var mslots = moduleSlots(A.module), mdays = Object.keys(mslots).filter(function (d) { return mslots[d] && mslots[d].kind && mslots[d].kind !== 'none'; }).map(Number).sort();
@@ -1415,17 +1423,45 @@ var JW = (function () {
           if (id < 0 || roomOf(M, M.units[id], s) !== key) continue;
           var k = 0;
           while (k < idx.length - 1 && inRoom[idx[k]].length >= M.phys[idx[k]].cap) k++;
-          inRoom[idx[k]].push(M.classes[ci].short);
+          inRoom[idx[k]].push(ci);
         }
       });
-      rows.forEach(function (r, i) { r.cells.push(inRoom[i].join('・')); });
+      rows.forEach(function (r, i) { r.cells.push(compactNames(M, inRoom[i])); });
     }
     return rows;
+  }
+
+  // 同じ学年の2クラス以上は「5梅月」のように短く書く（クラス名が1文字のとき）
+  function compactNames(M, cis) {
+    var groups = [], by = {};
+    cis.forEach(function (ci) {
+      var c = M.classes[ci];
+      if (!by[c.grade]) { by[c.grade] = []; groups.push(c.grade); }
+      by[c.grade].push(c);
+    });
+    return groups.map(function (g) {
+      var list = by[g];
+      var tails = list.map(function (c) { return c.short.slice(String(g).length); });
+      var single = list.length > 1 && tails.every(function (t) { return t.length === 1 && !/[0-9０-９\-]/.test(t); });
+      return single ? g + tails.join('') : list.map(function (c) { return c.short; }).join('・');
+    }).join('・');
   }
 
   /* ---------- スプレッドシートで手直ししたあとのチェック ---------- */
   function splitNames(t) {
     return String(t || '').split(/[・,、，\s\/]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+  }
+  // 「5梅月」→「5梅」「5月」にもどす
+  function expandNames(t, byShort) {
+    var out = [];
+    splitNames(t).forEach(function (n) {
+      if (byShort[n] !== undefined) return out.push(n);
+      var m = /^([0-9])(.+)$/.exec(n);
+      if (m && m[2].split('').every(function (ch) { return byShort[m[1] + ch] !== undefined; })) {
+        m[2].split('').forEach(function (ch) { out.push(m[1] + ch); });
+      } else out.push(n);
+    });
+    return out;
   }
 
   function check(A, sheet) {
@@ -1543,7 +1579,7 @@ var JW = (function () {
       if (ti === undefined) return;
       var T = M.teachers[ti], count = {};
       for (var s = 0; s < M.S; s++) {
-        var names = splitNames(row.cells[s]);
+        var names = expandNames(row.cells[s], byShort);
         if (!names.length) continue;
         var cis = names.map(function (n) { return byShort[n]; });
         names.forEach(function (n, k) {
