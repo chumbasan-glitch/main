@@ -147,11 +147,11 @@ function relayout(){
   } else { PAPER_NOW = state.paper; LAY = layoutPages(G, groups, PAPER_NOW, fs, opt); $("paperAuto").textContent = "おすすめ"; }
   const n = LAY.pages.length, note = $("paperNote");
   if(!groups.length){ note.hidden = true; }
-  else if(state.paper === "auto" && PAPER_NOW === "B4" && n === 1){ note.hidden = false; note.textContent = "A4の1まいには入りきらないので、B4にしました。"; }
-  else if(n > 1){ note.hidden = false; note.textContent = PAPER_NOW + "で" + n + "まいになります。" + (PAPER_NOW === "A4" ? "1まいにしたいときは、用紙をB4にするか、問題数をへらしてください。" : "1まいにしたいときは、問題数をへらすか、文字を小さくしてください。"); }
+  else if(state.paper === "auto" && PAPER_NOW === "B4" && n === 1){ note.hidden = false; note.textContent = "A4の1枚には入りきらないので、B4にしました。"; }
+  else if(n > 1){ note.hidden = false; note.textContent = PAPER_NOW + "で" + n + "枚になります。" + (PAPER_NOW === "A4" ? "1枚にしたいときは、用紙をB4にするか、問題数をへらしてください。" : "1枚にしたいときは、問題数をへらすか、文字を小さくしてください。"); }
   else note.hidden = true;
   const total = groups.reduce((s, g) => s + g.n, 0);
-  $("pvMeta").textContent = total ? PAPER_NOW + "たて ・ " + total + "問 ・ " + n + "まい ・ " + LEVEL_NAMES[state.level] : "";
+  $("pvMeta").textContent = total ? PAPER_NOW + "たて ・ " + total + "問 ・ " + n + "枚 ・ " + LEVEL_NAMES[state.level] : "";
   $("cntInfo").textContent = total && total !== state.total ? "（できた問題 " + total + "問）" : "";
   drawPreview();
   scheduleFonts();
@@ -172,8 +172,8 @@ function drawPreview(){
       box.innerHTML = "";
       for(let i = 0; i < want; i++){
         const f = document.createElement("figure"), c = document.createElement("canvas"), cap = document.createElement("figcaption");
-        c.setAttribute("aria-label", "プリントのプレビュー " + (i + 1) + "まいめ"); c.lang = "ja";
-        cap.textContent = want > 1 ? (i + 1) + "まいめ" : ""; cap.hidden = want < 2;
+        c.setAttribute("aria-label", "プリントのプレビュー " + (i + 1) + "枚目"); c.lang = "ja";
+        cap.textContent = want > 1 ? (i + 1) + "枚目" : ""; cap.hidden = want < 2;
         f.append(c, cap); box.appendChild(f);
       }
     }
@@ -225,7 +225,7 @@ function showImages(list){
     cap.textContent = it.label; img.alt = it.label; img.src = it.canvas.toDataURL("image/png");
     fig.append(cap, img); box.appendChild(fig);
   }
-  $("imgHow").textContent = "画像を1まいずつ長押しして「共有」→「プリント」をえらぶと，そのまま印刷できます。「写真に保存」してから，プリンターのアプリで印刷することもできます。用紙は「" + PAPER_NOW + "」，大きさは「用紙に合わせる」（ふちなしにしない）にしてください。";
+  $("imgHow").textContent = "画像を1枚ずつ長押しして「共有」→「プリント」をえらぶと，そのまま印刷できます。「写真に保存」してから，プリンターのアプリで印刷することもできます。用紙は「" + PAPER_NOW + "」，大きさは「用紙に合わせる」（ふちなしにしない）にしてください。";
   $("imgOverlay").hidden = false;
 }
 async function offer(filename, data){
@@ -242,7 +242,7 @@ $("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () =
   await fontsReady;
   if(!(await getDl())){
     const q = renderPrint(false), a = renderPrint(true);
-    showImages(q.map((c, i) => ({label:"問題" + (q.length > 1 ? "（" + (i + 1) + "まいめ）" : ""), canvas:c})).concat(a.map((c, i) => ({label:"答え（先生用）" + (a.length > 1 ? "（" + (i + 1) + "まいめ）" : ""), canvas:c}))));
+    showImages(q.map((c, i) => ({label:"問題" + (q.length > 1 ? "（" + (i + 1) + "枚目）" : ""), canvas:c})).concat(a.map((c, i) => ({label:"答え（先生用）" + (a.length > 1 ? "（" + (i + 1) + "枚目）" : ""), canvas:c}))));
     status("画像を表示しました。長押しして「共有」→「プリント」で印刷できます。", "ok");
     return;
   }
@@ -281,7 +281,7 @@ function printHtml(cs, ans){
 async function printPages(ans, btn){
   await withBusy(btn, async () => {
     await fontsReady;
-    if(!(await getDl())){ const cs = renderPrint(ans); showImages(cs.map((c, i) => ({label:(ans ? "答え（先生用）" : "問題") + (cs.length > 1 ? "（" + (i + 1) + "まいめ）" : ""), canvas:c}))); return; }
+    if(!(await getDl())){ const cs = renderPrint(ans); showImages(cs.map((c, i) => ({label:(ans ? "答え（先生用）" : "問題") + (cs.length > 1 ? "（" + (i + 1) + "枚目）" : ""), canvas:c}))); return; }
     status("印刷用のファイルを作っています…");
     const r = await offer(baseName() + (ans ? "_答え" : "_問題") + "_印刷用.html", printHtml(renderPrint(ans), ans));
     if(r === "saved") status("印刷用のファイルを保存しました。そのファイルを開くと印刷の画面が出ます。用紙は " + PAPER_NOW + " を選んでください。", "ok");
