@@ -95,6 +95,7 @@ header.top .sub{color:var(--ink-soft);font-size:13px}
 .chip.off{border-color:var(--line);background:var(--surface);color:var(--ink-soft);text-decoration:line-through;opacity:.6}
 .stepper{display:flex;align-items:center;gap:8px}
 .stepper button{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:20px;font-weight:700;cursor:pointer}
+.fsz-lbl{min-width:6.5em;text-align:center;font-weight:700;font-size:15px}
 .stepper input{width:70px;height:40px;text-align:center;font:inherit;font-size:20px;font-weight:700;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-variant-numeric:tabular-nums}
 .presets{display:flex;gap:4px;flex-wrap:wrap}
 .presets button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);font:inherit;font-weight:700;font-size:13px;padding:4px 10px;border-radius:99px;cursor:pointer}
@@ -210,6 +211,13 @@ h2.sec{margin:0;font-size:17px}
           <button type="button" data-v="long">通常</button>
           <button type="button" data-v="grid">マス目</button>
         </div>
+        <span class="hint">問題文の文字の大きさ</span>
+        <div class="stepper">
+          <button type="button" id="fszMinus" aria-label="文字を小さく">－</button>
+          <span class="fsz-lbl" id="fszLbl">ふつう</span>
+          <button type="button" id="fszPlus" aria-label="文字を大きく">＋</button>
+        </div>
+        <p class="hint" id="fszNote" hidden>これ以上は用紙に入らないため、大きくできません。</p>
         <span class="hint">ボーナス欄（10問以下のとき）</span>
         <div class="seg" id="segBonus">
           <button type="button" data-v="off">つけない</button>
@@ -346,7 +354,7 @@ const isKanji = c => (c >= "一" && c <= "鿿") || c === "々";
 /* ---------- 保存 ---------- */
 const STORE = "kanji_test_maker_v1";
 const MAX_Q = 20;
-const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off" };
+const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0 };
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
@@ -514,7 +522,9 @@ const ROT = new Set([..."ー－―〜～…‥（）「」『』()-—［］【�
 const SMALL = new Set([..."ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ"]);
 const PUNC = new Set([..."、。，．"]);
 
+let fszCapped = false;
 function drawPage(canvas, answer, pxPerMm){
+  fszCapped = false;
   const paper = paperNow(); const [W, H] = PAPERS[paper];
   canvas.width = Math.round(W * pxPerMm); canvas.height = Math.round(H * pxPerMm);
   const S = canvas.width / W;
@@ -593,7 +603,24 @@ function drawPage(canvas, answer, pxPerMm){
     const V = rh - nd - 2;
     const f0 = Math.min(0.5, Math.max(0.3, A / (A + L * 0.6)));
     const f = bonus ? Math.max(f0, 0.5) : f0;
-    const boxH = V * f, Hs = V - boxH - 3;
+    let boxH = V * f, Hs = V - boxH - 3;
+    const fsFor = k => Math.min(Hs / Math.ceil(L / k), cw * 0.9 / (k * 1.25 + 0.3), 7.5);
+    let best = {fs:fsFor(1), k:1};
+    for(let k = 2; k <= 4; k++){ const v = fsFor(k); if(v > best.fs * (best.fs < 4.2 ? 1 : 1.15)){ best = {fs:v, k}; } }
+    let fs = best.fs;
+    const lv = Number(state.fsz) || 0;
+    if(lv){
+      /* 文字の大きさを変える：問題文の場所と解答欄の高さを入れかえる */
+      const want = best.fs * [0.8, 0.9, 1, 1.12, 1.25][lv + 2];
+      const minBox = V * (bonus ? 0.4 : 0.22), maxBox = V * 0.65;
+      /* 行数はなるべく少なく：今の問題文の高さに入る最少の行数、入らなければいちばん低くなる行数 */
+      const need = z => { let h = Infinity; for(let k = 1; k <= 4; k++) if(z * (k * 1.25 + 0.3) <= cw * 0.9){ const v = Math.ceil(L / k) * z; if(v <= Hs + 0.01) return v; h = Math.min(h, v); } return h; };
+      let z = want;
+      while(z > best.fs && need(z) > V - 3 - minBox) z -= 0.05;
+      if(z < want - 0.01) fszCapped = true;
+      fs = Math.max(z, lv > 0 ? best.fs : 0);
+      boxH = Math.min(maxBox, V - 3 - need(fs)); Hs = V - 3 - boxH;
+    }
     if(bonus){
       const aH = (boxH - 3) * Number(state.bratio) / 10, yB = top + rh - boxH + aH + 3, bH = boxH - 3 - aH, lx = x1 + lw / 2 + 1;
       const t1 = "ボーナス", mk = state.newbox === "on" ? "□" : "――", t2 = low ? "（" + mk + "のかんじをつかったことば）" : "（" + mk + "の漢字を使った言葉）";
@@ -603,10 +630,6 @@ function drawPage(canvas, answer, pxPerMm){
         setFont(f1); vtext(t1, lx + 2, yB, f1); setFont(f2, 500); vtext(t2, lx - 2.4, yB, f2);
       } else { const f1 = Math.min(4.6, bH / t1.length); setFont(f1); vtext(t1, lx, yB + (bH - f1 * t1.length) / 2, f1); }
     }
-    const fsFor = k => Math.min(Hs / Math.ceil(L / k), cw * 0.9 / (k * 1.25 + 0.3), 7.5);
-    let best = {fs:fsFor(1), k:1};
-    for(let k = 2; k <= 4; k++){ const v = fsFor(k); if(v > best.fs * (best.fs < 4.2 ? 1 : 1.15)){ best = {fs:v, k}; } }
-    const fs = best.fs;
     const bw = cw * 0.8;
     rowQs.forEach((x, c) => {
       const i = r * 10 + c, cx = x1 - c * cw - cw / 2;
@@ -760,6 +783,9 @@ function renderQList(){
 function renderOptions(){
   setSeg($("segOrder"), state.order); setSeg($("segRw"), state.rw);
   setSeg($("segBox"), state.box); setSeg($("segPaper"), state.paper);
+  const FSZ_NAMES = {"-2":"小さめ", "-1":"やや小さめ", "0":"ふつう", "1":"やや大きめ", "2":"大きめ"};
+  $("fszLbl").textContent = FSZ_NAMES[state.fsz] || "ふつう";
+  $("fszMinus").disabled = state.fsz <= -2; $("fszPlus").disabled = state.fsz >= 2;
   setSeg($("segBonus"), state.bonus); setSeg($("segNewbox"), state.newbox); setSeg($("segBratio"), state.bratio);
   const bOn = state.bonus === "on", bFit = (qs.length || state.count) <= 10;
   $("bonusOpts").hidden = !(bOn && bFit); $("bonusNote").hidden = !(bOn && !bFit);
@@ -776,6 +802,7 @@ function drawPreview(){
     const px = cssW * Math.min(2, window.devicePixelRatio || 1) / W;
     drawPage(c, view === "a", px);
     const R = rowsOf(qs.length);
+    $("fszNote").hidden = !(fszCapped && state.fsz > 0);
     $("pvMeta").textContent = qs.length ? (paper + "横 ・ " + qs.length + "問（" + R + "段）") : "";
     const none = !qs.length;
     for(const id of ["savePdf","saveImgQ","saveImgA"]) $(id).disabled = none;
@@ -1077,6 +1104,9 @@ bindSeg("segPaper", "paper", false);
 bindSeg("segBonus", "bonus", false);
 bindSeg("segBratio", "bratio", false);
 bindSeg("segNewbox", "newbox", false);
+for(const [id, d] of [["fszMinus", -1], ["fszPlus", 1]]) $(id).addEventListener("click", () => {
+  state.fsz = Math.max(-2, Math.min(2, (Number(state.fsz) || 0) + d)); persist(); renderAll();
+});
 $("segView").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; view = b.dataset.v; setSeg($("segView"), view); drawPreview(); });
 $("cntMinus").addEventListener("click", () => setCount(state.count - 1));
 $("cntPlus").addEventListener("click", () => setCount(state.count + 1));
