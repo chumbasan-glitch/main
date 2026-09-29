@@ -2,7 +2,7 @@
 
 もとのファイル（リレー組分け_v2_白紙.xlsx）を読み込み、
 「4人組」シートと「計算用」シートの組分けのしくみを作りかえ、
-「手動調整」「決定版」シートを足して、
+名前を直接書きかえられる「手直し」シートと、印刷用の「決定版」シートを足して、
 白紙版とテストデータ入り版の2つを書き出す。
 
 使い方: python3 build.py
@@ -19,7 +19,7 @@ from openpyxl.workbook.properties import CalcProperties
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "..", "リレー組分け_v2_白紙.xlsx")
-VERSION = "v4"
+VERSION = "v5"
 OUT_BLANK = os.path.join(HERE, f"徒競走走順_{VERSION}_白紙.xlsx")
 OUT_TEST = os.path.join(HERE, f"徒競走走順_{VERSION}_テストデータ入り.xlsx")
 
@@ -27,7 +27,13 @@ PEOPLE_LAST = 186      # 計算用の人の行（2〜186）
 HEATS = 50             # 男女それぞれ最大50組まで
 HEAT_LAST = HEATS + 1  # 計算用の組の表の最後の行
 LANES = 4              # 1組の最大人数
-MANUAL_TOP = 4         # 手動調整シートの1人目の行（計算用の2行目にあたる）
+EDIT_TOP = 6           # 手直しシートの1組目の行
+EDIT_LAST = EDIT_TOP + HEATS - 1
+# 手直しシートの列: 名前を入れるところ・人数・内訳・入っていない人・コピー用
+EDIT = {
+    "男": dict(names="BCDE", size="K", inner="L", missing="P", copy="STUV"),
+    "女": dict(names="FGHI", size="M", inner="N", missing="Q", copy="WXYZ"),
+}
 
 thin = Side(style="thin")
 BOX = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -40,15 +46,10 @@ HEAT_COLS = {
     "男": dict(zip("k s rr wr r w cr cw".split(), "S T U V W X Y Z".split())),
     "女": dict(zip("k s rr wr r w cr cw".split(), "AB AC AD AE AF AG AH AI".split())),
 }
-# 男女ごとの合計セル（計算用）: 赤の人数, 白の人数, 合計人数, 組数, 決定版の組数
+# 男女ごとの合計セル（計算用）: 赤の人数, 白の人数, 合計人数, 組数
 TOTALS = {
-    "男": dict(red="$Q$2", white="$Q$3", n="$Q$8", h="$Q$9", fh="$Q$13"),
-    "女": dict(red="$Q$4", white="$Q$5", n="$Q$10", h="$Q$11", fh="$Q$14"),
-}
-# 計算用シートの「決定版の組の表」の列: 組, 人数, 赤人数, 白人数
-FINAL_COLS = {
-    "男": dict(zip("k s r w".split(), "BA BB BC BD".split())),
-    "女": dict(zip("k s r w".split(), "BF BG BH BI".split())),
+    "男": dict(red="$Q$2", white="$Q$3", n="$Q$8", h="$Q$9", fh="$Q$13", err="$Q$15"),
+    "女": dict(red="$Q$4", white="$Q$5", n="$Q$10", h="$Q$11", fh="$Q$14", err="$Q$16"),
 }
 
 
@@ -118,40 +119,9 @@ def build_calc(ws):
         ws[f"AN{row}"] = f'=IF({AK}="","",F{row}&{AK}&"-"&AM{row})'
 
 
-def build_final_calc(ws):
-    """手動調整を反映した「決定の組」を計算する。"""
-    last = PEOPLE_LAST
-    ws["AP1"], ws["AQ1"], ws["AR1"], ws["AS1"], ws["AT1"] = (
-        "決定の組", "並びキー", "決定の組内番号", "決定キー", "決定の組(数)")
-    for row in range(2, last + 1):
-        m = row - 2 + MANUAL_TOP
-        grp, pos = f"手動調整!$I${m}", f"手動調整!$J${m}"
-        ws[f"AP{row}"] = f'=IF(J{row}="","",IF({grp}<>"",{grp},AK{row}))'
-        # 組の中の並び: 「何人目」を入れた子はその番号、入れていない子は自動の番号。
-        # 同じ番号なら「何人目」を入れた子を先にする。
-        ws[f"AQ{row}"] = (f'=IF(AP{row}="","",IF({pos}<>"",{pos},AM{row})*100000'
-                          f'+IF({pos}<>"",0,50000)+AK{row}*10+AM{row})')
-        ws[f"AR{row}"] = (f'=IF(AP{row}="","",COUNTIFS($F$2:$F${last},F{row},'
-                          f'$AP$2:$AP${last},AP{row},$AQ$2:$AQ${last},"<"&AQ{row})+1)')
-        ws[f"AS{row}"] = f'=IF(AP{row}="","",F{row}&AP{row}&"-"&AR{row})'
-        ws[f"AT{row}"] = f'=IF(AP{row}="",0,AP{row})'
-    ws["P13"], ws["Q13"] = "男子決定組数", f'=SUMPRODUCT(MAX(($F$2:$F${last}="男")*$AT$2:$AT${last}))'
-    ws["P14"], ws["Q14"] = "女子決定組数", f'=SUMPRODUCT(MAX(($F$2:$F${last}="女")*$AT$2:$AT${last}))'
-    heads = ["組", "人数", "赤人数", "白人数"]
-    for g, c in FINAL_COLS.items():
-        for i, key in enumerate("k s r w".split()):
-            ws[f"{c[key]}1"] = f"{g}決定{heads[i]}"
-        for row in range(2, HEAT_LAST + 1):
-            ws[f"{c['k']}{row}"] = row - 1
-            ws[f"{c['s']}{row}"] = (f'=COUNTIFS($F$2:$F${last},"{g}",'
-                                    f'$AP$2:$AP${last},{c["k"]}{row})')
-            ws[f"{c['r']}{row}"] = (f'=COUNTIFS($F$2:$F${last},"{g}",'
-                                    f'$AP$2:$AP${last},{c["k"]}{row},$I$2:$I${last},"赤")')
-            ws[f"{c['w']}{row}"] = f"={c['s']}{row}-{c['r']}{row}"
-
-
 def build_heat_sheet(wb, name, index, final):
-    """組ごとの表のシートを作る。final=False は自動の組、True は手動調整を反映した組。"""
+    """組ごとの表のシートを作る。1組の中に赤も白も最大4人まで並べられる形にする。
+    final=False は自動の組（4人組）、True は手直しシートの結果（決定版）。"""
     if name in wb.sheetnames:
         wb.remove(wb[name])
     ws = wb.create_sheet(name, index)
@@ -160,25 +130,28 @@ def build_heat_sheet(wb, name, index, final):
     block = 3 + per_slot * LANES        # 組・人数・内訳 ＋ 4人分
     starts = {"男": 1, "女": block + 2}  # 間に1列あける
     last_row = 3 + HEATS
-    key_col = "AS" if final else "AN"
 
     for g, c0 in starts.items():
-        hc = FINAL_COLS[g] if final else HEAT_COLS[g]
+        hc = HEAT_COLS[g]
         t = TOTALS[g]
+        e = EDIT[g]
         count = t["fh"] if final else t["h"]
         L = lambda i: openpyxl.utils.get_column_letter(c0 + i)
         ws[f"{L(0)}1"] = "男子" if g == "男" else "女子"
         ws[f"{L(0)}1"].font = BOLD
-        # 注意書き
-        size, red = f"計算用!{rng(hc['s'])}", f"計算用!{rng(hc['r'])}"
-        used = f"(計算用!{rng(hc['k'])}<=計算用!{count})"
-        note = (f'IF(SUMPRODUCT(({size}>0)*((({size}<>4)+({red}<>2))>0))>0,'
-                f'"※黄色の組は、人数の都合で調整した組です","")')
+        # 調整した組があるときの注意
         if final:
-            note = (f'IF(SUMPRODUCT(({size}>{LANES})*1)>0,'
-                    f'"※{LANES + 1}人以上の組があります（赤い組）。{LANES + 1}人目からは表に出ません",'
-                    f'IF(SUMPRODUCT({used}*({size}=0))>0,"※だれもいない組があります（赤い組）",{note}))')
-        ws[f"{L(3)}1"] = "=" + note
+            size = f"手直し!${e['size']}${EDIT_TOP}:${e['size']}${EDIT_LAST}"
+            inner = f"手直し!${e['inner']}${EDIT_TOP}:${e['inner']}${EDIT_LAST}"
+            used = f"(ROW({size})-{EDIT_TOP - 1}<=計算用!{count})"
+            ws[f"{L(3)}1"] = (f'=IF(計算用!{t["err"]}>0,"※手直しシートに確認が必要なところがあります",'
+                              f'IF(SUMPRODUCT({used}*({size}=0))>0,"※だれもいない組があります（赤い組）",'
+                              f'IF(SUMPRODUCT({used}*((({size}<>4)+({inner}<>"赤2白2"))>0))>0,'
+                              f'"※黄色の組は、人数の都合で調整した組です","")))')
+        else:
+            size, red = f"計算用!{rng(hc['s'])}", f"計算用!{rng(hc['r'])}"
+            ws[f"{L(3)}1"] = (f'=IF(SUMPRODUCT(({size}>0)*((({size}<>4)+({red}<>2))>0))>0,'
+                              f'"※黄色の組は、人数の都合で調整した組です","")')
         ws[f"{L(3)}1"].font = Font(bold=True, color="FFFF0000")
 
         for i, label in enumerate(["組", "人数", "内訳"]):
@@ -200,18 +173,31 @@ def build_heat_sheet(wb, name, index, final):
         for row in range(4, last_row + 1):
             A = f"${L(0)}{row}"
             ws[f"{L(0)}{row}"] = f'=IF(ROW()-3<=計算用!{count},ROW()-3,"")'
-            ws[f"{L(1)}{row}"] = f'=IF({A}="","",INDEX(計算用!{rng(hc["s"])},{A}))'
-            ws[f"{L(2)}{row}"] = (f'=IF({A}="","","赤"&INDEX(計算用!{rng(hc["r"])},{A})'
-                                  f'&"白"&INDEX(計算用!{rng(hc["w"])},{A}))')
+            er = row - 4 + EDIT_TOP   # 手直しシートの同じ組の行
+            if final:
+                ws[f"{L(1)}{row}"] = f'=IF({A}="","",手直し!{e["size"]}{er})'
+                ws[f"{L(2)}{row}"] = f'=IF({A}="","",手直し!{e["inner"]}{er})'
+            else:
+                ws[f"{L(1)}{row}"] = f'=IF({A}="","",INDEX(計算用!{rng(hc["s"])},{A}))'
+                ws[f"{L(2)}{row}"] = (f'=IF({A}="","","赤"&INDEX(計算用!{rng(hc["r"])},{A})'
+                                      f'&"白"&INDEX(計算用!{rng(hc["w"])},{A}))')
             for i in range(3):
                 ws[f"{L(i)}{row}"].alignment = CENTER
             for j in range(LANES):
                 a = 3 + j * per_slot
-                key = f'"{g}"&{A}&"-{j + 1}"'
-                for k, src in enumerate(["D", "M", "I"]):
-                    ws[f"{L(a + k)}{row}"] = (
-                        f'=IF({A}="","",IFERROR(INDEX(計算用!${src}$2:${src}${PEOPLE_LAST},'
-                        f'MATCH({key},計算用!${key_col}$2:${key_col}${PEOPLE_LAST},0)),""))')
+                if final:
+                    nm = f'手直し!{e["names"][j]}{er}'
+                    ws[f"{L(a)}{row}"] = f'=IF({A}="","",{nm}&"")'
+                    for k, src in ((1, "M"), (2, "I")):
+                        ws[f"{L(a + k)}{row}"] = (
+                            f'=IF(OR({A}="",{nm}=""),"",IFERROR(INDEX(計算用!${src}$2:${src}${PEOPLE_LAST},'
+                            f'MATCH("{g}"&{nm},計算用!$AO$2:$AO${PEOPLE_LAST},0)),"？"))')
+                else:
+                    key = f'"{g}"&{A}&"-{j + 1}"'
+                    for k, src in enumerate(["D", "M", "I"]):
+                        ws[f"{L(a + k)}{row}"] = (
+                            f'=IF({A}="","",IFERROR(INDEX(計算用!${src}$2:${src}${PEOPLE_LAST},'
+                            f'MATCH({key},計算用!$AN$2:$AN${PEOPLE_LAST},0)),""))')
                 ws[f"{L(a + 1)}{row}"].alignment = CENTER
                 ws[f"{L(a + 2)}{row}"].alignment = CENTER
 
@@ -227,10 +213,10 @@ def build_heat_sheet(wb, name, index, final):
         area = f"{L(0)}4:{L(block - 1)}{last_row}"
         top = f"${L(0)}4"
         if final:
-            # 5人以上・0人の組は赤
+            # だれもいない組は赤
             ws.conditional_formatting.add(
                 f"{L(0)}4:{L(2)}{last_row}",
-                FormulaRule(formula=[f'AND({top}<>"",OR(${L(1)}4>{LANES},${L(1)}4=0))'],
+                FormulaRule(formula=[f'AND({top}<>"",${L(1)}4=0)'],
                             fill=PatternFill(bgColor="FFFF9999", fill_type="solid"),
                             border=BOX, stopIfTrue=True))
         # 調整した組（4人でない・赤白が2人ずつでない）は黄色
@@ -260,115 +246,180 @@ def build_heat_sheet(wb, name, index, final):
     return 2 * block + 1  # 印刷する列数
 
 
-def build_manual_sheet(wb, index):
-    """一人ずつ組を変えられる「手動調整」シートを作る。"""
-    ws = wb.create_sheet("手動調整", index)
-    ws["A1"] = "手動調整"
+def build_edit_calc(ws):
+    """手直しシートの確認に使う計算（計算用シート）。"""
+    last = PEOPLE_LAST
+    ws["AO1"], ws["AP1"], ws["AQ1"], ws["AR1"], ws["AS1"] = (
+        "性別+名前", "手直しでの回数", "入っていない", "男子の入っていない番号", "女子の入っていない番号")
+    for row in range(2, last + 1):
+        ws[f"AO{row}"] = f'=IF(J{row}="","",F{row}&D{row})'
+        ws[f"AP{row}"] = (f'=IF(J{row}="","",IF(F{row}="男",'
+                          f'COUNTIF(手直し!${EDIT["男"]["names"][0]}${EDIT_TOP}:${EDIT["男"]["names"][-1]}${EDIT_LAST},D{row}),'
+                          f'COUNTIF(手直し!${EDIT["女"]["names"][0]}${EDIT_TOP}:${EDIT["女"]["names"][-1]}${EDIT_LAST},D{row})))')
+        ws[f"AQ{row}"] = f'=IF(AND(J{row}<>"",AP{row}=0),1,0)'
+        ws[f"AR{row}"] = f'=IF(AND(AQ{row}=1,F{row}="男"),COUNTIFS($AQ$2:AQ{row},1,$F$2:F{row},"男"),"")'
+        ws[f"AS{row}"] = f'=IF(AND(AQ{row}=1,F{row}="女"),COUNTIFS($AQ$2:AQ{row},1,$F$2:F{row},"女"),"")'
+    keys = f"$AO$2:$AO${last}"
+    for g, rows in (("男", (13, 15, 17, 19, 21, 23)), ("女", (14, 16, 18, 20, 22, 24))):
+        e = EDIT[g]
+        grid = f"手直し!${e['names'][0]}${EDIT_TOP}:${e['names'][-1]}${EDIT_LAST}"
+        fh, err, miss, dup, unknown, same = rows
+        ws[f"P{fh}"], ws[f"Q{fh}"] = (f"{g}子決定組数",
+                                      f'=SUMPRODUCT(MAX(({grid}<>"")*(ROW({grid})-{EDIT_TOP - 1})))')
+        ws[f"P{miss}"], ws[f"Q{miss}"] = f"{g}子入っていない", f'=COUNTIFS($AQ$2:$AQ${last},1,$F$2:$F${last},"{g}")'
+        ws[f"P{dup}"], ws[f"Q{dup}"] = f"{g}子2回以上", f'=COUNTIFS($AP$2:$AP${last},">1",$F$2:$F${last},"{g}")'
+        ws[f"P{unknown}"], ws[f"Q{unknown}"] = (f"{g}子名簿にない名前",
+                                                f'=SUMPRODUCT(({grid}<>"")*(COUNTIF({keys},"{g}"&{grid})=0))')
+        ws[f"P{same}"], ws[f"Q{same}"] = (f"{g}子同じ名前",
+                                          f'=SUMPRODUCT(($F$2:$F${last}="{g}")*({keys}<>"")*(COUNTIF({keys},{keys})>1))')
+        ws[f"P{err}"], ws[f"Q{err}"] = f"{g}子確認の数", f"=Q{miss}+Q{dup}+Q{unknown}+Q{same}"
+
+
+def build_edit_sheet(wb, index):
+    """名前を直接書きかえて組を直す「手直し」シート。"""
+    ws = wb.create_sheet("手直し", index)
+    ws["A1"] = "手直し"
     ws["A1"].font = Font(bold=True, size=14)
-    ws["C1"] = ("組を変えたい子だけ、「変更後の組」に組の番号を入れてください。"
-                "「何人目」は組の中で並べたい順番です（空いていれば自動の順番）。"
-                "結果は「決定版」シートに出ます。※このシートは並べかえないでください。")
+    ws["C1"] = ("① 右の「自動の組（コピー用）」S6:Z55 をコピーし、B6 に「値として貼り付け」します"
+                "（右クリック →「貼り付けのオプション」の「値」）。\n"
+                "② 名前を切り取り・貼り付けして、組を直します。結果は「決定版」シートに出ます。\n"
+                "※名簿やタイムを直したときは、もう一度①からやり直してください。")
     ws["C1"].alignment = Alignment(wrap_text=True, vertical="top")
-    ws.merge_cells("C1:M1")
-    ws.row_dimensions[1].height = 42
-    for col, g in (("C", "男"), ("I", "女")):
+    ws.merge_cells("C1:Z1")
+    ws.row_dimensions[1].height = 48
+    red_font = Font(bold=True, color="FFFF0000")
+    for row2, g in ((2, "男"), (3, "女")):
         t = TOTALS[g]
-        fc = FINAL_COLS[g]
-        size = f"計算用!{rng(fc['s'])}"
-        used = f"(計算用!{rng(fc['k'])}<=計算用!{t['fh']})"
-        ws[f"{col}2"] = (f'="{"男子" if g == "男" else "女子"}：自動 "&計算用!{t["h"]}&"組 → 決定版 "'
-                         f'&計算用!{t["fh"]}&"組"'
-                         f'&IF(SUMPRODUCT(({size}>{LANES})*1)>0,"　{LANES + 1}人以上の組 "'
-                         f'&SUMPRODUCT(({size}>{LANES})*1)&"つ","")'
-                         f'&IF(SUMPRODUCT({used}*({size}=0))>0,"　だれもいない組 "'
-                         f'&SUMPRODUCT({used}*({size}=0))&"つ","")')
-        ws[f"{col}2"].font = BOLD
-    heads = ["クラス", "No.", "名前", "性別", "色", "タイム", "自動の組", "自動の\n何人目",
-             "変更後の組", "何人目", "決定の組", "決定の\n何人目", "確認"]
-    for i, h in enumerate(heads, start=1):
-        c = ws.cell(3, i, h)
-        c.font = BOLD
-        c.border = BOX
-        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    ws.row_dimensions[3].height = 30
-    input_fill = PatternFill(bgColor="FFFFF2CC", fill_type="solid")
-    for i in (9, 10):
-        ws.cell(3, i).fill = PatternFill("solid", fgColor="FFFFD966")
-    last = MANUAL_TOP + PEOPLE_LAST - 2
-    for m in range(MANUAL_TOP, last + 1):
-        r = m - MANUAL_TOP + 2   # 計算用の行
-        has = f'計算用!$D${r}=""'
-        ws[f"A{m}"] = f'=IF({has},"",計算用!$M${r})'
-        ws[f"B{m}"] = f'=IF({has},"",計算用!$C${r})'
-        ws[f"C{m}"] = f'=IF({has},"",計算用!$D${r})'
-        ws[f"D{m}"] = f'=IF({has},"",計算用!$F${r})'
-        ws[f"E{m}"] = f'=IF({has},"",計算用!$I${r})'
-        ws[f"F{m}"] = f'=IF({has},"",計算用!$G${r})'
-        ws[f"G{m}"] = f'=IF({has},"",計算用!$AK${r})'
-        ws[f"H{m}"] = f'=IF({has},"",計算用!$AM${r})'
-        ws[f"K{m}"] = f'=IF({has},"",計算用!$AP${r})'
-        ws[f"L{m}"] = f'=IF({has},"",計算用!$AR${r})'
-        ws[f"M{m}"] = (f'=IF({has},IF(OR(I{m}<>"",J{m}<>""),"名前がありません",""),'
-                       f'IF(計算用!$J${r}="",IF(OR(I{m}<>"",J{m}<>""),'
-                       f'"入力不足のため組に入りません","入力不足"),'
-                       f'IF(AND(I{m}<>"",I{m}<>G{m}),"組を変更",IF(J{m}<>"","順番を指定",""))))')
-        ws[f"F{m}"].number_format = "0.00"
-        for col in "ABDEGHKL":
-            ws[f"{col}{m}"].alignment = CENTER
-        for col in "IJ":
-            ws[f"{col}{m}"].alignment = CENTER
-    from openpyxl.worksheet.datavalidation import DataValidation
-    dv1 = DataValidation(type="whole", operator="between", formula1="1", formula2=str(HEATS),
-                         showErrorMessage=True, errorTitle="組の番号",
-                         error=f"1〜{HEATS}の数字を入れてください")
-    dv2 = DataValidation(type="whole", operator="between", formula1="1", formula2="6",
-                         showErrorMessage=True, errorTitle="何人目",
-                         error="1〜6の数字を入れてください")
-    ws.add_data_validation(dv1)
-    ws.add_data_validation(dv2)
-    dv1.add(f"I{MANUAL_TOP}:I{last}")
-    dv2.add(f"J{MANUAL_TOP}:J{last}")
-    # 名前がある行に罫線、組を変えた行は水色、赤の子の「色」は薄い赤
-    ws.conditional_formatting.add(
-        f"A{MANUAL_TOP}:M{last}",
-        FormulaRule(formula=[f'AND($C{MANUAL_TOP}<>"",$M{MANUAL_TOP}="組を変更")'],
-                    fill=PatternFill(bgColor="FFDDEBF7", fill_type="solid"), border=BOX))
-    ws.conditional_formatting.add(
-        f"A{MANUAL_TOP}:M{last}",
-        FormulaRule(formula=[f'AND($C{MANUAL_TOP}<>"",LEFT($M{MANUAL_TOP},4)="入力不足")'],
-                    font=Font(color="FF999999"), border=BOX))
-    ws.conditional_formatting.add(
-        f"I{MANUAL_TOP}:J{last}",
-        FormulaRule(formula=[f'$C{MANUAL_TOP}<>""'], fill=input_fill, border=BOX))
-    ws.conditional_formatting.add(
-        f"A{MANUAL_TOP}:H{last} K{MANUAL_TOP}:M{last}",
-        FormulaRule(formula=[f'$C{MANUAL_TOP}<>""'], border=BOX))
-    ws.conditional_formatting.add(
-        f"E{MANUAL_TOP}:E{last}",
-        FormulaRule(formula=[f'E{MANUAL_TOP}="赤"'],
-                    fill=PatternFill(bgColor="FFF8CBAD", fill_type="solid")))
-    widths = [6, 5, 14, 5, 5, 7, 7, 7, 9, 7, 7, 7, 26]
-    for i, w in enumerate(widths, start=1):
-        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
-    ws.freeze_panes = f"D{MANUAL_TOP}"
-    ws.page_setup.orientation = "portrait"
+        rows = {"男": (17, 19, 21, 23), "女": (18, 20, 22, 24)}[g]
+        miss, dup, unknown, same = (f"計算用!$Q${r}" for r in rows)
+        ws[f"B{row2}"] = f'="{g}子：自動 "&計算用!{t["h"]}&"組 → 手直し "&計算用!{t["fh"]}&"組"'
+        ws[f"B{row2}"].font = BOLD
+        ws[f"E{row2}"] = (f'=IF(計算用!{t["err"]}=0,IF(計算用!{t["fh"]}=0,"","確認：問題なし"),"確認："'
+                          f'&IF({miss}>0,"入っていない人 "&{miss}&"人　","")'
+                          f'&IF({dup}>0,"2回以上入っている人 "&{dup}&"人　","")'
+                          f'&IF({unknown}>0,"名簿にない名前 "&{unknown}&"こ　","")'
+                          f'&IF({same}>0,"同じ名前の人がいます（区別できません）",""))')
+        ws[f"E{row2}"].font = red_font
+
+    # 見出し
+    ws.merge_cells("A4:A5")
+    ws["A4"] = "組"
+    ws.merge_cells("B4:E4")
+    ws["B4"] = "男子"
+    ws.merge_cells("F4:I4")
+    ws["F4"] = "女子"
+    for i, c in enumerate("BCDEFGHI"):
+        ws[f"{c}5"] = f"{i % 4 + 1}人目"
+    for c, label in (("K", "男子"), ("M", "女子")):
+        nxt = openpyxl.utils.get_column_letter(openpyxl.utils.column_index_from_string(c) + 1)
+        ws.merge_cells(f"{c}4:{nxt}4")
+        ws[f"{c}4"] = label
+        ws[f"{c}5"], ws[f"{nxt}5"] = "人数", "内訳"
+    ws.merge_cells("P4:Q4")
+    ws["P4"] = "入っていない人"
+    ws["P5"], ws["Q5"] = "男子", "女子"
+    ws.merge_cells("S3:Z3")
+    ws["S3"] = "自動の組（コピー用）"
+    ws.merge_cells("S4:V4")
+    ws["S4"] = "男子"
+    ws.merge_cells("W4:Z4")
+    ws["W4"] = "女子"
+    for i, c in enumerate("STUVWXYZ"):
+        ws[f"{c}5"] = f"{i % 4 + 1}人目"
+    for row in (3, 4, 5):
+        for c in "ABCDEFGHIKLMNPQSTUVWXYZ":
+            if row == 3 and c not in "STUVWXYZ":
+                continue
+            cell = ws[f"{c}{row}"]
+            cell.font = BOLD
+            cell.alignment = CENTER
+            cell.border = BOX
+    gray = PatternFill("solid", fgColor="FFEDEDED")
+    for c in "STUVWXYZ":
+        for row in (3, 4, 5):
+            ws[f"{c}{row}"].fill = gray
+
+    # 自動の組の名前が「4人組」シートのどの列にあるか
+    per_slot, block = 3, 3 + 3 * LANES
+    auto_col = {g: [openpyxl.utils.get_column_letter(c0 + 3 + j * per_slot) for j in range(LANES)]
+                for g, c0 in (("男", 1), ("女", block + 2))}
+    for k in range(1, HEATS + 1):
+        row = EDIT_TOP + k - 1
+        ws[f"A{row}"] = k
+        ws[f"A{row}"].alignment = CENTER
+        for g, e in EDIT.items():
+            names = f"{e['names'][0]}{row}:{e['names'][-1]}{row}"
+            ws[f"{e['size']}{row}"] = f'=COUNTIF({names},"?*")'
+            ws[f"{e['inner']}{row}"] = (
+                f'=IF({e["size"]}{row}=0,"","赤"&SUMPRODUCT(COUNTIFS(計算用!$AO$2:$AO${PEOPLE_LAST},'
+                f'"{g}"&{names},計算用!$I$2:$I${PEOPLE_LAST},"赤"))'
+                f'&"白"&SUMPRODUCT(COUNTIFS(計算用!$AO$2:$AO${PEOPLE_LAST},'
+                f'"{g}"&{names},計算用!$I$2:$I${PEOPLE_LAST},"白")))')
+            ws[f"{e['size']}{row}"].alignment = CENTER
+            ws[f"{e['size']}{row}"].number_format = "0;-0;;@"   # 0は表示しない
+            ws[f"{e['inner']}{row}"].alignment = CENTER
+            ws[f"{e['missing']}{row}"] = (
+                f'=IFERROR(INDEX(計算用!$D$2:$D${PEOPLE_LAST},MATCH({k},'
+                f'計算用!${"AR" if g == "男" else "AS"}$2:${"AR" if g == "男" else "AS"}${PEOPLE_LAST},0))'
+                f'&"（"&INDEX(計算用!$M$2:$M${PEOPLE_LAST},MATCH({k},'
+                f'計算用!${"AR" if g == "男" else "AS"}$2:${"AR" if g == "男" else "AS"}${PEOPLE_LAST},0))&"）","")')
+            for j, c in enumerate(e["copy"]):
+                ws[f"{c}{row}"] = f"='4人組'!{auto_col[g][j]}{row - EDIT_TOP + 4}&\"\""
+                ws[f"{c}{row}"].fill = gray
+            for c in e["names"]:
+                ws[f"{c}{row}"].border = BOX
+
+    # 名前の欄の色: 名簿にない・2回以上は黄色＋赤字、赤の子は薄い赤
+    for g, e in EDIT.items():
+        first, lastc = e["names"][0], e["names"][-1]
+        area = f"{first}{EDIT_TOP}:{lastc}{EDIT_LAST}"
+        cell = f"{first}{EDIT_TOP}"
+        grid = f"${first}${EDIT_TOP}:${lastc}${EDIT_LAST}"
+        key = f'"{g}"&{cell}'
+        ws.conditional_formatting.add(area, FormulaRule(
+            formula=[f'AND({cell}<>"",OR(COUNTIF(計算用!$AO$2:$AO${PEOPLE_LAST},{key})=0,'
+                     f'COUNTIF({grid},{cell})>1))'],
+            fill=PatternFill(bgColor="FFFFFF00", fill_type="solid"),
+            font=Font(bold=True, color="FFFF0000"), stopIfTrue=True))
+        ws.conditional_formatting.add(area, FormulaRule(
+            formula=[f'AND({cell}<>"",IFERROR(INDEX(計算用!$I$2:$I${PEOPLE_LAST},'
+                     f'MATCH({key},計算用!$AO$2:$AO${PEOPLE_LAST},0))="赤",FALSE))'],
+            fill=PatternFill(bgColor="FFF8CBAD", fill_type="solid")))
+        # 人数が4でない・赤2白2でない組は黄色、0人の組（途中）は赤
+        sz, inn = f"${e['size']}{EDIT_TOP}", f"${e['inner']}{EDIT_TOP}"
+        area2 = f"{e['size']}{EDIT_TOP}:{e['inner']}{EDIT_LAST}"
+        ws.conditional_formatting.add(area2, FormulaRule(
+            formula=[f'AND({sz}=0,ROW()-{EDIT_TOP - 1}<計算用!{TOTALS[g]["fh"]})'],
+            fill=PatternFill(bgColor="FFFF9999", fill_type="solid"), stopIfTrue=True))
+        ws.conditional_formatting.add(area2, FormulaRule(
+            formula=[f'AND({sz}>0,OR({sz}<>4,{inn}<>"赤2白2"))'],
+            fill=PatternFill(bgColor="FFFFF2CC", fill_type="solid")))
+
+    widths = {"A": 5, "J": 2, "K": 5, "L": 8, "M": 5, "N": 8, "O": 2, "P": 16, "Q": 16, "R": 2}
+    for c in "BCDEFGHISTUVWXYZ":
+        widths[c] = 12
+    for c, w in widths.items():
+        ws.column_dimensions[c].width = w
+    ws.freeze_panes = f"B{EDIT_TOP}"
+    ws.page_setup.orientation = "landscape"
     ws.page_setup.paperSize = 9
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
-    ws.print_title_rows = "3:3"
 
 
-def put_print_areas(path, sheetnames, heat_cols):
+def put_print_areas(path, heat_cols):
     """人数に合わせて変わる印刷範囲（openpyxlでは書けないので、あとから書き込む）。"""
-    areas = {
-        "組ごとタイム順": "OFFSET(組ごとタイム順!$A$1,0,0,3+MAX(計算用!$Q$2:$Q$5),17)",
-        "4人組": f"OFFSET('4人組'!$A$1,0,0,3+MAX(計算用!$Q$9,計算用!$Q$11),{heat_cols})",
-        "決定版": f"OFFSET(決定版!$A$1,0,0,3+MAX(計算用!$Q$13,計算用!$Q$14),{heat_cols})",
-    }
-    names = "".join(
-        f"<definedName name=\"_xlnm.Print_Area\" localSheetId=\"{sheetnames.index(n)}\">"
-        f"{a}</definedName>" for n, a in areas.items())
+    names = (
+        f"<definedName name=\"_xlnm.Print_Area\" localSheetId=\"1\">"
+        f"OFFSET(組ごとタイム順!$A$1,0,0,3+MAX(計算用!$Q$2:$Q$5),17)</definedName>"
+        f"<definedName name=\"_xlnm.Print_Area\" localSheetId=\"2\">"
+        f"OFFSET('4人組'!$A$1,0,0,3+MAX(計算用!$Q$9,計算用!$Q$11),{heat_cols})</definedName>"
+        f"<definedName name=\"_xlnm.Print_Area\" localSheetId=\"3\">"
+        f"手直し!$A$1:$Q${EDIT_LAST}</definedName>"
+        f"<definedName name=\"_xlnm.Print_Area\" localSheetId=\"4\">"
+        f"OFFSET(決定版!$A$1,0,0,3+MAX(計算用!$Q$13,計算用!$Q$14),{heat_cols})</definedName>"
+    )
     tmp = path + ".tmp"
     with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
         for item in zin.infolist():
@@ -400,51 +451,78 @@ TEST_CLASSES = [(7, 6, 5, 6), (6, 5, 5, 6), (6, 6, 5, 5), (6, 5, 5, 6)]
 
 
 def fill_test(ws):
+    """テストデータを入れ、入れた子の一覧（名前, 性別, タイム, 赤白, 通し番号）を返す。"""
     rnd = random.Random(20260929)
+    used, kids_all = set(), []
     for ci, (mr, mw, fr, fw) in enumerate(TEST_CLASSES):
         col = 2 + ci * 5
         kids = ([("1", "赤")] * mr + [("1", "白")] * mw + [("2", "赤")] * fr + [("2", "白")] * fw)
         rnd.shuffle(kids)
         for i, (sex, team) in enumerate(kids):
             row = 3 + i
-            first = rnd.choice(BOY if sex == "1" else GIRL)
-            ws.cell(row, col, f"{rnd.choice(LAST)} {first}")
-            ws.cell(row, col + 1, int(sex))
+            while True:   # 同姓同名にならないようにする
+                name = f"{rnd.choice(LAST)} {rnd.choice(BOY if sex == '1' else GIRL)}"
+                if name not in used:
+                    used.add(name)
+                    break
             base = 9.2 if sex == "1" else 9.6
-            ws.cell(row, col + 2, round(rnd.gauss(base, 0.6), 2))
+            time = round(rnd.gauss(base, 0.6), 2)
+            ws.cell(row, col, name)
+            ws.cell(row, col + 1, int(sex))
+            ws.cell(row, col + 2, time)
             ws.cell(row, col + 3, team)
+            kids_all.append((name, "男" if sex == "1" else "女", time, team, ci * 37 + i))
+    return kids_all
 
 
-# テストデータの手動調整: (手動調整シートの行, 変更後の組, 何人目)
-#   山本 りょう（1組目）と 前田 あおい（2組目）を入れかえる
-#   渡辺 こうき は同じ組のまま、3人目に並べる
-TEST_MANUAL = [(15, 2, 1), (93, 1, 2), (21, None, 3)]
+def auto_heats(kids, g):
+    """計算用シートと同じ決め方で、組を作る（テストデータの手直し用）。"""
+    red = sorted((k for k in kids if k[1] == g and k[3] == "赤"), key=lambda k: (k[2], k[4]))
+    white = sorted((k for k in kids if k[1] == g and k[3] == "白"), key=lambda k: (k[2], k[4]))
+    n = len(red) + len(white)
+    heats, ri, wi = [], 0, 0
+    h = -(-n // 4)
+    for k in range(1, h + 1):
+        s = n // h + (1 if k <= n % h else 0)
+        rr, wr = len(red) - ri, len(white) - wi
+        t = s // 2 if s % 2 == 0 else ((s + 1) // 2 if rr >= wr else (s - 1) // 2)
+        r = min(rr, max(t, s - wr))
+        heats.append([x[0] for x in red[ri:ri + r]] + [x[0] for x in white[wi:wi + s - r]])
+        ri, wi = ri + r, wi + s - r
+    return heats
 
 
-def fill_test_manual(ws):
-    for row, grp, pos in TEST_MANUAL:
-        if grp is not None:
-            ws[f"I{row}"] = grp
-        if pos is not None:
-            ws[f"J{row}"] = pos
+def fill_test_edit(ws, kids):
+    """自動の組を「値として貼り付け」したあと、何人か入れかえた状態にする。"""
+    for g, e in EDIT.items():
+        heats = auto_heats(kids, g)
+        if g == "男":
+            # 例1: 1組目の2人目と2組目の1人目を入れかえる
+            heats[0][1], heats[1][0] = heats[1][0], heats[0][1]
+            # 例2: 最後の組（3人組）の1人を、1つ前の組から来た子と入れかえる
+            heats[-1][0], heats[-2][3] = heats[-2][3], heats[-1][0]
+        for k, names in enumerate(heats):
+            for j, name in enumerate(names):
+                ws[f"{e['names'][j]}{EDIT_TOP + k}"] = name
 
 
 def main():
     for out, test in ((OUT_BLANK, False), (OUT_TEST, True)):
         wb = openpyxl.load_workbook(SRC)
         build_calc(wb["計算用"])
-        build_final_calc(wb["計算用"])
+        build_edit_calc(wb["計算用"])
         idx = wb.sheetnames.index("4人組")
         heat_cols = build_heat_sheet(wb, "4人組", idx, final=False)
-        build_manual_sheet(wb, idx + 1)
+        build_edit_sheet(wb, idx + 1)
         build_heat_sheet(wb, "決定版", idx + 2, final=True)
+        assert wb.sheetnames.index("決定版") == 4
         if test:
-            fill_test(wb["①データ入力"])
-            fill_test_manual(wb["手動調整"])
+            kids = fill_test(wb["①データ入力"])
+            fill_test_edit(wb["手直し"], kids)
         wb.calculation = CalcProperties(fullCalcOnLoad=True)
         wb.active = 0
         wb.save(out)
-        put_print_areas(out, wb.sheetnames, heat_cols)
+        put_print_areas(out, heat_cols)
         print("wrote", out)
 
 
