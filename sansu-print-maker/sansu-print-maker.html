@@ -113,7 +113,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <header class="top">
     <h1>算数プリントメーカー</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 2.9</span>
+    <span class="ver">ver. 3.0</span>
   </header>
 
   <div class="layout">
@@ -5156,6 +5156,115 @@ override("6-n3.d", function(lv){
     () => { const m = q * ri(2, 8); return WN(`AとBの歩く速さの比は${p}：${q}です。Aが家から駅まで歩くと${m}分かかります。Bが同じ道のりを歩くと何分かかりますか。`, mk(p, q, m), `${m * p / q}分`, "速さと比"); },
     () => { const m = q * ri(2, 8); return WN(`兄と弟の走る速さの比は${p}：${q}です。兄が公園を1周するのに${m}分かかります。弟が1周するには何分かかりますか。`, mk(p, q, m), `${m * p / q}分`, "速さと比"); },
     () => { const m = lo * ri(2, 6); return WN(`バスと自転車の速さの比は${hi}：${lo}です。ある道のりを，バスで行くと${m}分かかります。自転車で行くと何分かかりますか。`, mk(hi, lo, m), `${m * hi / lo}分`, "速さと比"); }]);
+});
+
+/* ---------- 入試：場合の数 ---------- */
+function cardSetCount(digs, k, cond){
+  const set = new Set(), used = new Array(digs.length).fill(false);
+  const rec = s => { if(s.length === k){ if(s[0] !== "0" && cond(+s)) set.add(s); return; }
+    for(let i = 0; i < digs.length; i++) if(!used[i]){ used[i] = true; rec(s + digs[i]); used[i] = false; } };
+  rec(""); return set.size;
+}
+override("6-n5.b", function(lv){
+  for(let t = 0; t < 300; t++){
+    const n = lv === 0 ? pick([4, 5]) : pick([4, 5, 5]), k = lv === 0 ? pick([2, 3]) : pick([3, 3, 4].filter(x => x < n));
+    const pool = shuffle(["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+    let digs = pool.slice(0, n);
+    if(lv >= 1 && R() < 0.6) digs[0] = "0";
+    if(lv === 2 && R() < 0.4) digs[n - 1] = digs[1];
+    digs = digs.sort();
+    const hi = +digs.filter(d => d !== "0").sort().slice(-1)[0], T = pick([2, 3, 4, 5, 6]) * P10(k - 1);
+    const conds = lv === 0
+      ? [["全部で", () => true], ["【偶|ぐう】数", v => v % 2 === 0], ["【奇|き】数", v => v % 2 === 1], [`${T}より大きい数`, v => v > T]]
+      : [["【偶|ぐう】数", v => v % 2 === 0], ["【奇|き】数", v => v % 2 === 1], ["3の倍数", v => v % 3 === 0], ["4の倍数", v => v % 4 === 0], ["5の倍数", v => v % 5 === 0], [`${T}より大きい数`, v => v > T], [`${T}より小さい数`, v => v < T]];
+    const [nm, f] = pick(conds), c = cardSetCount(digs, k, f);
+    if(!c || (hi < 2 && nm.includes("より")) || (nm !== "全部で" && c === cardSetCount(digs, k, () => true))) continue;
+    const dup = new Set(digs).size < digs.length;
+    const q = nm === "全部で" ? `整数は全部で何通りできますか。` : `このうち${nm}は何通りできますか。`;
+    return L(`${digs.join("，")}の${n}まいのカード${dup ? "（同じ数字のカードもあります）" : ""}から${k}まいを選んでならべ，${k}けたの整数をつくります。${q}((${c}通り))`, NQ, "カードの整数");
+  }
+  return L(`1，2，3，4の4まいのカードから3まいを選んでならべ，3けたの整数をつくります。整数は全部で何通りできますか。((24通り))`, NQ, "カードの整数");
+});
+const sumsOf = items => { let s = new Set([0]); for(const [v, n] of items){ const t = new Set(); for(const a of s) for(let i = 0; i <= n; i++) t.add(a + v * i); s = t; } s.delete(0); return s.size; };
+override("6-n5.c", function(lv){
+  const nt = lv === 2 ? pick([3, 4]) : 3;
+  return scene([
+    () => { const kinds = shuffle([1, 5, 10, 50, 100, 500]).slice(0, nt).sort((a, b) => a - b), cnt = kinds.map(() => ri(1, lv === 0 ? 2 : 3)), items = kinds.map((v, i) => [v, cnt[i]]);
+      return L(`${items.map(([v, n]) => `${v}円玉${n}まい`).join("，")}があります。これらの一部または全部を使って，ちょうどはらうことのできる金額は何通りありますか。((${sumsOf(items)}通り))`, NQ, "金額"); },
+    () => { const kinds = shuffle([10, 50, 80, 100, 120]).slice(0, nt).sort((a, b) => a - b), items = kinds.map(v => [v, ri(1, 2)]);
+      return L(`${items.map(([v, n]) => `${v}円切手${n}まい`).join("，")}があります。これらの一部または全部を使ってできる切手代の合計は何通りありますか。((${sumsOf(items)}通り))`, NQ, "金額"); },
+    () => { const kinds = shuffle([1, 2, 3, 5, 10, 20]).slice(0, nt + 1).sort((a, b) => a - b), items = kinds.map(v => [v, 1]);
+      return L(`${kinds.map(v => v + "g").join("，")}のおもりが1こずつあります。これらを使って，てんびんのかた方のさらにのせてはかることのできる重さは何通りありますか。((${sumsOf(items)}通り))`, NQ, "重さ"); }]);
+});
+override("6-n5.d", function(lv){
+  if(lv === 0) return scene([
+    () => { const n = ri(5, 10); return L(`円のまわりに，${n}この点が等しい間かくでならんでいます。このうち2点を結んでできる直線は何本ありますか。((${comb(n, 2)}本))`, NQ, "図形と場合の数"); },
+    () => { const n = ri(4, 9); return L(`${n}本の直線があります。どの2本も平行ではなく，どの3本も1つの点で交わらないとき，交わる点は全部で何こできますか。((${comb(n, 2)}こ))`, NQ, "図形と場合の数"); },
+    () => { const n = ri(3, 5), k = ri(3, 4); return L(`横に${n}本のしまがある旗を，${k}色の色からえらんでぬり分けます。となり合うしまは，ちがう色にします。同じ色を何回使ってもよいとき，ぬり方は何通りありますか。((${k * Math.pow(k - 1, n - 1)}通り))`, NQ, "図形と場合の数"); }]);
+  if(lv === 1) return scene([
+    () => { const n = ri(5, 10); return L(`正${POLY[n] ? POLY[n] : n + "角形"}の対角線は何本ありますか。((${n * (n - 3) / 2}本))`, NQ, "図形と場合の数"); },
+    () => { const a = ri(3, 6), b = ri(3, 6); return L(`たての直線${a}本と横の直線${b}本が，それぞれ平行にならんで交わっています。これらの直線で囲まれた長方形（正方形もふくむ）は全部で何こありますか。((${comb(a, 2) * comb(b, 2)}こ))`, NQ, "図形と場合の数"); },
+    () => { const n = ri(5, 9); return L(`正${POLY[n] ? POLY[n] : n + "角形"}の3つの頂点を結んでできる三角形は何こありますか。((${comb(n, 3)}こ))`, NQ, "図形と場合の数"); }]);
+  return scene([
+    () => { const n = ri(5, 10); return L(`円のまわりに，${n}この点が等しい間かくでならんでいます。このうち3点を結んでできる三角形は何こありますか。((${comb(n, 3)}こ))`, NQ, "図形と場合の数"); },
+    () => { const n = ri(5, 9); return L(`円のまわりに，${n}この点が等しい間かくでならんでいます。このうち4点を結んでできる四角形は何こありますか。((${comb(n, 4)}こ))`, NQ, "図形と場合の数"); },
+    () => { const a = ri(3, 5), b = ri(2, 4); return L(`平行な2本の直線があり，一方の直線上に${a}こ，もう一方の直線上に${b}この点があります。これらの点のうち3点を結んでできる三角形は何こありますか。((${comb(a, 2) * b + comb(b, 2) * a}こ))`, NQ, "図形と場合の数"); },
+    () => { const n = ri(4, 5), k = ri(3, 4); return L(`横に${n}本のしまがある旗を，${k}色の色からえらんでぬり分けます。となり合うしまはちがう色にし，両はしのしまも同じ色にはしません。ぬり方は何通りありますか。((${flagEnds(n, k)}通り))`, NQ, "図形と場合の数"); }]);
+});
+function flagEnds(n, k){ let c = 0; const rec = a => { if(a.length === n){ if(a[0] !== a[n - 1]) c++; return; } for(let i = 0; i < k; i++) if(!a.length || a[a.length - 1] !== i) rec([...a, i]); }; rec([]); return c; }
+
+/* ---------- 入試：数の性質 ---------- */
+override("6-n4.a", function(lv){
+  for(;;){ const a = ri(3, 9), b = ri(4, 12); if(a === b) continue; const l = lcm(a, b); if(l > 80) continue;
+    if(lv < 2){ const r = ri(1, Math.min(a, b) - 1);
+      if(lv === 1 && R() < 0.5){ const x = l + r; return WN(`あめを${a}人で同じ数ずつ分けても，${b}人で同じ数ずつ分けても，${r}こあまります。あめは，いちばん少ない場合で何こありますか。ただし，1人に1こ以上配るものとします。`, [`${a}と${b}の最小公倍数は${l}`, `${l}＋${r}＝${x}`], `${x}こ`, "あまり"); }
+      const dig = lv === 0 ? 2 : 3, lo = P10(dig - 1); let x = Math.ceil((lo - r) / l) * l + r; if(x < lo) x += l;
+      return L(`${a}でわっても${b}でわっても${r}あまる整数のうち，いちばん小さい${dig}けたの整数((${x}))`, NQ, "あまり"); }
+    const r1 = ri(1, a - 1), r2 = ri(1, b - 1); if(r1 === r2) continue; let x = 0; for(let v = 1; v <= l; v++) if(v % a === r1 && v % b === r2){ x = v; break; }
+    if(!x) continue;
+    return L(`${a}でわると${r1}あまり，${b}でわると${r2}あまる整数のうち，いちばん小さい整数((${x}))`, NQ, "あまり"); }
+});
+override("6-n4.c", function(lv){
+  if(lv === 0) return scene([
+    () => { const a = ri(1, 9), d = ri(2, 9), n = ri(20, 60); return L(`${[0, 1, 2, 3].map(i => a + d * i).join("，")}，…と，ある規則にしたがって数がならんでいます。${n}番目の数((${a + d * (n - 1)}))`, NQ, "規則性"); },
+    () => { const p = ri(3, 6), seq = Array.from({length:p}, () => ri(1, 9)), n = ri(30, 99); return L(`${[...seq, ...seq].join("，")}，…と，${p}つの数がくり返しならんでいます。${n}番目の数((${seq[(n - 1) % p]}))`, NQ, "規則性"); },
+    () => { const n = ri(5, 15); return L(`ご石を正方形の形にすきまなくならべます。1辺に${n}こならべるとき，ご石は全部で何こいりますか。((${n * n}こ))`, NQ, "規則性"); }]);
+  if(lv === 1) return scene([
+    () => { const a = ri(1, 9), d = ri(2, 6), n = ri(10, 30), last = a + d * (n - 1); return L(`${[0, 1, 2, 3].map(i => a + d * i).join("，")}，…と，ある規則にしたがって数がならんでいます。1番目から${n}番目までの数の和((${(a + last) * n / 2}))`, NQ, "規則性"); },
+    () => { const p = ri(3, 5), seq = Array.from({length:p}, () => ri(1, 9)), n = ri(20, 60), s = seq.reduce((x, y) => x + y, 0), q = Math.floor(n / p), r = n % p, tot = s * q + seq.slice(0, r).reduce((x, y) => x + y, 0);
+      return L(`${[...seq, ...seq].join("，")}，…と，${p}つの数がくり返しならんでいます。1番目から${n}番目までの数の和((${tot}))`, NQ, "規則性"); },
+    () => { const n = ri(5, 15); return L(`ご石を正方形の形にならべ，まわりの1列だけを残します。1辺に${n}こならべるとき，まわりのご石は何こですか。((${4 * n - 4}こ))`, NQ, "規則性"); }]);
+  return scene([
+    () => { const n = ri(20, 60); let k = 1; while(k * (k + 1) / 2 < n) k++; return L(`1，2，2，3，3，3，4，4，4，4，…と，数がならんでいます。${n}番目の数((${k}))`, NQ, "規則性"); },
+    () => { const n = ri(10, 40); let k = 1; while(k * (k + 1) / 2 < n) k++; const j = n - k * (k - 1) / 2; return L(`{1/1}，{1/2}，{2/2}，{1/3}，{2/3}，{3/3}，{1/4}，…と，分数がならんでいます。${n}番目の分数((${F(j, k)}))`, NQ, "規則性"); },
+    () => { const k = ri(5, 12); return L(`1，3，5，7，…と奇数を順に1から${2 * k - 1}までたした和((${k * k}))`.replace("奇数", "【奇|き】数"), NQ, "規則性"); }]);
+});
+override("6-n4.d", function(lv){
+  const n = pick([12, 18, 20, 24, 28, 30, 36, 40, 42, 48, 60, 72, 84, 90, 96]), dv = divisors(n);
+  if(lv === 0) return scene([
+    () => L(`${n}の約数の個数((${dv.length}こ))`, NQ, "約数"),
+    () => { for(;;){ const a = ri(12, 60), b = ri(12, 60), g = gcd(a, b); if(a === b || g < 3) continue; return L(`あめ${a}こと，ガム${b}こを，何人かの子どもに，それぞれあまりが出ないように同じ数ずつ分けます。できるだけ多くの子どもに分けるとき，何人に分けられますか。((${g}人))`, NQ, "約数"); } }]);
+  if(lv === 1) return scene([
+    () => L(`${n}の約数の個数((${dv.length}こ))`, NQ, "約数"),
+    () => { for(;;){ const a = ri(4, 18), b = ri(4, 18), l = lcm(a, b); if(a === b || l === a * b && R() < 0.5 || l > 120) continue; return L(`たて${a}cm，横${b}cmの長方形のカードを，同じ向きにすきまなくならべて，できるだけ小さい正方形をつくります。正方形の1辺は何cmですか。((${l}cm))`, NQ, "倍数"); } },
+    () => { for(;;){ const a = ri(24, 96), b = ri(24, 96), g = gcd(a, b); if(a === b || g < 4) continue; return L(`たて${a}cm，横${b}cmの長方形の紙を，あまりが出ないように同じ大きさの正方形に切り分けます。できるだけ大きい正方形にするとき，正方形の1辺は何cmですか。((${g}cm))`, NQ, "約数"); } }]);
+  return scene([
+    () => L(`${n}の約数をすべてたした和((${dv.reduce((a, b) => a + b, 0)}))`, NQ, "約数"),
+    () => { for(;;){ const a = ri(3, 8), b = ri(3, 8), l = lcm(a, b); if(a === b || l > 40) continue; const h = pick([8, 9, 10]); return L(`Aのバスは${a}分おきに，Bのバスは${b}分おきに発車します。午前${h}時にAとBが同時に発車しました。次に同時に発車するのは午前何時何分ですか。((午前${h + Math.floor(l / 60)}時${l % 60}分))`, NQ, "倍数"); } },
+    () => { for(;;){ const a = ri(4, 18), b = ri(4, 18), l = lcm(a, b); if(a === b || l > 90) continue; return L(`たて${a}cm，横${b}cmの長方形のカードを，同じ向きにすきまなくならべて，できるだけ小さい正方形をつくります。カードは何まいいりますか。((${(l / a) * (l / b)}まい))`, NQ, "倍数"); } }]);
+});
+
+/* ---------- 入試：図形の応用 ---------- */
+override("6-n6.c", function(lv){
+  if(lv === 0) return scene([
+    () => { const a = ri(2, 10), b = ri(2, 10), c = ri(2, 10); return L(`たて${a}cm，横${b}cm，高さ${c}cmの直方体の表面積((${2 * (a * b + b * c + c * a)}cm^2))`, NQ, "表面積"); },
+    () => { const a = ri(2, 12); return L(`1辺が${a}cmの立方体の表面積((${6 * a * a}cm^2))`, NQ, "表面積"); },
+    () => { const a = ri(2, 6), n = ri(2, 4); return L(`1辺が${a}cmの立方体を${n}こ，1列にぴったりくっつけてできる直方体の表面積((${(4 * n + 2) * a * a}cm^2))`, NQ, "表面積"); }]);
+  const PI = "つぎの問題に答えましょう。円周率は3.14とします。";
+  return scene([
+    () => { const r = ri(1, 6), h = ri(2, 12); return L(`底面の半径が${r}cm，高さが${h}cmの円柱の表面積((${dmul(2 * r * r + 2 * r * h, "3.14")}cm^2))`, PI, "表面積"); },
+    () => { const k = ri(1, 3), h = ri(3, 12), a = 3 * k, b = 4 * k, c = 5 * k; return L(`底面が，辺の長さ${a}cm，${b}cm，${c}cmの直角三角形で，高さが${h}cmの三角柱の表面積((${a * b + (a + b + c) * h}cm^2))`, NQ, "表面積"); },
+    () => { const r = ri(1, 5), h = ri(2, 10); return L(`底面の直径が${2 * r}cm，高さが${h}cmの円柱の側面積((${dmul(2 * r * h, "3.14")}cm^2))`, PI, "表面積"); }]);
 });
 
 /* ================= 問題を作る・ならべる ================= */
