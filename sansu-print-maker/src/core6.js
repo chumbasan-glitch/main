@@ -9,6 +9,15 @@ const fdiv = (a, b) => FR(a[0] * b[1], a[1] * b[0]);
 const fadd = (a, b) => FR(a[0] * b[1] + b[0] * a[1], a[1] * b[1]);
 const fsub = (a, b) => FR(a[0] * b[1] - b[0] * a[1], a[1] * b[1]);
 const fA = f => fAns(f[0], f[1]);
+/* 分数と小数の両方をあつかう単元の答え：仮分数（帯分数，小数） */
+function fAD(f){
+  const g = gcd(f[0], f[1]), n = f[0] / g, d = f[1] / g, base = fAns(n, d);
+  if(d === 1) return base;
+  let k = 0; while(k <= 4 && (P10(k) % d)) k++;
+  if(k > 4) return base;
+  const dec = ds(n * P10(k) / d, k);
+  return base.endsWith("）") ? base.slice(0, -1) + "，" + dec + "）" : base + "（" + dec + "）";
+}
 const fM = f => { const [n, d] = FR(f[0], f[1]); if(d === 1) return String(n); return n > d ? MX(Math.floor(n / d), n % d, d) : F(n, d); };
 const decFr = s => { const [n, k] = dparse(s); return FR(n, P10(k)); };
 const fStr = f => f[1] === 1 ? String(f[0]) : F(f[0], f[1]);
@@ -340,16 +349,16 @@ const DECS = ["0.2", "0.4", "0.5", "0.6", "0.8", "0.25", "0.75", "1.2", "1.5", "
 unit6(8, "小数と分数の計算", "9月", "小数と分数がまじった計算をしよう", [
   {id:"a", name:"小数と分数のかけ算・わり算", gen(lv){
     const d = pick(DECS), f = rfrac(9, 2), D = decFr(d);
-    if(lv === 0) return L(`${d}×${fStr(f)}＝<<${fA(fmul(D, f))}>>`, K_CALC, "計算");
-    if(lv === 1) return L(`${fStr(f)}÷${d}＝<<${fA(fdiv(f, D))}>>`, K_CALC, "計算");
-    const g = rfrac(9, 2); return L(`${d}×${fStr(f)}÷${fStr(g)}＝<<${fA(fdiv(fmul(D, f), g))}>>`, K_CALC, "計算");
+    if(lv === 0) return L(`${d}×${fStr(f)}＝<<${fAD(fmul(D, f))}>>`, K_CALC, "計算");
+    if(lv === 1) return L(`${fStr(f)}÷${d}＝<<${fAD(fdiv(f, D))}>>`, K_CALC, "計算");
+    const g = rfrac(9, 2); return L(`${d}×${fStr(f)}÷${fStr(g)}＝<<${fAD(fdiv(fmul(D, f), g))}>>`, K_CALC, "計算");
   }},
   {id:"b", name:"小数と分数のたし算・ひき算", gen(lv){
     const d = pick(DECS.slice(0, 7)), f = rfrac(lv === 0 ? 6 : 9, 2), D = decFr(d);
-    if(lv === 0) return L(`${d}＋${fStr(f)}＝<<${fA(fadd(D, f))}>>`, K_CALC, "計算");
+    if(lv === 0) return L(`${d}＋${fStr(f)}＝<<${fAD(fadd(D, f))}>>`, K_CALC, "計算");
     const r = fsub(D, f); if(r[0] === 0) return this.gen(lv);
-    if(r[0] < 0) return L(`${fStr(f)}－${d}＝<<${fA(fsub(f, D))}>>`, K_CALC, "計算");
-    return L(`${d}－${fStr(f)}＝<<${fA(r)}>>`, K_CALC, "計算");
+    if(r[0] < 0) return L(`${fStr(f)}－${d}＝<<${fAD(fsub(f, D))}>>`, K_CALC, "計算");
+    return L(`${d}－${fStr(f)}＝<<${fAD(r)}>>`, K_CALC, "計算");
   }},
   {id:"c", name:"時間と分数", gen(lv){
     const m = pick([10, 15, 20, 25, 40, 45, 50]);

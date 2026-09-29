@@ -33,13 +33,13 @@ unitN(1, "計算", "くふうして正確に計算しよう", [
       else { v = f3(f2(f1(A.v, B.v), C.v), D.v); s = `（${A.s}${o1}${B.s}）${o2}${C.s}${o3}${D.s}`; }
       if(v[0] <= 0 || v[1] > 12 || v[0] / v[1] > 30) continue;
       if(lv === 2 && v[1] !== 1) continue;
-      return L(`${s}＝<<${fA(v)}>>`, K_CALC, "計算");
+      return L(`${s}＝<<${fAD(v)}>>`, K_CALC, "計算");
     }
     return L(`（${F(3, 4)}－0.5）×8＝<<2>>`, K_CALC, "計算");
   }},
   {id:"c", name:"□を求める", gen(lv){
     if(lv === 0){ const x = ri(2, 30), a = ri(2, 20), b = ri(2, 6), c = ri(1, 30), r = (x + a) * b - c; return L(`（□＋${a}）×${b}－${c}＝${r}　　□＝<<${x}>>`, "□にあてはまる数を求めましょう。", "□を求める"); }
-    if(lv === 1){ for(;;){ const x = randNum(1), a = randNum(1), b = randNum(1); const r = fmul(fsub(x.v, a.v), b.v); if(r[0] <= 0 || r[1] > 12) continue; return L(`（□－${a.s}）×${b.s}＝${fStr(r)}　　□＝<<${fA(x.v)}>>`, "□にあてはまる数を求めましょう。", "□を求める"); } }
+    if(lv === 1){ for(;;){ const x = randNum(1), a = randNum(1), b = randNum(1); const r = fmul(fsub(x.v, a.v), b.v); if(r[0] <= 0 || r[1] > 12) continue; return L(`（□－${a.s}）×${b.s}＝${fStr(r)}　　□＝<<${fAD(x.v)}>>`, "□にあてはまる数を求めましょう。", "□を求める"); } }
     for(;;){ const x = ri(2, 20), a = ri(2, 6), b = ri(1, 20), c = ri(2, 5), d = ri(1, 20), e = ri(2, 4);
       if((x * a - b) <= 0 || (x * a - b) % c) continue; const r = ((x * a - b) / c + d) * e;
       return L(`｛（□×${a}－${b}）÷${c}＋${d}｝×${e}＝${r}　　□＝<<${x}>>`, "□にあてはまる数を求めましょう。", "□を求める"); }
