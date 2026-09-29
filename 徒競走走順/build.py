@@ -20,7 +20,7 @@ from openpyxl.workbook.properties import CalcProperties
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "..", "リレー組分け_v2_白紙.xlsx")
-VERSION = "v6"
+VERSION = "v7"
 OUT_BLANK = os.path.join(HERE, f"徒競走走順_{VERSION}_白紙.xlsx")
 OUT_TEST = os.path.join(HERE, f"徒競走走順_{VERSION}_テストデータ入り.xlsx")
 
@@ -442,7 +442,8 @@ def build_race_calc(ws):
 
 
 def build_race_sheet(wb, index):
-    """レースの順番の表「走順」。組の中の並び順を、そのまま1〜4コースにする。"""
+    """レースの順番の表「走順」。組の中の並び順を、そのまま1〜4コースにする。
+    女子の名前は薄ピンクにして、男女を見分けやすくする。"""
     ws = wb.create_sheet("走順", index)
     ws["A1"] = "走順"
     ws["A1"].font = Font(bold=True, size=14)
@@ -461,25 +462,24 @@ def build_race_sheet(wb, index):
     ws.add_data_validation(dv)
     dv.add("C2")
     ws["D2"] = "← 男子か女子を選んでください"
-    ws["F1"] = ('=IF(計算用!$Q$30=0,"","男子 "&計算用!$Q$13&"レース・女子 "&計算用!$Q$14'
+    ws.merge_cells("D2:H2")
+    ws["E1"] = ('=IF(計算用!$Q$30=0,"","男子 "&計算用!$Q$13&"レース・女子 "&計算用!$Q$14'
                 '&"レース　合計 "&計算用!$Q$30&"レース")')
-    ws["F1"].font = BOLD
-    ws["F2"] = ('=IF(OR(計算用!$Q$15>0,計算用!$Q$16>0),'
+    ws["E1"].font = BOLD
+    ws["I2"] = ('=IF(OR(計算用!$Q$15>0,計算用!$Q$16>0),'
                 '"※手直しシートに確認が必要なところがあります","")')
-    ws["F2"].font = Font(bold=True, color="FFFF0000")
+    ws["I2"].font = Font(bold=True, color="FFFF0000")
 
-    for i, label in enumerate(["レース", "男女", "組", "人数", "内訳"]):
-        c = openpyxl.utils.get_column_letter(i + 1)
-        ws.merge_cells(f"{c}4:{c}5")
-        ws[f"{c}4"] = label
+    ws.merge_cells("A4:A5")
+    ws["A4"] = "レース"
     for j in range(LANES):
-        a = 6 + j * 3
+        a = 2 + j * 3
         c1, c3 = openpyxl.utils.get_column_letter(a), openpyxl.utils.get_column_letter(a + 2)
         ws.merge_cells(f"{c1}4:{c3}4")
         ws[f"{c1}4"] = f"{j + 1}コース"
         for k, label in enumerate(["名前", "クラス", "色"]):
             ws.cell(5, a + k, label)
-    ncol = 5 + 3 * LANES
+    ncol = 1 + 3 * LANES
     for row in (4, 5):
         for i in range(1, ncol + 1):
             cell = ws.cell(row, i)
@@ -491,45 +491,35 @@ def build_race_sheet(wb, index):
     last = RACE_TOP + RACES - 1
     for row in range(RACE_TOP, last + 1):
         r = row - RACE_TOP + 2   # 計算用の行
-        A, C = f"$A{row}", f"$C{row}"
+        A = f"$A{row}"
+        heat = f"計算用!$BE${r}"
         off = f'IF(計算用!$BB${r}="男",0,16)'
         ws[f"A{row}"] = f'=IF(計算用!$BB${r}="","",計算用!$BA${r})'
-        ws[f"B{row}"] = f'=IF({A}="","",IF(計算用!$BB${r}="男","男子","女子"))'
-        ws[f"C{row}"] = f'=IF({A}="","",計算用!$BE${r})'
-        ws[f"D{row}"] = f'=IF({A}="","",INDEX({table},{C},{off}+2))'
-        ws[f"E{row}"] = f'=IF({A}="","",INDEX({table},{C},{off}+3))'
-        for i in range(1, 6):
-            ws.cell(row, i).alignment = CENTER
+        ws[f"A{row}"].alignment = CENTER
         for j in range(LANES):
             for k in range(3):
-                col = 6 + j * 3 + k
-                ws.cell(row, col).value = f'=IF({A}="","",INDEX({table},{C},{off}+{4 + j * 3 + k}))'
+                col = 2 + j * 3 + k
+                ws.cell(row, col).value = f'=IF({A}="","",INDEX({table},{heat},{off}+{4 + j * 3 + k}))'
                 if k:
                     ws.cell(row, col).alignment = CENTER
 
     lastc = openpyxl.utils.get_column_letter(ncol)
     top = f"$A{RACE_TOP}"
-    ws.conditional_formatting.add(f"A{RACE_TOP}:E{last}", FormulaRule(
-        formula=[f'AND({top}<>"",$D{RACE_TOP}=0)'],
-        fill=PatternFill(bgColor="FFFF9999", fill_type="solid"), border=BOX, stopIfTrue=True))
-    ws.conditional_formatting.add(f"C{RACE_TOP}:E{last}", FormulaRule(
-        formula=[f'AND({top}<>"",OR($D{RACE_TOP}<>4,$E{RACE_TOP}<>"赤2白2"))'],
-        fill=PatternFill(bgColor="FFFFF2CC", fill_type="solid"), border=BOX))
-    ws.conditional_formatting.add(f"B{RACE_TOP}:B{last}", FormulaRule(
-        formula=[f'$B{RACE_TOP}="男子"'],
-        fill=PatternFill(bgColor="FFDDEBF7", fill_type="solid"), border=BOX))
-    ws.conditional_formatting.add(f"B{RACE_TOP}:B{last}", FormulaRule(
-        formula=[f'$B{RACE_TOP}="女子"'],
-        fill=PatternFill(bgColor="FFFCE4EC", fill_type="solid"), border=BOX))
+    # 女子の名前は薄ピンク、赤の子の「色」は薄い赤
+    girl = f'INDEX(計算用!$BB$2:$BB${RACES + 1},ROW()-{RACE_TOP - 1})="女"'
     for j in range(LANES):
-        c = openpyxl.utils.get_column_letter(8 + j * 3)
+        name = openpyxl.utils.get_column_letter(2 + j * 3)
+        ws.conditional_formatting.add(f"{name}{RACE_TOP}:{name}{last}", FormulaRule(
+            formula=[f'AND({name}{RACE_TOP}<>"",{girl})'],
+            fill=PatternFill(bgColor="FFFCE4EC", fill_type="solid"), border=BOX))
+        c = openpyxl.utils.get_column_letter(4 + j * 3)
         ws.conditional_formatting.add(f"{c}{RACE_TOP}:{c}{last}", FormulaRule(
             formula=[f'{c}{RACE_TOP}="赤"'],
             fill=PatternFill(bgColor="FFF8CBAD", fill_type="solid"), border=BOX))
     ws.conditional_formatting.add(f"A{RACE_TOP}:{lastc}{last}", FormulaRule(
         formula=[f'{top}<>""'], border=BOX))
 
-    widths = [6, 6, 5, 5, 9] + [13, 5, 4] * LANES
+    widths = [6] + [14, 5, 4] * LANES
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
     ws.freeze_panes = f"A{RACE_TOP}"
