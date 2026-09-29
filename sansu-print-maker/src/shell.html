@@ -35,6 +35,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Maru Gothic
 header.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:3px solid var(--accent);padding-bottom:8px}
 header.top h1{margin:0;color:var(--head);font-family:inherit;font-weight:700;font-size:26px;letter-spacing:.06em}
 header.top .sub{color:var(--ink-soft);font-size:13px}
+.caution{margin:8px 0 0;padding:8px 12px 8px 28px;border:1px solid #E0A33A;background:#FFF6E5;color:#6B4A00;border-radius:8px;font-size:13px;line-height:1.6;width:100%;box-sizing:border-box}
+.caution b{color:#A33A00}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .caution{background:#3A2C10;color:#F3DDB0;border-color:#8A6420}:root:not([data-theme="light"]) .caution b{color:#FFB38A}}
+:root[data-theme="dark"] .caution{background:#3A2C10;color:#F3DDB0;border-color:#8A6420}
+:root[data-theme="dark"] .caution b{color:#FFB38A}
 header.top{position:relative}
 header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px}
 .layout{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:16px;align-items:start}
@@ -113,7 +118,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <header class="top">
     <h1>算数プリントメーカー</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 3.0</span>
+    <span class="ver">ver. 3.1</span>
   </header>
 
   <div class="layout">
@@ -228,6 +233,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
           <button class="btn" type="button" id="saveImgA">答えを画像で保存</button>
         </div>
         <span class="status" id="saveStatus">「印刷する」をおすと印刷用のファイルができます。そのファイルを開くと、印刷の画面が出ます。</span>
+        <ul class="caution"><li>保存しづらい場合、何度か長押しを試してみてください。</li><li><b>必ず答えも一緒に保存してください。</b>同じ問題のプリントは生成されません！</li></ul>
       </div>
     </section>
   </div>
@@ -237,6 +243,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <div class="box">
     <strong>印刷用の画像</strong>
     <p class="hint" id="imgHow"></p>
+    <ul class="caution"><li>保存しづらい場合、何度か長押しを試してみてください。</li><li><b>必ず答えも一緒に保存してください。</b>同じ問題のプリントは生成されません！</li></ul>
     <div class="row"><button class="btn primary" type="button" id="imgClose">閉じる</button></div>
     <div id="imgList" class="imglist"></div>
     <div class="row"><button class="btn" type="button" id="imgClose2">閉じる</button></div>
