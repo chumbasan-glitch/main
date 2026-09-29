@@ -2,7 +2,8 @@
 
 もとのファイル（リレー組分け_v2_白紙.xlsx）を読み込み、
 「4人組」シートと「計算用」シートの組分けのしくみを作りかえ、
-名前を直接書きかえられる「手直し」シートと、印刷用の「決定版」シートを足して、
+名前を直接書きかえられる「手直し」シート、印刷用の「決定版」シート、
+レースの順番を決める「走順」シートを足して、
 白紙版とテストデータ入り版の2つを書き出す。
 
 使い方: python3 build.py
@@ -19,7 +20,7 @@ from openpyxl.workbook.properties import CalcProperties
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "..", "リレー組分け_v2_白紙.xlsx")
-VERSION = "v5"
+VERSION = "v6"
 OUT_BLANK = os.path.join(HERE, f"徒競走走順_{VERSION}_白紙.xlsx")
 OUT_TEST = os.path.join(HERE, f"徒競走走順_{VERSION}_テストデータ入り.xlsx")
 
@@ -29,6 +30,8 @@ HEAT_LAST = HEATS + 1  # 計算用の組の表の最後の行
 LANES = 4              # 1組の最大人数
 EDIT_TOP = 6           # 手直しシートの1組目の行
 EDIT_LAST = EDIT_TOP + HEATS - 1
+RACES = 2 * HEATS      # 走順シートのレースの最大数
+RACE_TOP = 6           # 走順シートの1レース目の行
 # 手直しシートの列: 名前を入れるところ・人数・内訳・入っていない人・コピー用
 EDIT = {
     "男": dict(names="BCDE", size="K", inner="L", missing="P", copy="STUV"),
@@ -408,7 +411,138 @@ def build_edit_sheet(wb, index):
     ws.page_setup.fitToHeight = 0
 
 
-def put_print_areas(path, heat_cols):
+def build_race_calc(ws):
+    """走順の計算（計算用シート）。
+
+    男女それぞれ、組の番号（1が一番速い）を次の順番で走らせる。
+      1. 4番目から下の偶数番目を、速い方から（4, 6, 8, …）
+      2. 5番目から下の奇数番目を、遅い方から（…, 9, 7, 5）
+      3. 最後に 3番目 → 2番目 → 1番目（一番速い組が最終レース）
+    例: 10組なら 4, 6, 8, 10, 9, 7, 5, 3, 2, 1。3組以下は遅い組から順に。
+    """
+    ws["P26"], ws["Q26"] = "先に走る", '=IF(走順!$C$2="女子","女","男")'
+    ws["P27"], ws["Q27"] = "後に走る", '=IF(Q26="男","女","男")'
+    ws["P28"], ws["Q28"] = "先の組数", '=IF(Q26="男",$Q$13,$Q$14)'
+    ws["P29"], ws["Q29"] = "後の組数", '=IF(Q27="男",$Q$13,$Q$14)'
+    ws["P30"], ws["Q30"] = "レース数", "=Q28+Q29"
+    ws["BA1"], ws["BB1"], ws["BC1"], ws["BD1"], ws["BE1"] = (
+        "レース", "男女", "男女ごとのレース", "組数", "組")
+    for row in range(2, RACES + 2):
+        ws[f"BA{row}"] = row - 1
+        ws[f"BB{row}"] = f'=IF(BA{row}>$Q$30,"",IF(BA{row}<=$Q$28,$Q$26,$Q$27))'
+        ws[f"BC{row}"] = f'=IF(BB{row}="","",IF(BA{row}<=$Q$28,BA{row},BA{row}-$Q$28))'
+        ws[f"BD{row}"] = f'=IF(BB{row}="","",IF(BB{row}="男",$Q$13,$Q$14))'
+        p, n = f"BC{row}", f"BD{row}"
+        evens = f"INT(({n}-2)/2)"   # 4番目から下の偶数番目の数
+        odds = f"INT(({n}-3)/2)"    # 5番目から下の奇数番目の数
+        ws[f"BE{row}"] = (f'=IF(BB{row}="","",IF({n}<=3,{n}-{p}+1,'
+                          f'IF({p}<={evens},2*{p}+2,'
+                          f'IF({p}<={evens}+{odds},({n}-1+MOD({n},2))-2*({p}-{evens}-1),'
+                          f'3-({p}-{evens}-{odds}-1)))))')
+
+
+def build_race_sheet(wb, index):
+    """レースの順番の表「走順」。組の中の並び順を、そのまま1〜4コースにする。"""
+    ws = wb.create_sheet("走順", index)
+    ws["A1"] = "走順"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws.merge_cells("A2:B2")
+    ws["A2"] = "先に走る"
+    ws["A2"].font = BOLD
+    ws["A2"].alignment = CENTER
+    ws["C2"] = "男子"
+    ws["C2"].fill = PatternFill("solid", fgColor="FFFFF2CC")
+    ws["C2"].border = BOX
+    ws["C2"].alignment = CENTER
+    ws["C2"].font = BOLD
+    from openpyxl.worksheet.datavalidation import DataValidation
+    dv = DataValidation(type="list", formula1='"男子,女子"', showErrorMessage=True,
+                        errorTitle="先に走る", error="男子か女子を選んでください")
+    ws.add_data_validation(dv)
+    dv.add("C2")
+    ws["D2"] = "← 男子か女子を選んでください"
+    ws["F1"] = ('=IF(計算用!$Q$30=0,"","男子 "&計算用!$Q$13&"レース・女子 "&計算用!$Q$14'
+                '&"レース　合計 "&計算用!$Q$30&"レース")')
+    ws["F1"].font = BOLD
+    ws["F2"] = ('=IF(OR(計算用!$Q$15>0,計算用!$Q$16>0),'
+                '"※手直しシートに確認が必要なところがあります","")')
+    ws["F2"].font = Font(bold=True, color="FFFF0000")
+
+    for i, label in enumerate(["レース", "男女", "組", "人数", "内訳"]):
+        c = openpyxl.utils.get_column_letter(i + 1)
+        ws.merge_cells(f"{c}4:{c}5")
+        ws[f"{c}4"] = label
+    for j in range(LANES):
+        a = 6 + j * 3
+        c1, c3 = openpyxl.utils.get_column_letter(a), openpyxl.utils.get_column_letter(a + 2)
+        ws.merge_cells(f"{c1}4:{c3}4")
+        ws[f"{c1}4"] = f"{j + 1}コース"
+        for k, label in enumerate(["名前", "クラス", "色"]):
+            ws.cell(5, a + k, label)
+    ncol = 5 + 3 * LANES
+    for row in (4, 5):
+        for i in range(1, ncol + 1):
+            cell = ws.cell(row, i)
+            cell.font = BOLD
+            cell.border = BOX
+            cell.alignment = CENTER
+
+    table = "決定版!$A$4:$AE$53"   # 決定版の表（男子はA列から、女子は16列右から）
+    last = RACE_TOP + RACES - 1
+    for row in range(RACE_TOP, last + 1):
+        r = row - RACE_TOP + 2   # 計算用の行
+        A, C = f"$A{row}", f"$C{row}"
+        off = f'IF(計算用!$BB${r}="男",0,16)'
+        ws[f"A{row}"] = f'=IF(計算用!$BB${r}="","",計算用!$BA${r})'
+        ws[f"B{row}"] = f'=IF({A}="","",IF(計算用!$BB${r}="男","男子","女子"))'
+        ws[f"C{row}"] = f'=IF({A}="","",計算用!$BE${r})'
+        ws[f"D{row}"] = f'=IF({A}="","",INDEX({table},{C},{off}+2))'
+        ws[f"E{row}"] = f'=IF({A}="","",INDEX({table},{C},{off}+3))'
+        for i in range(1, 6):
+            ws.cell(row, i).alignment = CENTER
+        for j in range(LANES):
+            for k in range(3):
+                col = 6 + j * 3 + k
+                ws.cell(row, col).value = f'=IF({A}="","",INDEX({table},{C},{off}+{4 + j * 3 + k}))'
+                if k:
+                    ws.cell(row, col).alignment = CENTER
+
+    lastc = openpyxl.utils.get_column_letter(ncol)
+    top = f"$A{RACE_TOP}"
+    ws.conditional_formatting.add(f"A{RACE_TOP}:E{last}", FormulaRule(
+        formula=[f'AND({top}<>"",$D{RACE_TOP}=0)'],
+        fill=PatternFill(bgColor="FFFF9999", fill_type="solid"), border=BOX, stopIfTrue=True))
+    ws.conditional_formatting.add(f"C{RACE_TOP}:E{last}", FormulaRule(
+        formula=[f'AND({top}<>"",OR($D{RACE_TOP}<>4,$E{RACE_TOP}<>"赤2白2"))'],
+        fill=PatternFill(bgColor="FFFFF2CC", fill_type="solid"), border=BOX))
+    ws.conditional_formatting.add(f"B{RACE_TOP}:B{last}", FormulaRule(
+        formula=[f'$B{RACE_TOP}="男子"'],
+        fill=PatternFill(bgColor="FFDDEBF7", fill_type="solid"), border=BOX))
+    ws.conditional_formatting.add(f"B{RACE_TOP}:B{last}", FormulaRule(
+        formula=[f'$B{RACE_TOP}="女子"'],
+        fill=PatternFill(bgColor="FFFCE4EC", fill_type="solid"), border=BOX))
+    for j in range(LANES):
+        c = openpyxl.utils.get_column_letter(8 + j * 3)
+        ws.conditional_formatting.add(f"{c}{RACE_TOP}:{c}{last}", FormulaRule(
+            formula=[f'{c}{RACE_TOP}="赤"'],
+            fill=PatternFill(bgColor="FFF8CBAD", fill_type="solid"), border=BOX))
+    ws.conditional_formatting.add(f"A{RACE_TOP}:{lastc}{last}", FormulaRule(
+        formula=[f'{top}<>""'], border=BOX))
+
+    widths = [6, 6, 5, 5, 9] + [13, 5, 4] * LANES
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    ws.freeze_panes = f"A{RACE_TOP}"
+    ws.page_setup.orientation = "portrait"
+    ws.page_setup.paperSize = 9
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.print_title_rows = "4:5"
+    return ncol
+
+
+def put_print_areas(path, heat_cols, race_cols):
     """人数に合わせて変わる印刷範囲（openpyxlでは書けないので、あとから書き込む）。"""
     names = (
         f"<definedName name=\"_xlnm.Print_Area\" localSheetId=\"1\">"
@@ -419,6 +553,8 @@ def put_print_areas(path, heat_cols):
         f"手直し!$A$1:$Q${EDIT_LAST}</definedName>"
         f"<definedName name=\"_xlnm.Print_Area\" localSheetId=\"4\">"
         f"OFFSET(決定版!$A$1,0,0,3+MAX(計算用!$Q$13,計算用!$Q$14),{heat_cols})</definedName>"
+        f"<definedName name=\"_xlnm.Print_Area\" localSheetId=\"5\">"
+        f"OFFSET(走順!$A$1,0,0,{RACE_TOP - 1}+計算用!$Q$30,{race_cols})</definedName>"
     )
     tmp = path + ".tmp"
     with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
@@ -515,14 +651,16 @@ def main():
         heat_cols = build_heat_sheet(wb, "4人組", idx, final=False)
         build_edit_sheet(wb, idx + 1)
         build_heat_sheet(wb, "決定版", idx + 2, final=True)
-        assert wb.sheetnames.index("決定版") == 4
+        race_cols = build_race_sheet(wb, idx + 3)
+        build_race_calc(wb["計算用"])
+        assert wb.sheetnames.index("決定版") == 4 and wb.sheetnames.index("走順") == 5
         if test:
             kids = fill_test(wb["①データ入力"])
             fill_test_edit(wb["手直し"], kids)
         wb.calculation = CalcProperties(fullCalcOnLoad=True)
         wb.active = 0
         wb.save(out)
-        put_print_areas(out, heat_cols)
+        put_print_areas(out, heat_cols, race_cols)
         print("wrote", out)
 
 
