@@ -23,6 +23,14 @@ BOX = Border(left=thin, right=thin, top=thin, bottom=thin)
 CEN = Alignment(horizontal='center', vertical='center')
 LFT = Alignment(horizontal='left', vertical='center')
 SMALLF = dict(size=9, color='808080')
+PUR = PatternFill('solid', fgColor='E4DFEC')     # クラブ担当が入力
+ROLE = {'club': ('【入力：クラブ担当】うす紫のセル', PUR, '7030A0'),
+        'tan': ('【入力：担任】黄色のセル', YEL, 'FFC000'),
+        'none': ('【入力なし】見る・印刷するだけ', GRY, 'A6A6A6')}
+def role(ws, ref, kind):
+    t, fill, tab = ROLE[kind]
+    put(ws, ref, t, Font(name=FONT, size=10, bold=True), fill, LFT, True)
+    ws.sheet_properties.tabColor = tab
 
 wb = Workbook()
 def sheet(name, first=False):
@@ -72,9 +80,9 @@ PRI = f'OR({S}!$C$14="〇",{S}!$C$14="○")'
 SEATS = lambda x: f'(INDEX({CAPR},MATCH({x},{CN},0))+N(INDEX({TOLR},MATCH({x},{CN},0))))'
 MODE = '計算用!$B$1'            # 1=新年度名簿あり
 NSP = lambda x: f'SUBSTITUTE(SUBSTITUTE({x}," ",""),"　","")'
-O2, OL = 2, NS + 1              # 前年度名簿 行範囲
-W2, WL = 2, NW + 1              # 希望入力
-N2, NL = 2, NN + 1              # 新年度名簿
+O2, OL = 3, NS + 2              # 前年度名簿 行範囲
+W2, WL = 3, NW + 2              # 希望入力
+N2, NL = 3, NN + 2              # 新年度名簿
 F0, FL = 7, NS + 6              # 振り分け（見出しは6行目）
 rg = lambda sh, c, a, b: f"{sh}!${c}${a}:${c}${b}"
 
@@ -161,67 +169,79 @@ ws = sheet('使い方', first=True)
 ws.column_dimensions['A'].width = 4; ws.column_dimensions['B'].width = 104
 put(ws, 'B1', 'クラブ名簿作成ツール　使い方', f(size=16, bold=True))
 lines = [
- ('■ 色のきまり', True),
- ('黄色いセル＝先生が入力する所です。それ以外のセルには数式が入っているので、保護しています（「校閲」→「シート保護の解除」で外せます。パスワードなし）。', False),
+ ('■ 色のきまり（入力する人で色が分かれています）', True),
+ ('@PUR', False),
+ ('@YEL', False),
+ ('それ以外のセルには数式が入っているので保護しています（「校閲」→「シート保護の解除」で外せます。パスワードなし）。各シートの左上にも、だれが入力するシートかを表示しています。', False),
  ('', False),
- ('■ 前年度（1〜3月）にすること', True),
- ('① 【設定】年度（新年度）、新年度の学年（6・5・4）、前年度の組・新年度の組、クラブの名前・定員・担当・活動場所を入力します。', False),
+ ('■ 【クラブ担当】前年度（1〜3月）にすること', True),
+ ('① 【設定】年度（新年度）、新年度の学年（6・5・4）、前年度の組・新年度の組と色、クラブ（名前・定員・融通・担当・活動場所）を入力します。', False),
+ ('　 ・「融通」は定員を何人まで超えてよいか。「上の学年から優先」は〇で有効（6年→5年→4年の順に枠を埋めます）。', False),
  ('　 ・クラブを増やす：空いている行に書きこむ　　減らす：行の中身を消す　　名前を変える：書きかえる', False),
- ('② 【前年度名簿】アンケートをとる学年（3〜5年）全員の「学年・組・番号・名前」を貼り付けます。学年は数字で入れます。', False),
- ('　 ・「定員」と「融通」（何人まで超えてよいか）、「上の学年から優先」（〇で有効）、希望調査用紙の注意書きも設定します。', False),
- ('　 ・【希望調査用紙】を印刷して配ります。クラブの番号は設定シートの No. です（配ったあとは順番を変えないでください）。', False),
- ('③ 【希望入力】前年度の学年・組・番号と、第1〜第3希望を入れます。', False),
+ ('② 【希望調査用紙】印刷して担任に配ります。クラブの番号は設定シートの No. です（配ったあとはクラブの順番を変えないでください）。', False),
+ ('③ 【前年度名簿】アンケートをとる学年（3〜5年）全員の「学年・組・番号・名前」を貼り付けます。学年は数字で入れます。', False),
+ ('', False),
+ ('■ 【担任】希望調査のあとにすること', True),
+ ('④ 【希望入力】自分の組の子の、前年度の学年・組・番号と、第1〜第3希望を入れます。', False),
  ('　 ・紙の場合：希望はクラブの「番号」を打つだけでかまいません。右側にクラブ名が出るので確認してください。', False),
- ('　 ・Formsの場合：結果の表から「学年〜第3希望」の6列をコピーし、A列の2行目に「値の貼り付け」をします。', False),
+ ('　 ・Formsの場合：結果の表から「学年〜第3希望」の6列をコピーし、A列の3行目に「値の貼り付け」をします。', False),
  ('　 ・「チェック」欄に「名簿にいない」「2回提出」などが出たら確認してください。2回提出は下の行（後から出したほう）が使われます。', False),
- ('④ 【振り分け】第1希望の人数が「定員＋融通」以内なら自動で決まります。超えたクラブを希望した子は「要調整」（赤）になります。', False),
- ('　 ・「上の学年から優先」が〇なら、6年→5年→4年の順に枠を埋め、入りきらない学年の子だけが要調整になります。', False),
- ('　 ・要調整の子の第2・第3希望が緑なら、そのクラブには空きがあります。色がなければ第1希望の子でいっぱいです。', False),
- ('　 ・見出しの▼で「第1希望」を絞りこむと、そのクラブを希望した子が6年→5年→4年の順に並びます（6年優先の目安にしてください）。', False),
- ('　 ・「第2希望の空き」「第3希望の空き」は、定員から「決定した人数」と「そのクラブを第1希望にしている要調整の子」を引いた数です。', False),
- ('　 ・決まったら、残る子にも移る子にも「先生の決定」欄へクラブを入れます（プルダウン）。未提出の子も同じです。', False),
+ ('⑤ 【振り分け】第1希望の人数が「定員＋融通」以内なら自動で決まります。超えたクラブを希望した子は「要調整」（赤地に白い字）になります。', False),
+ ('　 ・要調整の子の第2・第3希望が緑地なら、そのクラブには空きがあります。色がなければ第1希望の子でいっぱいです。', False),
+ ('　 ・見出しの▼で「第1希望」や「状態」を絞りこむと、調整する子だけを並べられます。', False),
+ ('　 ・決まったら、残る子にも移る子にも「先生の決定」（黄色）へクラブを入れます（プルダウン）。未提出の子も同じです。', False),
  ('　 ・この段階では、名簿は前年度の組で表示され、タイトルに「（仮・前年度の組）」と出ます。', False),
  ('', False),
- ('■ 新年度（4月）にすること', True),
- ('⑤ 【新年度名簿】新しい名簿（4〜6年）の「学年・組・番号・名前」を貼り付けます。前年度名簿と名前・学年で自動的につながります。', False),
+ ('■ 【クラブ担当】新年度（4月）にすること', True),
+ ('⑥ 【新年度名簿】新しい名簿（4〜6年）の「学年・組・番号・名前」を貼り付けます。前年度名簿と名前・学年で自動的につながります。', False),
  ('　 ・名前の空白（全角・半角）のちがいは自動で無視します。', False),
  ('　 ・「前年度名簿にいない」（赤）：転入生なら「クラブ（手入力）」欄にクラブを入れます。名前の字がちがう（髙／高など）ときは、どちらかの名簿の名前を直します。', False),
  ('　 ・「同姓同名あり」：自動でつなげられないので、「クラブ（手入力）」欄にクラブを入れてください。', False),
  ('　 ・振り分けシートで「転出」と出た子は、新年度名簿にいなかった子です（名前の字ちがいのこともあるので確認してください）。', False),
- ('⑥ 【定員チェック】「未提出」「要調整」「定員オーバー」「新年度名簿の要確認」が 0 になれば完成です。', False),
- ('⑦ 【一覧名簿】【クラブ①〜⑳】を印刷します。新しい組・番号で、6年→5年→4年、組順・番号順に並びます。', False),
+ ('⑦ 【定員チェック】「未提出」「要調整」「定員オーバー」「新年度名簿の要確認」が 0 になれば完成です。', False),
+ ('⑧ 【一覧名簿】【クラブ①〜⑳】を印刷します。新しい組・番号で、6年→5年→4年、組順・番号順に並びます。', False),
  ('　 ・一覧名簿はA3横。上段（①〜⑩）が1ページ目、下段（⑪〜⑳）が2ページ目です。クラブが10以下なら1ページ目だけ印刷します。', False),
  ('', False),
  ('■ Microsoft Forms の作り方（希望を集める場合）', True),
  ('質問を「1. 学年　2. 組　3. 番号　4. 第1希望　5. 第2希望　6. 第3希望」の順に作ります（学年・組・番号はアンケート時のもの）。', False),
- ('選択肢は設定シートと同じ書き方にしてください。Formsのデータは学校のMicrosoft 365に保存されます。使ってよいかは学校のルールを確認してください。', False),
+ ('希望はクラブの番号でも、設定シートと同じ書き方のクラブ名でもかまいません。Formsのデータは学校のMicrosoft 365に保存されます。使ってよいかは学校のルールを確認してください。', False),
  ('', False),
  ('■ 上限', True),
  ('クラブ 20／1学年の組 8／前年度名簿・新年度名簿 各450人／希望入力 550行／1つのクラブ 50人', False),
  ('', False),
  ('■ テストデータについて', True),
- ('名前はすべて架空です。新年度名簿まで入っているので、名簿は新しい組で表示されています。前年度の段階を試すときは、新年度名簿の黄色い所を消してください。', False),
+ ('名前はすべて架空です。新年度名簿まで入っているので、名簿は新しい組で表示されています。前年度の段階を試すときは、新年度名簿のうす紫の所を消してください。', False),
  ('本番で使うときは、【前年度名簿】【希望入力】【新年度名簿】のデータと、【振り分け】の「先生の決定」欄を消してから使ってください。', False),
 ]
+ws.column_dimensions['B'].width = 16; ws.column_dimensions['C'].width = 96
 for i, (t, b) in enumerate(lines, start=3):
-    put(ws, f'B{i}', t, f(bold=b, size=12 if b else 11))
+    if t == '@PUR':
+        put(ws, f'B{i}', 'うす紫', f(bold=True), PUR, CEN, True); put(ws, f'C{i}', '＝クラブ担当が入力する所（設定、前年度名簿、新年度名簿）')
+    elif t == '@YEL':
+        put(ws, f'B{i}', '黄色', f(bold=True), YEL, CEN, True); put(ws, f'C{i}', '＝担任が入力する所（希望入力、振り分けの「先生の決定」）')
+    elif t.startswith('■'):
+        put(ws, f'B{i}', t, f(bold=True, size=12))
+    else:
+        put(ws, f'C{i}' if t.startswith('　') else f'B{i}', t, f(size=11))
 ws.sheet_view.showGridLines = False
+ws.sheet_properties.tabColor = 'A6A6A6'
+page(ws, ws.PAPERSIZE_A4, 'landscape', 0)
 
 # ---------------- 2. 設定 ----------------
 ws = sheet(S)
 for col, w in zip('ABCDEFGHIJKLMNOPQRST', [8, 10, 10, 3, 7, 7, 12, 8, 3, 7, 7, 12, 8, 3, 5, 18, 7, 7, 10, 16]):
     ws.column_dimensions[col].width = w
-put(ws, 'A1', '設定（黄色いセルを入力してください）', f(size=14, bold=True))
-put(ws, 'A3', '年度', f(bold=True)); put(ws, 'B3', '令和9年度', fill=YEL, box=True, unlock=True); ws.merge_cells('B3:C3')
+put(ws, 'A1', '設定', f(size=14, bold=True))
+put(ws, 'A3', '年度', f(bold=True)); put(ws, 'B3', '令和9年度', fill=PUR, box=True, unlock=True); ws.merge_cells('B3:C3')
 put(ws, 'E3', '← 名簿のタイトルに使う「新年度」', f(**SMALLF))
-put(ws, 'A4', '呼び名', f(bold=True)); put(ws, 'B4', 'クラブ', fill=YEL, box=True, unlock=True)
+put(ws, 'A4', '呼び名', f(bold=True)); put(ws, 'B4', 'クラブ', fill=PUR, box=True, unlock=True)
 put(ws, 'A6', '学年の設定', f(bold=True))
 for c, h in zip('ABC', ['', '新年度', '前年度']):
     put(ws, f'{c}7', h, f(bold=True), HDR, CEN, True)
 for i, (lab, g) in enumerate(zip(['上の学年', '中の学年', '下の学年'], [6, 5, 4])):
     r = 8 + i
     put(ws, f'A{r}', lab, fill=GRY, al=CEN, box=True)
-    put(ws, f'B{r}', g, fill=YEL, al=CEN, box=True, unlock=True)
+    put(ws, f'B{r}', g, fill=PUR, al=CEN, box=True, unlock=True)
     put(ws, f'C{r}', f'=IF(B{r}="","",B{r}-1)', fill=GRY, al=CEN, box=True)
 put(ws, 'A12', '※ 前年度の学年は自動で1つ下になります。', f(**SMALLF))
 for (c0, title, gcol, kcol) in (('E', '前年度の組（アンケート時）', 'C', 'Y'), ('J', '新年度の組', 'B', 'Z')):
@@ -232,9 +252,9 @@ for (c0, title, gcol, kcol) in (('E', '前年度の組（アンケート時）',
     for i in range(24):
         r = 8 + i
         put(ws, f'{cs[0]}{r}', f'=${gcol}${8 + i // 8}', fill=GRY, al=CEN, box=True)
-        put(ws, f'{cs[1]}{r}', CLS[i % 8] if i % 8 < 4 else None, fill=YEL, al=CEN, box=True, unlock=True)
-        put(ws, f'{cs[2]}{r}', f'=IF({cs[1]}{r}="","",{cs[0]}{r}&{cs[1]}{r})', fill=YEL, al=CEN, box=True, unlock=True)
-        put(ws, f'{cs[3]}{r}', TESTCOLOR.get(CLS[i % 8]) if i % 8 < 4 else None, fill=YEL, al=CEN, box=True, unlock=True)
+        put(ws, f'{cs[1]}{r}', CLS[i % 8] if i % 8 < 4 else None, fill=PUR, al=CEN, box=True, unlock=True)
+        put(ws, f'{cs[2]}{r}', f'=IF({cs[1]}{r}="","",{cs[0]}{r}&{cs[1]}{r})', fill=PUR, al=CEN, box=True, unlock=True)
+        put(ws, f'{cs[3]}{r}', TESTCOLOR.get(CLS[i % 8]) if i % 8 < 4 else None, fill=PUR, al=CEN, box=True, unlock=True)
         put(ws, f'{kcol}{r}', f'=IF({cs[1]}{r}="","",{cs[0]}{r}&"-"&{cs[1]}{r})', f(**SMALLF))
     dv = DataValidation(type='list', formula1=COLOR_LIST, allow_blank=True); ws.add_data_validation(dv); dv.add(f'{cs[3]}8:{cs[3]}31')
     colorcf(ws, f'{cs[1]}8:{cs[2]}31', f'${cs[3]}8')
@@ -249,7 +269,7 @@ for i in range(NC):
     put(ws, f'O{r}', i + 1, fill=GRY, al=CEN, box=True)
     d = CLUBS[i] if i < len(CLUBS) else (None,) * 5
     for c, v in zip('PQRST', d):
-        put(ws, f'{c}{r}', v, fill=YEL, al=CEN, box=True, unlock=True)
+        put(ws, f'{c}{r}', v, fill=PUR, al=CEN, box=True, unlock=True)
 put(ws, 'O28', '=" 定員の合計："&SUM(Q8:Q27)&"人"', f(**SMALLF))
 dv = DataValidation(type='whole', operator='between', formula1='0', formula2=str(NM), allow_blank=True)
 ws.add_data_validation(dv); dv.add('Q8:Q27')
@@ -260,15 +280,16 @@ put(ws, 'O29', '※「融通」は、定員を何人まで超えてもよいか�
 put(ws, 'O30', '※ No. は希望調査用紙のクラブ番号です。用紙を配ったあとは、クラブの順番を入れかえないでください。', f(size=9, color='C00000', bold=True))
 put(ws, 'A14', '上の学年から優先', f(bold=True))
 put(ws, 'A15', '（6年→5年→4年）', f(size=9))
-put(ws, 'C14', '〇', f(bold=True, size=12), YEL, CEN, True, True)
+put(ws, 'C14', '〇', f(bold=True, size=12), PUR, CEN, True, True)
 put(ws, 'A16', '※ 〇を入れると、上の学年から順に「定員＋融通」の枠を埋めます。空欄なら全学年まとめて判定します。', f(**SMALLF))
 dv = DataValidation(type='list', formula1='"〇"', allow_blank=True); ws.add_data_validation(dv); dv.add('C14')
 put(ws, 'A18', '希望調査用紙の注意書き', f(bold=True))
 ws.merge_cells('A19:C22')
-put(ws, 'A19', '必ずしも第1希望が通るわけではありません。', fill=YEL, al=Alignment(wrap_text=True, vertical='top'), box=True, unlock=True)
+put(ws, 'A19', '必ずしも第1希望が通るわけではありません。', fill=PUR, al=Alignment(wrap_text=True, vertical='top'), box=True, unlock=True)
 for rr in range(19, 23):
     for cc in 'ABC':
         ws[f'{cc}{rr}'].border = BOX
+ws.merge_cells('D1:J1'); role(ws, 'D1', 'club')
 protect(ws)
 
 
@@ -317,6 +338,8 @@ for c in 'DEFGH':
 ws['B18'].border = BOX
 ws.merge_cells('B24:H26')
 put(ws, 'B24', f'=IF({S}!A19="","","※ "&{S}!A19)', f(size=12), al=Alignment(wrap_text=True, vertical='top'))
+role(ws, 'K1', 'none')
+ws.column_dimensions['K'].width = 30
 ws.print_area = 'A1:I27'
 page(ws, ws.PAPERSIZE_A4, 'portrait', 1)
 ws.sheet_view.showGridLines = False
@@ -327,14 +350,14 @@ ws = sheet('前年度名簿')
 for col, w in zip('ABCDEFGHIJ', [7, 7, 7, 18, 3, 11, 10, 8, 18, 22]):
     ws.column_dimensions[col].width = w
 for c, h in zip('ABCD', ['学年', '組', '番号', '名前']):
-    put(ws, f'{c}1', h, f(bold=True), HDR, CEN, True)
+    put(ws, f'{c}2', h, f(bold=True), HDR, CEN, True)
 for c, h in zip('FGHIJ', ['キー', '並び順', '新学年', '名前キー', 'チェック（自動）']):
-    put(ws, f'{c}1', h, f(bold=True, size=9), GRY, CEN, True)
+    put(ws, f'{c}2', h, f(bold=True, size=9), GRY, CEN, True)
 for i in range(NS):
     r = O2 + i
     st = old[i] if i < len(old) else (None,) * 4
     for c, v in zip('ABCD', st):
-        put(ws, f'{c}{r}', v, fill=YEL, al=CEN if c != 'D' else LFT, unlock=True)
+        put(ws, f'{c}{r}', v, fill=PUR, al=CEN if c != 'D' else LFT, unlock=True)
     put(ws, f'F{r}', f'=IF(D{r}="","",A{r}&"-"&B{r}&"-"&C{r})', f(**SMALLF))
     put(ws, f'G{r}', f'=IF(D{r}="","",IFERROR(MATCH(A{r}&"-"&B{r},{S}!$Y$8:$Y$31,0),99)*1000+C{r}+ROW()/1000000)', f(**SMALLF))
     put(ws, f'H{r}', f'=IF(D{r}="","",A{r}+1)', f(**SMALLF))
@@ -342,8 +365,9 @@ for i in range(NS):
     put(ws, f'J{r}', (f'=IF(D{r}="","",IF(ISERROR(MATCH(A{r}&"-"&B{r},{S}!$Y$8:$Y$31,0)),"設定にない学年・組",'
                       f'IF(COUNTIF($F${O2}:$F${OL},F{r})>1,"同じ学年・組・番号がいる",IF(COUNTIF($I${O2}:$I${OL},I{r})>1,"同姓同名あり",""))))'),
         f(size=9, color='C00000'))
-ws.freeze_panes = 'A2'
+ws.freeze_panes = 'A3'
 cf(ws, f'A{O2}:D{OL}', f'$J{O2}<>""', RED)
+ws.merge_cells('A1:F1'); role(ws, 'A1', 'club')
 protect(ws)
 
 # ---------------- 4. 希望入力 ----------------
@@ -351,9 +375,9 @@ ws = sheet('希望入力')
 for col, w in zip('ABCDEFGHIJKLM', [7, 7, 7, 9, 9, 9, 16, 13, 13, 13, 26, 10, 10]):
     ws.column_dimensions[col].width = w
 for c, h in zip('ABCDEF', ['学年', '組', '番号', '第1希望', '第2希望', '第3希望']):
-    put(ws, f'{c}1', h, f(bold=True), HDR, CEN, True)
+    put(ws, f'{c}2', h, f(bold=True), HDR, CEN, True)
 for c, h in zip('GHIJKLM', ['名前（自動）', '第1（クラブ名）', '第2（クラブ名）', '第3（クラブ名）', 'チェック（自動）', 'キー', '採用']):
-    put(ws, f'{c}1', h, f(bold=True, size=9 if c in 'LM' else 10), GRY, CEN, True)
+    put(ws, f'{c}2', h, f(bold=True, size=9 if c in 'LM' else 10), GRY, CEN, True)
 CONV = lambda x: (f'IF({x}="","",IF(ISERROR(VALUE({x})),{x}&"",IF(AND(VALUE({x})>=1,VALUE({x})<={NC}),'
                   f'IF(INDEX({CN},VALUE({x}))="","？",INDEX({CN},VALUE({x}))),"？")))')
 for i in range(NW):
@@ -374,7 +398,8 @@ for i in range(NW):
     put(ws, f'M{r}', f'=IF(OR(L{r}="",G{r}=""),"",IF(COUNTIF(L{r+1}:L${WL+1},L{r})=0,L{r},""))', f(**SMALLF))
 cf(ws, f'K{W2}:K{WL}', f'AND(K{W2}<>"",K{W2}<>"OK")', RED)
 cf(ws, f'H{W2}:J{WL}', f'H{W2}="？"', RED)
-ws.freeze_panes = 'A2'
+ws.freeze_panes = 'A3'
+ws.merge_cells('A1:F1'); role(ws, 'A1', 'tan')
 protect(ws)
 
 # ---------------- 5. 振り分け ----------------
@@ -385,7 +410,7 @@ widths = [6, 7, 5, 16, 7, 6, 12, 12, 12, 12, 13, 12, 8, 8, 8, 5, 5, 9, 14, 5, 5,
 for i, w in enumerate(widths):
     ws.column_dimensions[CL(i + 1)].width = w
 HR = F0 - 1
-put(ws, 'A1', '振り分け　　「要調整」の子は、決まったら「先生の決定」（黄色）にプルダウンでクラブを入れてください。', f(bold=True, size=12))
+put(ws, 'A1', '振り分け　【入力：担任】「要調整」の子は、決まったら「先生の決定」（黄色）にプルダウンでクラブを入れてください。', f(bold=True, size=12))
 put(ws, 'A2', '■ 色の見方', f(bold=True))
 put(ws, 'B3', '要調整', f(bold=True, color='FFFFFF'), PatternFill('solid', fgColor='C00000'), CEN)
 put(ws, 'C3', '…第1希望のクラブが「定員＋融通」をこえています。話し合いなどで決めて、「先生の決定」にクラブを入れてください。')
@@ -436,6 +461,7 @@ cf(ws, f'I{F0}:I{FL}', f'AND($M{F0}="要調整",N(O{F0})>0)', GRN, Font(name=FON
 cf(ws, rng, f'$M{F0}="要調整"', RED)
 cf(ws, rng, f'OR($M{F0}="未提出",$M{F0}="転出")', DGRY)
 cf(ws, f'K{F0}:K{FL}', f'K{F0}<>""', font=Font(name=FONT, bold=True, color='0000FF'))
+ws.sheet_properties.tabColor = 'FFC000'
 ws.auto_filter.ref = f'A{HR}:O{FL}'
 ws.freeze_panes = f'E{F0}'
 ws.print_title_rows = f'{HR}:{HR}'; ws.print_area = f'A1:O{FL}'
@@ -447,18 +473,18 @@ ws = sheet('新年度名簿')
 for col, w in zip('ABCDEFGHIJK', [7, 7, 7, 18, 16, 30, 16, 14, 7, 9, 8]):
     ws.column_dimensions[col].width = w
 for c, h in zip('ABCDE', ['学年', '組', '番号', '名前', 'クラブ（転入生などの手入力）']):
-    put(ws, f'{c}1', h, f(bold=True, size=10), HDR, Alignment(horizontal='center', vertical='center', wrap_text=True), True)
+    put(ws, f'{c}2', h, f(bold=True, size=10), HDR, Alignment(horizontal='center', vertical='center', wrap_text=True), True)
 for c, h in zip('FG', ['つながり（自動）', '決まったクラブ（自動）']):
-    put(ws, f'{c}1', h, f(bold=True, size=10), GRY, CEN, True)
+    put(ws, f'{c}2', h, f(bold=True, size=10), GRY, CEN, True)
 for c, h in zip('HIJK', ['名前キー', '振り分け行', '並び順', '組表示']):
-    put(ws, f'{c}1', h, f(bold=True, size=9), GRY, CEN, True)
-ws.row_dimensions[1].height = 30
+    put(ws, f'{c}2', h, f(bold=True, size=9), GRY, CEN, True)
+ws.row_dimensions[2].height = 30
 FRS, FRL = rg('振り分け', 'S', F0, FL), rg('振り分け', 'L', F0, FL)
 for i in range(NN):
     r = N2 + i
     st = new[i] if i < len(new) else (None,) * 5
     for c, v in zip('ABCDE', st):
-        put(ws, f'{c}{r}', v, fill=YEL, al=LFT if c == 'D' else CEN, unlock=True)
+        put(ws, f'{c}{r}', v, fill=PUR, al=LFT if c == 'D' else CEN, unlock=True)
     put(ws, f'H{r}', f'=IF(D{r}="","",A{r}&"|"&{NSP(f"D{r}")})', f(**SMALLF))
     put(ws, f'I{r}', f'=IF(H{r}="","",IFERROR(MATCH(H{r},{FRS},0),""))', f(**SMALLF))
     put(ws, f'F{r}', (f'=IF(D{r}="","",IF(E{r}<>"","手入力",IF(I{r}="","前年度名簿にいない",'
@@ -470,8 +496,9 @@ dv = DataValidation(type='list', formula1=CN, allow_blank=True)
 ws.add_data_validation(dv); dv.add(f'E{N2}:E{NL}')
 cf(ws, f'A{N2}:G{NL}', f'AND($F{N2}<>"",$F{N2}<>"OK",$F{N2}<>"手入力")', RED)
 cf(ws, f'G{N2}:G{NL}', f'G{N2}="未決定"', LRED)
-ws.freeze_panes = 'A2'
-ws.auto_filter.ref = f'A1:G{NL}'
+ws.freeze_panes = 'A3'
+ws.auto_filter.ref = f'A2:G{NL}'
+ws.merge_cells('A1:F1'); role(ws, 'A1', 'club')
 protect(ws, filt=True)
 
 # ---------------- 7. 定員チェック ----------------
@@ -479,6 +506,7 @@ ws = sheet('定員チェック')
 for col, w in zip('ABCDEFGHIJK', [5, 16, 7, 7, 8, 7, 7, 7, 7, 7, 34]):
     ws.column_dimensions[col].width = w
 put(ws, 'A1', '定員チェック', f(size=14, bold=True))
+ws.merge_cells('E1:I1'); role(ws, 'E1', 'none')
 FM = rg('振り分け', 'M', F0, FL)
 summ = [('未提出', f'=COUNTIF({FM},"未提出")'), ('要調整', f'=COUNTIF({FM},"要調整")'), ('転出', f'=COUNTIF({FM},"転出")'),
         ('定員オーバーのクラブ', '=COUNTIF($K$7:$K$26,"*オーバー*")'),
@@ -587,6 +615,7 @@ for (r0, _) in ((T1, 0), (T2, 10)):
     for bk in range(10):
         c1 = CL(2 * bk + 1)
         colorcf(ws, f'{c1}{r0+4}:{c1}{r0+3+NM}', 'IF(計算用!$B$1=1,IFERROR(INDEX(設定!$M$8:$M$31,MATCH(' + f'{c1}{r0+4}' + ',設定!$L$8:$L$31,0)),""),IFERROR(INDEX(設定!$H$8:$H$31,MATCH(' + f'{c1}{r0+4}' + ',設定!$G$8:$G$31,0)),""))')
+role(ws, 'V1', 'none'); ws.column_dimensions['V'].width = 30
 ws.print_area = f'A1:T{T2 + 3 + NM}'
 ws.row_breaks.append(Break(id=T2 - 1))
 page(ws, ws.PAPERSIZE_A3, 'landscape', 0)
@@ -619,6 +648,7 @@ for k in range(1, NC + 1):
             ws[f'{CL(5+i)}{r}'].border = BOX
         ws.row_dimensions[r].height = 15
     colorcf(ws, f'B5:B{4+NM}', 'IF(計算用!$B$1=1,IFERROR(INDEX(設定!$M$8:$M$31,MATCH(B5,設定!$L$8:$L$31,0)),""),IFERROR(INDEX(設定!$H$8:$H$31,MATCH(B5,設定!$G$8:$G$31,0)),""))')
+    role(ws, 'Q1', 'none'); ws.column_dimensions['Q'].width = 30
     ws.print_area = f'A1:O{4+NM}'
     page(ws, ws.PAPERSIZE_A4, 'portrait', 1)
     protect(ws)
