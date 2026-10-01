@@ -141,6 +141,11 @@ if len(idx) == 2 and idx[0] != 15:
 last = [w for w in wishes if w[:3] == [5, '松', 9] and w[3] != '音楽']
 for w in last: wishes.remove(w); wishes.append(w)
 
+six = [w for w in wishes if w[0] == 5 and w[3] not in ('料理', '手芸')]
+need = 28 - sum(1 for w in wishes if w[0] == 5 and w[3] == '手芸')
+for w in six[:max(0, need)]:
+    if '手芸' in w[4:]: w[4:] = [x if x != '手芸' else w[3] for x in w[4:]]
+    w[3] = '手芸'
 NUM = {n: i + 1 for i, n in enumerate(names)}
 for i, w in enumerate(wishes):
     if i in (40, 41, 42):            # Formsの例：クラブ名のまま
@@ -381,8 +386,8 @@ put(ws, 'A1', '振り分け　　「要調整」の子は、決まったら「�
 put(ws, 'A2', '■ 色の見方', f(bold=True))
 put(ws, 'B3', '要調整', f(bold=True, color='FFFFFF'), PatternFill('solid', fgColor='C00000'), CEN)
 put(ws, 'C3', '…第1希望のクラブが「定員＋融通」をこえています。話し合いなどで決めて、「先生の決定」にクラブを入れてください。')
-put(ws, 'B4', 'クラブ名', f(bold=True, color='006100'), PatternFill('solid', fgColor='C6EFCE'), CEN)
-put(ws, 'C4', '…（第2・第3希望が緑）そのクラブには、まだ空きがあります。色のないクラブは、第1希望の子でいっぱいです。')
+put(ws, 'B4', 'クラブ名', f(bold=True, color='FFFFFF'), PatternFill('solid', fgColor='00803C'), CEN)
+put(ws, 'C4', '…（第2・第3希望が緑地に白い字）そのクラブには、まだ空きがあります。色のないクラブは、第1希望の子でいっぱいです。')
 put(ws, 'C5', '=IF(' + PRI + ',"※ 上の学年から優先：〇（6年→5年→4年の順に枠を埋めています）","※ 上の学年から優先：なし（全学年まとめて判定しています）")', f(size=10, color='808080'))
 for i, h in enumerate(heads):
     c = CL(i + 1)
@@ -421,10 +426,10 @@ for r in range(F0, FL + 1):
 dv = DataValidation(type='list', formula1=CN, allow_blank=True)
 ws.add_data_validation(dv); dv.add(f'K{F0}:K{FL}')
 rng = f'A{F0}:O{FL}'
-GRN = PatternFill('solid', fgColor='C6EFCE')
+GRN = PatternFill('solid', fgColor='00803C')
 cf(ws, f'J{F0}:J{FL}', f'J{F0}="要調整"', PatternFill('solid', fgColor='C00000'), Font(name=FONT, bold=True, color='FFFFFF'))
-cf(ws, f'H{F0}:H{FL}', f'AND($M{F0}="要調整",N(N{F0})>0)', GRN, Font(name=FONT, bold=True, color='006100'))
-cf(ws, f'I{F0}:I{FL}', f'AND($M{F0}="要調整",N(O{F0})>0)', GRN, Font(name=FONT, bold=True, color='006100'))
+cf(ws, f'H{F0}:H{FL}', f'AND($M{F0}="要調整",N(N{F0})>0)', GRN, Font(name=FONT, bold=True, color='FFFFFF'))
+cf(ws, f'I{F0}:I{FL}', f'AND($M{F0}="要調整",N(O{F0})>0)', GRN, Font(name=FONT, bold=True, color='FFFFFF'))
 cf(ws, rng, f'$M{F0}="要調整"', RED)
 cf(ws, rng, f'OR($M{F0}="未提出",$M{F0}="転出")', DGRY)
 cf(ws, f'K{F0}:K{FL}', f'K{F0}<>""', font=Font(name=FONT, bold=True, color='0000FF'))
