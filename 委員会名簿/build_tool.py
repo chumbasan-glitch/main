@@ -42,6 +42,9 @@ def protect(ws, filt=False):
     ws.protection.formatColumns = False
     ws.protection.formatRows = False
 def cf(ws, rng, formula, fill=None, font=None):
+    if fill is not None:   # 条件付き書式のぬりつぶしは、Excelでは bgColor を見るので両方に入れる
+        c = 'FF' + fill.fgColor.rgb[-6:]
+        fill = PatternFill(fill_type='solid', fgColor=c, bgColor=c)
     ws.conditional_formatting.add(rng, FormulaRule(formula=[formula], fill=fill, font=font))
 
 S = '設定'
