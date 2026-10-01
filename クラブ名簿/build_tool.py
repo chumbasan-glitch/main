@@ -52,6 +52,16 @@ def page(ws, size, orient, tall=1):
     ws.print_options.horizontalCentered = True
 
 S = '設定'
+
+# ---- クラスカラー ----
+COLORS = [('黒', '000000'), ('赤', 'D00000'), ('青', '0050D0'), ('緑', '008A3E'),
+          ('黄', 'BF8F00'), ('橙', 'E46C0A'), ('紫', '7030A0'), ('茶', '8B4513')]
+COLOR_LIST = '"' + ','.join(n for n, _ in COLORS) + '"'
+TESTCOLOR = {'松': '緑', '竹': '青', '梅': '赤', '月': '黄'}
+def colorcf(ws, rng, expr):
+    """expr: 色の名前を返す式（範囲の左上セル基準）"""
+    for name, hexc in COLORS:
+        ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{expr}="{name}"'], font=Font(name=FONT, bold=True, color=hexc)))
 CN = f'{S}!$P$8:$P$27'          # クラブ名
 CAPR = f'{S}!$Q$8:$Q$27'        # 定員
 MODE = '計算用!$B$1'            # 1=新年度名簿あり
@@ -190,17 +200,22 @@ for i, (lab, g) in enumerate(zip(['上の学年', '中の学年', '下の学年'
     put(ws, f'B{r}', g, fill=YEL, al=CEN, box=True, unlock=True)
     put(ws, f'C{r}', f'=IF(B{r}="","",B{r}-1)', fill=GRY, al=CEN, box=True)
 put(ws, 'A12', '※ 前年度の学年は自動で1つ下になります。', f(**SMALLF))
-for (c0, title, gcol) in (('E', '前年度の組（アンケート時）', 'C'), ('J', '新年度の組', 'B')):
+for (c0, title, gcol, kcol) in (('E', '前年度の組（アンケート時）', 'C', 'Y'), ('J', '新年度の組', 'B', 'Z')):
     cs = [CL(ws[f'{c0}1'].column + i) for i in range(4)]
     put(ws, f'{cs[0]}6', title, f(bold=True))
-    for c, h in zip(cs, ['学年', '組', '名簿での表示', '（自動）']):
+    for c, h in zip(cs, ['学年', '組', '名簿での表示', '色']):
         put(ws, f'{c}7', h, f(bold=True, size=10), HDR, CEN, True)
     for i in range(24):
         r = 8 + i
         put(ws, f'{cs[0]}{r}', f'=${gcol}${8 + i // 8}', fill=GRY, al=CEN, box=True)
         put(ws, f'{cs[1]}{r}', CLS[i % 8] if i % 8 < 4 else None, fill=YEL, al=CEN, box=True, unlock=True)
         put(ws, f'{cs[2]}{r}', f'=IF({cs[1]}{r}="","",{cs[0]}{r}&{cs[1]}{r})', fill=YEL, al=CEN, box=True, unlock=True)
-        put(ws, f'{cs[3]}{r}', f'=IF({cs[1]}{r}="","",{cs[0]}{r}&"-"&{cs[1]}{r})', f(**SMALLF), GRY, CEN, True)
+        put(ws, f'{cs[3]}{r}', TESTCOLOR.get(CLS[i % 8]) if i % 8 < 4 else None, fill=YEL, al=CEN, box=True, unlock=True)
+        put(ws, f'{kcol}{r}', f'=IF({cs[1]}{r}="","",{cs[0]}{r}&"-"&{cs[1]}{r})', f(**SMALLF))
+    dv = DataValidation(type='list', formula1=COLOR_LIST, allow_blank=True); ws.add_data_validation(dv); dv.add(f'{cs[3]}8:{cs[3]}31')
+    colorcf(ws, f'{cs[1]}8:{cs[2]}31', f'${cs[3]}8')
+    ws.column_dimensions[kcol].hidden = True
+put(ws, 'E34', '※「色」はプルダウンで選びます。名簿の組の文字がその色になります（空欄なら黒）。', f(**SMALLF))
 put(ws, 'E33', '※ 上から名簿の並び順です（学年ごとに8行）。「名簿での表示」は「5-1」などに書きかえてもかまいません。', f(**SMALLF))
 put(ws, 'O6', 'クラブの設定（上から順に「クラブ①、②…」のシートに入ります）', f(bold=True))
 for c, h in zip('OPQRS', ['No.', 'クラブ名', '定員', '担当', '活動場所']):
@@ -231,10 +246,10 @@ for i in range(NS):
     for c, v in zip('ABCD', st):
         put(ws, f'{c}{r}', v, fill=YEL, al=CEN if c != 'D' else LFT, unlock=True)
     put(ws, f'F{r}', f'=IF(D{r}="","",A{r}&"-"&B{r}&"-"&C{r})', f(**SMALLF))
-    put(ws, f'G{r}', f'=IF(D{r}="","",IFERROR(MATCH(A{r}&"-"&B{r},{S}!$H$8:$H$31,0),99)*1000+C{r}+ROW()/1000000)', f(**SMALLF))
+    put(ws, f'G{r}', f'=IF(D{r}="","",IFERROR(MATCH(A{r}&"-"&B{r},{S}!$Y$8:$Y$31,0),99)*1000+C{r}+ROW()/1000000)', f(**SMALLF))
     put(ws, f'H{r}', f'=IF(D{r}="","",A{r}+1)', f(**SMALLF))
     put(ws, f'I{r}', f'=IF(D{r}="","",H{r}&"|"&{NSP(f"D{r}")})', f(**SMALLF))
-    put(ws, f'J{r}', (f'=IF(D{r}="","",IF(ISERROR(MATCH(A{r}&"-"&B{r},{S}!$H$8:$H$31,0)),"設定にない学年・組",'
+    put(ws, f'J{r}', (f'=IF(D{r}="","",IF(ISERROR(MATCH(A{r}&"-"&B{r},{S}!$Y$8:$Y$31,0)),"設定にない学年・組",'
                       f'IF(COUNTIF($F${O2}:$F${OL},F{r})>1,"同じ学年・組・番号がいる",IF(COUNTIF($I${O2}:$I${OL},I{r})>1,"同姓同名あり",""))))'),
         f(size=9, color='C00000'))
 ws.freeze_panes = 'A2'
@@ -343,8 +358,8 @@ for i in range(NN):
     put(ws, f'F{r}', (f'=IF(D{r}="","",IF(E{r}<>"","手入力",IF(I{r}="","前年度名簿にいない",'
                       f'IF(OR(COUNTIF($H${N2}:$H${NL},H{r})>1,COUNTIF({FRS},H{r})>1),"同姓同名あり（手入力してください）","OK"))))'), al=LFT)
     put(ws, f'G{r}', f'=IF(D{r}="","",IF(E{r}<>"",E{r},IF(F{r}<>"OK","",IF(INDEX({FRL},I{r})="","未決定",INDEX({FRL},I{r})))))', al=CEN)
-    put(ws, f'J{r}', f'=IF(D{r}="","",IFERROR(MATCH(A{r}&"-"&B{r},{S}!$M$8:$M$31,0),99)*1000+C{r}+ROW()/1000000)', f(**SMALLF))
-    put(ws, f'K{r}', f'=IF(D{r}="","",IFERROR(INDEX({S}!$L$8:$L$31,MATCH(A{r}&"-"&B{r},{S}!$M$8:$M$31,0)),A{r}&B{r}))', f(**SMALLF))
+    put(ws, f'J{r}', f'=IF(D{r}="","",IFERROR(MATCH(A{r}&"-"&B{r},{S}!$Z$8:$Z$31,0),99)*1000+C{r}+ROW()/1000000)', f(**SMALLF))
+    put(ws, f'K{r}', f'=IF(D{r}="","",IFERROR(INDEX({S}!$L$8:$L$31,MATCH(A{r}&"-"&B{r},{S}!$Z$8:$Z$31,0)),A{r}&B{r}))', f(**SMALLF))
 dv = DataValidation(type='list', formula1=CN, allow_blank=True)
 ws.add_data_validation(dv); dv.add(f'E{N2}:E{NL}')
 cf(ws, f'A{N2}:G{NL}', f'AND($F{N2}<>"",$F{N2}<>"OK",$F{N2}<>"手入力")', RED)
@@ -458,6 +473,10 @@ for (r0, off) in ((T1, 0), (T2, 10)):
         for rr in range(r0, r0 + 4):
             for cc in (c1, c2):
                 ws[f'{cc}{rr}'].border = BOX
+for (r0, _) in ((T1, 0), (T2, 10)):
+    for bk in range(10):
+        c1 = CL(2 * bk + 1)
+        colorcf(ws, f'{c1}{r0+4}:{c1}{r0+3+NM}', 'IF(計算用!$B$1=1,IFERROR(INDEX(設定!$M$8:$M$31,MATCH(' + f'{c1}{r0+4}' + ',設定!$L$8:$L$31,0)),""),IFERROR(INDEX(設定!$H$8:$H$31,MATCH(' + f'{c1}{r0+4}' + ',設定!$G$8:$G$31,0)),""))')
 ws.print_area = f'A1:T{T2 + 3 + NM}'
 ws.row_breaks.append(Break(id=T2 - 1))
 page(ws, ws.PAPERSIZE_A3, 'landscape', 0)
@@ -489,6 +508,7 @@ for k in range(1, NC + 1):
         for i in range(11):
             ws[f'{CL(5+i)}{r}'].border = BOX
         ws.row_dimensions[r].height = 15
+    colorcf(ws, f'B5:B{4+NM}', 'IF(計算用!$B$1=1,IFERROR(INDEX(設定!$M$8:$M$31,MATCH(B5,設定!$L$8:$L$31,0)),""),IFERROR(INDEX(設定!$H$8:$H$31,MATCH(B5,設定!$G$8:$G$31,0)),""))')
     ws.print_area = f'A1:O{4+NM}'
     page(ws, ws.PAPERSIZE_A4, 'portrait', 1)
     protect(ws)

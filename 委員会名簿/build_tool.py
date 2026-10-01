@@ -45,6 +45,16 @@ def cf(ws, rng, formula, fill=None, font=None):
     ws.conditional_formatting.add(rng, FormulaRule(formula=[formula], fill=fill, font=font))
 
 S = '設定'
+
+# ---- クラスカラー ----
+COLORS = [('黒', '000000'), ('赤', 'D00000'), ('青', '0050D0'), ('緑', '008A3E'),
+          ('黄', 'BF8F00'), ('橙', 'E46C0A'), ('紫', '7030A0'), ('茶', '8B4513')]
+COLOR_LIST = '"' + ','.join(n for n, _ in COLORS) + '"'
+TESTCOLOR = {'松': '緑', '竹': '青', '梅': '赤', '月': '黄'}
+def colorcf(ws, rng, expr):
+    """expr: 色の名前を返す式（範囲の左上セル基準）"""
+    for name, hexc in COLORS:
+        ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{expr}="{name}"'], font=Font(name=FONT, bold=True, color=hexc)))
 CNAMES = f"{S}!$G$8:$G$27"
 
 # ---------------- テストデータ ----------------
@@ -151,7 +161,7 @@ put(ws, 'A4', '呼び名', f(bold=True)); put(ws, 'B4', '委員会', fill=YEL, b
 dv = DataValidation(type='list', formula1='"委員会,クラブ"', allow_blank=False); ws.add_data_validation(dv); dv.add('B4')
 put(ws, 'D4', '← 委員会／クラブ', f(color='808080', size=9))
 put(ws, 'A6', '組の設定（上から名簿の並び順。学年ごとに最大8組）', f(bold=True))
-for c, h in zip('ABCD', ['学年', '組', '名簿での表示', '（自動）']):
+for c, h in zip('ABCD', ['学年', '組', '名簿での表示', '色']):
     put(ws, f'{c}7', h, f(bold=True), HDR, CEN, True)
 for i in range(16):
     r = 8 + i
@@ -159,8 +169,13 @@ for i in range(16):
     cls = CLASSES[i % 8] if (i % 8) < 4 else None
     put(ws, f'B{r}', cls, fill=YEL, al=CEN, box=True, unlock=True)
     put(ws, f'C{r}', f'=IF(B{r}="","",A{r}&B{r})', fill=YEL, al=CEN, box=True, unlock=True)
-    put(ws, f'D{r}', f'=IF(B{r}="","",A{r}&"-"&B{r})', f(color='808080', size=9), GRY, CEN, True)
+    put(ws, f'D{r}', TESTCOLOR.get(cls) if cls else None, fill=YEL, al=CEN, box=True, unlock=True)
+    put(ws, f'Z{r}', f'=IF(B{r}="","",A{r}&"-"&B{r})', f(color='808080', size=9))
 put(ws, 'A25', '※「名簿での表示」は自動で「学年＋組」になります。「6-1」などにしたいときは書きかえてかまいません。', f(size=9, color='808080'))
+put(ws, 'A26', '※「色」はプルダウンで選びます。名簿の組の文字がその色になります（空欄なら黒）。', f(size=9, color='808080'))
+dv = DataValidation(type='list', formula1=COLOR_LIST, allow_blank=True); ws.add_data_validation(dv); dv.add('D8:D23')
+colorcf(ws, 'B8:C23', '$D8')
+ws.column_dimensions['Z'].hidden = True
 
 put(ws, 'F6', '学年 →', f(bold=True), al=Alignment(horizontal='right'))
 ws.merge_cells('F6:G6')
@@ -196,8 +211,8 @@ for i in range(NS):
     for c, v in zip('ABCD', st):
         put(ws, f'{c}{r}', v, fill=YEL, al=CEN if c != 'D' else LFT, unlock=True)
     put(ws, f'F{r}', f'=IF(D{r}="","",A{r}&"-"&B{r}&"-"&C{r})', f(size=9, color='808080'))
-    put(ws, f'G{r}', f'=IF(F{r}="","",IFERROR(MATCH(A{r}&"-"&B{r},{S}!$D$8:$D$23,0),99)*1000+C{r}+ROW()/100000)', f(size=9, color='808080'))
-    put(ws, f'H{r}', f'=IF(F{r}="","",IF(ISERROR(MATCH(A{r}&"-"&B{r},{S}!$D$8:$D$23,0)),"設定にない学年・組",IF(COUNTIF($F$2:$F${NS+1},F{r})>1,"同じ学年・組・番号がいる","")))', f(size=9, color='C00000'))
+    put(ws, f'G{r}', f'=IF(F{r}="","",IFERROR(MATCH(A{r}&"-"&B{r},{S}!$Z$8:$Z$23,0),99)*1000+C{r}+ROW()/100000)', f(size=9, color='808080'))
+    put(ws, f'H{r}', f'=IF(F{r}="","",IF(ISERROR(MATCH(A{r}&"-"&B{r},{S}!$Z$8:$Z$23,0)),"設定にない学年・組",IF(COUNTIF($F$2:$F${NS+1},F{r})>1,"同じ学年・組・番号がいる","")))', f(size=9, color='C00000'))
 ws.freeze_panes = 'A2'
 cf(ws, f'A2:D{NS+1}', '$H2<>""', RED)
 protect(ws)
@@ -350,6 +365,10 @@ for (r0, off) in TIER:
         for rr in range(r0, r0 + 4):
             for cc in (c1, c2):
                 ws[f'{cc}{rr}'].border = BOX
+for (r0, _) in TIER:
+    for b in range(10):
+        c1 = CL(2 * b + 1)
+        colorcf(ws, f'{c1}{r0+4}:{c1}{r0+3+NM}', 'IFERROR(INDEX(設定!$D$8:$D$23,MATCH(' + f'{c1}{r0+4}' + ',設定!$C$8:$C$23,0)),"")')
 ws.print_area = 'A1:T91'
 ws.row_breaks.append(Break(id=46))
 ws.page_setup.paperSize = ws.PAPERSIZE_A3
@@ -386,6 +405,7 @@ for k in range(1, NC + 1):
         for i in range(11):
             ws[f'{CL(5+i)}{r}'].border = BOX
         ws.row_dimensions[r].height = 17
+    colorcf(ws, f'B5:B{4+NM}', 'IFERROR(INDEX(設定!$D$8:$D$23,MATCH(B5,設定!$C$8:$C$23,0)),"")')
     ws.print_area = f'A1:O{4+NM}'
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.page_setup.orientation = 'portrait'
