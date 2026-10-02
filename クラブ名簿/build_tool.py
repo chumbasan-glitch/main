@@ -199,7 +199,8 @@ lines = [
  ('　 ・「同姓同名あり」：自動でつなげられないので、「クラブ（手入力）」欄にクラブを入れてください。', False),
  ('　 ・振り分けシートで「転出」と出た子は、新年度名簿にいなかった子です（名前の字ちがいのこともあるので確認してください）。', False),
  ('⑦ 【定員チェック】「未提出」「要調整」「定員オーバー」「新年度名簿の要確認」が 0 になれば完成です。', False),
- ('⑧ 【一覧名簿】【クラブ①〜⑳】を印刷します。新しい組・番号で、6年→5年→4年、組順・番号順に並びます。', False),
+ ('⑧ 【6年・5年・4年クラス別】組ごとに番号・名前・決まったクラブが横に並びます。担任に配るときに使えます。「未決定」「要確認」は赤字です。', False),
+ ('⑨ 【一覧名簿】【クラブ①〜⑳】を印刷します。新しい組・番号で、6年→5年→4年、組順・番号順に並びます。', False),
  ('　 ・一覧名簿はA3横。上段（①〜⑩）が1ページ目、下段（⑪〜⑳）が2ページ目です。クラブが10以下なら1ページ目だけ印刷します。', False),
  ('', False),
  ('■ Microsoft Forms の作り方（希望を集める場合）', True),
@@ -585,6 +586,53 @@ def disp(kind, p):
     cm, fm = {'組': ('F', 'B'), '番号': ('G', 'C'), '名前': ('H', 'D')}[kind]
     return (f'=IF({p}="","",IF({MODE}=1,INDEX(計算用!${cm}${a}:${cm}${b},{p}),'
             f'INDEX(振り分け!${fm}${F0}:${fm}${FL},{p})))')
+
+
+# ---------------- ★学年別クラス一覧（6年・5年・4年） ----------------
+NCR = 45                                    # 1組の最大行
+NJ, OG = NEW('J'), OLD('G')
+for slot in (1, 2, 3):
+    gname = ['6', '5', '4'][slot - 1]
+    ws = sheet(f'{gname}年クラス別')
+    put(ws, 'A1', (f'={S}!$B$3&"　"&{S}!$B${7 + slot}&"年　クラス別"&{S}!$B$4&"一覧"'
+                   f'&IF({MODE}=0,"（仮・前年度の組）","")'), f(size=16, bold=True))
+    for c in range(8):
+        ci = (slot - 1) * 8 + c + 1           # 設定の組の表の通し番号（1〜24）
+        sr = 7 + ci                           # 設定の行
+        cn, cm, ck = (CL(3 * c + k) for k in (1, 2, 3))
+        hc = CL(30 + c)                       # 計算用の列（非表示）
+        for w, col in zip((5, 14, 12), (cn, cm, ck)):
+            ws.column_dimensions[col].width = w
+        ws.merge_cells(f'{cn}3:{ck}3')
+        put(ws, f'{cn}3', f'=IF({MODE}=1,IF({S}!$K${sr}="","",{S}!$L${sr}),IF({S}!$F${sr}="","",{S}!$G${sr}))',
+            f(bold=True, size=13), HDR, CEN)
+        for col in (cn, cm, ck):
+            ws[f'{col}3'].border = BOX
+        colorcf(ws, f'{cn}3', f'IF({MODE}=1,{S}!$M${sr},{S}!$H${sr})')
+        for col, h in zip((cn, cm, ck), ('番号', '名前', 'クラブ')):
+            put(ws, f'{col}4', h, f(bold=True, size=10), HDR, CEN, True)
+        # 非表示の計算列：その組の何人目が、名簿の何行目か
+        put(ws, f'{hc}3', f'=IF({MODE}=1,COUNTIF({NJ},"<"&{ci * 1000}),COUNTIF({OG},"<"&{ci * 1000}))', f(size=8))
+        for j in range(1, NCR + 1):
+            r = 4 + j
+            put(ws, f'{hc}{r}', (f'=IF({MODE}=1,IFERROR(IF(SMALL({NJ},${hc}$3+{j})<{(ci + 1) * 1000},MATCH(SMALL({NJ},${hc}$3+{j}),{NJ},0),""),""),'
+                                 f'IFERROR(IF(SMALL({OG},${hc}$3+{j})<{(ci + 1) * 1000},MATCH(SMALL({OG},${hc}$3+{j}),{OG},0),""),""))'), f(size=8))
+            p = f'${hc}{r}'
+            put(ws, f'{cn}{r}', f'=IF({p}="","",IF({MODE}=1,INDEX({NEW("C")},{p}),INDEX({OLD("C")},{p})))', f(size=10), al=CEN, box=True)
+            put(ws, f'{cm}{r}', f'=IF({p}="","",IF({MODE}=1,INDEX({NEW("D")},{p}),INDEX({OLD("D")},{p})))', f(size=10), al=LFT, box=True)
+            put(ws, f'{ck}{r}', (f'=IF({p}="","",IF({MODE}=1,IF(OR(INDEX({NEW("F")},{p})="前年度名簿にいない",LEFT(INDEX({NEW("F")},{p}),4)="同姓同名"),"要確認",'
+                                 f'IF(OR(INDEX({NEW("G")},{p})="",INDEX({NEW("G")},{p})="未決定"),"未決定",INDEX({NEW("G")},{p}))),'
+                                 f'IFERROR(IF(INDEX(振り分け!$L${F0}:$L${FL},MATCH({p},振り分け!$P${F0}:$P${FL},0))="","未決定",'
+                                 f'INDEX(振り分け!$L${F0}:$L${FL},MATCH({p},振り分け!$P${F0}:$P${FL},0))),"未決定")))'),
+                f(size=10), al=CEN, box=True)
+        cf(ws, f'{ck}5:{ck}{4 + NCR}', f'OR({ck}5="未決定",{ck}5="要確認")', font=Font(name=FONT, bold=True, color='C00000'))
+        ws.column_dimensions[hc].hidden = True
+    role(ws, 'Z1', 'none'); ws.column_dimensions['Z'].width = 30
+    ws.freeze_panes = 'A5'
+    ws.print_area = f'A1:X{4 + NCR}'
+    page(ws, ws.PAPERSIZE_A3, 'landscape', 1)
+    ws.page_margins.left = ws.page_margins.right = 0.4
+    protect(ws)
 
 # ---------------- 8. 一覧名簿 ----------------
 ws = sheet('一覧名簿')
