@@ -87,12 +87,17 @@ F0, FL = 7, NS + 6              # 振り分け（見出しは6行目）
 rg = lambda sh, c, a, b: f"{sh}!${c}${a}:${c}${b}"
 
 # ---------------- テストデータ ----------------
-CLUBS = [('科学', 35, '3松', '理科室'), ('料理', 35, '5竹', '家庭科室'), ('手芸', 25, '4梅', '図工室'),
-         ('イラスト', 35, '6月', '多目的室'), ('卓球', 30, '4松', '体育館ステージ'), ('バドミントン', 30, '6竹', '体育館'),
-         ('サッカー', 40, '5松', '運動場'), ('バスケットボール', 35, '6松', '体育館'), ('将棋囲碁', 25, '3竹', '会議室'),
-         ('パソコン', 40, '5梅', 'パソコン室'), ('音楽', 30, '4月', '音楽室'), ('室内ゲーム', 40, '6梅', '学習室')]
-TOL = {'サッカー': 3, '手芸': 0}
-CLUBS = [(n, cap, TOL.get(n, 2), t, p) for (n, cap, t, p) in CLUBS]
+CLUBS = [('ドッジ・ベースボール', 30, '6松', '運動場'), ('サッカー', 35, '5松', '運動場'), ('バドミントン', 25, '6竹', '体育館'),
+         ('屋上遊び', 30, '4松', '屋上'), ('科学', 25, '3松', '理科室'), ('パソコン', 30, '5梅', 'パソコン室'),
+         ('工作', 25, '4梅', '図工室'), ('ダンス', 30, '5竹', '多目的室'), ('音楽', 25, '4月', '音楽室'),
+         ('イラスト・デザイン', 30, '6月', '学習室'), ('バスケットボール', 30, '6梅', '体育館'), ('バレーボール', 25, '3竹', '体育館'),
+         ('伝統遊び', 25, '3梅', '和室')]
+DESC = {'パソコン': '（映像制作も込み）', '工作': '（図工・手芸）', '伝統遊び': '（百人一首や折り紙等）'}
+TOL = {'サッカー': 3, '工作': 0}
+CLUBS = [(n, cap, TOL.get(n, 2), t, p, DESC.get(n)) for (n, cap, t, p) in CLUBS]
+NOTES = ['希望者が多い場合は、人数調整をするので、先生と相談して決めます。',
+         'どのクラブも、4・5・6年生がいるように上限の人数を決めていますので、クラブによっては、6年生でも希望のクラブに入れないことがあります。', None]
+NCHOICE = 2
 names = [c[0] for c in CLUBS]
 CLS = ['松', '竹', '梅', '月']
 SUR = ('佐藤 鈴木 高橋 田中 伊藤 渡辺 山本 中村 小林 加藤 吉田 山田 佐々木 山口 松本 井上 木村 林 斎藤 清水 山崎 森 池田 橋本 阿部 '
@@ -126,25 +131,25 @@ for g in (5, 4, 3):
             if s == taka: nm = nm.replace('高橋', '髙橋')
             new.append([g + 1, c, n, nm, None])
 transfer = [r for r in new if r[3] not in {s[3] for s in old} and not r[3].startswith('髙')]
-transfer[0][4] = '卓球'
+transfer[0][4] = 'バドミントン'
 # 希望
 unsub = {(5, '梅', 7), (4, '月', 22), (3, '松', 3), (3, '竹', 19)}
-OVER = {'サッカー': 3, 'パソコン': 3, '料理': 2}
+OVER = {'サッカー': 3, 'パソコン': 3, 'ダンス': 2}
 subs = [s for s in old if s[:3] not in unsub]
-cnt = {n: cap + tol + OVER.get(n, 0) for (n, cap, tol, _, _) in CLUBS}
+cnt = {n: cap + tol + OVER.get(n, 0) for (n, cap, tol, _, _, _) in CLUBS}
 while sum(cnt.values()) > len(subs):
     n = random.choice([x for x in names if x not in OVER and cnt[x] > 15]); cnt[n] -= 1
 firsts = [n for n in names for _ in range(cnt[n])]
 random.shuffle(firsts)
-wishes = [[s[0], s[1], s[2], f1] + random.sample([n for n in names if n != f1], 2) for s, f1 in zip(subs, firsts)]
+wishes = [[s[0], s[1], s[2], f1] + random.sample([n for n in names if n != f1], 1) + [None] for s, f1 in zip(subs, firsts)]
 random.shuffle(wishes)
-wishes.insert(15, [5, '松', 9, '音楽', '手芸', '科学'])          # 2回提出（先に出した分）
+wishes.insert(15, [5, '松', 9, '音楽', '科学', None])          # 2回提出（先に出した分）
 for w in wishes:
     if w[:3] == [5, '松', 9]: pass
-wishes.append([4, '梅', 33, 'サッカー', '卓球', '科学'])        # 名簿にいない
+wishes.append([4, '梅', 33, 'サッカー', '科学', None])        # 名簿にいない
 for w in wishes:
     if w[:3] == [3, '梅', 12]:
-        w[3:] = ['イラスト', 'イラスト', '手芸']; break        # 重複希望
+        w[3:] = ['音楽', '音楽', None]; break        # 重複希望
 # 2回提出の「後の行」を末尾へ移して確実に後にする
 idx = [i for i, w in enumerate(wishes) if w[:3] == [5, '松', 9]]
 if len(idx) == 2 and idx[0] != 15:
@@ -152,16 +157,16 @@ if len(idx) == 2 and idx[0] != 15:
 last = [w for w in wishes if w[:3] == [5, '松', 9] and w[3] != '音楽']
 for w in last: wishes.remove(w); wishes.append(w)
 
-six = [w for w in wishes if w[0] == 5 and w[3] not in ('料理', '手芸')]
-need = 28 - sum(1 for w in wishes if w[0] == 5 and w[3] == '手芸')
+six = [w for w in wishes if w[0] == 5 and w[3] not in ('ダンス', '工作')]
+need = 28 - sum(1 for w in wishes if w[0] == 5 and w[3] == '工作')
 for w in six[:max(0, need)]:
-    if '手芸' in w[4:]: w[4:] = [x if x != '手芸' else w[3] for x in w[4:]]
-    w[3] = '手芸'
+    if '工作' in w[4:]: w[4:] = [x if x != '工作' else w[3] for x in w[4:]]
+    w[3] = '工作'
 NUM = {n: i + 1 for i, n in enumerate(names)}
 for i, w in enumerate(wishes):
     if i in (40, 41, 42):            # Formsの例：クラブ名のまま
         continue
-    w[3:] = [NUM[x] for x in w[3:]]
+    w[3:] = [NUM[x] if x else None for x in w[3:]]
 wishes[60][4] = 25                    # 番号の打ちまちがい
 
 # ---------------- 1. 使い方 ----------------
@@ -178,6 +183,7 @@ lines = [
  ('① 【設定】年度（新年度）、新年度の学年（6・5・4）、前年度の組・新年度の組と色、クラブ（名前・定員・融通・担当・活動場所）を入力します。', False),
  ('　 ・「融通」は定員を何人まで超えてよいか。「上の学年から優先」は〇で有効（6年→5年→4年の順に枠を埋めます）。', False),
  ('　 ・クラブを増やす：空いている行に書きこむ　　減らす：行の中身を消す　　名前を変える：書きかえる', False),
+ ('　 ・希望調査用紙の「希望の数」（第何希望までとるか）と「注意書き」（3行まで）、クラブの「用紙用の説明」も設定シートで入力します。', False),
  ('② 【希望調査用紙】印刷して担任に配ります。クラブの番号は設定シートの No. です（配ったあとはクラブの順番を変えないでください）。', False),
  ('③ 【前年度名簿】アンケートをとる学年（3〜5年）全員の「学年・組・番号・名前」を貼り付けます。学年は数字で入れます。', False),
  ('', False),
@@ -230,7 +236,7 @@ page(ws, ws.PAPERSIZE_A4, 'landscape', 0)
 
 # ---------------- 2. 設定 ----------------
 ws = sheet(S)
-for col, w in zip('ABCDEFGHIJKLMNOPQRST', [8, 10, 10, 3, 7, 7, 12, 8, 3, 7, 7, 12, 8, 3, 5, 18, 7, 7, 10, 16]):
+for col, w in zip('ABCDEFGHIJKLMNOPQRSTU', [8, 10, 10, 3, 7, 7, 12, 8, 3, 7, 7, 12, 8, 3, 5, 18, 7, 7, 10, 16, 22]):
     ws.column_dimensions[col].width = w
 put(ws, 'A1', '設定', f(size=14, bold=True))
 put(ws, 'A3', '年度', f(bold=True)); put(ws, 'B3', '令和9年度', fill=PUR, box=True, unlock=True); ws.merge_cells('B3:C3')
@@ -263,13 +269,13 @@ for (c0, title, gcol, kcol) in (('E', '前年度の組（アンケート時）',
 put(ws, 'E34', '※「色」はプルダウンで選びます。名簿の組の文字がその色になります（空欄なら黒）。', f(**SMALLF))
 put(ws, 'E33', '※ 上から名簿の並び順です（学年ごとに8行）。「名簿での表示」は「5-1」などに書きかえてもかまいません。', f(**SMALLF))
 put(ws, 'O6', 'クラブの設定（上から順に「クラブ①、②…」のシートに入ります）', f(bold=True))
-for c, h in zip('OPQRST', ['No.', 'クラブ名', '定員', '融通', '担当', '活動場所']):
+for c, h in zip('OPQRSTU', ['No.', 'クラブ名', '定員', '融通', '担当', '活動場所', '用紙用の説明']):
     put(ws, f'{c}7', h, f(bold=True), HDR, CEN, True)
 for i in range(NC):
     r = 8 + i
     put(ws, f'O{r}', i + 1, fill=GRY, al=CEN, box=True)
-    d = CLUBS[i] if i < len(CLUBS) else (None,) * 5
-    for c, v in zip('PQRST', d):
+    d = CLUBS[i] if i < len(CLUBS) else (None,) * 6
+    for c, v in zip('PQRSTU', d):
         put(ws, f'{c}{r}', v, fill=PUR, al=CEN, box=True, unlock=True)
 put(ws, 'O28', '=" 定員の合計："&SUM(Q8:Q27)&"人"', f(**SMALLF))
 dv = DataValidation(type='whole', operator='between', formula1='0', formula2=str(NM), allow_blank=True)
@@ -284,64 +290,76 @@ put(ws, 'A15', '（6年→5年→4年）', f(size=9))
 put(ws, 'C14', '〇', f(bold=True, size=12), PUR, CEN, True, True)
 put(ws, 'A16', '※ 〇を入れると、上の学年から順に「定員＋融通」の枠を埋めます。空欄なら全学年まとめて判定します。', f(**SMALLF))
 dv = DataValidation(type='list', formula1='"〇"', allow_blank=True); ws.add_data_validation(dv); dv.add('C14')
-put(ws, 'A18', '希望調査用紙の注意書き', f(bold=True))
-ws.merge_cells('A19:C22')
-put(ws, 'A19', '必ずしも第1希望が通るわけではありません。', fill=PUR, al=Alignment(wrap_text=True, vertical='top'), box=True, unlock=True)
-for rr in range(19, 23):
-    for cc in 'ABC':
-        ws[f'{cc}{rr}'].border = BOX
+put(ws, 'O32', '希望調査用紙の設定', f(bold=True, size=12))
+put(ws, 'O33', '希望の数', f(bold=True)); ws.merge_cells('O33:P33')
+put(ws, 'Q33', NCHOICE, f(bold=True, size=12), PUR, CEN, True, True)
+put(ws, 'R33', '← 1・2・3 から選ぶ（第何希望までとるか）', f(**SMALLF))
+dv = DataValidation(type='list', formula1='"1,2,3"', allow_blank=False); ws.add_data_validation(dv); dv.add('Q33')
+put(ws, 'O35', '注意書き（1行に1つ。先頭の☆は自動でつきます。空欄の行は用紙に出ません）', f(bold=True))
+for k in range(3):
+    r = 36 + k
+    ws.merge_cells(f'O{r}:U{r}')
+    put(ws, f'O{r}', NOTES[k], fill=PUR, al=Alignment(wrap_text=True, vertical='center'), unlock=True)
+    for cc in 'OPQRSTU':
+        ws[f'{cc}{r}'].border = BOX
+    ws.row_dimensions[r].height = 30
+put(ws, 'O39', '※「用紙用の説明」は希望調査用紙だけに、クラブ名の下に出ます（名簿には出ません）。', f(**SMALLF))
 ws.merge_cells('D1:J1'); role(ws, 'D1', 'club')
 protect(ws)
 
 
 # ---------------- ★希望調査用紙 ----------------
+from openpyxl.styles.differential import DifferentialStyle
+from openpyxl.formatting.rule import Rule
 ws = sheet('希望調査用紙')
-for col, w in zip('ABCDEFGHI', [2, 9, 9, 22, 3, 9, 9, 22, 2]):
+NCH = f'{S}!$Q$33'
+NCL = f'COUNTIF({CN},"?*")'
+for col, w in zip('ABCDEF', [2, 23, 23, 23, 23, 2]):
     ws.column_dimensions[col].width = w
-ws.merge_cells('B1:H1')
-put(ws, 'B1', f'={S}!B3&"　"&{S}!B4&"希望調査"', f(size=20, bold=True), al=CEN)
-ws.row_dimensions[1].height = 36
-ws.merge_cells('B3:H3')
-put(ws, 'B3', '　　　年　　　組　　　番　　名前（　　　　　　　　　　　　　　）', f(size=14), al=LFT)
-ws.row_dimensions[3].height = 32
-ws.merge_cells('B5:H5')
-put(ws, 'B5', f'={S}!B4&"一覧"', f(size=13, bold=True), HDR, CEN)
-put(ws, 'J1', f'=ROUNDUP(COUNTIF({CN},"?*")/2,0)', f(size=8, color='FFFFFF'))
-TH = Side(style='medium', color='000000')
-for i in range(10):
-    r = 6 + i
-    ws.row_dimensions[r].height = 24
-    put(ws, f'B{r}', f'=IF({i+1}>$J$1,"",{i+1})', f(size=13, bold=True), al=Alignment(horizontal='right', vertical='center'))
-    ws.merge_cells(f'C{r}:D{r}')
-    put(ws, f'C{r}', f'=IF({i+1}>$J$1,"","　"&INDEX({CN},{i+1}))', f(size=13), al=LFT)
-    put(ws, f'F{r}', f'=IF({i+1}+$J$1>COUNTIF({CN},"?*"),"",{i+1}+$J$1)', f(size=13, bold=True), al=Alignment(horizontal='right', vertical='center'))
-    ws.merge_cells(f'G{r}:H{r}')
-    put(ws, f'G{r}', f'=IF({i+1}+$J$1>COUNTIF({CN},"?*"),"","　"&INDEX({CN},{i+1}+$J$1))', f(size=13), al=LFT)
-for r in range(5, 16):
-    for ci, c in enumerate('BCDEFGH'):
-        b = ws[f'{c}{r}'].border
-        ws[f'{c}{r}'].border = Border(left=TH if c == 'B' else b.left, right=TH if c == 'H' else b.right,
-                                      top=TH if r == 5 else b.top, bottom=TH if r == 15 else (thin if r == 5 else b.bottom))
-put(ws, 'B17', '希望', f(size=13, bold=True))
-put(ws, 'C18', '番号', f(bold=True, size=12), HDR, CEN, True)
-ws.merge_cells('D18:H18')
-put(ws, 'D18', 'クラブ名', f(bold=True, size=12), HDR, CEN, True)
-for i, lab in enumerate(['第1希望', '第2希望', '第3希望']):
-    r = 19 + i
-    ws.row_dimensions[r].height = 42
-    put(ws, f'B{r}', lab, f(bold=True, size=13), al=CEN, box=True)
-    put(ws, f'C{r}', None, box=True)
-    ws.merge_cells(f'D{r}:H{r}')
-    for c in 'DEFGH':
-        ws[f'{c}{r}'].border = BOX
-for c in 'DEFGH':
-    ws[f'{c}18'].border = BOX
-ws['B18'].border = BOX
-ws.merge_cells('B24:H26')
-put(ws, 'B24', f'=IF({S}!A19="","","※ "&{S}!A19)', f(size=12), al=Alignment(wrap_text=True, vertical='top'))
-role(ws, 'K1', 'none')
-ws.column_dimensions['K'].width = 30
-ws.print_area = 'A1:I27'
+ws.merge_cells('B1:E1')
+put(ws, 'B1', f'={S}!B3&"　"&{S}!B4&"活動希望調査"', f(size=20, bold=True), al=CEN)
+ws.row_dimensions[1].height = 40
+ws.merge_cells('B3:E3')
+put(ws, 'B3', f'="来年度、活動する"&{S}!B4&"は以下の"&{NCL}&{S}!B4&"です。"', f(size=13), al=LFT)
+ws.row_dimensions[3].height = 26
+MARU20 = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'
+dx = DifferentialStyle(border=Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin')))
+for rr in range(5):
+    r = 5 + rr
+    ws.row_dimensions[r].height = 44
+    for cc in range(4):
+        k = rr * 4 + cc + 1
+        col = 'BCDE'[cc]
+        put(ws, f'{col}{r}', (f'=IF({k}>{NCL},"",MID("{MARU20}",{k},1)&" "&INDEX({CN},{k})'
+                              f'&IF(INDEX({S}!$U$8:$U$27,{k})="","",CHAR(10)&"　"&INDEX({S}!$U$8:$U$27,{k})))'),
+            f(size=12), al=Alignment(wrap_text=True, vertical='center'))
+    rule = Rule(type='expression', dxf=dx, formula=[f'{rr * 4}<{NCL}'])
+    ws.conditional_formatting.add(f'B{r}:E{r}', rule)
+ws.merge_cells('B11:E11')
+put(ws, 'B11', (f'="自分が来年度希望する"&{S}!B4&"の"&IF({NCH}=1,"第1希望",IF({NCH}=2,"第1希望と第2希望","第1希望から第"&{NCH}&"希望まで"))&"を書きましょう。"'),
+    f(size=12), al=LFT)
+ws.merge_cells('B12:E12')
+put(ws, 'B12', f'="　　　　例）（ ① ）番の "&INDEX({CN},1)&" "&{S}!B4', f(size=12), al=LFT)
+ws.merge_cells('B14:E14')
+put(ws, 'B14', '（　　　　）年（　　　　）組（　　　　）番　名前（　　　　　　　　　　　　　　）', f(size=13, bold=True), al=LFT)
+ws.row_dimensions[14].height = 30
+MED = Side(style='medium', color='000000')
+for r in range(16, 23):
+    ws.merge_cells(f'B{r}:E{r}')
+    ws.row_dimensions[r].height = 30 if r % 2 == 1 else 14
+for k, r in ((1, 17), (2, 19), (3, 21)):
+    put(ws, f'B{r}', f'=IF({NCH}>={k},"　第{k}希望：（　　　　　）番の＿＿＿＿＿＿＿＿＿＿＿＿＿＿"&{S}!B4,"")', f(size=14, bold=True), al=LFT)
+for r in range(16, 23):
+    for c in 'BCDE':
+        ws[f'{c}{r}'].border = Border(left=MED if c == 'B' else None, right=MED if c == 'E' else None,
+                                      top=MED if r == 16 else None, bottom=MED if r == 22 else None)
+for k in range(3):
+    r = 24 + k
+    ws.merge_cells(f'B{r}:E{r}')
+    put(ws, f'B{r}', f'=IF({S}!O{36 + k}="","","☆"&{S}!O{36 + k})', f(size=11), al=Alignment(wrap_text=True, vertical='top'))
+    ws.row_dimensions[r].height = 32
+role(ws, 'H1', 'none'); ws.column_dimensions['H'].width = 30
+ws.print_area = 'A1:F27'
 page(ws, ws.PAPERSIZE_A4, 'portrait', 1)
 ws.sheet_view.showGridLines = False
 protect(ws)
@@ -704,7 +722,7 @@ for k in range(1, NC + 1):
 calc_sheet()
 
 # ---------------- テスト用：先生の決定の例（料理の要調整を調整ずみにする） ----------------
-seats = {n: c + t for (n, c, t, _, _) in CLUBS}
+seats = {n: c + t for (n, c, t, _, _, _) in CLUBS}
 order = sorted(old, key=lambda s: ((5, 4, 3).index(s[0]), CLS.index(s[1]), s[2]))
 INV = {i + 1: n for i, n in enumerate(names)}
 nm = lambda x: INV.get(x, x) if isinstance(x, int) else x
@@ -726,10 +744,10 @@ for st in order:
 cnt = lambda n: sum(1 for v in final.values() if v == n)
 pend_first = lambda n: sum(1 for p in pending if adopted[p[:3]][0] == n and p[:3] not in final)
 ws = wb['振り分け']
-for st in [p for p in pending if adopted[p[:3]][0] == '料理']:
+for st in [p for p in pending if adopted[p[:3]][0] == 'ダンス']:
     w = adopted[st[:3]]
-    if cnt('料理') < seats['料理']:
-        dec = '料理'
+    if cnt('ダンス') < seats['ダンス']:
+        dec = 'ダンス'
     else:
         ok = lambda x: x in seats and cnt(x) + pend_first(x) < seats[x]
         dec = next((x for x in w[1:] if ok(x)), None) or next(x for x in names if ok(x))
