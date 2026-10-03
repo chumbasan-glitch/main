@@ -81,7 +81,7 @@ SEATS = lambda x: f'(INDEX({CAPR},MATCH({x},{CN},0))+N(INDEX({TOLR},MATCH({x},{C
 MODE = '計算用!$B$1'            # 1=新年度名簿あり
 NSP = lambda x: f'SUBSTITUTE(SUBSTITUTE({x}," ",""),"　","")'
 O2, OL = 3, NS + 2              # 前年度名簿 行範囲
-W2, WL = 3, NW + 2              # 希望入力
+W2, WL = 5, NW + 4              # 希望入力（注意書き2・3行目、見出し4行目）
 N2, NL = 3, NN + 2              # 新年度名簿
 F0, FL = 7, NS + 6              # 振り分け（見出しは6行目）
 rg = lambda sh, c, a, b: f"{sh}!${c}${a}:${c}${b}"
@@ -120,7 +120,7 @@ moved_out = next(s for s in old if s[0] == 4 and s[1] == '竹' and s[2] == 14)
 # 新年度名簿（クラス替え）
 new = []
 for g in (5, 4, 3):
-    kids = [s for s in old if s[0] == g and s != moved_out]
+    kids = [s for s in old if s[0] == g and s != moved_out and s[:3] != (4, '月', 9)]
     random.shuffle(kids)
     for i, c in enumerate(CLS):
         grp = kids[i::4]
@@ -172,6 +172,27 @@ for i, w in enumerate(wishes):
     w[3:] = [NUM[x] if x else None for x in w[3:]]
 wishes[60][4] = 25                    # 番号の打ちまちがい
 
+# 希望入力の行を作る：前年度名簿の順に希望を入れ、エラー例は名簿の下の行に入れる
+order_old = sorted(old, key=lambda s: ((5, 4, 3).index(s[0]), CLS.index(s[1]), s[2]))
+keys_old = [s[:3] for s in order_old]
+first_of = {}
+for w in wishes:
+    if tuple(w[:3]) in set(keys_old) and tuple(w[:3]) not in first_of:
+        first_of[tuple(w[:3])] = w
+last_of = {tuple(w[:3]): w for w in wishes}
+moved_flag = (4, '月', 9)                       # テスト：転出（第1希望に「転出」。新年度名簿にもいない）
+WROWS = []
+for k in keys_old:
+    w = first_of.get(k)
+    if k == moved_flag:
+        WROWS.append({'D': '転出'}); continue
+    WROWS.append({'D': w[3], 'E': w[4], 'F': w[5]} if w else {})
+extra = []
+for k, w in last_of.items():
+    if k not in set(keys_old) or w is not first_of.get(k):
+        extra.append({'A': w[0], 'B': w[1], 'C': w[2], 'D': w[3], 'E': w[4], 'F': w[5]})
+WROWS += extra
+
 # ---------------- 1. 使い方 ----------------
 ws = sheet('使い方', first=True)
 ws.column_dimensions['A'].width = 4; ws.column_dimensions['B'].width = 104
@@ -193,7 +214,10 @@ lines = [
  ('■ 【担任】希望調査のあとにすること', True),
  ('④ 【希望入力】自分の組の子の、前年度の学年・組・番号と、第1〜第3希望を入れます。', False),
  ('　 ・紙の場合：希望はクラブの「番号」を打つだけでかまいません。右側にクラブ名が出るので確認してください。', False),
- ('　 ・Formsの場合：結果の表から「学年〜第3希望」の6列をコピーし、A列の3行目に「値の貼り付け」をします。', False),
+ ('　 ・学年・組・番号・名前は、前年度名簿から自動で入っています。紙の場合は、名前を見ながら希望の番号を打つだけです。', False),
+ ('　 ・Formsの場合：結果の表から「学年〜第3希望」の列をコピーし、A列の5行目に「値の貼り付け」をします（自動の学年・組・番号は上書きされます）。', False),
+ ('　 ・第1希望が空欄の行は、提出していないものとして扱います。転出した児童は、第1希望に「転出」と入力します。', False),
+ ('　 ・設定の「希望の数」が2以下のときは、使わない希望の列が灰色になります。列を右クリック→「非表示」で隠せます（「再表示」で元にもどります）。', False),
  ('　 ・「チェック」欄に「名簿にいない」「2回提出」などが出たら確認してください。2回提出は下の行（後から出したほう）が使われます。', False),
  ('⑤ 【振り分け】第1希望の人数が「定員＋融通」以内なら自動で決まります。超えたクラブを希望した子は「要調整」（赤地に白い字）になります。', False),
  ('　 ・要調整の子の第2・第3希望が緑地なら、そのクラブには空きがあります。色がなければ第1希望の子でいっぱいです。', False),
@@ -401,34 +425,60 @@ protect(ws)
 
 # ---------------- 4. 希望入力 ----------------
 ws = sheet('希望入力')
-for col, w in zip('ABCDEFGHIJKLM', [7, 7, 7, 9, 9, 9, 16, 13, 13, 13, 26, 10, 10]):
+NCH = f'{S}!$Q$33'
+for col, w in zip('ABCDEFGHIJKLMN', [7, 7, 7, 9, 9, 9, 16, 13, 13, 13, 26, 10, 10, 6]):
     ws.column_dimensions[col].width = w
-for c, h in zip('ABCDEF', ['学年', '組', '番号', '第1希望', '第2希望', '第3希望']):
-    put(ws, f'{c}2', h, f(bold=True), HDR, CEN, True)
-for c, h in zip('GHIJKLM', ['名前（自動）', '第1（クラブ名）', '第2（クラブ名）', '第3（クラブ名）', 'チェック（自動）', 'キー', '採用']):
-    put(ws, f'{c}2', h, f(bold=True, size=9 if c in 'LM' else 10), GRY, CEN, True)
+ws.merge_cells('A1:F1'); role(ws, 'A1', 'tan')
+ws.merge_cells('A2:K2'); ws.merge_cells('A3:K3')
+put(ws, 'A2', '① 転出した児童は、「第1希望」に「転出」と入力してください。', f(bold=True, size=11, color='C00000'))
+put(ws, 'A3', '② 希望の列には、希望調査用紙と同じクラブの番号を入力してください。（学年・組・番号・名前は前年度名簿から自動で入っています）', f(bold=True, size=11, color='C00000'))
+HW = W2 - 1
+heads = [('A', '学年'), ('B', '組'), ('C', '番号'), ('D', '第1希望'),
+         ('E', f'=IF({NCH}>=2,"第2希望","（使いません）")'), ('F', f'=IF({NCH}>=3,"第3希望","（使いません）")')]
+for c, h in heads:
+    put(ws, f'{c}{HW}', h, f(bold=True, size=10), HDR, Alignment(horizontal='center', vertical='center', wrap_text=True), True)
+for c, h in zip('GHIJKLMN', ['名前（自動）', '第1（クラブ名）', f'=IF({NCH}>=2,"第2（クラブ名）","（使いません）")',
+                              f'=IF({NCH}>=3,"第3（クラブ名）","（使いません）")', 'チェック（自動）', 'キー', '採用', '名簿行']):
+    put(ws, f'{c}{HW}', h, f(bold=True, size=9 if c in 'LMN' else 10), GRY, Alignment(horizontal='center', vertical='center', wrap_text=True), True)
+ws.row_dimensions[HW].height = 30
 CONV = lambda x: (f'IF({x}="","",IF(ISERROR(VALUE({x})),{x}&"",IF(AND(VALUE({x})>=1,VALUE({x})<={NC}),'
                   f'IF(INDEX({CN},VALUE({x}))="","？",INDEX({CN},VALUE({x}))),"？")))')
+OG_, OF_ = rg('前年度名簿', 'G', O2, OL), rg('前年度名簿', 'F', O2, OL)
 for i in range(NW):
     r = W2 + i
-    w = wishes[i] if i < len(wishes) else (None,) * 6
-    for c, v in zip('ABCDEF', w):
-        put(ws, f'{c}{r}', v, fill=YEL, al=CEN, unlock=True)
-    put(ws, f'L{r}', f'=IF(A{r}="","",A{r}&"-"&B{r}&"-"&C{r})', f(**SMALLF))
-    put(ws, f'G{r}', f'=IF(L{r}="","",IFERROR(INDEX({rg("前年度名簿","D",O2,OL)},MATCH(L{r},{rg("前年度名簿","F",O2,OL)},0)),""))')
+    # N列：前年度名簿の何行目か（学年→組→番号の順）
+    if i < NS:
+        put(ws, f'N{r}', f'=IFERROR(MATCH(SMALL({OG_},{i + 1}),{OG_},0),"")', f(**SMALLF))
+        for c, src in zip('ABC', 'ABC'):
+            put(ws, f'{c}{r}', f'=IF($N{r}="","",INDEX({rg("前年度名簿", src, O2, OL)},$N{r}))', fill=YEL, al=CEN, unlock=True)
+    else:
+        for c in 'ABC':
+            put(ws, f'{c}{r}', None, fill=YEL, al=CEN, unlock=True)
+    w = WROWS[i] if i < len(WROWS) else {}
+    for c in 'ABC':
+        if c in w: ws[f'{c}{r}'].value = w[c]
+    for c in 'DEF':
+        put(ws, f'{c}{r}', w.get(c), fill=YEL, al=CEN, unlock=True)
+    put(ws, f'L{r}', f'=IF(OR(A{r}="",D{r}=""),"",A{r}&"-"&B{r}&"-"&C{r})', f(**SMALLF))
+    put(ws, f'G{r}', f'=IF(A{r}="","",IFERROR(INDEX({rg("前年度名簿","D",O2,OL)},MATCH(A{r}&"-"&B{r}&"-"&C{r},{OF_},0)),""))')
     for c, src in zip('HIJ', 'DEF'):
         put(ws, f'{c}{r}', '=' + CONV(f'{src}{r}'), al=CEN)
     badn = lambda c: f'{c}{r}="？"'
     badc = lambda c: f'AND({c}{r}<>"",{c}{r}<>"？",COUNTIF({CN},{c}{r})=0)'
-    put(ws, f'K{r}', (f'=IF(L{r}="","",IF(G{r}="","名簿にいない",IF(COUNTIF(L{r+1}:L${WL+1},L{r})>0,"2回提出（下の行を使います）",'
-                      f'IF(OR({badn("H")},{badn("I")},{badn("J")}),"クラブ番号がちがう",IF(OR({badc("H")},{badc("I")},{badc("J")}),"クラブ名がちがう",IF(H{r}="","第1希望がない",'
+    put(ws, f'K{r}', (f'=IF(L{r}="","",IF(G{r}="","名簿にいない",IF(COUNTIF(L{r+1}:L${WL+1},L{r})>0,"2回提出（下の行を使います）",IF(H{r}="転出","転出",'
+                      f'IF(OR({badn("H")},{badn("I")},{badn("J")}),"クラブ番号がちがう",IF(OR({badc("H")},{badc("I")},{badc("J")}),"クラブ名がちがう",'
                       f'IF(OR(AND(H{r}<>"",H{r}=I{r}),AND(H{r}<>"",H{r}=J{r}),AND(I{r}<>"",I{r}=J{r})),"同じクラブを重複して希望","OK")))))))'),
         al=LFT)
     put(ws, f'M{r}', f'=IF(OR(L{r}="",G{r}=""),"",IF(COUNTIF(L{r+1}:L${WL+1},L{r})=0,L{r},""))', f(**SMALLF))
+cf(ws, f'K{W2}:K{WL}', f'K{W2}="転出"', DGRY)
 cf(ws, f'K{W2}:K{WL}', f'AND(K{W2}<>"",K{W2}<>"OK")', RED)
 cf(ws, f'H{W2}:J{WL}', f'H{W2}="？"', RED)
-ws.freeze_panes = 'A3'
-ws.merge_cells('A1:F1'); role(ws, 'A1', 'tan')
+cf(ws, f'A{W2}:K{W2 + NW - 1}', f'$D{W2}="転出"', DGRY)
+cf(ws, f'E{HW}:E{WL}', f'{NCH}<2', DGRY); cf(ws, f'I{HW}:I{WL}', f'{NCH}<2', DGRY)
+cf(ws, f'F{HW}:F{WL}', f'{NCH}<3', DGRY); cf(ws, f'J{HW}:J{WL}', f'{NCH}<3', DGRY)
+ws.freeze_panes = f'D{W2}'
+if NCHOICE < 3:
+    ws.column_dimensions['F'].hidden = True; ws.column_dimensions['J'].hidden = True
 protect(ws)
 
 # ---------------- 5. 振り分け ----------------
@@ -448,6 +498,10 @@ put(ws, 'C4', '…（第2・第3希望が緑地に白い字）そのクラブに
 put(ws, 'C5', '=IF(' + PRI + ',"※ 上の学年から優先：〇（6年→5年→4年の順に枠を埋めています）","※ 上の学年から優先：なし（全学年まとめて判定しています）")', f(size=10, color='808080'))
 for i, h in enumerate(heads):
     c = CL(i + 1)
+    if h == '第2希望': h = f'=IF({S}!$Q$33>=2,"第2希望","（使いません）")'
+    if h == '第3希望': h = f'=IF({S}!$Q$33>=3,"第3希望","（使いません）")'
+    if h == '第2希望の空き': h = f'=IF({S}!$Q$33>=2,"第2希望の空き","（使いません）")'
+    if h == '第3希望の空き': h = f'=IF({S}!$Q$33>=3,"第3希望の空き","（使いません）")'
     put(ws, f'{c}{HR}', h, f(bold=True, size=9 if i >= 15 else 10), YEL if c == 'K' else (GRY if i >= 15 else HDR),
         Alignment(horizontal='center', vertical='center', wrap_text=True), True)
 ws.row_dimensions[HR].height = 30
@@ -470,11 +524,11 @@ for r in range(F0, FL + 1):
     put(ws, f'Q{r}', f'=IF(R{r}="","",IFERROR(MATCH(R{r},{WIS("M")},0),""))', f(**SMALLF))
     for c, src in zip('GHI', 'HIJ'):
         put(ws, f'{c}{r}', f'=IF(Q{r}="","",INDEX({WIS(src)},Q{r})&"")', al=CEN)
-    put(ws, f'J{r}', (f'=IF(Q{r}="","",IF(G{r}="","要調整",IFERROR(IF(IF({PRI},COUNTIFS($A${F0}:$A${FL},">="&A{r},$G${F0}:$G${FL},G{r}),'
-                      f'COUNTIF($G${F0}:$G${FL},G{r}))<={SEATS(f"G{r}")},G{r},"要調整"),"要調整")))'), al=CEN)
+    put(ws, f'J{r}', (f'=IF(Q{r}="","",IF(G{r}="転出","",IF(G{r}="","要調整",IFERROR(IF(IF({PRI},COUNTIFS($A${F0}:$A${FL},">="&A{r},$G${F0}:$G${FL},G{r}),'
+                      f'COUNTIF($G${F0}:$G${FL},G{r}))<={SEATS(f"G{r}")},G{r},"要調整"),"要調整"))))'), al=CEN)
     put(ws, f'K{r}', None, fill=YEL, al=CEN, unlock=True)
-    put(ws, f'L{r}', f'=IF(P{r}="","",IF(K{r}<>"",K{r},IF(OR(J{r}="",J{r}="要調整"),"",J{r})))', f(bold=True), al=CEN)
-    put(ws, f'M{r}', f'=IF(P{r}="","",IF(AND({MODE}=1,T{r}=""),"転出",IF(L{r}<>"","決定",IF(Q{r}="","未提出","要調整"))))', al=CEN)
+    put(ws, f'L{r}', f'=IF(P{r}="","",IF(G{r}="転出","",IF(K{r}<>"",K{r},IF(OR(J{r}="",J{r}="要調整"),"",J{r}))))', f(bold=True), al=CEN)
+    put(ws, f'M{r}', f'=IF(P{r}="","",IF(OR(G{r}="転出",AND({MODE}=1,T{r}="")),"転出",IF(L{r}<>"","決定",IF(Q{r}="","未提出","要調整"))))', al=CEN)
     for c, src in (('N', 'H'), ('O', 'I')):
         put(ws, f'{c}{r}', f'=IF(OR(M{r}<>"要調整",{src}{r}=""),"",IFERROR({SEATS(f"{src}{r}")}-INDEX(定員チェック!$I$7:$I$26,MATCH({src}{r},{CN},0))-COUNTIFS($M${F0}:$M${FL},"要調整",$G${F0}:$G${FL},{src}{r}),""))', al=CEN)
     put(ws, f'U{r}', f'=IF(OR(L{r}="",M{r}="転出"),"",IFERROR(MATCH(L{r},{CN},0),""))', f(**SMALLF))
@@ -491,6 +545,10 @@ cf(ws, rng, f'$M{F0}="要調整"', RED)
 cf(ws, rng, f'OR($M{F0}="未提出",$M{F0}="転出")', DGRY)
 cf(ws, f'K{F0}:K{FL}', f'K{F0}<>""', font=Font(name=FONT, bold=True, color='0000FF'))
 ws.sheet_properties.tabColor = 'FFC000'
+cf(ws, f'H{HR}:H{FL}', f'{S}!$Q$33<2', DGRY); cf(ws, f'N{HR}:N{FL}', f'{S}!$Q$33<2', DGRY)
+cf(ws, f'I{HR}:I{FL}', f'{S}!$Q$33<3', DGRY); cf(ws, f'O{HR}:O{FL}', f'{S}!$Q$33<3', DGRY)
+if NCHOICE < 3:
+    ws.column_dimensions['I'].hidden = True; ws.column_dimensions['O'].hidden = True
 ws.auto_filter.ref = f'A{HR}:O{FL}'
 ws.freeze_panes = f'E{F0}'
 ws.print_title_rows = f'{HR}:{HR}'; ws.print_area = f'A1:O{FL}'
@@ -542,7 +600,7 @@ summ = [('未提出', f'=COUNTIF({FM},"未提出")'), ('要調整', f'=COUNTIF({
         ('学年がそろっていないクラブ', '=SUMPRODUCT(($O$7:$O$26<>"OK")*($O$7:$O$26<>""))'),
         ('定員オーバーのクラブ', '=COUNTIF($N$7:$N$26,"*オーバー*")'),
         ('新年度名簿の要確認', f'=COUNTIF({NEW("F")},"前年度*")+COUNTIF({NEW("F")},"同姓同名*")'),
-        ('希望入力の要確認', f'=SUMPRODUCT(({WIS("K")}<>"")*({WIS("K")}<>"OK"))')]
+        ('希望入力の要確認', f'=SUMPRODUCT(({WIS("K")}<>"")*({WIS("K")}<>"OK")*({WIS("K")}<>"転出"))')]
 for i, (lab, fm) in enumerate(summ):
     lc, vc, r = ('B', 'D', 2 + i) if i < 4 else ('H', 'M', 2 + i - 4)
     put(ws, f'{lc}{r}', lab, f(bold=True))
@@ -666,8 +724,8 @@ for slot in (1, 2, 3):
             put(ws, f'{cm}{r}', f'=IF({p}="","",IF({MODE}=1,INDEX({NEW("D")},{p}),INDEX({OLD("D")},{p})))', f(size=10), al=LFT, box=True)
             put(ws, f'{ck}{r}', (f'=IF({p}="","",IF({MODE}=1,IF(OR(INDEX({NEW("F")},{p})="前年度名簿にいない",LEFT(INDEX({NEW("F")},{p}),4)="同姓同名"),"要確認",'
                                  f'IF(OR(INDEX({NEW("G")},{p})="",INDEX({NEW("G")},{p})="未決定"),"未決定",INDEX({NEW("G")},{p}))),'
-                                 f'IFERROR(IF(INDEX(振り分け!$L${F0}:$L${FL},MATCH({p},振り分け!$P${F0}:$P${FL},0))="","未決定",'
-                                 f'INDEX(振り分け!$L${F0}:$L${FL},MATCH({p},振り分け!$P${F0}:$P${FL},0))),"未決定")))'),
+                                 f'IFERROR(IF(INDEX(振り分け!$M${F0}:$M${FL},MATCH({p},振り分け!$P${F0}:$P${FL},0))="転出","転出",IF(INDEX(振り分け!$L${F0}:$L${FL},MATCH({p},振り分け!$P${F0}:$P${FL},0))="","未決定",'
+                                 f'INDEX(振り分け!$L${F0}:$L${FL},MATCH({p},振り分け!$P${F0}:$P${FL},0)))),"未決定")))'),
                 f(size=10), al=CEN, box=True)
         cf(ws, f'{ck}5:{ck}{4 + NCR}', f'OR({ck}5="未決定",{ck}5="要確認")', font=Font(name=FONT, bold=True, color='C00000'))
         ws.column_dimensions[hc].hidden = True
@@ -753,7 +811,7 @@ order = sorted(old, key=lambda s: ((5, 4, 3).index(s[0]), CLS.index(s[1]), s[2])
 INV = {i + 1: n for i, n in enumerate(names)}
 nm = lambda x: INV.get(x, x) if isinstance(x, int) else x
 adopted = {}
-oldkeys = {s[:3] for s in old}
+oldkeys = {s[:3] for s in old} - {moved_flag}
 for w in wishes:
     if tuple(w[:3]) in oldkeys: adopted[tuple(w[:3])] = [nm(x) for x in w[3:]]
 def auto(st):
