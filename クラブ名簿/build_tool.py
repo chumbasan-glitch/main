@@ -162,6 +162,9 @@ need = 28 - sum(1 for w in wishes if w[0] == 5 and w[3] == '工作')
 for w in six[:max(0, need)]:
     if '工作' in w[4:]: w[4:] = [x if x != '工作' else w[3] for x in w[4:]]
     w[3] = '工作'
+for w in wishes:
+    if w[0] == 3 and w[3] == '伝統遊び':
+        w[3] = '屋上遊び' if w[4] != '屋上遊び' else '科学'
 NUM = {n: i + 1 for i, n in enumerate(names)}
 for i, w in enumerate(wishes):
     if i in (40, 41, 42):            # Formsの例：クラブ名のまま
@@ -473,7 +476,7 @@ for r in range(F0, FL + 1):
     put(ws, f'L{r}', f'=IF(P{r}="","",IF(K{r}<>"",K{r},IF(OR(J{r}="",J{r}="要調整"),"",J{r})))', f(bold=True), al=CEN)
     put(ws, f'M{r}', f'=IF(P{r}="","",IF(AND({MODE}=1,T{r}=""),"転出",IF(L{r}<>"","決定",IF(Q{r}="","未提出","要調整"))))', al=CEN)
     for c, src in (('N', 'H'), ('O', 'I')):
-        put(ws, f'{c}{r}', f'=IF(OR(M{r}<>"要調整",{src}{r}=""),"",IFERROR({SEATS(f"{src}{r}")}-INDEX(定員チェック!$F$7:$F$26,MATCH({src}{r},{CN},0))-COUNTIFS($M${F0}:$M${FL},"要調整",$G${F0}:$G${FL},{src}{r}),""))', al=CEN)
+        put(ws, f'{c}{r}', f'=IF(OR(M{r}<>"要調整",{src}{r}=""),"",IFERROR({SEATS(f"{src}{r}")}-INDEX(定員チェック!$I$7:$I$26,MATCH({src}{r},{CN},0))-COUNTIFS($M${F0}:$M${FL},"要調整",$G${F0}:$G${FL},{src}{r}),""))', al=CEN)
     put(ws, f'U{r}', f'=IF(OR(L{r}="",M{r}="転出"),"",IFERROR(MATCH(L{r},{CN},0),""))', f(**SMALLF))
     put(ws, f'V{r}', f'=IF(U{r}="","",COUNTIF($U${F0}:U{r},U{r}))', f(**SMALLF))
     put(ws, f'W{r}', f'=IF(U{r}="","",U{r}*1000+V{r})', f(**SMALLF))
@@ -529,25 +532,28 @@ protect(ws, filt=True)
 
 # ---------------- 7. 定員チェック ----------------
 ws = sheet('定員チェック')
-for col, w in zip('ABCDEFGHIJK', [5, 16, 7, 7, 8, 7, 7, 7, 7, 7, 34]):
+for col, w in zip('ABCDEFGHIJKLMNO', [5, 16, 6, 6, 8, 8, 8, 8, 7, 6, 6, 6, 6, 30, 36]):
     ws.column_dimensions[col].width = w
+ws.column_dimensions['P'].hidden = True
 put(ws, 'A1', '定員チェック', f(size=14, bold=True))
 ws.merge_cells('E1:I1'); role(ws, 'E1', 'none')
 FM = rg('振り分け', 'M', F0, FL)
 summ = [('未提出', f'=COUNTIF({FM},"未提出")'), ('要調整', f'=COUNTIF({FM},"要調整")'), ('転出', f'=COUNTIF({FM},"転出")'),
-        ('定員オーバーのクラブ', '=COUNTIF($K$7:$K$26,"*オーバー*")'),
+        ('学年がそろっていないクラブ', '=SUMPRODUCT(($O$7:$O$26<>"OK")*($O$7:$O$26<>""))'),
+        ('定員オーバーのクラブ', '=COUNTIF($N$7:$N$26,"*オーバー*")'),
         ('新年度名簿の要確認', f'=COUNTIF({NEW("F")},"前年度*")+COUNTIF({NEW("F")},"同姓同名*")'),
         ('希望入力の要確認', f'=SUMPRODUCT(({WIS("K")}<>"")*({WIS("K")}<>"OK"))')]
 for i, (lab, fm) in enumerate(summ):
-    lc, vc = ('B', 'C') if i < 3 else ('G', 'J')
-    r = 2 + (i % 3)
+    lc, vc, r = ('B', 'D', 2 + i) if i < 4 else ('H', 'M', 2 + i - 4)
     put(ws, f'{lc}{r}', lab, f(bold=True))
     put(ws, f'{vc}{r}', fm, f(bold=True, size=12), al=CEN, box=True)
-cf(ws, 'C2:C3', 'C2>0', RED); cf(ws, 'J2:J4', 'J2>0', RED)
+cf(ws, 'D2:D3', 'D2>0', RED); cf(ws, 'D5', 'D5>0', RED); cf(ws, 'M2:M4', 'M2>0', RED)
 G1, G2, G3 = f'{S}!$B$8', f'{S}!$B$9', f'{S}!$B$10'
-hd = ['No.', 'クラブ', '定員', '融通', '第1希望', '決定', f'={G1}&"年"', f'={G2}&"年"', f'={G3}&"年"', '残り', '状態']
-for c, h in zip('ABCDEFGHIJK', hd):
-    put(ws, f'{c}6', h, f(bold=True), HDR, CEN, True)
+hd = ['No.', 'クラブ', '定員', '融通', '第1希望', f'={G1}&"年"&CHAR(10)&"第1希望"', f'={G2}&"年"&CHAR(10)&"第1希望"', f'={G3}&"年"&CHAR(10)&"第1希望"',
+      '決定', f'={G1}&"年"', f'={G2}&"年"', f'={G3}&"年"', '残り', '状態', '学年のそろい']
+for c, h in zip('ABCDEFGHIJKLMNO', hd):
+    put(ws, f'{c}6', h, f(bold=True, size=10), HDR, Alignment(horizontal='center', vertical='center', wrap_text=True), True)
+ws.row_dimensions[6].height = 30
 NG, FA, FL_ = NEW('G'), rg('振り分け', 'A', F0, FL), rg('振り分け', 'L', F0, FL)
 FG = rg('振り分け', 'G', F0, FL)
 NA = NEW('A')
@@ -558,22 +564,35 @@ for i in range(NC):
     put(ws, f'C{r}', f'=IF(B{r}="","",N({S}!Q{sr}))', al=CEN, box=True)
     put(ws, f'D{r}', f'=IF(B{r}="","",N({S}!R{sr}))', al=CEN, box=True)
     put(ws, f'E{r}', f'=IF(B{r}="","",COUNTIF({FG},B{r}))', al=CEN, box=True)
-    put(ws, f'F{r}', f'=IF(B{r}="","",IF({MODE}=1,COUNTIF({NG},B{r}),COUNTIFS({FL_},B{r},{FM},"<>転出")))', f(bold=True), al=CEN, box=True)
-    for c, g in zip('GHI', (G1, G2, G3)):
+    for c, g in zip('FGH', (G1, G2, G3)):
+        put(ws, f'{c}{r}', f'=IF(B{r}="","",COUNTIFS({FA},{g},{FG},B{r}))', al=CEN, box=True)
+    put(ws, f'I{r}', f'=IF(B{r}="","",IF({MODE}=1,COUNTIF({NG},B{r}),COUNTIFS({FL_},B{r},{FM},"<>転出")))', f(bold=True), al=CEN, box=True)
+    for c, g in zip('JKL', (G1, G2, G3)):
         put(ws, f'{c}{r}', f'=IF(B{r}="","",IF({MODE}=1,COUNTIFS({NA},{g},{NG},B{r}),COUNTIFS({FA},{g},{FL_},B{r},{FM},"<>転出")))', al=CEN, box=True)
-    put(ws, f'J{r}', f'=IF(B{r}="","",C{r}-F{r})', al=CEN, box=True)
-    put(ws, f'K{r}', (f'=IF(B{r}="","",IF(F{r}>C{r}+D{r},(F{r}-C{r}-D{r})&"人オーバー",IF(COUNTIFS({FM},"要調整",{FG},B{r})>0,'
-                      f'"調整中（第1希望の要調整 "&COUNTIFS({FM},"要調整",{FG},B{r})&"人）",IF(F{r}>C{r},"定員＋"&(F{r}-C{r})&"人（融通内）",'
-                      f'IF(J{r}>0,"空きあり "&J{r}&"人","OK")))))'), box=True)
+    put(ws, f'M{r}', f'=IF(B{r}="","",C{r}-I{r})', al=CEN, box=True)
+    put(ws, f'N{r}', (f'=IF(B{r}="","",IF(I{r}>C{r}+D{r},(I{r}-C{r}-D{r})&"人オーバー",IF(COUNTIFS({FM},"要調整",{FG},B{r})>0,'
+                      f'"調整中（第1希望の要調整 "&COUNTIFS({FM},"要調整",{FG},B{r})&"人）",IF(I{r}>C{r},"定員＋"&(I{r}-C{r})&"人（融通内）",'
+                      f'IF(M{r}>0,"空きあり "&M{r}&"人","OK")))))'), box=True)
+    # 学年のそろい（P列は非表示の作業列）
+    put(ws, f'P{r}', (f'=IF(B{r}="","",IF(F{r}=0,"第1希望に"&{G1}&"年がいない／","")&IF(G{r}=0,"第1希望に"&{G2}&"年がいない／","")'
+                      f'&IF(H{r}=0,"第1希望に"&{G3}&"年がいない／","")&IF(F{r}>=C{r}+D{r},{G1}&"年だけで定員に届く／","")'
+                      f'&IF(I{r}>0,IF(J{r}=0,"決定に"&{G1}&"年がいない／","")&IF(K{r}=0,"決定に"&{G2}&"年がいない／","")'
+                      f'&IF(L{r}=0,"決定に"&{G3}&"年がいない／",""),""))'), f(size=8))
+    put(ws, f'O{r}', f'=IF(B{r}="","",IF(P{r}="","OK",LEFT(P{r},LEN(P{r})-1)))', f(size=10), al=Alignment(wrap_text=True, vertical='center'), box=True)
     cf(ws, f'E{r}', f'AND($B{r}<>"",E{r}>C{r}+D{r})', RED)
-    cf(ws, f'J{r}', f'AND($B{r}<>"",J{r}<0)', YEL)
-    cf(ws, f'J{r}', f'AND($B{r}<>"",J{r}>0)', PatternFill('solid', fgColor='E2EFDA'))
-cf(ws, 'K7:K26', 'ISNUMBER(SEARCH("オーバー",K7))', RED)
-cf(ws, 'K7:K26', 'ISNUMBER(SEARCH("調整中",K7))', LRED)
-cf(ws, 'K7:K26', 'ISNUMBER(SEARCH("融通内",K7))', PatternFill('solid', fgColor='FFE699'))
-put(ws, 'A28', '※「第1希望」が赤い所は、第1希望だけで「定員＋融通」を超えているクラブです。', f(**SMALLF))
-put(ws, 'A29', '※「残り」は定員からの残りです（マイナスは定員を超えた人数）。融通の範囲内なら状態は黄色、超えると赤です。', f(**SMALLF))
-put(ws, 'A30', '※「決定」と学年ごとの人数は、新年度名簿を貼ったあとは新年度名簿（転入生の手入力をふくむ）で数えます。', f(**SMALLF))
+    cf(ws, f'F{r}', f'AND($B{r}<>"",OR(F{r}=0,F{r}>=$C{r}+$D{r}))', RED)
+    cf(ws, f'G{r}:H{r}', f'AND($B{r}<>"",G{r}=0)', RED)
+    cf(ws, f'J{r}:L{r}', f'AND($B{r}<>"",$I{r}>0,J{r}=0)', RED)
+    cf(ws, f'M{r}', f'AND($B{r}<>"",M{r}<0)', YEL)
+    cf(ws, f'M{r}', f'AND($B{r}<>"",M{r}>0)', PatternFill('solid', fgColor='E2EFDA'))
+cf(ws, 'N7:N26', 'ISNUMBER(SEARCH("オーバー",N7))', RED)
+cf(ws, 'N7:N26', 'ISNUMBER(SEARCH("調整中",N7))', LRED)
+cf(ws, 'N7:N26', 'ISNUMBER(SEARCH("融通内",N7))', PatternFill('solid', fgColor='FFE699'))
+cf(ws, 'O7:O26', 'AND(O7<>"",O7<>"OK")', RED, Font(name=FONT, bold=True, color='C00000'))
+put(ws, 'A28', '※ 学年ごとの第1希望が0人のマスと、6年の第1希望だけで「定員＋融通」に届くマスは赤です（調整の前に確かめてください）。', f(**SMALLF))
+put(ws, 'A29', '※ 決定の学年ごとの人数が0人のマスも赤です（決定が1人もいないクラブは除く）。「学年のそろい」に内容が文字で出ます。', f(**SMALLF))
+put(ws, 'A30', '※「残り」は定員からの残りです（マイナスは定員を超えた人数）。融通の範囲内なら状態は黄色、超えると赤です。', f(**SMALLF))
+put(ws, 'A31', '※「決定」と学年ごとの人数は、新年度名簿を貼ったあとは新年度名簿（転入生の手入力をふくむ）で数えます。', f(**SMALLF))
 page(ws, ws.PAPERSIZE_A4, 'landscape', 1)
 protect(ws)
 
@@ -672,7 +691,7 @@ for (r0, off) in ((T1, 0), (T2, 10)):
         c1, c2 = CL(2 * bk + 1), CL(2 * bk + 2)
         for d in range(3):
             ws.merge_cells(f'{c1}{r0+d}:{c2}{r0+d}')
-        put(ws, f'{c1}{r0}', f'=IF({S}!$P${sr}="","",{S}!$P${sr}&"（"&定員チェック!$F${qr}&"名）")', f(bold=True, size=10), HDR, CEN)
+        put(ws, f'{c1}{r0}', f'=IF({S}!$P${sr}="","",{S}!$P${sr}&"（"&定員チェック!$I${qr}&"名）")', f(bold=True, size=10), HDR, CEN)
         put(ws, f'{c1}{r0+1}', f'=IF({S}!$P${sr}="","","担当："&{S}!$S${sr})', f(size=9), al=CEN)
         put(ws, f'{c1}{r0+2}', f'=IF({S}!$P${sr}="","","場所："&{S}!$T${sr})', f(size=9), al=CEN)
         put(ws, f'{c1}{r0+3}', '組', f(bold=True, size=10), HDR, CEN)
@@ -707,8 +726,8 @@ for k in range(1, NC + 1):
         ws.column_dimensions[CL(5 + i)].width = 4.6
     ws.merge_cells('A1:O1'); ws.merge_cells('A2:O2')
     put(ws, 'A1', f'=IF({S}!$P${sr}="","",{S}!$B$3&"　"&{S}!$P${sr}&{S}!$B$4&"名簿"&IF({MODE}=0,"（仮・前年度の組）",""))', f(size=16, bold=True), al=CEN)
-    put(ws, 'A2', (f'=IF({S}!$P${sr}="","","担当："&{S}!$S${sr}&"　　活動場所："&{S}!$T${sr}&"　　人数："&定員チェック!$F${qr}&"名（"'
-                   f'&{G1}&"年"&定員チェック!$G${qr}&"・"&{G2}&"年"&定員チェック!$H${qr}&"・"&{G3}&"年"&定員チェック!$I${qr}&"）")'), f(size=11), al=CEN)
+    put(ws, 'A2', (f'=IF({S}!$P${sr}="","","担当："&{S}!$S${sr}&"　　活動場所："&{S}!$T${sr}&"　　人数："&定員チェック!$I${qr}&"名（"'
+                   f'&{G1}&"年"&定員チェック!$J${qr}&"・"&{G2}&"年"&定員チェック!$K${qr}&"・"&{G3}&"年"&定員チェック!$L${qr}&"）")'), f(size=11), al=CEN)
     for i, h in enumerate(['No.', '組', '番号', '名前'] + list(MARU[:11])):
         put(ws, f'{CL(i+1)}4', h, f(bold=True), HDR, CEN, True)
     for j in range(1, NM + 1):
