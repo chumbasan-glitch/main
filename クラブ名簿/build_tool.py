@@ -260,14 +260,15 @@ for (c0, title, gcol, kcol) in (('E', '前年度の組（アンケート時）',
         r = 8 + i
         put(ws, f'{cs[0]}{r}', f'=${gcol}${8 + i // 8}', fill=GRY, al=CEN, box=True)
         put(ws, f'{cs[1]}{r}', CLS[i % 8] if i % 8 < 4 else None, fill=PUR, al=CEN, box=True, unlock=True)
-        put(ws, f'{cs[2]}{r}', f'=IF({cs[1]}{r}="","",{cs[0]}{r}&{cs[1]}{r})', fill=PUR, al=CEN, box=True, unlock=True)
+        put(ws, f'{cs[2]}{r}', f'=IF({cs[1]}{r}="","",{cs[0]}{r}&IF(ISNUMBER(FIND(UPPER(LEFT(ASC({cs[1]}{r}&""),1)),"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")),"-","")&{cs[1]}{r})', fill=PUR, al=CEN, box=True, unlock=True)
+        ws[f'{cs[1]}{r}'].number_format = '@'; ws[f'{cs[2]}{r}'].number_format = '@'
         put(ws, f'{cs[3]}{r}', TESTCOLOR.get(CLS[i % 8]) if i % 8 < 4 else None, fill=PUR, al=CEN, box=True, unlock=True)
         put(ws, f'{kcol}{r}', f'=IF({cs[1]}{r}="","",{cs[0]}{r}&"-"&{cs[1]}{r})', f(**SMALLF))
     dv = DataValidation(type='list', formula1=COLOR_LIST, allow_blank=True); ws.add_data_validation(dv); dv.add(f'{cs[3]}8:{cs[3]}31')
     colorcf(ws, f'{cs[1]}8:{cs[2]}31', f'${cs[3]}8')
     ws.column_dimensions[kcol].hidden = True
 put(ws, 'E34', '※「色」はプルダウンで選びます。名簿の組の文字がその色になります（空欄なら黒）。', f(**SMALLF))
-put(ws, 'E33', '※ 上から名簿の並び順です（学年ごとに8行）。「名簿での表示」は「5-1」などに書きかえてもかまいません。', f(**SMALLF))
+put(ws, 'E33', '※ 上から名簿の並び順です（学年ごとに8行）。「名簿での表示」は自動で「5松」「5-1」「5-A」のようになります（組が数字・英字のときは「-」が入ります）。書きかえてもかまいません。', f(**SMALLF))
 put(ws, 'O6', 'クラブの設定（上から順に「クラブ①、②…」のシートに入ります）', f(bold=True))
 for c, h in zip('OPQRSTU', ['No.', 'クラブ名', '定員', '融通', '担当', '活動場所', '用紙用の説明']):
     put(ws, f'{c}7', h, f(bold=True), HDR, CEN, True)

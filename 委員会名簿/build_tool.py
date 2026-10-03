@@ -157,14 +157,16 @@ for i in range(16):
     put(ws, f'A{r}', '=$B$7' if i < 8 else '=$B$8', fill=GRY, al=CEN, box=True)
     cls = CLASSES[i % 8] if i % 8 < 4 else None
     put(ws, f'B{r}', cls, fill=PUR, al=CEN, box=True, unlock=True)
-    put(ws, f'C{r}', f'=IF(B{r}="","",A{r}&B{r})', fill=PUR, al=CEN, box=True, unlock=True)
+    put(ws, f'C{r}', f'=IF(B{r}="","",A{r}&IF(ISNUMBER(FIND(UPPER(LEFT(ASC(B{r}&""),1)),"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")),"-","")&B{r})', fill=PUR, al=CEN, box=True, unlock=True)
+    ws[f'B{r}'].number_format = '@'; ws[f'C{r}'].number_format = '@'
     put(ws, f'D{r}', TESTCOLOR.get(cls) if cls else None, fill=PUR, al=CEN, box=True, unlock=True)
     put(ws, f'E{r}', 30 if cls else None, fill=PUR, al=CEN, box=True, unlock=True)
 dv = DataValidation(type='list', formula1=COLOR_LIST, allow_blank=True); ws.add_data_validation(dv); dv.add('D11:D26')
 dv = DataValidation(type='whole', operator='between', formula1='0', formula2=str(NR), allow_blank=True); ws.add_data_validation(dv); dv.add('E11:E26')
 colorcf(ws, 'B11:C26', '$D11')
 put(ws, 'A28', '※ 書いた組の数がクラス数になります。「人数」の数だけ番号の枠ができます（最大45人）。', f(**SMALLF))
-put(ws, 'A29', '※「名簿での表示」は「6-1」などに書きかえてもかまいません。「色」は組の文字の色です（空欄なら黒）。', f(**SMALLF))
+put(ws, 'A29', '※「名簿での表示」は自動で「6松」「6-1」「5-A」のようになります（組が数字・英字のときは「-」が入ります）。書きかえてもかまいません。', f(**SMALLF))
+put(ws, 'A30', '※「色」は組の文字の色です（空欄なら黒）。', f(**SMALLF))
 put(ws, 'H9', '委員会の設定（上から順に「委員会①、②…」のシートに入ります）', f(bold=True))
 for c, h in zip('HIJK', ['No.', '委員会名', '担当', '活動場所']):
     put(ws, f'{c}10', h, f(bold=True), HDR, CEN, True)
