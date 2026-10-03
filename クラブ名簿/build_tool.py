@@ -324,43 +324,49 @@ ws.merge_cells('B3:E3')
 put(ws, 'B3', f'="来年度、活動する"&{S}!B4&"は以下の"&{NCL}&{S}!B4&"です。"', f(size=13), al=LFT)
 ws.row_dimensions[3].height = 26
 MARU20 = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'
-dx = DifferentialStyle(border=Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin')))
+TS = Side(style='thin')
+dx_top = DifferentialStyle(border=Border(left=TS, right=TS, top=TS))       # クラブ名の行
+dx_bot = DifferentialStyle(border=Border(left=TS, right=TS, bottom=TS))    # 説明の行
 for rr in range(5):
-    r = 5 + rr
-    ws.row_dimensions[r].height = 44
+    rn, rd = 5 + rr * 2, 6 + rr * 2
+    ws.row_dimensions[rn].height = 26
+    ws.row_dimensions[rd].height = 18
     for cc in range(4):
         k = rr * 4 + cc + 1
         col = 'BCDE'[cc]
-        put(ws, f'{col}{r}', (f'=IF({k}>{NCL},"",MID("{MARU20}",{k},1)&" "&INDEX({CN},{k})'
-                              f'&IF(INDEX({S}!$U$8:$U$27,{k})="","",CHAR(10)&"　"&INDEX({S}!$U$8:$U$27,{k})))'),
-            f(size=12), al=Alignment(wrap_text=True, vertical='center'))
-    rule = Rule(type='expression', dxf=dx, formula=[f'{rr * 4}<{NCL}'])
-    ws.conditional_formatting.add(f'B{r}:E{r}', rule)
-ws.merge_cells('B11:E11')
-put(ws, 'B11', (f'="自分が来年度希望する"&{S}!B4&"の"&IF({NCH}=1,"第1希望",IF({NCH}=2,"第1希望と第2希望","第1希望から第"&{NCH}&"希望まで"))&"を書きましょう。"'),
+        # クラブ名：改行せず、入りきらないときは縮小
+        put(ws, f'{col}{rn}', f'=IF({k}>{NCL},"",MID("{MARU20}",{k},1)&" "&INDEX({CN},{k}))',
+            f(size=12), al=Alignment(shrink_to_fit=True, vertical='bottom'))
+        # 説明：小さい字で、入りきらないときは縮小
+        put(ws, f'{col}{rd}', f'=IF({k}>{NCL},"",IF(INDEX({S}!$U$8:$U$27,{k})="","","　"&INDEX({S}!$U$8:$U$27,{k})))',
+            f(size=9), al=Alignment(shrink_to_fit=True, vertical='top'))
+    ws.conditional_formatting.add(f'B{rn}:E{rn}', Rule(type='expression', dxf=dx_top, formula=[f'{rr * 4}<{NCL}']))
+    ws.conditional_formatting.add(f'B{rd}:E{rd}', Rule(type='expression', dxf=dx_bot, formula=[f'{rr * 4}<{NCL}']))
+ws.merge_cells('B16:E16')
+put(ws, 'B16', (f'="自分が来年度希望する"&{S}!B4&"の"&IF({NCH}=1,"第1希望",IF({NCH}=2,"第1希望と第2希望","第1希望から第"&{NCH}&"希望まで"))&"を書きましょう。"'),
     f(size=12), al=LFT)
-ws.merge_cells('B12:E12')
-put(ws, 'B12', f'="　　　　例）（ ① ）番の "&INDEX({CN},1)&" "&{S}!B4', f(size=12), al=LFT)
-ws.merge_cells('B14:E14')
-put(ws, 'B14', '（　　　　）年（　　　　）組（　　　　）番　名前（　　　　　　　　　　　　　　）', f(size=13, bold=True), al=LFT)
-ws.row_dimensions[14].height = 30
+ws.merge_cells('B17:E17')
+put(ws, 'B17', f'="　　　　例）（ ① ）番の "&INDEX({CN},1)&" "&{S}!B4', f(size=12), al=LFT)
+ws.merge_cells('B19:E19')
+put(ws, 'B19', '（　　　　）年（　　　　）組（　　　　）番　名前（　　　　　　　　　　　　　　）', f(size=13, bold=True), al=LFT)
+ws.row_dimensions[19].height = 30
 MED = Side(style='medium', color='000000')
-for r in range(16, 23):
+for r in range(21, 28):
     ws.merge_cells(f'B{r}:E{r}')
-    ws.row_dimensions[r].height = 30 if r % 2 == 1 else 14
-for k, r in ((1, 17), (2, 19), (3, 21)):
+    ws.row_dimensions[r].height = 30 if r % 2 == 0 else 14
+for k, r in ((1, 22), (2, 24), (3, 26)):
     put(ws, f'B{r}', f'=IF({NCH}>={k},"　第{k}希望：（　　　　　）番の＿＿＿＿＿＿＿＿＿＿＿＿＿＿"&{S}!B4,"")', f(size=14, bold=True), al=LFT)
-for r in range(16, 23):
+for r in range(21, 28):
     for c in 'BCDE':
         ws[f'{c}{r}'].border = Border(left=MED if c == 'B' else None, right=MED if c == 'E' else None,
-                                      top=MED if r == 16 else None, bottom=MED if r == 22 else None)
+                                      top=MED if r == 21 else None, bottom=MED if r == 27 else None)
 for k in range(3):
-    r = 24 + k
+    r = 29 + k
     ws.merge_cells(f'B{r}:E{r}')
     put(ws, f'B{r}', f'=IF({S}!O{36 + k}="","","☆"&{S}!O{36 + k})', f(size=11), al=Alignment(wrap_text=True, vertical='top'))
     ws.row_dimensions[r].height = 32
 role(ws, 'H1', 'none'); ws.column_dimensions['H'].width = 30
-ws.print_area = 'A1:F27'
+ws.print_area = 'A1:F32'
 page(ws, ws.PAPERSIZE_A4, 'portrait', 1)
 ws.sheet_view.showGridLines = False
 protect(ws)
