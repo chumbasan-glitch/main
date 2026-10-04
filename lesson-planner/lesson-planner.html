@@ -198,6 +198,13 @@ table.ur td.wr{height:var(--rh,68px)}
 table.rub td,table.rub th{font-size:13px}
 table.rub th.lv{text-align:center;width:28%}
 
+.hgrid{display:grid;gap:0}
+.hgrid.n2{grid-template-rows:1fr 1fr}
+.hgrid.n4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.hcard{border:1px dashed #888;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-height:0}
+.hgrid.n1 .hcard{border:none;padding:0}
+.hcard .ht{font-size:1.2em;font-weight:700;text-align:center}
+.hcard .lines{margin:0}
 /* ---------- modal ---------- */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;z-index:50;overflow:auto}
 .modal .card{background:var(--surface);color:var(--ink);border-radius:14px;padding:18px 20px;width:min(720px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
@@ -242,11 +249,13 @@ table.rub th.lv{text-align:center;width:28%}
   .bit.s-sum{border:3px double #111}
   .bit.s-q,.board.v .bit.s-q{border-color:#111}
   .bit.s-card{border-color:#111;background:none}
-  .bit.c-yellow,.bit.c-red,.bit.c-blue{color:#111;font-weight:700;text-decoration:underline;text-decoration-thickness:2px}
+  .bit.c-yellow,.bit.c-red,.bit.c-blue{color:#111;font-weight:700}
   .memo{font-size:11px}
   .memo ol{columns:2;column-gap:8mm}
   .memo h3{margin:6px 0 2px}
   .sheet .lines div{border-color:#555}
+  .hgrid.n2,.hgrid.n4{height:272mm}
+  .hgrid.n4 .hcard{font-size:14px}
 }
 </style>
 </head>
@@ -254,7 +263,7 @@ table.rub th.lv{text-align:center;width:28%}
 <div class="wrap" id="app">
   <header class="top">
     <h1>授業プランノート</h1>
-    <span class="ver">ver 1.0</span>
+    <span class="ver">ver 1.1</span>
     <span class="cur" id="curTitle"></span>
     <span class="state" id="saveState" hidden></span>
     <div class="tools">
@@ -283,7 +292,7 @@ table.rub th.lv{text-align:center;width:28%}
 
 <script>
 "use strict";
-const APP_VER = "1.0";
+const APP_VER = "1.1";
 const SUBJECTS = ["国語","社会","算数","理科","生活","音楽","図画工作","家庭","体育"];
 const SUBJECT_GRADES = {国語:[1,2,3,4,5,6],社会:[3,4,5,6],算数:[1,2,3,4,5,6],理科:[3,4,5,6],生活:[1,2],音楽:[1,2,3,4,5,6],図画工作:[1,2,3,4,5,6],家庭:[5,6],体育:[1,2,3,4,5,6]};
 const DEFAULT_PUB = {国語:"光村図書",社会:"東京書籍",算数:"学校図書",理科:"学校図書",生活:"光村図書",音楽:"教育芸術社",図画工作:"日本文教出版",家庭:"東京書籍",体育:"東京書籍"};
@@ -327,6 +336,7 @@ function blank(kind){
     case "col": return {items:[blank("item")]};
     case "rubric": return {view:"",A:"",B:"",C:""};
     case "sec": return {heading:"",lines:4};
+    case "handout": return {title:"",body:"",lines:3,perPage:1};
     case "lesson": return {title:"",objective:"",aim:"",materials:"",steps:[blank("step")],summary:"",board:{dir:"",columns:[blank("col")],notes:""},reflect:{selfEval:[],prompts:[]}};
     default: return "";
   }
@@ -369,7 +379,8 @@ function normalize(src){
   const pt = p.pt||{};
   d.pt = {mode:["none","together","own"].includes(pt.mode)?pt.mode:"none",ownPlan:S(pt.ownPlan),title:S(pt.title),task:S(pt.task),placement:S(pt.placement),
     rubric:(Array.isArray(pt.rubric)?pt.rubric:[]).map(r=>({view:S(r.view),A:S(r.A),B:S(r.B),C:S(r.C)})),
-    sheet:{title:S(pt.sheet?.title),intro:S(pt.sheet?.intro),sections:(Array.isArray(pt.sheet?.sections)?pt.sheet.sections:[]).map(s=>({heading:S(s.heading),lines:Math.min(20,Math.max(1,parseInt(s.lines,10)||4))}))}};
+    sheet:{title:S(pt.sheet?.title),intro:S(pt.sheet?.intro),sections:(Array.isArray(pt.sheet?.sections)?pt.sheet.sections:[]).map(s=>({heading:S(s.heading),lines:Math.min(20,Math.max(1,parseInt(s.lines,10)||4))}))},
+    handouts:(Array.isArray(pt.handouts)?pt.handouts:[]).map(h=>({title:S(h.title),body:S(h.body),lines:Math.min(20,Math.max(0,parseInt(h.lines,10)||0)),perPage:[1,2,4].includes(+h.perPage)?+h.perPage:1}))};
   return d;
 }
 function fillDefaults(d){
@@ -619,6 +630,13 @@ function renderPTSheet(){
   </div>`;
 }
 
+function renderHandout(j){
+  const H=plan.pt.handouts[j], p=`pt.handouts.${j}`, n=+H.perPage||1;
+  const one=(first)=>`<div class="hcard"><div class="ht">${first?ed(p+".title",{ph:"題"}):rich(H.title)}</div><div class="tx">${first?ed(p+".body",{ph:"本文"}):rich(H.body)}</div>${H.lines?lines(H.lines):""}</div>`;
+  const ctl=(!STATIC&&EDIT)?`<div class="muted" style="margin-bottom:6px">1枚に <select data-set="${p}.perPage">${[1,2,4].map(v=>`<option value="${v}"${v===n?" selected":""}>${v}枚</option>`).join("")}</select>　書く行数 <input type="number" min="0" max="20" value="${H.lines}" data-setnum="${p}.lines" style="width:4em"> ${ops("pt.handouts",j,"handout",{move:false})}</div>`:"";
+  const cards=[one(!STATIC&&EDIT)];for(let k=1;k<n;k++)cards.push(one(false));
+  return `<div class="paper sheet high">${ctl}<div class="hgrid n${n}">${cards.join("")}</div></div>`;
+}
 /* ================= main render ================= */
 function hourOptions(cur){
   return plan.lessons.map((L,i)=>`<option value="${i}"${i===cur?" selected":""}>第${i+1}時　${esc(plainText(L.title)).slice(0,30)}</option>`).join("");
@@ -661,7 +679,8 @@ function render(){
   else if(tab==="lesson") h += renderLesson(hourIdx);
   else if(tab==="board") h += renderBoard(hourIdx);
   else if(tab==="reflect") h += reflectMode==="hour"?renderReflectHour(hourIdx):renderReflectUnit();
-  else if(tab==="pt") h += renderPT() + (plan.pt.mode!=="none"?`<h3 style="margin:8px 0 0">課題用ワークシート</h3>`+renderPTSheet():"");
+  else if(tab==="pt") h += renderPT() + (plan.pt.mode!=="none"?`<h3 style="margin:8px 0 0">課題用ワークシート</h3>`+renderPTSheet()
+      +(plan.pt.handouts.length||EDIT?`<h3 style="margin:8px 0 0">配布物</h3>`:"")+plan.pt.handouts.map((x,j)=>renderHandout(j)).join("")+(EDIT?addFirst("pt.handouts","handout","＋ 配布物を追加"):""):"");
   main.innerHTML = h;
 }
 
@@ -678,7 +697,7 @@ document.addEventListener("input",e=>{
     return;
   }
   const n=e.target.closest("[data-setnum]");
-  if(n){setP(n.dataset.setnum,Math.min(20,Math.max(1,parseInt(n.value,10)||1)));changed();}
+  if(n){setP(n.dataset.setnum,Math.min(20,Math.max(0,parseInt(n.value,10)||0)));changed();}
 });
 document.addEventListener("change",e=>{
   const s=e.target.closest("[data-set]");
@@ -744,7 +763,8 @@ const FORMAT_SPEC = `【出力形式】授業プランノート ver1.0 で読み
  "unitReflect":{"before":"単元のはじめに書く問い","after":"単元のおわりに書く問い"},
  "pt":{"mode":"none|together|own","ownPlan":"先生のもとの案","title":"課題名","task":"子ども向け課題文","placement":"単元計画への位置付け",
    "rubric":[{"view":"観点","A":"","B":"","C":"Cの子への手だて"}],
-   "sheet":{"title":"ワークシートの題","intro":"課題の説明","sections":[{"heading":"書く欄の問い","lines":5}]}}
+   "sheet":{"title":"ワークシートの題","intro":"課題の説明","sections":[{"heading":"書く欄の問い","lines":5}]},
+   "handouts":[{"title":"配布物の題（保護者向けカードなど）","body":"本文","lines":3,"perPage":"1枚に何枚分（1/2/4）"}]}
 }
 ・評価記号は ◎（記録に残す評価）○（指導に生かす評価）。
 ・板書の columns は、縦書きは右の列から、横書きは左の列から順に並べる。
@@ -905,6 +925,7 @@ function openPrint(){
       <label class="opt"><input type="checkbox" id="cRU"> 振り返りシート：単元で1枚</label>
       <label class="opt"><input type="checkbox" id="cPT" ${has?"":"disabled"}> パフォーマンス課題（課題文・ルーブリック）</label>
       <label class="opt"><input type="checkbox" id="cPS" ${has?"":"disabled"}> 課題用ワークシート</label>
+      <label class="opt"><input type="checkbox" id="cHO" ${has&&plan.pt.handouts.length?"":"disabled"}> 配布物（${plan.pt.handouts.length}種類）</label>
     </div>
     <p class="help" style="margin:0">振り返りシートやワークシートを学級の人数分印刷するときは、印刷画面の「部数」で指定してください。</p>
     <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" id="pDo">印刷する</button></div>`);
@@ -926,6 +947,7 @@ function openPrint(){
       if(m.querySelector("#cRU").checked) pages.push(["",renderReflectUnit()]);
       if(has&&m.querySelector("#cPT").checked) pages.push(["",renderPT()]);
       if(has&&m.querySelector("#cPS").checked) pages.push(["",renderPTSheet()]);
+      if(has&&m.querySelector("#cHO").checked) plan.pt.handouts.forEach((h,j)=>pages.push(["",renderHandout(j)]));
     }finally{STATIC=false;}
     if(!pages.length){alert("印刷するものを選んでください。");return;}
     $("#print").innerHTML=pages.map(([c,h])=>`<div class="page ${c}">${h}</div>`).join("");
