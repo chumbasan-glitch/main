@@ -105,7 +105,7 @@ header.top .cur b{color:var(--ink)}
 
 /* ---------- paper (always white, looks like printout) ---------- */
 .paper{background:#fff;color:#111;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.18);padding:22px 26px;max-width:100%;overflow-x:auto;
-  font-family:"BIZ UDPGothic","BIZ UDPゴシック","Yu Gothic","Hiragino Sans","Meiryo",sans-serif;font-size:14px;line-height:1.6}
+  font-family:"BIZ UDPGothic","BIZ UDPゴシック","Yu Gothic","Hiragino Sans","Meiryo","IPAPGothic","Noto Sans CJK JP",sans-serif;font-size:14px;line-height:1.6}
 .paper h2{font-size:20px;margin:0 0 10px;border-bottom:2px solid #111;padding-bottom:4px;letter-spacing:.05em}
 .paper h3{font-size:16px;margin:16px 0 6px}
 .paper table{border-collapse:collapse;width:100%}
@@ -133,7 +133,7 @@ ruby rt{font-size:.5em}
 
 /* ---------- blackboard ---------- */
 .board{background:var(--board);border:10px solid var(--board-frame);border-radius:6px;color:var(--chalk);display:flex;gap:0;min-height:300px;aspect-ratio:2.4/1;padding:14px 10px;
-  font-family:"UD Digi Kyokasho N-R","UD デジタル 教科書体 N-R","UD Digi Kyokasho NK-R","Hiragino Sans","Yu Gothic",sans-serif;font-size:17px;line-height:1.5;overflow:hidden;position:relative}
+  font-family:"UD Digi Kyokasho N-R","UD デジタル 教科書体 N-R","UD Digi Kyokasho NK-R","Yu Gothic","YuGothic","Meiryo","Hiragino Sans","IPAGothic","Noto Sans CJK JP",sans-serif;font-size:17px;line-height:1.5;overflow:hidden;position:relative}
 .board.h{flex-direction:row}
 .board.v{flex-direction:row-reverse;justify-content:space-between}
 .board.h .bcol{flex:1 1 0}
@@ -151,6 +151,9 @@ ruby rt{font-size:.5em}
 .bit.s-sum{border:2px solid var(--chalk-r);border-radius:4px;padding:4px 8px}
 .bit.s-q{border-bottom:2px solid var(--chalk);padding-bottom:2px}
 .board.v .bit.s-q{border-bottom:none;border-left:2px solid var(--chalk);padding:0 0 0 4px}
+/* 縦書きでは太字にすると文字が重なる（教科書体に太字がなく、疑似太字になるため）。太字を使わず、大きさや線で強調する */
+.board.v .bit{font-weight:400!important;font-synthesis:none}
+.board.v .bit.s-title{font-size:1.6em;letter-spacing:.08em}
 .bit.s-card{border:2px dashed var(--chalk);background:rgba(255,255,255,.07);padding:4px 8px;border-radius:3px}
 .bit.s-card::before{content:"掲示 ";font-size:.7em;opacity:.8}
 .bit.s-note{font-size:.85em;opacity:.92}
@@ -166,7 +169,7 @@ ruby rt{font-size:.5em}
 .bedit .item .ctl{display:flex;flex-direction:column;gap:3px}
 
 /* ---------- reflection sheets ---------- */
-.sheet{font-family:"UD Digi Kyokasho N-R","UD デジタル 教科書体 N-R","BIZ UDPGothic","Hiragino Sans","Yu Gothic",sans-serif;color:#111}
+.sheet{font-family:"UD Digi Kyokasho N-R","UD デジタル 教科書体 N-R","BIZ UDPGothic","Yu Gothic","Meiryo","Hiragino Sans","IPAGothic","Noto Sans CJK JP",sans-serif;color:#111}
 .sheet .shead{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;border-bottom:2px solid #111;padding-bottom:4px;margin-bottom:10px;flex-wrap:wrap}
 .sheet .stitle{font-size:20px;font-weight:700}
 .sheet .sname{font-size:15px;white-space:nowrap}
@@ -250,6 +253,7 @@ table.rub th.lv{text-align:center;width:28%}
   .bit.s-q,.board.v .bit.s-q{border-color:#111}
   .bit.s-card{border-color:#111;background:none}
   .bit.c-yellow,.bit.c-red,.bit.c-blue{color:#111;font-weight:700}
+  .board.v .bit.c-yellow,.board.v .bit.c-red,.board.v .bit.c-blue{font-weight:400;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px}
   .memo{font-size:11px}
   .memo ol{columns:2;column-gap:8mm}
   .memo h3{margin:6px 0 2px}
@@ -263,7 +267,7 @@ table.rub th.lv{text-align:center;width:28%}
 <div class="wrap" id="app">
   <header class="top">
     <h1>授業プランノート</h1>
-    <span class="ver">ver 1.1</span>
+    <span class="ver">ver 1.2</span>
     <span class="cur" id="curTitle"></span>
     <span class="state" id="saveState" hidden></span>
     <div class="tools">
@@ -292,7 +296,7 @@ table.rub th.lv{text-align:center;width:28%}
 
 <script>
 "use strict";
-const APP_VER = "1.1";
+const APP_VER = "1.2";
 const SUBJECTS = ["国語","社会","算数","理科","生活","音楽","図画工作","家庭","体育"];
 const SUBJECT_GRADES = {国語:[1,2,3,4,5,6],社会:[3,4,5,6],算数:[1,2,3,4,5,6],理科:[3,4,5,6],生活:[1,2],音楽:[1,2,3,4,5,6],図画工作:[1,2,3,4,5,6],家庭:[5,6],体育:[1,2,3,4,5,6]};
 const DEFAULT_PUB = {国語:"光村図書",社会:"東京書籍",算数:"学校図書",理科:"学校図書",生活:"光村図書",音楽:"教育芸術社",図画工作:"日本文教出版",家庭:"東京書籍",体育:"東京書籍"};
