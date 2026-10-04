@@ -164,7 +164,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>漢字小テストメーカー</h1>
     <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver" title="このページの版">ver 8.2（2026.9.28）</span>
+    <span class="ver" title="このページの版">ver 8.3（2026.10.4）</span>
   </header>
 
   <div class="layout">
@@ -569,7 +569,7 @@ const PAPERS = {A4:[297,210], B4:[364,257], A3:[420,297]};
 function rowsOf(n){ return SPLITS[n] ? SPLITS[n].length : Math.max(1, Math.ceil(n / 10)); }
 function recommendPaper(n){ return n === 50 ? "A3" : n === 25 ? "B4" : rowsOf(n) <= 2 ? "A4" : "B4"; }
 function paperNow(){ return state.paper === "auto" ? recommendPaper(qs.length || state.count) : state.paper; }
-const FONT = '"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","Klee One","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+const FONT = '"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","UD デジタル 教科書体 N-B","Klee One","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
 const ROT = new Set([..."ー－―〜～…‥（）「」『』()-—［］【】〔〕"]);
 const SMALL = new Set([..."ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ"]);
 const PUNC = new Set([..."、。，．"]);
@@ -974,8 +974,17 @@ function renderAll(){
 /* ---------- 保存（PDF・画像） ---------- */
 /* 共有リンクから開いた画面では、ファイルの保存ができない（画像を表示して長押しで保存する） */
 let dl = null, dlChecked = false;
+/* PCに保存したファイル（ネットなし）で開いたとき：そのままファイルとして保存する */
+const LOCAL_DL = location.protocol === "file:" ? {save: async ({filename, data}) => {
+  const blob = data instanceof Blob ? data : new Blob([data]);
+  const u = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = u; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 10000);
+  return {status:"saved"};
+}} : null;
 async function getDl(){
   if(dl) return dl;
+  if(LOCAL_DL){ dl = LOCAL_DL; const first = !dlChecked; dlChecked = true; setSaveMode(first); return dl; }
   try{ if(window.claude && typeof window.claude.use === "function") dl = await window.claude.use("downloads"); }catch(e){ dl = null; }
   const first = !dlChecked; dlChecked = true; setSaveMode(first);
   return dl;
