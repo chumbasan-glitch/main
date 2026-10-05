@@ -269,7 +269,7 @@ table.rub th.lv{text-align:center;width:28%}
 <div class="wrap" id="app">
   <header class="top">
     <h1>授業プランノート</h1>
-    <span class="ver">ver 1.5</span>
+    <span class="ver">ver 1.6</span>
     <a class="ver" id="topLink" href="../index.html" hidden>ツール一覧へ</a>
     <span class="cur" id="curTitle"></span>
     <span class="state" id="saveState" hidden></span>
@@ -299,7 +299,7 @@ table.rub th.lv{text-align:center;width:28%}
 
 <script>
 "use strict";
-const APP_VER = "1.5";
+const APP_VER = "1.6";
 const SUBJECTS = ["国語","社会","算数","理科","生活","音楽","図画工作","家庭","体育"];
 const SUBJECT_GRADES = {国語:[1,2,3,4,5,6],社会:[3,4,5,6],算数:[1,2,3,4,5,6],理科:[3,4,5,6],生活:[1,2],音楽:[1,2,3,4,5,6],図画工作:[1,2,3,4,5,6],家庭:[5,6],体育:[1,2,3,4,5,6]};
 const DEFAULT_PUB = {国語:"光村図書",社会:"東京書籍",算数:"学校図書",理科:"学校図書",生活:"光村図書",音楽:"教育芸術社",図画工作:"日本文教出版",家庭:"東京書籍",体育:"東京書籍"};
@@ -317,6 +317,17 @@ settings.pub = Object.assign({},DEFAULT_PUB,settings.pub||{});
 let plan = null, EDIT = false, STATIC = false;
 let tab = "unit", hourIdx = 0, reflectMode = "hour";
 let fileHandle = null, fileDirty = false, saveTimer = null;
+// claude.ai の中で開いているときだけ使える機能（プランの自動作成・ファイルの保存）
+const IN_CLAUDE = !!window.claude;
+const CL = {sample:null, downloads:null};
+let REFS = null;
+if(IN_CLAUDE){
+  try{
+    window.claude.use("sample").then(x=>{CL.sample=x; if(x) render();}).catch(()=>{});
+    window.claude.use("downloads").then(x=>{CL.downloads=x;}).catch(()=>{});
+  }catch(e){}
+  fetch("refs.json").then(r=>r.ok?r.json():null).then(j=>{REFS=j;}).catch(()=>{});
+}
 
 /* ================= utils ================= */
 const $ = s => document.querySelector(s);
@@ -657,6 +668,7 @@ function render(){
   if(!plan){
     $("#curTitle").innerHTML=""; updateState(); renderLib();
     main.innerHTML = `<div class="welcome"><h2>はじめに</h2>
+      ${CL.sample?`<p style="margin:0"><b>この画面では、Claude がプランを作れます。</b>「＋ 新しい単元」で学年・教科・単元・時数を入れて、「このツールでプランを作る」を押してください。できたら「保存」で OneDrive に保存し、印刷は教材用パソコンのインターネット版で行います。</p><h3 style="margin:0">チャットで作るとき</h3>`:""}
       <ol>
         <li><b>「＋ 新しい単元」</b>で、学年・教科・単元・時数を入力し、<b>依頼文をコピー</b>します。</li>
         <li>コピーした依頼文を、Claude のチャットに貼り付けて送ります。Claude が資料をもとにプランを作り、<b>プランのファイル（.json）</b>を返します。</li>
@@ -681,6 +693,7 @@ function render(){
       <select id="hourSel">${hourOptions(hourIdx)}</select>
       <button class="btn small" data-hour="1" ${hourIdx>=plan.lessons.length-1?"disabled":""}>次の時間 ›</button>
       <span class="sp"></span>
+      ${CL.sample&&tab!=="reflect"?`<button class="btn small" id="regenLesson">この時間をClaudeで作り直す</button>`:""}
       ${EDIT?`<button class="btn small" id="addLesson">この後に1時間追加</button><button class="btn small" id="delLesson">この時間を削除</button>`:""}
     </div>`;
   if(tab==="unit") h += renderUnit();
@@ -714,7 +727,7 @@ document.addEventListener("change",e=>{
   if(e.target.name==="rmode"){reflectMode=e.target.value;render();return;}
   if(e.target.closest("[data-setnum]"))render();
 });
-document.addEventListener("click",e=>{
+document.addEventListener("click",async e=>{
   const t=e.target;
   const tb=t.closest("[data-tab]"); if(tb){tab=tb.dataset.tab;render();window.scrollTo({top:0});return;}
   const hb=t.closest("[data-hour]"); if(hb){hourIdx=Math.max(0,Math.min(plan.lessons.length-1,hourIdx+(+hb.dataset.hour)));render();return;}
@@ -723,7 +736,7 @@ document.addEventListener("click",e=>{
     const list=getP(op.dataset.list); const i=+op.dataset.i;
     switch(op.dataset.op){
       case "add": list.splice(i+1,0,blank(op.dataset.kind)); break;
-      case "del": if(!confirm("削除しますか？"))return; list.splice(i,1); break;
+      case "del": if(!await ask("削除しますか？"))return; list.splice(i,1); break;
       case "up": if(i>0)[list[i-1],list[i]]=[list[i],list[i-1]]; break;
       case "down": if(i<list.length-1)[list[i+1],list[i]]=[list[i],list[i+1]]; break;
     }
@@ -733,23 +746,37 @@ document.addEventListener("click",e=>{
   if(cy){const v=getP(cy.dataset.cycle)||"";setP(cy.dataset.cycle,v===""?"○":v==="○"?"◎":"");changed();render();return;}
   const pm=t.closest("[data-ptmode]");
   if(pm){
-    if(pm.dataset.ptmode==="none"){if(!confirm("パフォーマンス課題を使わない設定にしますか？（書いた内容は残ります）"))return;plan.pt.mode="none";}
+    if(pm.dataset.ptmode==="none"){if(!await ask("パフォーマンス課題を使わない設定にしますか？（書いた内容は残ります）"))return;plan.pt.mode="none";}
     else{plan.pt.mode="together";if(!plan.pt.rubric.length)plan.pt.rubric=[{view:"思考・判断・表現",A:"",B:"",C:""}];if(!plan.pt.sheet.sections.length)plan.pt.sheet.sections=[blank("sec")];}
     changed();render();return;
   }
+  if(t.id==="regenLesson"){regenLesson(hourIdx);return;}
   if(t.id==="addLesson"){const L=blank("lesson"),def=defaultReflect(band());L.reflect={selfEval:[...def.selfEval],prompts:[...def.prompts]};plan.lessons.splice(hourIdx+1,0,L);hourIdx++;changed();render();toast("時間を追加しました。単元計画の表も必要に応じて直してください。");return;}
-  if(t.id==="delLesson"){if(plan.lessons.length<=1)return;if(!confirm(`第${hourIdx+1}時を削除しますか？（あとの時間が1つずつ前にずれます）`))return;plan.lessons.splice(hourIdx,1);hourIdx=Math.max(0,hourIdx-1);changed();render();return;}
+  if(t.id==="delLesson"){if(plan.lessons.length<=1)return;if(!await ask(`第${hourIdx+1}時を削除しますか？（あとの時間が1つずつ前にずれます）`))return;plan.lessons.splice(hourIdx,1);hourIdx=Math.max(0,hourIdx-1);changed();render();return;}
   const lb=t.closest("[data-lib]");
-  if(lb){const p=libLoad()[lb.dataset.lib];if(p){if(plan&&fileDirty&&plan.id!==p.id&&!confirm("今のプランにファイル未保存の変更があります（このパソコンには残っています）。切り替えますか？"))return;loadPlan(p);fileDirty=false;updateState();}return;}
+  if(lb){const p=libLoad()[lb.dataset.lib];if(p){if(plan&&fileDirty&&plan.id!==p.id&&!await ask("今のプランにファイル未保存の変更があります（このパソコンには残っています）。切り替えますか？"))return;loadPlan(p);fileDirty=false;updateState();}return;}
   const ld=t.closest("[data-libdel]");
-  if(ld){const p=libLoad()[ld.dataset.libdel];if(p&&confirm(`「${planName(p)}」をこのパソコンの一覧から削除しますか？\n（OneDrive に保存したファイルは消えません）`)){libDel(p.id);if(plan&&plan.id===p.id){plan=null;render();}}return;}
+  if(ld){const p=libLoad()[ld.dataset.libdel];if(p&&await ask(`「${planName(p)}」をこのパソコンの一覧から削除しますか？\n（OneDrive に保存したファイルは消えません）`)){libDel(p.id);if(plan&&plan.id===p.id){plan=null;render();}}return;}
 });
 window.addEventListener("beforeunload",e=>{if(plan&&fileDirty){e.preventDefault();e.returnValue="";}});
 
 /* ================= modal helper ================= */
-function modal(html){
+function say(msg){
+  modal(`<h2>お知らせ</h2><p style="margin:0;white-space:pre-wrap">${esc(msg)}</p><div class="foot"><button class="btn primary" data-close>OK</button></div>`);
+}
+// confirm() の代わり（claude.ai の中では confirm() が使えないため）
+function ask(msg,okLabel="はい"){
+  return new Promise(res=>{
+    const m=modal(`<h2>確認</h2><p style="margin:0;white-space:pre-wrap">${esc(msg)}</p><div class="foot"><button class="btn" data-close>いいえ</button><button class="btn primary" data-ok>${esc(okLabel)}</button></div>`);
+    let done=false;const fin=v=>{if(!done){done=true;res(v);}};
+    m.querySelector("[data-ok]").onclick=()=>{m.remove();fin(true);};
+    m.addEventListener("click",e=>{if(e.target===m||e.target.closest("[data-close]"))fin(false);});
+  });
+}
+
+function modal(html,{lock=false}={}){
   const m=document.createElement("div");m.className="modal";m.innerHTML=`<div class="card">${html}</div>`;
-  m.addEventListener("click",e=>{if(e.target===m||e.target.closest("[data-close]"))m.remove();});
+  m.addEventListener("click",e=>{if((!lock&&e.target===m)||e.target.closest("[data-close]"))m.remove();});
   document.body.appendChild(m);return m;
 }
 
@@ -804,7 +831,8 @@ function openNew(){
     <div class="foot">
       <button class="btn" data-close>やめる</button>
       <button class="btn" id="nBlank">空のプランを作る（自分で書く）</button>
-      <button class="btn primary" id="nCopy">依頼文をコピー</button>
+      <button class="btn${CL.sample?"":" primary"}" id="nCopy">依頼文をコピー</button>
+      ${CL.sample?'<button class="btn primary" id="nGen">このツールでプランを作る</button>':""}
     </div>`);
   const fillSubj=()=>{const g=+m.querySelector("#nGrade").value;const cur=m.querySelector("#nSubj").value;
     m.querySelector("#nSubj").innerHTML=SUBJECTS.filter(s=>SUBJECT_GRADES[s].includes(g)).map(s=>`<option${s===cur?" selected":""}>${s}</option>`).join("");fillPub();};
@@ -814,8 +842,13 @@ function openNew(){
   const read=()=>({grade:m.querySelector("#nGrade").value,subject:m.querySelector("#nSubj").value,hours:Math.max(1,parseInt(m.querySelector("#nHours").value,10)||1),
     unit:m.querySelector("#nUnit").value.trim(),publisher:m.querySelector("#nPub").value.trim(),pages:m.querySelector("#nPages").value.trim(),period:m.querySelector("#nPeriod").value.trim(),
     pt:m.querySelector("[name=nPT]:checked").value,own:m.querySelector("#nOwn").value.trim(),wish:m.querySelector("#nWish").value.trim()});
+  if(CL.sample) m.querySelector("#nGen").onclick=()=>{
+    const r=read(); if(!r.unit){say("単元名を入力してください。");return;}
+    if(r.pt==="own"&&!r.own){say("パフォーマンス課題の案を入力してください。");return;}
+    m.remove(); genFlow(r);
+  };
   m.querySelector("#nCopy").onclick=()=>{
-    const r=read(); if(!r.unit){alert("単元名を入力してください。");return;}
+    const r=read(); if(!r.unit){say("単元名を入力してください。");return;}
     const ptText = r.pt==="none"?"取り入れない":r.pt==="together"?"一緒に考えたい（はじめに課題案を2〜3つ出してください。わたしが選んでから、プラン全体を作ってください）":`自分の案がある。次の案を単元計画に組み込んでください。\n　${r.own.replace(/\n/g,"\n　")}`;
     const text = `【授業プラン作成の依頼】
 ・学年：${r.grade}年
@@ -836,7 +869,7 @@ ${FORMAT_SPEC}`;
       <div class="foot"><button class="btn primary" data-close>OK</button></div>`);});
   };
   m.querySelector("#nBlank").onclick=()=>{
-    const r=read(); if(!r.unit){alert("単元名を入力してください。");return;}
+    const r=read(); if(!r.unit){say("単元名を入力してください。");return;}
     const ls=[];for(let i=0;i<r.hours;i++)ls.push(blank("lesson"));
     const pl=[];for(let i=0;i<r.hours;i++)pl.push(Object.assign(blank("row"),{hour:String(i+1)}));
     loadPlan({meta:{grade:r.grade,subject:r.subject,unit:r.unit,publisher:r.publisher,pages:r.pages,period:r.period,hours:r.hours},plan:pl,lessons:ls,
@@ -863,20 +896,20 @@ function checkPlan(obj){
   return obj;
 }
 async function openFile(){
-  if(plan&&fileDirty&&!confirm("今のプランにファイル未保存の変更があります（このパソコンには残っています）。別のファイルを開きますか？"))return;
-  if(window.showOpenFilePicker){
+  if(plan&&fileDirty&&!await ask("今のプランにファイル未保存の変更があります（このパソコンには残っています）。別のファイルを開きますか？"))return;
+  if(window.showOpenFilePicker&&!IN_CLAUDE){
     try{
       const [h]=await showOpenFilePicker({types:[{description:"授業プラン",accept:{"application/json":[".json"]}}]});
       const f=await h.getFile(); const obj=checkPlan(parseLoose(await f.text()));
       loadPlan(obj,{handle:h,fromFile:true}); toast(`「${f.name}」を開きました`); return;
-    }catch(e){ if(e.name==="AbortError")return; if(e.name!=="SecurityError"&&e.name!=="TypeError"){alert("開けませんでした："+e.message);return;} }
+    }catch(e){ if(e.name==="AbortError")return; if(e.name!=="SecurityError"&&e.name!=="TypeError"){say("開けませんでした："+e.message);return;} }
   }
   $("#fileIn").value=""; $("#fileIn").click();
 }
 $("#fileIn").addEventListener("change",async e=>{
   const f=e.target.files[0]; if(!f)return;
   try{ const obj=checkPlan(parseLoose(await f.text())); loadPlan(obj,{fromFile:true}); toast(`「${f.name}」を開きました`);}
-  catch(err){alert("開けませんでした："+err.message);}
+  catch(err){say("開けませんでした："+err.message);}
 });
 function openPaste(){
   const m=modal(`<h2>貼り付けて読み込む</h2><p class="help">Claude から文字で受け取ったプラン（{ から } まで）を、下に貼り付けてください。前後に説明の文があっても大丈夫です。</p>
@@ -884,27 +917,33 @@ function openPaste(){
     <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" id="pGo">読み込む</button></div>`);
   m.querySelector("#pGo").onclick=()=>{
     try{const obj=checkPlan(parseLoose(m.querySelector("#pTxt").value));loadPlan(obj);m.remove();toast("読み込みました。「保存」で OneDrive に保存してください。",4500);}
-    catch(err){alert("読み込めませんでした："+err.message+"\n全部コピーできているか確かめてください。");}
+    catch(err){say("読み込めませんでした："+err.message+"\n全部コピーできているか確かめてください。");}
   };
 }
-function download(name,data,type){
+async function download(name,data,type){
+  if(IN_CLAUDE){
+    if(!CL.downloads){say("この画面ではファイルを保存できませんでした。少し待ってから、もう一度押してください。");return false;}
+    try{ await CL.downloads.save({filename:name,data:data instanceof Blob?data:new Blob([data],{type})}); return true; }
+    catch(e){ if(e&&e.code!=="declined") say("保存できませんでした（"+(e&&e.code||"不明なエラー")+"）。"); return false; }
+  }
   const blob=data instanceof Blob?data:new Blob([data],{type});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
+  return true;
 }
 async function saveFile(asNew=false){
   if(!plan)return;
   document.activeElement?.blur?.();
   plan.updatedAt=nowStr(); libPut(plan);
   const json=JSON.stringify(plan,null,1);
-  if(window.showSaveFilePicker){
+  if(window.showSaveFilePicker&&!IN_CLAUDE){
     try{
       if(!fileHandle||asNew) fileHandle=await showSaveFilePicker({suggestedName:fileBase()+".json",types:[{description:"授業プラン",accept:{"application/json":[".json"]}}]});
       const w=await fileHandle.createWritable(); await w.write(json); await w.close();
       fileDirty=false; updateState(); toast(`保存しました：${fileHandle.name}`); return;
     }catch(e){ if(e.name==="AbortError")return; fileHandle=null; }
   }
-  download(fileBase()+".json",json,"application/json");
+  if(!await download(fileBase()+".json",json,"application/json")) return;
   fileDirty=false; updateState();
   toast("「ダウンロード」フォルダに保存しました。OneDrive のフォルダに移しておいてください。",6000);
 }
@@ -918,6 +957,10 @@ function openSave(){
 
 /* ================= 印刷 ================= */
 function openPrint(){
+  if(IN_CLAUDE){
+    modal(`<h2>印刷について</h2><p class="help" style="margin:0">claude.ai の中では印刷ができません。「保存」でプランのファイルを保存してから、教材用パソコンのインターネット版（https://chumbasan-glitch.github.io/main/）か、パソコンに置いたファイル版のツールで開いて印刷してください。</p><div class="foot"><button class="btn primary" data-close>OK</button></div>`);
+    return;
+  }
   const n=plan.lessons.length, opts=plan.lessons.map((L,i)=>`<option value="${i}">第${i+1}時</option>`).join("");
   const has=plan.pt.mode!=="none";
   const m=modal(`<h2>印刷・PDF</h2>
@@ -957,7 +1000,7 @@ function openPrint(){
       if(has&&m.querySelector("#cPS").checked) pages.push(["",renderPTSheet()]);
       if(has&&m.querySelector("#cHO").checked) plan.pt.handouts.forEach((h,j)=>pages.push(["",renderHandout(j)]));
     }finally{STATIC=false;}
-    if(!pages.length){alert("印刷するものを選んでください。");return;}
+    if(!pages.length){say("印刷するものを選んでください。");return;}
     $("#print").innerHTML=pages.map(([c,h])=>`<div class="page ${c}">${h}</div>`).join("");
     m.remove();
     setTimeout(()=>window.print(),50);
@@ -1045,8 +1088,204 @@ function exportWord(){
     {name:"word/_rels/document.xml.rels",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`},
     {name:"word/document.xml",data:doc}
   ]);
-  download(fileBase()+".docx",blob);
-  toast("Word ファイルを「ダウンロード」フォルダに保存しました。iPad で使うときは OneDrive に移してください。",6000);
+  download(fileBase()+".docx",blob).then(ok=>{if(ok)toast("Word ファイルを保存しました。iPad で使うときは OneDrive に移してください。",6000);});
+
+}
+
+/* ================= Claude でプランを作る（claude.ai の中だけ） ================= */
+const GEN_RULES = `【作成のきまり】
+・小学校学習指導要領（平成29年告示）と、国立教育政策研究所「『指導と評価の一体化』のための学習評価に関する参考資料」に沿って作る。
+・単元の目標は、〔知識及び技能〕〔思考力，判断力，表現力等〕の指導事項（記号つき。例：(1)ク、C(1)エ）と、学びに向かう力，人間性等の3つ。
+・評価規準：「知識・技能」「思考・判断・表現」は、指導事項の文末を「〜している。」にして作る（指導事項の一部を用いてもよい）。国語の「思考・判断・表現」は冒頭に「『読むこと』において，」のように領域名を付ける。
+・「主体的に学習に取り組む態度」は、①粘り強さ（粘り強く、進んで等）②自らの学習の調整（学習の見通しをもって、学習課題に沿って等）③他の観点で重点とする内容 ④単元の言語活動・学習活動 を組み合わせ、文末を「〜しようとしている。」にする。
+・記録に残す評価（◎）は場面をしぼる（各観点1〜2回程度、単元の後半が中心）。○は指導に生かす評価。
+・「主体的に学習に取り組む態度」は、振り返りの記述などから複数の時間で見取る。「思考・判断・表現」は、交流したあとに書いたものなどで評価する。
+・評価規準ごとに、B（おおむね満足）の具体的な姿、A（十分満足）の姿、Cの子への手だてを考える。
+・1時間は45分。本時の展開の時間の合計を必ず45分にする。
+・教科書の本文や問題はそのまま書き写さず、「教科書p.○」のようにページで示す。
+・子どもが読む言葉（めあて・振り返り・課題文）は学年に合わせる。1・2年はひらがな中心、3・4年は習っていない漢字に {漢字|かんじ} の形でふりがなを付ける。
+・パフォーマンス課題は、場面・役割・相手・目的が分かる子ども向けの課題文と、A・B・Cのルーブリック（Cは「Cの子への手だて」）を作る。`;
+function refExcerpt(r){
+  const t = REFS?.nenkei?.[r.subject+r.grade];
+  if(!t) return "";
+  const key = r.unit.replace(/[「」『』\s]/g,"");
+  let i = t.indexOf(key);
+  if(i<0 && key.length>4) i = t.indexOf(key.slice(0,4));
+  if(i<0) return "";
+  return t.slice(Math.max(0,i-300), i+3800);
+}
+function basicInfo(r){
+  return `・学年：${r.grade}年\n・教科：${r.subject}（教科書：${r.publisher||"不明"}${r.pages?"　"+r.pages:""}）\n・単元：${r.unit}\n・総時数：${r.hours}時間（1時間45分）${r.period?"\n・実施時期："+r.period:""}${r.wish?"\n・先生の希望："+r.wish:""}`;
+}
+let genCtl = null;
+function genModal(){
+  const m = modal(`<h2>Claude がプランを作っています</h2>
+    <p class="help" style="margin:0">全部できるまで数分かかります。この画面を閉じずにお待ちください。</p>
+    <ol class="steps" id="gSteps"></ol>
+    <div class="help" id="gNow">準備しています…</div>
+    <div class="foot"><button class="btn" id="gStop">とめる</button></div>`,{lock:true});
+  m.querySelector("#gStop").onclick = ()=>{ genCtl?.abort(); };
+  return {
+    m,
+    step(txt){ const li=document.createElement("li"); li.textContent=txt; m.querySelector("#gSteps").appendChild(li); return li; },
+    now(txt){ m.querySelector("#gNow").textContent=txt; },
+    close(){ m.remove(); }
+  };
+}
+function genErrText(e){
+  const c = e?.code;
+  if(c==="cancelled") return "とめました。";
+  if(c==="not_granted"||c==="sampling_disabled") return "Claude を使う許可がないため、作れませんでした。";
+  if(c==="rate_limited") return "Claude の利用が混み合っているか、利用の上限に達しました。しばらく待ってから、もう一度ためしてください。";
+  if(c==="session_expired") return "claude.ai のログインが切れました。ログインし直してから、もう一度ためしてください。";
+  if(c==="invalid_json") return "Claude の返事をプランの形に読み取れませんでした。もう一度ためしてください。";
+  if(c==="prompt_too_large") return "資料が長すぎて送れませんでした。";
+  return "うまく作れませんでした（"+(c||"不明なエラー")+"）。もう一度ためしてください。";
+}
+async function askPT(r){
+  // パフォーマンス課題の案を3つ出してもらい、先生が選ぶ
+  const g = genModal(); g.step("パフォーマンス課題の案を考えています");
+  genCtl = new AbortController();
+  let ideas;
+  try{
+    ideas = await CL.sample.json(`あなたは日本の小学校の授業づくりに詳しい先生です。次の単元で使うパフォーマンス課題の案を3つ考えてください。
+${basicInfo(r)}
+${refExcerpt(r)?"\n【教科書会社の年間指導計画（この単元の部分）】\n"+refExcerpt(r):""}
+
+${GEN_RULES}
+
+JSON の配列だけを返してください。形：[{"title":"課題名","task":"子ども向けの課題文（場面・役割・相手・目的が分かる、150〜250字）","point":"この案のよいところ・向いている学級（60字以内）"}]`, {signal:genCtl.signal, modelTier:"default", cache:false});
+  }catch(e){ g.close(); say(genErrText(e)); return null; }
+  g.close();
+  if(!Array.isArray(ideas)||!ideas.length){ say("課題の案を受け取れませんでした。もう一度ためしてください。"); return null; }
+  return new Promise(res=>{
+    const m = modal(`<h2>パフォーマンス課題の案</h2><p class="help" style="margin:0">使う案を選んでください。選んだあと、下の欄で直すこともできます。</p>
+      ${ideas.slice(0,3).map((x,i)=>`<label class="opt"><input type="radio" name="ptPick" value="${i}" ${i===0?"checked":""}><span><b>案${i+1}：${esc(x.title)}</b><br>${esc(x.task)}<br><small>${esc(x.point||"")}</small></span></label>`).join("")}
+      <label class="f">選んだ案（直してから進めてもかまいません）<textarea id="ptEdit" style="min-height:120px"></textarea></label>
+      <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" id="ptGo">この案でプランを作る</button></div>`);
+    const ta = m.querySelector("#ptEdit");
+    const fill = ()=>{ const x=ideas[+m.querySelector("[name=ptPick]:checked").value]; ta.value=`${x.title}\n${x.task}`; };
+    m.querySelectorAll("[name=ptPick]").forEach(el=>el.onchange=fill); fill();
+    let done=false;
+    m.querySelector("#ptGo").onclick=()=>{ done=true; const v=ta.value.trim(); m.remove(); res(v||null); };
+    m.addEventListener("click",e=>{ if(!done&&(e.target===m||e.target.closest("[data-close]"))) res(null); });
+  });
+}
+function unitPrompt(r, ptText){
+  const ref = refExcerpt(r);
+  return `あなたは日本の小学校の授業づくりと学習評価に詳しい先生です。次の単元の「単元計画」を作ってください。
+${basicInfo(r)}
+・パフォーマンス課題：${r.pt==="none"?"取り入れない":"次の課題を単元に組み込む\n"+ptText}
+${ref?"\n【教科書会社の年間指導計画（この単元の部分。単元名・時数・学習活動・評価規準はこれに合わせる）】\n"+ref+"\n":""}
+${GEN_RULES}
+
+次の形の JSON オブジェクトだけを返してください。
+{
+ "meta":{"material":"単元名（教科書の大きな単元名があれば）と教材名","pages":"教科書ページ（分からなければ空）","period":"実施時期","note":"他教科・道徳との関連、言語活動など"},
+ "goals":{"k":"知識及び技能の目標（指導事項の記号つき）","t":"思考力，判断力，表現力等の目標（記号つき）","a":"学びに向かう力，人間性等の目標"},
+ "criteria":{"k":"①…している。（記号）","t":"①…している。（記号）","a":"①…しようとしている。"},
+ "plan":[ ちょうど${r.hours}個 {"hour":"1","act":"学習活動（ねらい）","k":"","t":"○","a":"","method":"評価規準・評価方法（◎の時は【知】【思】【態】で規準を書く）"} ],
+ "unitReflect":{"before":"単元のはじめに書く問い","after":"単元のおわりに書く問い"}${r.pt==="none"?"":`,
+ "pt":{"title":"課題名","task":"子ども向け課題文","placement":"単元計画への位置付け（何時間目に示し、何時間目に取り組むか）",
+   "rubric":[{"view":"観点（評価する時間）","A":"十分満足の姿","B":"おおむね満足の姿","C":"Cの子への手だて"}],
+   "sheet":{"title":"課題用ワークシートの題","intro":"課題の説明","sections":[{"heading":"書く欄の問い","lines":4}]}}`}
+}
+k・t・a の欄には "◎" "○" "" のどれかを入れる。`;
+}
+function lessonPrompt(r, unit, from, to){
+  const vert = r.subject==="国語";
+  const ctx = JSON.stringify({goals:unit.goals, criteria:unit.criteria, plan:unit.plan, pt:unit.pt?{title:unit.pt.title, placement:unit.pt.placement}:null});
+  return `あなたは日本の小学校の授業づくりに詳しい先生です。次の単元計画の、第${from+1}時から第${to+1}時までの「本時の学習（細案）」「板書計画」「振り返りシートの項目」を作ってください。
+${basicInfo(r)}
+
+【単元計画】
+${ctx}
+
+${GEN_RULES}
+
+【板書のきまり】
+・${vert?"縦書き。columns は右の列から順に並べる":"横書き。columns は左の列から順に並べる"}。列は5〜8列。
+・最初の列に日付（style "date"、text "　月　日"）と題名（style "title"）。めあては style "aim"（color "yellow"）、まとめは style "sum" で最後の列。
+・style は title / date / aim / q（問題・発問） / key（大事な言葉） / card（掲示物） / sum（まとめ） / note（補足） / normal のどれか。color は "" / yellow / red / blue。
+・1つの text は短く、改行は \\n。
+
+次の形の JSON 配列だけを返してください。配列の長さはちょうど${to-from+1}個（第${from+1}時から順に）。
+[{"title":"本時の題","objective":"本時の目標","aim":"子どもに示すめあて","materials":"準備物",
+  "steps":[{"time":"5分","act":"1 学習活動・主な発問","react":"・予想される児童の反応","note":"・指導上の留意点","eval":"評価（観点・方法）。評価しない段は空"}],
+  "summary":"まとめ（例）",
+  "board":{"columns":[{"items":[{"style":"date","color":"","text":"　月　日"}]}],"notes":"板書の留意点"},
+  "reflect":{"selfEval":["自己評価の項目（3つ）"],"prompts":["振り返りで書く欄の問い（2つ）"]}}]
+steps の time の合計は45分。単元計画の評価（◎○）と合わせ、その時間に評価する段の eval に書く。`;
+}
+async function genLessons(r, unit, from, to, signal){
+  const arr = await CL.sample.json(lessonPrompt(r, unit, from, to), {signal, modelTier:"complex", cache:false});
+  if(!Array.isArray(arr)) throw {code:"invalid_json"};
+  return arr;
+}
+async function genFlow(r){
+  let ptText = "";
+  if(r.pt==="together"){ ptText = await askPT(r); if(!ptText) return; }
+  else if(r.pt==="own") ptText = r.own;
+  const g = genModal();
+  genCtl = new AbortController();
+  const sig = genCtl.signal;
+  let unit;
+  const s1 = g.step("単元計画（目標・評価規準・指導と評価の計画）");
+  g.now("単元計画を考えています（1〜3分）…");
+  try{
+    unit = await CL.sample.json(unitPrompt(r, ptText), {signal:sig, modelTier:"complex", cache:false});
+    if(!unit||!Array.isArray(unit.plan)) throw {code:"invalid_json"};
+  }catch(e){ g.close(); say(genErrText(e)); return; }
+  s1.textContent += "　…できました";
+  // 本時は2時間ずつ、2つ同時に作る
+  const lessons = new Array(r.hours).fill(null);
+  const batches = []; for(let i=0;i<r.hours;i+=2) batches.push([i, Math.min(i+1, r.hours-1)]);
+  const failed = [];
+  let left = batches.length;
+  g.now(`本時の流れ・板書・振り返りを作っています（残り ${left} 回分）…`);
+  const run = async ([a,b])=>{
+    const li = g.step(`第${a+1}${a===b?"":"・"+(b+1)}時の本時の流れ・板書・振り返り`);
+    try{
+      const arr = await genLessons(r, unit, a, b, sig);
+      for(let k=a;k<=b;k++) lessons[k] = arr[k-a] || null;
+      li.textContent += "　…できました";
+    }catch(e){
+      if(e?.code==="cancelled") throw e;
+      for(let k=a;k<=b;k++) failed.push(k+1);
+      li.textContent += "　…作れませんでした";
+    }
+    left--; g.now(left?`本時の流れ・板書・振り返りを作っています（残り ${left} 回分）…`:"仕上げています…");
+  };
+  try{
+    const queue = batches.slice();
+    const worker = async ()=>{ while(queue.length){ await run(queue.shift()); } };
+    await Promise.all([worker(), worker()]);
+  }catch(e){
+    if(e?.code==="cancelled"){ g.close(); say("とめました。作りかけのプランは使いません。"); return; }
+  }
+  g.close();
+  const pt = r.pt==="none" ? {mode:"none"} : Object.assign({mode:r.pt, ownPlan:r.pt==="own"?r.own:""}, unit.pt||{});
+  loadPlan({
+    meta:Object.assign({grade:r.grade, subject:r.subject, unit:r.unit, publisher:r.publisher, hours:r.hours}, unit.meta||{}, r.pages?{pages:r.pages}:{}, r.period?{period:r.period}:{}),
+    goals:unit.goals, criteria:unit.criteria, plan:unit.plan, unitReflect:unit.unitReflect,
+    lessons:lessons.map(x=>x||{}), pt
+  });
+  if(failed.length) say(`第${failed.join("・")}時は作れませんでした。その時間を開いて「この時間をClaudeで作り直す」を押すと、もう一度作れます。`);
+  else toast("プランができました。中身を確かめて、「保存」で OneDrive に保存してください。",6000);
+}
+async function regenLesson(i){
+  if(!CL.sample||!plan) return;
+  if(!await ask(`第${i+1}時の本時の流れ・板書・振り返りを、Claude で作り直しますか？（今の第${i+1}時の内容は置きかわります）`,"作り直す")) return;
+  const m=plan.meta;
+  const r={grade:m.grade, subject:m.subject, unit:m.unit, hours:plan.lessons.length, publisher:m.publisher, pages:m.pages, period:m.period, wish:""};
+  const g = genModal(); genCtl = new AbortController();
+  g.step(`第${i+1}時の本時の流れ・板書・振り返り`); g.now("考えています（1〜2分）…");
+  try{
+    const arr = await genLessons(r, {goals:plan.goals, criteria:plan.criteria, plan:plan.plan, pt:plan.pt.mode==="none"?null:plan.pt}, i, i, genCtl.signal);
+    const L = normalize({meta:{hours:1}, lessons:[arr[0]||{}]}).lessons[0];
+    if(!L.reflect.selfEval.length||!L.reflect.prompts.length){ const d=defaultReflect(band()); L.reflect={selfEval:L.reflect.selfEval.length?L.reflect.selfEval:[...d.selfEval], prompts:L.reflect.prompts.length?L.reflect.prompts:[...d.prompts]}; }
+    plan.lessons[i] = L; changed(); g.close(); render(); toast(`第${i+1}時を作り直しました`);
+  }catch(e){ g.close(); say(genErrText(e)); }
 }
 
 /* ================= 設定・使い方 ================= */
@@ -1078,7 +1317,7 @@ function openHelp(){
 
 $("#bNew").onclick=openNew;
 $("#bOpen").onclick=openFile;
-$("#bPaste").onclick=()=>{if(plan&&fileDirty&&!confirm("今のプランにファイル未保存の変更があります（このパソコンには残っています）。読み込みますか？"))return;openPaste();};
+$("#bPaste").onclick=async()=>{if(plan&&fileDirty&&!await ask("今のプランにファイル未保存の変更があります（このパソコンには残っています）。読み込みますか？"))return;openPaste();};
 $("#bSave").onclick=openSave;
 $("#bEdit").onclick=()=>{document.activeElement?.blur?.();EDIT=!EDIT;render();};
 $("#bPrint").onclick=()=>{document.activeElement?.blur?.();openPrint();};
