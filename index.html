@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>授業づくりツール</title>
+<style>
+:root{--bg:#F3F1EA;--surface:#FFFFFF;--ink:#22302A;--ink-soft:#5D6A62;--line:#D5CFBF;--accent:#2E6B4F;color-scheme:light}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161B18;--surface:#202723;--ink:#E8EEE9;--ink-soft:#A8B5AD;--line:#3A463F;--accent:#7CC3A0;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161B18;--surface:#202723;--ink:#E8EEE9;--ink-soft:#A8B5AD;--line:#3A463F;--accent:#7CC3A0;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"BIZ UDPGothic","Yu Gothic UI","Yu Gothic","Hiragino Sans","Meiryo",sans-serif;line-height:1.7}
+.wrap{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:24px;margin:0 0 4px;letter-spacing:.06em}
+.sub{color:var(--ink-soft);margin:0 0 20px;font-size:14px}
+a.card{display:block;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0;color:inherit;text-decoration:none}
+a.card:hover{border-color:var(--accent)}
+a.card b{display:block;font-size:19px;color:var(--accent)}
+a.card span{color:var(--ink-soft);font-size:14px}
+.note{font-size:13px;color:var(--ink-soft);border-top:1px solid var(--line);margin-top:24px;padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>授業づくりツール</h1>
+  <p class="sub">使うツールを選んでください。このページを「お気に入り」に登録しておくと便利です。</p>
+  <a class="card" href="lesson-planner/lesson-planner.html"><b>授業プランノート</b><span>単元計画・本時の流れ・板書計画・振り返りシート・パフォーマンス課題の表示・修正・保存・印刷</span></a>
+  <a class="card" href="kanji-test-maker/kanji-test.html"><b>漢字小テストメーカー</b><span>学年・単元を選んで漢字の小テストを作る</span></a>
+  <p class="note">授業プランの中身は、このページ（インターネット上）には保存されません。「保存」で OneDrive などのファイルに保存してください。</p>
+</div>
+</body>
+</html>
