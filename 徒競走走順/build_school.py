@@ -7,7 +7,8 @@
   - 走る順番: 組の番号（1が一番速い）を、偶数番目を速い方から → 奇数番目を遅い方から →
     最後に速い組を遅い順に。男女別は最後の3組、男女混合は最後の5組。
     例: 男女別10組 4,6,8,10,9,7,5,3,2,1 / 男女混合10組 6,8,10,9,7,5,4,3,2,1
-  - コースは4つ（始めの番号を選べる）。レースごとにクラスを1コースずつずらす。
+  - コースは4つ（始めの番号を選べる）。男女別はレースごとにクラスを1コースずつずらす。
+    男女混合（2年生）はずらさず、いつも左から松・竹・梅・月。
 
 シート: データ入力 → 組分け（自動）→ 手直し → 掲示用（男女別のレース名）→ 最終修正 → 最終決定（通しのレース名）
   - 手直しシートが空なら、自動の組をそのまま使う。
@@ -29,7 +30,7 @@ from openpyxl.workbook.properties import CalcProperties
 from openpyxl.worksheet.datavalidation import DataValidation
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VERSION = "v2"
+VERSION = "v3"
 OUT_DIR = os.path.join(HERE, "本校用")
 OUT_BLANK = os.path.join(OUT_DIR, f"徒競走走順_本校用_{VERSION}_白紙.xlsx")
 OUT_TEST = os.path.join(OUT_DIR, f"徒競走走順_本校用_{VERSION}_テストデータ入り.xlsx")
@@ -233,8 +234,8 @@ def build_calc(ws):
         ws[f"T{i}"], ws[f"U{i}"] = label, f
 
     # レースの表（通し番号ごと）
-    for c, h in zip("Y Z AA AB AC AD AF AJ AN AP".split(),
-                    ["レース(通し)", "表(A/B)", "男女ごとの番号", "組数", "組", "掲示用の名前",
+    for c, h in zip("Y Z AA AB AC AD AE AF AJ AN AP".split(),
+                    ["レース(通し)", "表(A/B)", "男女ごとの番号", "組数", "組", "掲示用の名前", "コースのずらし",
                      "最終修正後のコース位置(左から4人分)", "名前(左から4人分)", "最終修正の問題",
                      "最終決定の各コースのクラス"]):
         ws[f"{c}1"] = h
@@ -250,6 +251,8 @@ def build_calc(ws):
         ws[f"AC{r}"] = (f'=IF({Z}="","",IF({N}<={T},{N}-{n}+1,IF({n}<={E},{T}-1+2*{n},'
                         f'IF({n}<={E}+{O},({N}-1+MOD({N},2))-2*({n}-{E}-1),{T}-({n}-{E}-{O}-1)))))')
         ws[f"AD{r}"] = f'=IF({Z}="","",IF($U$2,"",IF({Z}="B","女子","男子"))&{n}&"レース")'
+        # コースをずらすための番号: 男女別はレースの番号、男女混合は1（ずらさない）
+        ws[f"AE{r}"] = f'=IF({Z}="","",IF($U$2,1,{n}))'
         # 最終修正: 左から L 番目の子の名前（AJ〜AM）と、その子が走るコースの位置（AF〜AI, 0〜3）
         fl = "AF AG AH AI".split()
         nm = "AJ AK AL AM".split()
@@ -263,13 +266,14 @@ def build_calc(ws):
                         + f'+COUNTIF({f_rng},-1))')
         # 最終決定でコース M（0〜3）を走る子のクラス番号（0〜3）
         for M, c in enumerate("AP AQ AR AS".split()):
-            ws[f"{c}{r}"] = f'=IF({Z}="","",IFERROR(MOD(MATCH({M},{f_rng},0)-1-{n}+1,4),""))'
+            ws[f"{c}{r}"] = f'=IF({Z}="","",IFERROR(MOD(MATCH({M},{f_rng},0)-1-AE{r}+1,4),""))'
 
 
 def lane_name(r_calc, lane):
     """通し番号の行 r_calc のレースで、左から lane 番目（0〜3）のコースを走る子の名前の式。
-    クラスはレースごとに1コースずつずらす: クラス番号 = MOD(lane - n + 1, 4) + 1"""
-    n, heat, z = f"計算用!$AA${r_calc}", f"計算用!$AC${r_calc}", f"計算用!$Z${r_calc}"
+    クラスはレースごとに1コースずつずらす: クラス番号 = MOD(lane - n + 1, 4) + 1
+    （n は計算用 AE。男女混合のときは 1 なので、いつも左から松・竹・梅・月）"""
+    n, heat, z = f"計算用!$AE${r_calc}", f"計算用!$AC${r_calc}", f"計算用!$Z${r_calc}"
     cls = f"MOD({lane}-{n}+1,4)+1"
     a_auto = f"組分け!${col(AUTO_START['A'] + 1)}${AUTO_TOP}:${col(AUTO_START['A'] + 8)}${AUTO_LAST}"
     b_auto = f"組分け!${col(AUTO_START['B'] + 1)}${AUTO_TOP}:${col(AUTO_START['B'] + 8)}${AUTO_LAST}"
@@ -287,7 +291,7 @@ def class_color_rules(ws, area, top_row, lane, guard="TRUE", final=False):
         c = "AP AQ AR AS".split()[lane]
         cls = f"INDEX(計算用!${c}$2:${c}${R_LAST},ROW()-{top_row - 1})"
     else:
-        n = f"INDEX(計算用!$AA$2:$AA${R_LAST},ROW()-{top_row - 1})"
+        n = f"INDEX(計算用!$AE$2:$AE${R_LAST},ROW()-{top_row - 1})"
         cls = f"MOD({lane}-{n}+1,4)"
     for k in range(4):
         ws.conditional_formatting.add(area, FormulaRule(
@@ -577,7 +581,7 @@ def build_final(ws):
     ws["H3"] = "=計算用!$U$28"
     ws["H4"] = "=計算用!$U$27"
     ws["H3"].font = ws["H4"].font = RED_BOLD
-    head = Font(bold=True, size=14)
+    head = Font(bold=True, size=13)
     ws["A1"].border = BOX
     for lane in range(4):
         c = ws.cell(1, 2 + lane, f'=(計算用!$U$5+{lane})&"コース"')
@@ -591,13 +595,13 @@ def build_final(ws):
         for M in range(4):
             # 最終修正のあと、コース M を走る子
             c = ws.cell(r, 2 + M, f'=IFERROR(INDEX(計算用!$AJ{r}:$AM{r},MATCH({M},計算用!$AF{r}:$AI{r},0)),"")')
-            c.font = Font(size=14)
+            c.font = Font(size=13)
             c.alignment = CENTER
-        ws.row_dimensions[r].height = 28
-    ws.row_dimensions[1].height = 28
+        ws.row_dimensions[r].height = 20
+    ws.row_dimensions[1].height = 22
     girl = f'AND(NOT(計算用!$U$2),INDEX(計算用!$Z$2:$Z${R_LAST},ROW()-1)="B")'
     ws.conditional_formatting.add(f"A2:A{R_LAST}", FormulaRule(
-        formula=[f'AND($A2<>"",{girl})'], font=Font(bold=True, size=14, color="FFFF0000"), border=BOX))
+        formula=[f'AND($A2<>"",{girl})'], font=Font(bold=True, size=13, color="FFFF0000"), border=BOX))
     for lane in range(4):
         c = col(2 + lane)
         class_color_rules(ws, f"{c}2:{c}{R_LAST}", 2, lane, guard='$I$1="色あり"', final=True)
@@ -610,6 +614,8 @@ def build_final(ws):
     setup_page(ws, "portrait", fit_height=1)
     ws.page_margins.left = ws.page_margins.right = 0.4
     ws.page_margins.top = ws.page_margins.bottom = 0.5
+    ws.page_margins.header = ws.page_margins.footer = 0.3
+    # 35レースくらいまでは縮めずにA4縦1枚に入る大きさ（行の高さ20）。それより多いときは自動で縮める
 
 
 def setup_page(ws, orientation, fit_height, titles=None):
