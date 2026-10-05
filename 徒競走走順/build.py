@@ -20,7 +20,7 @@ from openpyxl.workbook.properties import CalcProperties
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "..", "リレー組分け_v2_白紙.xlsx")
-VERSION = "v8"
+VERSION = "v9"
 OUT_BLANK = os.path.join(HERE, f"徒競走走順_{VERSION}_白紙.xlsx")
 OUT_TEST = os.path.join(HERE, f"徒競走走順_{VERSION}_テストデータ入り.xlsx")
 
@@ -43,6 +43,7 @@ thin = Side(style="thin")
 BOX = Border(left=thin, right=thin, top=thin, bottom=thin)
 CENTER = Alignment(horizontal="center", vertical="center")
 BOLD = Font(bold=True)
+RED_BOLD = Font(bold=True, color="FFFF0000")
 
 # 計算用シートの「組の表」の列（男子・女子）
 #   組, 人数, 赤残り, 白残り, 赤人数, 白人数, 赤累計, 白累計
@@ -501,7 +502,7 @@ def build_race_calc(ws):
 
 def build_race_sheet(wb, index):
     """レースの順番の表「走順」。組の中の並び順を、そのまま1〜5コースにする。
-    女子の名前は薄ピンクにして、男女を見分けやすくする。"""
+    女子のレース番号は赤い文字、名前は赤組なら薄い赤にする。"""
     ws = wb.create_sheet("走順", index)
     ws["A1"] = "走順"
     ws["A1"].font = Font(bold=True, size=14)
@@ -565,17 +566,17 @@ def build_race_sheet(wb, index):
 
     lastc = openpyxl.utils.get_column_letter(ncol)
     top = f"$A{RACE_TOP}"
-    # 女子の名前は薄ピンク、赤の子の「色」は薄い赤
+    # 女子のレース番号は赤い文字。赤組の子は名前と「色」を薄い赤にする
     girl = f'INDEX(計算用!$BB$2:$BB${RACES + 1},ROW()-{RACE_TOP - 1})="女"'
+    ws.conditional_formatting.add(f"A{RACE_TOP}:A{last}", FormulaRule(
+        formula=[f'AND({top}<>"",{girl})'], font=RED_BOLD, border=BOX))
     for j in range(LANES):
         name = openpyxl.utils.get_column_letter(2 + j * 3)
-        ws.conditional_formatting.add(f"{name}{RACE_TOP}:{name}{last}", FormulaRule(
-            formula=[f'AND({name}{RACE_TOP}<>"",{girl})'],
-            fill=PatternFill(bgColor="FFFCE4EC", fill_type="solid"), border=BOX))
         c = openpyxl.utils.get_column_letter(4 + j * 3)
-        ws.conditional_formatting.add(f"{c}{RACE_TOP}:{c}{last}", FormulaRule(
-            formula=[f'{c}{RACE_TOP}="赤"'],
-            fill=PatternFill(bgColor="FFF8CBAD", fill_type="solid"), border=BOX))
+        for col in (name, c):
+            ws.conditional_formatting.add(f"{col}{RACE_TOP}:{col}{last}", FormulaRule(
+                formula=[f'${c}{RACE_TOP}="赤"'],
+                fill=PatternFill(bgColor="FFF8CBAD", fill_type="solid"), border=BOX))
     ws.conditional_formatting.add(f"A{RACE_TOP}:{lastc}{last}", FormulaRule(
         formula=[f'{top}<>""'], border=BOX))
 
@@ -594,7 +595,8 @@ def build_race_sheet(wb, index):
 
 def build_print_sheet(wb, index):
     """A4 1枚に印刷する、名前だけのシンプルな走順表「印刷用」。
-    1行目がコース、2行目から「○レース」と名前。女子の名前は薄ピンク。"""
+    1行目がコース、2行目から「○レース」と名前。
+    女子のレース名は赤い文字、名前は赤組なら薄い赤にする。"""
     ws = wb.create_sheet("印刷用", index)
     big = Font(size=14)
     head = Font(bold=True, size=14)
@@ -621,9 +623,15 @@ def build_print_sheet(wb, index):
     ws.row_dimensions[1].height = 28
     lastc = openpyxl.utils.get_column_letter(1 + LANES)
     girl = f'INDEX(計算用!$BB$2:$BB${RACES + 1},ROW()-1)="女"'
-    ws.conditional_formatting.add(f"B2:{lastc}{last}", FormulaRule(
-        formula=[f'AND(B2<>"",{girl})'],
-        fill=PatternFill(bgColor="FFFCE4EC", fill_type="solid"), border=BOX))
+    ws.conditional_formatting.add(f"A2:A{last}", FormulaRule(
+        formula=[f'AND($A2<>"",{girl})'], font=Font(bold=True, size=14, color="FFFF0000"),
+        border=BOX))
+    for j in range(LANES):
+        col = openpyxl.utils.get_column_letter(2 + j)
+        team = openpyxl.utils.get_column_letter(4 + j * 3)   # 走順シートの「色」の列
+        ws.conditional_formatting.add(f"{col}2:{col}{last}", FormulaRule(
+            formula=[f'INDEX(走順!${team}${RACE_TOP}:${team}${RACE_TOP + RACES - 1},ROW()-1)="赤"'],
+            fill=PatternFill(bgColor="FFF8CBAD", fill_type="solid"), border=BOX))
     ws.conditional_formatting.add(f"A2:{lastc}{last}", FormulaRule(
         formula=['$A2<>""'], border=BOX))
     ws.column_dimensions["A"].width = 11
@@ -765,6 +773,7 @@ def main():
             wb["①データ入力"]["E1"] = TEST_GROUP["女"]
             kids = fill_test(wb["①データ入力"])
             fill_test_edit(wb["手直し"], kids)
+        wb["計算用"].sheet_state = "hidden"
         wb.calculation = CalcProperties(fullCalcOnLoad=True)
         wb.active = 0
         wb.save(out)
