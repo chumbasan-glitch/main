@@ -9,7 +9,9 @@
     例: 男女別10組 4,6,8,10,9,7,5,3,2,1 / 男女混合10組 6,8,10,9,7,5,4,3,2,1
   - コースは4つ（始めの番号を選べる）。レースごとにクラスを1コースずつずらす。
 
-シート: データ入力 → 組分け（自動）→ 手直し → 掲示用（男女別のレース名）・最終決定（通しのレース名）
+シート: データ入力 → 組分け（自動）→ 手直し → 掲示用（男女別のレース名）→ 最終修正 → 最終決定（通しのレース名）
+  - 手直しシートが空なら、自動の組をそのまま使う。
+  - 最終修正: 掲示用と同じ並びで、名前の右に新しいコース番号を入れる（同じレースの中で動かす）。
 白紙版とテストデータ入り版の2つを書き出す。
 
 使い方: python3 build_school.py
@@ -27,7 +29,7 @@ from openpyxl.workbook.properties import CalcProperties
 from openpyxl.worksheet.datavalidation import DataValidation
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VERSION = "v1"
+VERSION = "v2"
 OUT_DIR = os.path.join(HERE, "本校用")
 OUT_BLANK = os.path.join(OUT_DIR, f"徒競走走順_本校用_{VERSION}_白紙.xlsx")
 OUT_TEST = os.path.join(OUT_DIR, f"徒競走走順_本校用_{VERSION}_テストデータ入り.xlsx")
@@ -39,6 +41,10 @@ PEOPLE = 4 * ROWS             # 計算用の人の行は 2〜149
 P_LAST = PEOPLE + 1
 RACES = 2 * ROWS              # 最大のレース数
 R_LAST = RACES + 1
+# 最終修正シート: 名前の列と、新しいコース番号を入れる列（左のコースから4人分）
+FIX_TOP = 3
+FIX_NAME = "BDFH"
+FIX_NEW = "CEGI"
 MIX_LABEL = "男女混合（2年生）"
 
 # データ入力シート
@@ -197,8 +203,8 @@ def build_calc(ws):
         ("女子が先", '=AND(NOT(U2),データ入力!$G$1="女子")'),                     # U4
         ("始めのコース", "=IF(ISNUMBER(データ入力!$K$1),データ入力!$K$1,2)"),     # U5
         ("最後に走る速い組の数", "=IF(U2,5,3)"),                                  # U6
-        ("Aの組数(手直し)", f'=SUMPRODUCT(MAX(({gA}<>"")*(ROW({gA})-{ED_TOP - 1})))'),   # U7
-        ("Bの組数(手直し)", f'=IF(U2,0,SUMPRODUCT(MAX(({gB}<>"")*(ROW({gB})-{ED_TOP - 1}))))'),  # U8
+        ("Aの組数(使う組)", f'=IF(U24,SUMPRODUCT(MAX(({gA}<>"")*(ROW({gA})-{ED_TOP - 1}))),U9)'),   # U7
+        ("Bの組数(使う組)", f'=IF(U2,0,IF(U24,SUMPRODUCT(MAX(({gB}<>"")*(ROW({gB})-{ED_TOP - 1}))),U10))'),  # U8
         ("Aの組数(自動)", f"=SUMPRODUCT(MAX(({rng('I')}=$U$3)*{rng('V')}))"),    # U9
         ("Bの組数(自動)", f'=SUMPRODUCT(MAX(({rng("I")}="女")*{rng("V")}))'),    # U10
         ("A入っていない", f'=COUNTIFS({rng("O")},1,{rng("I")},$U$3)'),           # U11
@@ -210,16 +216,27 @@ def build_calc(ws):
         ("A名簿にない", f'=SUMPRODUCT(({gA}<>"")*(COUNTIF({rng("W")},$U$3&{gA})=0))'),   # U17
         ("B名簿にない", f'=IF(U2,0,SUMPRODUCT(({gB}<>"")*(COUNTIF({rng("W")},"女"&{gB})=0)))'),  # U18
         ("同じ名前", f'=SUMPRODUCT(({rng("W")}<>"")*(COUNTIF({rng("W")},{rng("W")})>1))'),  # U19
-        ("確認の数", "=SUM(U11:U18)+U19"),                                         # U20
+        ("確認の数", "=IF(U24,SUM(U11:U18),0)+U19"),                               # U20
         ("入力不足", f"=SUM({rng('S')})"),                                         # U21
         ("レース数", "=U7+U8"),                                                    # U22
         ("先に走る組数", "=IF(U4,U8,U7)"),                                          # U23
+        ("手直しを使う", f'=COUNTIF({gA},"?*")+COUNTIF({gB},"?*")>0'),            # U24
+        ("混合なのに女子の欄に名前", f'=AND(U2,COUNTIF({gB},"?*")>0)'),          # U25
+        ("最終修正の問題", f"=SUM(AN2:AN{R_LAST})"),                              # U26
+        ("手直しの注意", '=IF(U25,"※男女混合なのに、手直しシートの女子の欄に名前があります。'
+                       '手直しシートをやり直してください（空にすると自動の組を使います）",'
+                       'IF(U20>0,"※手直しシートに確認が必要なところがあります",""))'),     # U27
+        ("最終修正の注意", '=IF(U26>0,"※最終修正で、同じコースに2人いるか、使えないコース番号の'
+                         'レースがあります（赤いレース）","")'),                          # U28
     ]
     for i, (label, f) in enumerate(summary, start=2):
         ws[f"T{i}"], ws[f"U{i}"] = label, f
 
     # レースの表（通し番号ごと）
-    for c, h in zip("Y Z AA AB AC AD".split(), ["レース(通し)", "表(A/B)", "男女ごとの番号", "組数", "組", "掲示用の名前"]):
+    for c, h in zip("Y Z AA AB AC AD AF AJ AN AP".split(),
+                    ["レース(通し)", "表(A/B)", "男女ごとの番号", "組数", "組", "掲示用の名前",
+                     "最終修正後のコース位置(左から4人分)", "名前(左から4人分)", "最終修正の問題",
+                     "最終決定の各コースのクラス"]):
         ws[f"{c}1"] = h
     for r in range(2, R_LAST + 1):
         Y, Z, n, N = f"Y{r}", f"Z{r}", f"AA{r}", f"AB{r}"
@@ -233,6 +250,20 @@ def build_calc(ws):
         ws[f"AC{r}"] = (f'=IF({Z}="","",IF({N}<={T},{N}-{n}+1,IF({n}<={E},{T}-1+2*{n},'
                         f'IF({n}<={E}+{O},({N}-1+MOD({N},2))-2*({n}-{E}-1),{T}-({n}-{E}-{O}-1)))))')
         ws[f"AD{r}"] = f'=IF({Z}="","",IF($U$2,"",IF({Z}="B","女子","男子"))&{n}&"レース")'
+        # 最終修正: 左から L 番目の子の名前（AJ〜AM）と、その子が走るコースの位置（AF〜AI, 0〜3）
+        fl = "AF AG AH AI".split()
+        nm = "AJ AK AL AM".split()
+        for L in range(4):
+            new = f"最終修正!${FIX_NEW[L]}${r + FIX_TOP - 2}"
+            ws[f"{nm[L]}{r}"] = "=" + lane_name(r, L)
+            ws[f"{fl[L]}{r}"] = (f'=IF({nm[L]}{r}="",99,IF({new}="",{L},IF(AND(ISNUMBER({new}),'
+                                 f'INT({new})={new},{new}-$U$5>=0,{new}-$U$5<=3),{new}-$U$5,-1)))')
+        f_rng = f"$AF{r}:$AI{r}"
+        ws[f"AN{r}"] = (f'=IF({Z}="",0,' + "+".join(f"(COUNTIF({f_rng},{M})>1)" for M in range(4))
+                        + f'+COUNTIF({f_rng},-1))')
+        # 最終決定でコース M（0〜3）を走る子のクラス番号（0〜3）
+        for M, c in enumerate("AP AQ AR AS".split()):
+            ws[f"{c}{r}"] = f'=IF({Z}="","",IFERROR(MOD(MATCH({M},{f_rng},0)-1-{n}+1,4),""))'
 
 
 def lane_name(r_calc, lane):
@@ -240,17 +271,27 @@ def lane_name(r_calc, lane):
     クラスはレースごとに1コースずつずらす: クラス番号 = MOD(lane - n + 1, 4) + 1"""
     n, heat, z = f"計算用!$AA${r_calc}", f"計算用!$AC${r_calc}", f"計算用!$Z${r_calc}"
     cls = f"MOD({lane}-{n}+1,4)+1"
-    return (f'IF({z}="","",IF({z}="A",INDEX({grid("A")},{heat},{cls}),'
-            f'INDEX({grid("B")},{heat},{cls}))&"")')
+    a_auto = f"組分け!${col(AUTO_START['A'] + 1)}${AUTO_TOP}:${col(AUTO_START['A'] + 8)}${AUTO_LAST}"
+    b_auto = f"組分け!${col(AUTO_START['B'] + 1)}${AUTO_TOP}:${col(AUTO_START['B'] + 8)}${AUTO_LAST}"
+    # 手直しシートに名前があれば手直しの組、空なら自動の組（組分け）を使う
+    return (f'IF({z}="","",IF(計算用!$U$24,IF({z}="A",INDEX({grid("A")},{heat},{cls}),'
+            f'INDEX({grid("B")},{heat},{cls})),IF({z}="A",INDEX({a_auto},{heat},({cls})*2-1),'
+            f'INDEX({b_auto},{heat},({cls})*2-1)))&"")')
 
 
-def class_color_rules(ws, area, top_row, lane, guard="TRUE"):
-    """コース（lane）の列に、そのレースを走るクラスの色をつける。"""
+def class_color_rules(ws, area, top_row, lane, guard="TRUE", final=False):
+    """コース（lane）の列に、そのレースを走るクラスの色をつける。
+    final=True のときは最終修正のあとのクラス（計算用 AP〜AS）で色をつける。"""
     first = area.split(":")[0]
-    n = f"INDEX(計算用!$AA$2:$AA${R_LAST},ROW()-{top_row - 1})"
+    if final:
+        c = "AP AQ AR AS".split()[lane]
+        cls = f"INDEX(計算用!${c}$2:${c}${R_LAST},ROW()-{top_row - 1})"
+    else:
+        n = f"INDEX(計算用!$AA$2:$AA${R_LAST},ROW()-{top_row - 1})"
+        cls = f"MOD({lane}-{n}+1,4)"
     for k in range(4):
         ws.conditional_formatting.add(area, FormulaRule(
-            formula=[f'AND({first}<>"",{guard},MOD({lane}-{n}+1,4)={k})'],
+            formula=[f'AND({first}<>"",{guard},{cls}={k})'],
             fill=fill(COLORS[k]), border=BOX))
 
 
@@ -303,7 +344,8 @@ def build_edit(ws):
     ws["C1"] = (f"① 右の「自動の組（コピー用）」{COPY['A'][0]}{ED_TOP}:{COPY['B'][-1]}{ED_LAST} をコピーし、"
                 f"B{ED_TOP} に「値として貼り付け」します（右クリック →「貼り付けのオプション」の「値」）。\n"
                 "② 名前を切り取り・貼り付けして直します。同じ段（行）の4人が1レースになります。\n"
-                "※名簿・タイム・組み方を変えたときは、もう一度①からやり直してください。")
+                "※直さないときは空のままでかまいません（自動の組を使います）。"
+                "名簿・タイム・組み方を変えたときは、空にするか①からやり直してください。")
     ws["C1"].alignment = Alignment(wrap_text=True, vertical="top")
     ws.merge_cells(f"C1:{COPY['B'][-1]}1")
     ws.row_dimensions[1].height = 48
@@ -318,14 +360,16 @@ def build_edit(ws):
                          f'&"組 → 手直し "&計算用!{now}&"組")')
         ws[f"B{row}"].font = BOLD
         c = lambda x: f"計算用!{x}"
-        ws[f"F{row}"] = (f'=IF(AND(計算用!$U$2,"{b}"="B"),"",IF({c(miss)}+{c(dup)}+{c(wrong)}+{c(unk)}=0,'
+        ws[f"F{row}"] = (f'=IF(AND(計算用!$U$2,"{b}"="B"),"",IF(NOT(計算用!$U$24),'
+                         f'"手直しなし：自動の組をそのまま使っています",IF({c(miss)}+{c(dup)}+{c(wrong)}+{c(unk)}=0,'
                          f'IF({c(now)}=0,"","確認：問題なし"),"確認："'
                          f'&IF({c(miss)}>0,"入っていない人 "&{c(miss)}&"人　","")'
                          f'&IF({c(dup)}>0,"2回以上入っている人 "&{c(dup)}&"人　","")'
                          f'&IF({c(wrong)}>0,"ちがうクラスの列に入っている人 "&{c(wrong)}&"人　","")'
-                         f'&IF({c(unk)}>0,"名簿にない名前 "&{c(unk)}&"こ　","")))')
+                         f'&IF({c(unk)}>0,"名簿にない名前 "&{c(unk)}&"こ　",""))))')
         ws[f"F{row}"].font = RED_BOLD
-    ws[f"{MISSING['A']}2"] = '=IF(計算用!$U$19>0,"※同じ名前の人がいます（区別できません）","")'
+    ws[f"{MISSING['A']}2"] = ('=IF(計算用!$U$25,計算用!$U$27,'
+                              'IF(計算用!$U$19>0,"※同じ名前の人がいます（区別できません）",""))')
     ws[f"{MISSING['A']}2"].font = RED_BOLD
 
     ws.merge_cells("A4:A5")
@@ -432,6 +476,12 @@ def build_poster(ws):
             c.font = Font(size=14)
             c.alignment = CENTER
         ws.row_dimensions[r].height = 27.75
+    add_color_toggle(ws, "K1", "L1")
+    ws["K3"] = "=計算用!$U$27"
+    ws["K3"].font = RED_BOLD
+    for lane in range(4):
+        c = col(2 + lane)
+        class_color_rules(ws, f"{c}2:{c}{R_LAST}", 2, lane, guard='$L$1="色あり"')
     ws.conditional_formatting.add(f"A2:E{R_LAST}", FormulaRule(formula=['$A2<>""'], border=BOX))
     ws.merge_cells("G1:I20")
     ws["G1"] = POSTER_MEMO
@@ -448,19 +498,85 @@ def build_poster(ws):
 
 
 # ---------------------------------------------------------------- 最終決定（通しのレース名・A4 1枚）
-def build_final(ws):
-    ws["H1"] = "色"
-    ws["H1"].font = BOLD
-    ws["H1"].alignment = Alignment(horizontal="right")
-    ws["I1"] = "色あり"
-    ws["I1"].fill = INPUT
-    ws["I1"].border = BOX
-    ws["I1"].alignment = CENTER
-    ws["I1"].font = Font(bold=True, size=12)
+def add_color_toggle(ws, label_cell, value_cell):
+    ws[label_cell] = "色"
+    ws[label_cell].font = BOLD
+    ws[label_cell].alignment = Alignment(horizontal="right")
+    ws[value_cell] = "色あり"
+    ws[value_cell].fill = INPUT
+    ws[value_cell].border = BOX
+    ws[value_cell].alignment = CENTER
+    ws[value_cell].font = Font(bold=True, size=12)
     dv = DataValidation(type="list", formula1='"色あり,色なし"', showErrorMessage=True)
     ws.add_data_validation(dv)
-    dv.add("I1")
-    ws["H2"] = "← 印刷の前に選んでください（この欄は印刷されません）"
+    dv.add(value_cell)
+    row = int(value_cell[1:]) + 1
+    ws[f"{label_cell[0]}{row}"] = "← 印刷の前に選んでください（この欄は印刷されません）"
+
+
+# ---------------------------------------------------------------- 最終修正
+def build_fix(ws):
+    """掲示用と同じ並びで、名前の右に新しいコース番号を入れて直すシート。"""
+    ws.merge_cells("A1:A2")
+    ws["A1"] = "レース"
+    for L in range(4):
+        a, b = FIX_NAME[L], FIX_NEW[L]
+        ws.merge_cells(f"{a}1:{b}1")
+        ws[f"{a}1"] = f'=(計算用!$U$5+{L})&"コース"'
+        ws[f"{a}2"], ws[f"{b}2"] = "名前", "新しい\nコース"
+    box_cells(ws, "A1:I2", bold=True)
+    for c in "ACEGI":
+        ws[f"{c}2"].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    ws.row_dimensions[2].height = 30
+    last = FIX_TOP + RACES - 1
+    dv = DataValidation(type="whole", operator="between", formula1="1", formula2="9",
+                        showErrorMessage=True, errorTitle="新しいコース", error="コースの番号（数字）を入れてください")
+    ws.add_data_validation(dv)
+    for q in range(FIX_TOP, last + 1):
+        r = q - FIX_TOP + 2   # 計算用の行
+        ws[f"A{q}"] = f"=計算用!$AD${r}"
+        ws[f"A{q}"].alignment = CENTER
+        for L in range(4):
+            ws[f"{FIX_NAME[L]}{q}"] = f"=計算用!${'AJ AK AL AM'.split()[L]}${r}"
+            ws[f"{FIX_NAME[L]}{q}"].alignment = CENTER
+            ws[f"{FIX_NEW[L]}{q}"].alignment = CENTER
+            ws[f"{FIX_NEW[L]}{q}"].font = Font(bold=True, color="FF0000CC", size=12)
+    for c in FIX_NEW:
+        dv.add(f"{c}{FIX_TOP}:{c}{last}")
+    # 問題のあるレースは赤、名前はクラスの色、新しいコースの欄は黄色
+    ws.conditional_formatting.add(f"A{FIX_TOP}:A{last}", FormulaRule(
+        formula=[f'AND($A{FIX_TOP}<>"",INDEX(計算用!$AN$2:$AN${R_LAST},ROW()-{FIX_TOP - 1})>0)'],
+        fill=fill("FFFF9999"), font=RED_BOLD, border=BOX, stopIfTrue=True))
+    for L in range(4):
+        a, b = FIX_NAME[L], FIX_NEW[L]
+        class_color_rules(ws, f"{a}{FIX_TOP}:{a}{last}", FIX_TOP, L)
+        ws.conditional_formatting.add(f"{b}{FIX_TOP}:{b}{last}", FormulaRule(
+            formula=[f'$A{FIX_TOP}<>""'], fill=fill("FFFFF2CC"), border=BOX))
+    ws.conditional_formatting.add(f"A{FIX_TOP}:I{last}", FormulaRule(
+        formula=[f'$A{FIX_TOP}<>""'], border=BOX))
+    ws["K1"] = ("掲示用を見て子どもたちが決めた新しいコースを、名前の右の欄に入れてください。\n"
+                "同じレースの中だけで動かします（空いたコースに入れてもかまいません）。\n"
+                "空いている欄は、もとのコースのままです。結果は「最終決定」に出ます。")
+    ws["K1"].alignment = Alignment(wrap_text=True, vertical="top")
+    ws.merge_cells("K1:Q2")
+    ws["K3"] = "=計算用!$U$28"
+    ws["K4"] = "=計算用!$U$27"
+    ws["K3"].font = ws["K4"].font = RED_BOLD
+    ws.column_dimensions["A"].width = 14
+    for L in range(4):
+        ws.column_dimensions[FIX_NAME[L]].width = 14
+        ws.column_dimensions[FIX_NEW[L]].width = 7
+    ws.column_dimensions["J"].width = 2
+    ws.freeze_panes = f"B{FIX_TOP}"
+    setup_page(ws, "portrait", fit_height=0, titles="1:2")
+
+
+# ---------------------------------------------------------------- 最終決定（通しのレース名・A4 1枚）
+def build_final(ws):
+    add_color_toggle(ws, "H1", "I1")
+    ws["H3"] = "=計算用!$U$28"
+    ws["H4"] = "=計算用!$U$27"
+    ws["H3"].font = ws["H4"].font = RED_BOLD
     head = Font(bold=True, size=14)
     ws["A1"].border = BOX
     for lane in range(4):
@@ -472,8 +588,9 @@ def build_final(ws):
         ws[f"A{r}"] = f'=IF(計算用!$Z${r}="","",計算用!$Y${r}&"レース")'
         ws[f"A{r}"].font = head
         ws[f"A{r}"].alignment = CENTER
-        for lane in range(4):
-            c = ws.cell(r, 2 + lane, "=" + lane_name(r, lane))
+        for M in range(4):
+            # 最終修正のあと、コース M を走る子
+            c = ws.cell(r, 2 + M, f'=IFERROR(INDEX(計算用!$AJ{r}:$AM{r},MATCH({M},計算用!$AF{r}:$AI{r},0)),"")')
             c.font = Font(size=14)
             c.alignment = CENTER
         ws.row_dimensions[r].height = 28
@@ -483,7 +600,7 @@ def build_final(ws):
         formula=[f'AND($A2<>"",{girl})'], font=Font(bold=True, size=14, color="FFFF0000"), border=BOX))
     for lane in range(4):
         c = col(2 + lane)
-        class_color_rules(ws, f"{c}2:{c}{R_LAST}", 2, lane, guard='$I$1="色あり"')
+        class_color_rules(ws, f"{c}2:{c}{R_LAST}", 2, lane, guard='$I$1="色あり"', final=True)
     ws.conditional_formatting.add(f"A2:E{R_LAST}", FormulaRule(formula=['$A2<>""'], border=BOX))
     ws.column_dimensions["A"].width = 11
     for c in "BCDE":
@@ -512,6 +629,7 @@ def put_print_areas(path, sheetnames):
         "組分け": f"OFFSET(組分け!$A$1,0,0,{AUTO_TOP - 1}+MAX(計算用!$U$9,計算用!$U$10),19)",
         "手直し": f"手直し!$A$1:${MISSING['B']}${ED_LAST}",
         "掲示用": "OFFSET(掲示用!$A$1,0,0,MAX(20,1+計算用!$U$22),9)",
+        "最終修正": f"OFFSET(最終修正!$A$1,0,0,{FIX_TOP - 1}+計算用!$U$22,9)",
         "最終決定": "OFFSET(最終決定!$A$1,0,0,1+計算用!$U$22,5)",
     }
     names = "".join(
@@ -581,6 +699,12 @@ def fill_test_edit(ws, kids):
                     ws[f"{GRID[b][ci]}{ED_TOP + k}"] = name
 
 
+def fill_test_fix(ws):
+    """最終修正の例: 女子1レースで、4コースと5コースの子が入れかわる（始めのコースが2のとき）。"""
+    ws[f"{FIX_NEW[2]}{FIX_TOP}"] = 5
+    ws[f"{FIX_NEW[3]}{FIX_TOP}"] = 4
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     for out, test in ((OUT_BLANK, False), (OUT_TEST, True)):
@@ -588,18 +712,19 @@ def main():
         ws_in = wb.active
         ws_in.title = "データ入力"
         sheets = {}
-        for name in ("組分け", "手直し", "掲示用", "最終決定", "計算用"):
+        for name in ("組分け", "手直し", "掲示用", "最終修正", "最終決定", "計算用"):
             sheets[name] = wb.create_sheet(name)
         build_input(ws_in)
         build_calc(sheets["計算用"])
         build_auto(sheets["組分け"])
         build_edit(sheets["手直し"])
         build_poster(sheets["掲示用"])
+        build_fix(sheets["最終修正"])
         build_final(sheets["最終決定"])
         sheets["計算用"].sheet_state = "hidden"
         if test:
-            kids = fill_test(ws_in)
-            fill_test_edit(sheets["手直し"], kids)
+            fill_test(ws_in)
+            fill_test_fix(sheets["最終修正"])
         wb.calculation = CalcProperties(fullCalcOnLoad=True)
         wb.active = 0
         wb.save(out)
