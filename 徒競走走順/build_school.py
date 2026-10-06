@@ -30,7 +30,7 @@ from openpyxl.workbook.properties import CalcProperties
 from openpyxl.worksheet.datavalidation import DataValidation
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VERSION = "v3"
+VERSION = "v4"
 OUT_DIR = os.path.join(HERE, "本校用")
 OUT_BLANK = os.path.join(OUT_DIR, f"徒競走走順_本校用_{VERSION}_白紙.xlsx")
 OUT_TEST = os.path.join(OUT_DIR, f"徒競走走順_本校用_{VERSION}_テストデータ入り.xlsx")
@@ -46,6 +46,9 @@ R_LAST = RACES + 1
 FIX_TOP = 3
 FIX_NAME = "BDFH"
 FIX_NEW = "CEGI"
+# 掲示用・最終決定: 1行目がタイトル、2行目がコース、3行目から1レース目
+POSTER_TOP = 3
+FINAL_TOP = 3
 MIX_LABEL = "男女混合（2年生）"
 
 # データ入力シート
@@ -464,40 +467,55 @@ def build_edit(ws):
 
 
 # ---------------------------------------------------------------- 掲示用（男女別のレース名）
+def add_title(ws, text, last_col):
+    """1行目のタイトル（あとから書きかえられる）。"""
+    ws.merge_cells(f"A1:{last_col}1")
+    ws["A1"] = text
+    ws["A1"].font = Font(bold=True, size=18)
+    ws["A1"].alignment = CENTER
+    ws.row_dimensions[1].height = 32
+
+
 def build_poster(ws):
+    """掲示用。1行目がタイトル、2行目がコース、3行目からレース。"""
+    top = POSTER_TOP
+    add_title(ws, "徒競走 走順一覧", "E")
     for lane in range(4):
-        c = ws.cell(1, 2 + lane, f'=(計算用!$U$5+{lane})&"コース"')
+        c = ws.cell(top - 1, 2 + lane, f'=(計算用!$U$5+{lane})&"コース"')
         c.font = Font(bold=True, size=14)
         c.alignment = CENTER
         c.border = BOX
-    ws["A1"].border = BOX
-    for r in range(2, R_LAST + 1):
-        ws[f"A{r}"] = f"=計算用!$AD${r}"
-        ws[f"A{r}"].font = Font(size=12)
-        ws[f"A{r}"].alignment = CENTER
+    ws[f"A{top - 1}"].border = BOX
+    last = top + RACES - 1
+    for q in range(top, last + 1):
+        r = q - top + 2   # 計算用の行
+        ws[f"A{q}"] = f"=計算用!$AD${r}"
+        ws[f"A{q}"].font = Font(size=12)
+        ws[f"A{q}"].alignment = CENTER
         for lane in range(4):
-            c = ws.cell(r, 2 + lane, "=" + lane_name(r, lane))
+            c = ws.cell(q, 2 + lane, "=" + lane_name(r, lane))
             c.font = Font(size=14)
             c.alignment = CENTER
-        ws.row_dimensions[r].height = 27.75
+        ws.row_dimensions[q].height = 27.75
     add_color_toggle(ws, "K1", "L1")
     ws["K3"] = "=計算用!$U$27"
     ws["K3"].font = RED_BOLD
     for lane in range(4):
         c = col(2 + lane)
-        class_color_rules(ws, f"{c}2:{c}{R_LAST}", 2, lane, guard='$L$1="色あり"')
-    ws.conditional_formatting.add(f"A2:E{R_LAST}", FormulaRule(formula=['$A2<>""'], border=BOX))
-    ws.merge_cells("G1:I20")
-    ws["G1"] = POSTER_MEMO
-    ws["G1"].alignment = Alignment(wrap_text=True, vertical="top")
-    ws["G1"].font = Font(size=12)
-    ws["G1"].border = BOX
+        class_color_rules(ws, f"{c}{top}:{c}{last}", top, lane, guard='$L$1="色あり"')
+    ws.conditional_formatting.add(f"A{top}:E{last}", FormulaRule(formula=[f'$A{top}<>""'], border=BOX))
+    ws.merge_cells(f"G{top - 1}:I{top + 18}")
+    ws[f"G{top - 1}"] = POSTER_MEMO
+    ws[f"G{top - 1}"].alignment = Alignment(wrap_text=True, vertical="top")
+    ws[f"G{top - 1}"].font = Font(size=12)
+    ws[f"G{top - 1}"].border = BOX
     ws.column_dimensions["A"].width = 14
     for c in "BCDE":
         ws.column_dimensions[c].width = 17.86
     ws.column_dimensions["F"].width = 2
     for c in "GHI":
         ws.column_dimensions[c].width = 12
+    ws.freeze_panes = f"A{top}"
     setup_page(ws, "portrait", fit_height=1)
 
 
@@ -577,45 +595,51 @@ def build_fix(ws):
 
 # ---------------------------------------------------------------- 最終決定（通しのレース名・A4 1枚）
 def build_final(ws):
+    """最終決定。1行目がタイトル、2行目がコース、3行目から通しのレース。A4 1枚。"""
+    top = FINAL_TOP
+    add_title(ws, "徒競走 最終決定版", "E")
     add_color_toggle(ws, "H1", "I1")
     ws["H3"] = "=計算用!$U$28"
     ws["H4"] = "=計算用!$U$27"
     ws["H3"].font = ws["H4"].font = RED_BOLD
     head = Font(bold=True, size=13)
-    ws["A1"].border = BOX
+    ws[f"A{top - 1}"].border = BOX
     for lane in range(4):
-        c = ws.cell(1, 2 + lane, f'=(計算用!$U$5+{lane})&"コース"')
+        c = ws.cell(top - 1, 2 + lane, f'=(計算用!$U$5+{lane})&"コース"')
         c.font = head
         c.alignment = CENTER
         c.border = BOX
-    for r in range(2, R_LAST + 1):
-        ws[f"A{r}"] = f'=IF(計算用!$Z${r}="","",計算用!$Y${r}&"レース")'
-        ws[f"A{r}"].font = head
-        ws[f"A{r}"].alignment = CENTER
+    last = top + RACES - 1
+    for q in range(top, last + 1):
+        r = q - top + 2   # 計算用の行
+        ws[f"A{q}"] = f'=IF(計算用!$Z${r}="","",計算用!$Y${r}&"レース")'
+        ws[f"A{q}"].font = head
+        ws[f"A{q}"].alignment = CENTER
         for M in range(4):
             # 最終修正のあと、コース M を走る子
-            c = ws.cell(r, 2 + M, f'=IFERROR(INDEX(計算用!$AJ{r}:$AM{r},MATCH({M},計算用!$AF{r}:$AI{r},0)),"")')
+            c = ws.cell(q, 2 + M, f'=IFERROR(INDEX(計算用!$AJ{r}:$AM{r},MATCH({M},計算用!$AF{r}:$AI{r},0)),"")')
             c.font = Font(size=13)
             c.alignment = CENTER
-        ws.row_dimensions[r].height = 20
-    ws.row_dimensions[1].height = 22
-    girl = f'AND(NOT(計算用!$U$2),INDEX(計算用!$Z$2:$Z${R_LAST},ROW()-1)="B")'
-    ws.conditional_formatting.add(f"A2:A{R_LAST}", FormulaRule(
-        formula=[f'AND($A2<>"",{girl})'], font=Font(bold=True, size=13, color="FFFF0000"), border=BOX))
+        ws.row_dimensions[q].height = 19.5
+    ws.row_dimensions[top - 1].height = 22
+    girl = f'AND(NOT(計算用!$U$2),INDEX(計算用!$Z$2:$Z${R_LAST},ROW()-{top - 1})="B")'
+    ws.conditional_formatting.add(f"A{top}:A{last}", FormulaRule(
+        formula=[f'AND($A{top}<>"",{girl})'], font=Font(bold=True, size=13, color="FFFF0000"), border=BOX))
     for lane in range(4):
         c = col(2 + lane)
-        class_color_rules(ws, f"{c}2:{c}{R_LAST}", 2, lane, guard='$I$1="色あり"', final=True)
-    ws.conditional_formatting.add(f"A2:E{R_LAST}", FormulaRule(formula=['$A2<>""'], border=BOX))
+        class_color_rules(ws, f"{c}{top}:{c}{last}", top, lane, guard='$I$1="色あり"', final=True)
+    ws.conditional_formatting.add(f"A{top}:E{last}", FormulaRule(formula=[f'$A{top}<>""'], border=BOX))
     ws.column_dimensions["A"].width = 11
     for c in "BCDE":
         ws.column_dimensions[c].width = 19
     ws.column_dimensions["F"].width = 3
-    ws.freeze_panes = "A2"
+    ws.freeze_panes = f"A{top}"
     setup_page(ws, "portrait", fit_height=1)
     ws.page_margins.left = ws.page_margins.right = 0.4
     ws.page_margins.top = ws.page_margins.bottom = 0.5
     ws.page_margins.header = ws.page_margins.footer = 0.3
-    # 35レースくらいまでは縮めずにA4縦1枚に入る大きさ（行の高さ20）。それより多いときは自動で縮める
+    # タイトルを入れて35レースくらいまでは縮めずにA4縦1枚に入る大きさ（行の高さ19.5）。
+    # それより多いときは自動で縮める
 
 
 def setup_page(ws, orientation, fit_height, titles=None):
@@ -634,9 +658,9 @@ def put_print_areas(path, sheetnames):
     areas = {
         "組分け": f"OFFSET(組分け!$A$1,0,0,{AUTO_TOP - 1}+MAX(計算用!$U$9,計算用!$U$10),19)",
         "手直し": f"手直し!$A$1:${MISSING['B']}${ED_LAST}",
-        "掲示用": "OFFSET(掲示用!$A$1,0,0,MAX(20,1+計算用!$U$22),9)",
+        "掲示用": f"OFFSET(掲示用!$A$1,0,0,MAX(21,{POSTER_TOP - 1}+計算用!$U$22),9)",
         "最終修正": f"OFFSET(最終修正!$A$1,0,0,{FIX_TOP - 1}+計算用!$U$22,9)",
-        "最終決定": "OFFSET(最終決定!$A$1,0,0,1+計算用!$U$22,5)",
+        "最終決定": f"OFFSET(最終決定!$A$1,0,0,{FINAL_TOP - 1}+計算用!$U$22,5)",
     }
     names = "".join(
         f'<definedName name="_xlnm.Print_Area" localSheetId="{sheetnames.index(n)}">{a}</definedName>'
