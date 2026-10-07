@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 外部との通信をすべて禁止（データはこの端末の中だけで扱う） -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'">
   <title>宿題チェック管理ソフト</title>
   <style>
     body { font-family: sans-serif; margin: 20px; background: #f5f5f5; color: #333; }
@@ -158,8 +160,22 @@
     homeworks: []
   };
 
+  // 画面に出す文字を安全な形にする（記号で表示やボタンが壊れないように）
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // 端末の時計（日本時間）での今日の日付 YYYY-MM-DD
+  function todayLocal() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
   window.onload = function() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
+    // ブラウザに「このデータを自動で消さないで」と依頼（端末内だけの処理）
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
     document.getElementById('bulk-hw-date').value = today;
     document.getElementById('hw-date').value = today;
     document.getElementById('check-date').value = today;
@@ -192,8 +208,10 @@
     }
   }
 
-  function deleteStudent(studentId, name) {
-    if (confirm(`児童「${name}」を削除しますか？\n（関連する宿題データも消去されます）`)) {
+  function deleteStudent(studentId) {
+    const student = db.students.find(s => s.id === studentId);
+    if (!student) return;
+    if (confirm(`児童「${student.name}」を削除しますか？\n（関連する宿題データも消去されます）`)) {
       db.students = db.students.filter(s => s.id !== studentId);
       db.homeworks = db.homeworks.filter(h => h.studentId !== studentId);
       saveData();
@@ -209,7 +227,7 @@
     } else {
       let html = `<div><strong>登録済児童 (${db.students.length}名):</strong></div><div style="margin-top: 5px;">`;
       db.students.forEach(s => {
-        html += `<span class="student-tag">${s.name} <button class="btn-danger" onclick="deleteStudent(${s.id}, '${s.name}')">削除</button></span>`;
+        html += `<span class="student-tag">${esc(s.name)} <button class="btn-danger" onclick="deleteStudent(${s.id})">削除</button></span>`;
       });
       html += '</div>';
       listDiv.innerHTML = html;
@@ -241,8 +259,17 @@
       return;
     }
 
+    // すでに同じ日付・同じ宿題名が入っている児童には追加しない（二重登録防止）
+    const targets = db.students.filter(student =>
+      !db.homeworks.some(h => h.studentId === student.id && h.date === date && h.title === title)
+    );
+    if (targets.length === 0) {
+      alert(`${date} の「${title}」は全員分すでに登録されています。`);
+      return;
+    }
+
     const baseTime = Date.now();
-    db.students.forEach((student, index) => {
+    targets.forEach((student, index) => {
       db.homeworks.push({
         id: baseTime + index,
         date: date,
@@ -253,7 +280,8 @@
     });
 
     document.getElementById('bulk-hw-title').value = '';
-    alert(`全児童（${db.students.length}名）に「${title}」を一括登録しました！`);
+    const skipped = db.students.length - targets.length;
+    alert(`${targets.length}名に「${title}」を一括登録しました！` + (skipped > 0 ? `\n（すでに登録済みの${skipped}名は追加していません）` : ''));
     saveData();
   }
 
@@ -265,6 +293,11 @@
 
     if (!date || !studentId || !title) {
       alert('日付・児童・宿題名を入力してください。');
+      return;
+    }
+
+    if (db.homeworks.some(h => h.studentId === studentId && h.date === date && h.title === title)) {
+      alert(`この児童には ${date} の「${title}」がすでに登録されています。`);
       return;
     }
 
@@ -306,14 +339,14 @@
       if (hws && hws.length > 0) {
         html += `<div class="student-card">
           <div class="student-card-header">
-            <h4>${student.name}</h4>
+            <h4>${esc(student.name)}</h4>
             <button class="btn-green" style="font-size:12px; padding:3px 6px;" onclick="submitAllForStudent(${student.id}, '${targetDate}')">全提出済</button>
           </div>`;
         
         hws.forEach(hw => {
           html += `<div class="hw-item-row">
             <div>
-              <span>${hw.title}</span>
+              <span>${esc(hw.title)}</span>
               <span class="${hw.submitted ? 'status-done' : 'status-yet'}" style="margin-left: 5px;">
                 ${hw.submitted ? '✓ 済' : '未'}
               </span>
@@ -381,7 +414,7 @@
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${student.name}</td>
+        <td>${esc(student.name)}</td>
         <td>${studentSubmitted} / ${studentTotal}</td>
         <td><strong>${studentRate}%</strong></td>
       `;
@@ -397,9 +430,9 @@
       const student = db.students.find(s => s.id === hw.studentId);
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${hw.date}</td>
-        <td>${student ? student.name : '不明'}</td>
-        <td>${hw.title}</td>
+        <td>${esc(hw.date)}</td>
+        <td>${student ? esc(student.name) : '不明'}</td>
+        <td>${esc(hw.title)}</td>
         <td class="${hw.submitted ? 'status-done' : 'status-yet'}">${hw.submitted ? '提出済' : '未提出'}</td>
         <td><button class="btn-danger" onclick="deleteHomework(${hw.id})">削除</button></td>
       `;
@@ -422,8 +455,8 @@
     unsubmittedList.forEach(hw => {
       const student = db.students.find(s => s.id === hw.studentId);
       html += `<tr>
-        <td>${student ? student.name : '不明'}</td>
-        <td>${hw.title}</td>
+        <td>${student ? esc(student.name) : '不明'}</td>
+        <td>${esc(hw.title)}</td>
       </tr>`;
     });
     html += '</table>';
