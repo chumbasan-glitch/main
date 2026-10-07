@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 外部との通信をすべて禁止（データはこの端末の中だけで扱う） -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'">
+  <title>宿題チェッカー</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; background: #f5f5f5; color: #333; }
+    h1, h2, h3 { color: #2c3e50; }
+    h3 { font-size: 16px; margin: 10px 0 6px; }
+    .card { background: #fff; padding: 15px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .card-highlight { background: #eef7ff; border: 1px solid #3498db; }
+    input, select, button, textarea { padding: 8px; margin: 5px 0; font-size: 14px; font-family: inherit; }
+    input[type="number"] { width: 64px; }
+    input.page-box { width: 64px; }
+    textarea { width: 100%; max-width: 420px; height: 140px; box-sizing: border-box; }
+    button { cursor: pointer; background: #3498db; color: white; border: none; border-radius: 4px; }
+    button:hover { background: #2980b9; }
+    button.btn-green { background: #2ecc71; }
+    button.btn-green:hover { background: #27ae60; }
+    button.btn-danger { background: #e74c3c; padding: 4px 8px; font-size: 12px; }
+    button.btn-danger:hover { background: #c0392b; }
+    button.btn-sub { background: #7f8c8d; padding: 4px 8px; font-size: 12px; }
+    button.btn-sub:hover { background: #636e72; }
+    button.btn-toggle { background: #fff; color: #2c3e50; border: 1px solid #3498db; }
+    button.btn-toggle.on { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #f0f0f0; }
+    .status-done { color: green; font-weight: bold; }
+    .status-yet { color: red; font-weight: bold; }
+    .flex-gap { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .muted { color: #777; }
+    .note { color: #777; font-size: 12px; }
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .tabs label { background: #ecf0f1; padding: 6px 12px; border-radius: 16px; cursor: pointer; }
+    .tabs input { display: none; }
+    .tabs label:has(input:checked) { background: #3498db; color: #fff; }
+
+    /* 児童の登録一覧 */
+    .student-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; margin-top: 8px; }
+    .student-tag { display: flex; align-items: center; background: #eee; padding: 2px 8px; border-radius: 4px; gap: 6px; }
+    .student-tag input { width: 52px; padding: 4px; margin: 0; }
+    .student-tag .name { flex: 1; }
+
+    /* 日付ごとのカード */
+    .student-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; }
+    .student-card { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; }
+    .student-card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 6px; margin-bottom: 8px; }
+    .student-card-header h4 { margin: 0; font-size: 16px; color: #2c3e50; }
+    .hw-item-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px dashed #eee; gap: 6px; }
+
+    /* 名前の横に宿題を並べる一覧 */
+    .row-list { margin-top: 10px; border-top: 1px solid #ddd; }
+    .row { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid #ddd; align-items: flex-start; }
+    .row-name { width: 150px; flex-shrink: 0; font-weight: bold; padding-top: 4px; }
+    .row-name .rate { display: block; font-weight: normal; font-size: 12px; color: #555; }
+    .row-items { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+    .date-label { font-size: 12px; color: #555; margin-left: 4px; }
+    .chip { padding: 4px 8px; margin: 0; font-size: 13px; border-radius: 14px; border: 1px solid; }
+    .chip.done { background: #e8f8ef; color: #1e8449; border-color: #2ecc71; }
+    .chip.done:hover { background: #d4f1e0; }
+    .chip.yet { background: #fdecea; color: #c0392b; border-color: #e74c3c; }
+    .chip.yet:hover { background: #f9d6d2; }
+    .chip .act { font-size: 11px; background: #e74c3c; color: #fff; border-radius: 8px; padding: 0 6px; margin-left: 4px; }
+
+    .count-box { font-size: 15px; margin: 6px 0; }
+    details summary { cursor: pointer; color: #2c3e50; font-weight: bold; }
+
+    #print-area { display: none; }
+
+    @media (max-width: 600px) {
+      body { margin: 10px; }
+      .row { flex-direction: column; gap: 2px; }
+      .row-name { width: auto; }
+    }
+
+    /* A4印刷：未提出一覧だけを印刷する */
+    @page { size: A4 portrait; margin: 12mm; }
+    @media print {
+      body { margin: 0; background: #fff; color: #000; }
+      body > *:not(#print-area) { display: none !important; }
+      #print-area { display: block; font-size: 10.5pt; }
+      #print-area h1 { font-size: 16pt; margin: 0 0 4px; color: #000; }
+      #print-area .print-meta { display: flex; justify-content: space-between; margin-bottom: 6px; }
+      #print-area table { margin-top: 4px; width: 100%; table-layout: fixed; }
+      #print-area * { box-sizing: border-box; }
+      #print-area th, #print-area td { border: 1px solid #000; padding: 4px 6px; color: #000; }
+      #print-area th { background: #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      #print-area thead { display: table-header-group; }
+      #print-area tr { page-break-inside: avoid; break-inside: avoid; }
+      #print-area .p-no { width: 8%; text-align: center; }
+      #print-area .p-name { width: 22%; }
+      #print-area .p-item { display: inline-block; margin-right: 14px; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>宿題チェッカー</h1>
+
+  <!-- ① 児童名の登録・管理 -->
+  <div class="card">
+    <h2>① 児童名の登録</h2>
+    <p class="note">1行に1人ずつ入力（Excelや名簿からそのまま貼り付けOK）。「1 山田太郎」のように先頭に出席番号を書くとその番号で登録し、番号がなければ続きの番号を自動でつけます。</p>
+    <textarea id="student-bulk" placeholder="例：&#10;1 山田太郎&#10;2 佐藤花子&#10;鈴木一郎"></textarea>
+    <div><button onclick="addStudentsBulk()">一括登録</button></div>
+    <div id="student-list"></div>
+  </div>
+
+  <!-- ② 宿題の登録（一括 ＆ 個別） -->
+  <div class="card card-highlight">
+    <h2>② 宿題の登録</h2>
+    <p class="note">ページは「P10〜P12」なら左に10・右に12、1ページだけなら左だけ、ページがない宿題は両方空欄でOK。</p>
+
+    <h3>【全員に一括割当】</h3>
+    <div class="flex-gap">
+      <label>日付: <input type="date" id="bulk-hw-date"></label>
+      <input type="text" id="bulk-hw-title" placeholder="宿題名（例: 漢字ドリル）">
+      <span>P<input type="number" min="0" class="page-box" id="bulk-hw-from">〜P<input type="number" min="0" class="page-box" id="bulk-hw-to"></span>
+      <button onclick="addBulkHomework()" class="btn-green">全員分を一括作成</button>
+    </div>
+
+    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ccc;">
+
+    <h3>【個別追加】あとから個人別に追加する場合</h3>
+    <div class="flex-gap">
+      <label>日付: <input type="date" id="hw-date"></label>
+      <select id="hw-student-select"><option value="">児童を選択</option></select>
+      <input type="text" id="hw-title" placeholder="宿題名（例: 計算ドリル）">
+      <span>P<input type="number" min="0" class="page-box" id="hw-from">〜P<input type="number" min="0" class="page-box" id="hw-to"></span>
+      <button onclick="addHomework()">個別に追加</button>
+    </div>
+  </div>
+
+  <!-- ③ 提出チェック -->
+  <div class="card">
+    <h2>③ 宿題提出チェック</h2>
+    <div class="tabs" id="check-tabs">
+      <label><input type="radio" name="check-mode" value="date" checked onchange="setCheckMode(this.value)">日付で選ぶ</label>
+      <label><input type="radio" name="check-mode" value="hw" onchange="setCheckMode(this.value)">宿題で選ぶ</label>
+      <label><input type="radio" name="check-mode" value="title" onchange="setCheckMode(this.value)">宿題名でまとめる</label>
+    </div>
+    <div class="flex-gap" id="check-ctrl-date">
+      <label>日付: <input type="date" id="check-date" onchange="renderCheck()"></label>
+    </div>
+    <div class="flex-gap" id="check-ctrl-hw" style="display:none">
+      <label>宿題: <select id="check-hw" onchange="renderCheck()"></select></label>
+    </div>
+    <div class="flex-gap" id="check-ctrl-title" style="display:none">
+      <label>宿題名: <select id="check-title" onchange="renderCheck()"></select></label>
+    </div>
+    <div class="flex-gap">
+      <button class="btn-toggle" id="check-only-yet" onclick="toggleFlag('checkOnlyYet')">未提出の児童だけ表示</button>
+    </div>
+    <div id="check-container"></div>
+  </div>
+
+  <!-- ④ 個人別データ -->
+  <div class="card">
+    <h2>④ 個人別データ</h2>
+    <div id="pr-period"></div>
+    <div class="flex-gap">
+      <button class="btn-toggle" id="pr-only-yet" onclick="toggleFlag('prOnlyYet')">未提出のある児童だけ表示</button>
+    </div>
+    <div id="pr-stats" class="count-box"></div>
+    <p class="note">宿題を押すと「提出済 ⇔ 未提出」が切り替わります。緑＝提出済、赤＝未提出。</p>
+    <div id="pr-container"></div>
+
+    <details style="margin-top: 15px;">
+      <summary>登録した宿題データの一覧（削除はこちら）</summary>
+      <table id="data-table">
+        <thead><tr><th>日付</th><th>番号</th><th>児童名</th><th>宿題</th><th>状態</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </details>
+  </div>
+
+  <!-- ⑤ 未提出一覧 -->
+  <div class="card">
+    <h2>⑤ 未提出一覧</h2>
+    <div id="un-period"></div>
+    <div class="flex-gap">
+      <button onclick="printUnsubmitted()">🖨 A4で印刷</button>
+    </div>
+    <div id="un-stats" class="count-box"></div>
+    <p class="note">「提出」を押すと提出済になり、一覧から消えます。</p>
+    <div id="un-container"></div>
+  </div>
+
+  <!-- 印刷用（画面には表示しない） -->
+  <div id="print-area"></div>
+
+<script>
+  const STORAGE_KEY = 'hw_app_db';
+  let db;
+  try { db = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (e) { db = null; }
+  if (!db) db = { students: [], homeworks: [] };
+
+  // 以前の形式のデータに出席番号・ページ欄を補う
+  db.students.forEach((s, i) => { if (s.no == null) s.no = i + 1; });
+  db.homeworks.forEach(h => { if (h.pageFrom == null) h.pageFrom = ''; if (h.pageTo == null) h.pageTo = ''; });
+
+  const ui = { checkMode: 'date', checkOnlyYet: false, prOnlyYet: false };
+  let idSeq = 0;
+  function newId() { return Date.now() * 1000 + (idSeq++ % 1000); }
+
+  // ---------- 共通の道具 ----------
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  const pad = n => String(n).padStart(2, '0');
+  function ymd(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+  function todayLocal() { return ymd(new Date()); }
+  function parseYmd(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+  function mondayOfThisWeek() {
+    const d = new Date();
+    const diff = (d.getDay() + 6) % 7; // 月曜からの日数
+    d.setDate(d.getDate() - diff);
+    return ymd(d);
+  }
+  const WD = ['日', '月', '火', '水', '木', '金', '土'];
+  function shortDate(s) { const d = parseYmd(s); return `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`; }
+  function longDate(s) { const d = parseYmd(s); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${WD[d.getDay()]})`; }
+
+  function pageText(hw) {
+    if (hw.pageFrom === '' && hw.pageTo === '') return '';
+    if (hw.pageFrom !== '' && hw.pageTo !== '' && hw.pageFrom !== hw.pageTo) return `P${hw.pageFrom}〜P${hw.pageTo}`;
+    return `P${hw.pageFrom !== '' ? hw.pageFrom : hw.pageTo}`;
+  }
+  function hwLabel(hw) { const p = pageText(hw); return p ? `${hw.title} ${p}` : hw.title; }
+  function hwKey(hw) { return [hw.date, hw.title, hw.pageFrom, hw.pageTo].join('|'); }
+
+  function sortedStudents() { return [...db.students].sort((a, b) => (a.no - b.no) || (a.id - b.id)); }
+  function studentById(id) { return db.students.find(s => s.id === id); }
+  function studentLabel(s) { return `${s.no} ${s.name}`; }
+  function compareHw(a, b) { return a.date.localeCompare(b.date) || hwLabel(a).localeCompare(hwLabel(b), 'ja'); }
+
+  // ページ入力欄を読む（左だけ／右だけ／両方／空欄）
+  function readPages(fromId, toId) {
+    let f = document.getElementById(fromId).value.trim();
+    let t = document.getElementById(toId).value.trim();
+    if (f === '' && t !== '') { f = t; t = ''; }
+    if (f !== '' && t !== '' && Number(t) < Number(f)) { alert('ページの範囲が逆になっています。'); return null; }
+    if (f === t) t = '';
+    return { pageFrom: f, pageTo: t };
+  }
+
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    renderAll();
+  }
+
+  function renderAll() {
+    renderStudents();
+    renderHwSelects();
+    renderCheck();
+    renderPersonal();
+    renderDataTable();
+    renderUnsubmitted();
+  }
+
+  // ---------- 期間の選択（1日／期間／全期間） ----------
+  function buildPeriod(prefix, defaultMode, onChange) {
+    const box = document.getElementById(prefix + '-period');
+    box.innerHTML = `
+      <div class="tabs">
+        <label><input type="radio" name="${prefix}-mode" value="day">1日</label>
+        <label><input type="radio" name="${prefix}-mode" value="range">期間</label>
+        <label><input type="radio" name="${prefix}-mode" value="all">全期間</label>
+      </div>
+      <div class="flex-gap">
+        <span id="${prefix}-day-box"><input type="date" id="${prefix}-day"></span>
+        <span id="${prefix}-range-box"><input type="date" id="${prefix}-from"> 〜 <input type="date" id="${prefix}-to"></span>
+      </div>`;
+    document.getElementById(prefix + '-day').value = todayLocal();
+    document.getElementById(prefix + '-from').value = mondayOfThisWeek();
+    document.getElementById(prefix + '-to').value = todayLocal();
+    box.querySelector(`input[value="${defaultMode}"]`).checked = true;
+    box.querySelectorAll('input').forEach(el => el.addEventListener('change', () => { updatePeriodBoxes(prefix); onChange(); }));
+    updatePeriodBoxes(prefix);
+  }
+  function periodMode(prefix) { return document.querySelector(`input[name="${prefix}-mode"]:checked`).value; }
+  function updatePeriodBoxes(prefix) {
+    const m = periodMode(prefix);
+    document.getElementById(prefix + '-day-box').style.display = m === 'day' ? '' : 'none';
+    document.getElementById(prefix + '-range-box').style.display = m === 'range' ? '' : 'none';
+  }
+  // 期間内の宿題かどうかを判定する関数を返す
+  function periodFilter(prefix) {
+    const m = periodMode(prefix);
+    if (m === 'day') { const d = document.getElementById(prefix + '-day').value; return h => h.date === d; }
+    if (m === 'range') {
+      const f = document.getElementById(prefix + '-from').value;
+      const t = document.getElementById(prefix + '-to').value;
+      return h => (!f || h.date >= f) && (!t || h.date <= t);
+    }
+    return () => true;
+  }
+  function periodText(prefix) {
+    const m = periodMode(prefix);
+    if (m === 'day') return longDate(document.getElementById(prefix + '-day').value);
+    if (m === 'range') {
+      const f = document.getElementById(prefix + '-from').value;
+      const t = document.getElementById(prefix + '-to').value;
+      return `${f ? longDate(f) : '最初'} 〜 ${t ? longDate(t) : '最後'}`;
+    }
+    return '全期間';
+  }
+
+  function toggleFlag(name) {
+    ui[name] = !ui[name];
+    renderAll();
+  }
+  function setToggleButton(id, on) { document.getElementById(id).classList.toggle('on', on); }
+
+  // ---------- ① 児童登録 ----------
+  function addStudentsBulk() {
+    const ta = document.getElementById('student-bulk');
+    const lines = ta.value.split(/\r?\n/);
+    let nextNo = db.students.reduce((m, s) => Math.max(m, s.no), 0) + 1;
+    const added = [], skipped = [];
+    lines.forEach(line => {
+      // Excelの2列（番号[タブ]名前）か、読点・カンマ区切りにも対応
+      const pieces = line.includes('\t') ? [line.replace(/\t+/g, ' ')] : line.split(/[、,，]/);
+      pieces.forEach(raw => {
+        const text = raw.replace(/\s+/g, ' ').trim();
+        if (!text || /^\d+$/.test(text)) return;
+        let no = null, name = text;
+        const m = text.match(/^(\d+)[\s.．:：)）番]+(.+)$/);
+        if (m) { no = Number(m[1]); name = m[2].trim(); }
+        if (db.students.some(s => s.name === name)) { skipped.push(name); return; }
+        if (no == null) no = nextNo;
+        nextNo = Math.max(nextNo, no + 1);
+        db.students.push({ id: newId(), no: no, name: name });
+        added.push(name);
+      });
+    });
+    if (added.length === 0 && skipped.length === 0) { alert('名前を入力してください。'); return; }
+    ta.value = '';
+    let msg = `${added.length}名を登録しました。`;
+    if (skipped.length) msg += `\n同じ名前がすでにあるため登録しなかった児童: ${skipped.join('、')}`;
+    alert(msg);
+    saveData();
+  }
+
+  function setStudentNo(studentId, value) {
+    const s = studentById(studentId);
+    const n = Number(value);
+    if (!s || !Number.isInteger(n) || n < 1) { renderStudents(); return; }
+    s.no = n;
+    saveData();
+  }
+
+  function renameStudent(studentId) {
+    const s = studentById(studentId);
+    if (!s) return;
+    const name = (prompt('新しい名前を入力してください。', s.name) || '').trim();
+    if (!name || name === s.name) return;
+    if (db.students.some(o => o.name === name)) { alert('同じ名前の児童がすでにいます。'); return; }
+    s.name = name;
+    saveData();
+  }
+
+  function deleteStudent(studentId) {
+    const s = studentById(studentId);
+    if (!s) return;
+    if (confirm(`児童「${s.name}」を削除しますか？\n（関連する宿題データも消去されます）`)) {
+      db.students = db.students.filter(x => x.id !== studentId);
+      db.homeworks = db.homeworks.filter(h => h.studentId !== studentId);
+      saveData();
+    }
+  }
+
+  function renderStudents() {
+    const listDiv = document.getElementById('student-list');
+    const select = document.getElementById('hw-student-select');
+    const students = sortedStudents();
+
+    if (students.length === 0) {
+      listDiv.innerHTML = '<p class="muted">登録されている児童はいません。</p>';
+    } else {
+      const nos = students.map(s => s.no);
+      const dupNos = new Set(nos.filter((n, i) => nos.indexOf(n) !== i));
+      let html = `<p><strong>登録済児童 (${students.length}名)</strong> <span class="note">番号は直接書きかえられます</span></p>`;
+      if (dupNos.size) html += `<p class="status-yet">出席番号が重複しています: ${[...dupNos].join('、')}番</p>`;
+      html += '<div class="student-list">';
+      students.forEach(s => {
+        html += `<div class="student-tag">
+          <input type="number" min="1" value="${s.no}" onchange="setStudentNo(${s.id}, this.value)" title="出席番号">
+          <span class="name">${esc(s.name)}</span>
+          <button class="btn-sub" onclick="renameStudent(${s.id})">変更</button>
+          <button class="btn-danger" onclick="deleteStudent(${s.id})">削除</button>
+        </div>`;
+      });
+      listDiv.innerHTML = html + '</div>';
+    }
+
+    const cur = select.value;
+    select.innerHTML = '<option value="">児童を選択</option>' +
+      students.map(s => `<option value="${s.id}">${esc(studentLabel(s))}</option>`).join('');
+    select.value = cur;
+  }
+
+  // ---------- ② 宿題登録 ----------
+  function addBulkHomework() {
+    const date = document.getElementById('bulk-hw-date').value;
+    const title = document.getElementById('bulk-hw-title').value.trim();
+    if (!date || !title) { alert('日付と宿題名を入力してください。'); return; }
+    if (db.students.length === 0) { alert('先に児童を登録してください。'); return; }
+    const pages = readPages('bulk-hw-from', 'bulk-hw-to');
+    if (!pages) return;
+
+    const proto = { date, title, ...pages };
+    const key = hwKey(proto);
+    // すでに同じ宿題が入っている児童には追加しない（二重登録防止）
+    const targets = db.students.filter(s => !db.homeworks.some(h => h.studentId === s.id && hwKey(h) === key));
+    if (targets.length === 0) { alert(`${shortDate(date)} の「${hwLabel(proto)}」は全員分すでに登録されています。`); return; }
+
+    targets.forEach(s => db.homeworks.push({ id: newId(), studentId: s.id, submitted: false, ...proto }));
+
+    ['bulk-hw-title', 'bulk-hw-from', 'bulk-hw-to'].forEach(id => document.getElementById(id).value = '');
+    const skipped = db.students.length - targets.length;
+    alert(`${targets.length}名に「${hwLabel(proto)}」を登録しました！` + (skipped > 0 ? `\n（すでに登録済みの${skipped}名は追加していません）` : ''));
+    saveData();
+  }
+
+  function addHomework() {
+    const date = document.getElementById('hw-date').value;
+    const studentId = Number(document.getElementById('hw-student-select').value);
+    const title = document.getElementById('hw-title').value.trim();
+    if (!date || !studentId || !title) { alert('日付・児童・宿題名を入力してください。'); return; }
+    const pages = readPages('hw-from', 'hw-to');
+    if (!pages) return;
+
+    const proto = { date, title, ...pages };
+    if (db.homeworks.some(h => h.studentId === studentId && hwKey(h) === hwKey(proto))) {
+      alert(`この児童には ${shortDate(date)} の「${hwLabel(proto)}」がすでに登録されています。`);
+      return;
+    }
+    db.homeworks.push({ id: newId(), studentId, submitted: false, ...proto });
+    ['hw-title', 'hw-from', 'hw-to'].forEach(id => document.getElementById(id).value = '');
+    saveData();
+  }
+
+  // ---------- 提出の切り替え・削除 ----------
+  function toggleSubmit(hwId) {
+    const hw = db.homeworks.find(h => h.id === hwId);
+    if (hw) { hw.submitted = !hw.submitted; saveData(); }
+  }
+  function markSubmitted(hwId) {
+    const hw = db.homeworks.find(h => h.id === hwId);
+    if (hw) { hw.submitted = true; saveData(); }
+  }
+  function submitAllForStudent(studentId, date) {
+    db.homeworks.forEach(h => { if (h.studentId === studentId && h.date === date) h.submitted = true; });
+    saveData();
+  }
+  function submitAllForKey(key) {
+    if (!confirm('この宿題を全員「提出済」にしますか？')) return;
+    db.homeworks.forEach(h => { if (hwKey(h) === key) h.submitted = true; });
+    saveData();
+  }
+  function deleteHomework(hwId) {
+    if (confirm('この宿題データを削除しますか？')) {
+      db.homeworks = db.homeworks.filter(h => h.id !== hwId);
+      saveData();
+    }
+  }
+  function deleteHomeworkKey(key) {
+    const sample = db.homeworks.find(h => hwKey(h) === key);
+    if (!sample) return;
+    if (confirm(`${shortDate(sample.date)}「${hwLabel(sample)}」を全員分削除しますか？`)) {
+      db.homeworks = db.homeworks.filter(h => hwKey(h) !== key);
+      saveData();
+    }
+  }
+
+  // ---------- ③ 提出チェック ----------
+  function setCheckMode(mode) {
+    ui.checkMode = mode;
+    ['date', 'hw', 'title'].forEach(m => {
+      document.getElementById('check-ctrl-' + m).style.display = m === mode ? '' : 'none';
+    });
+    renderCheck();
+  }
+
+  function renderHwSelects() {
+    // 宿題（日付＋宿題名＋ページ）ごと、新しい順
+    const hwSel = document.getElementById('check-hw');
+    const cur = hwSel.value;
+    const groups = new Map();
+    [...db.homeworks].sort((a, b) => -compareHw(a, b)).forEach(h => {
+      const k = hwKey(h);
+      if (!groups.has(k)) groups.set(k, h);
+    });
+    hwSel.innerHTML = groups.size === 0 ? '<option value="">（宿題がありません）</option>' :
+      [...groups].map(([k, h]) => `<option value="${esc(k)}">${esc(shortDate(h.date) + ' ' + hwLabel(h))}</option>`).join('');
+    if (groups.has(cur)) hwSel.value = cur;
+
+    // 宿題名ごと
+    const tSel = document.getElementById('check-title');
+    const curT = tSel.value;
+    const titles = [...new Set(db.homeworks.map(h => h.title))].sort((a, b) => a.localeCompare(b, 'ja'));
+    tSel.innerHTML = titles.length === 0 ? '<option value="">（宿題がありません）</option>' :
+      titles.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    if (titles.includes(curT)) tSel.value = curT;
+  }
+
+  function chipHtml(hw, opts = {}) {
+    const label = (opts.withDate ? shortDate(hw.date) + ' ' : '') + (opts.pagesOnly ? (pageText(hw) || hw.title) : hwLabel(hw));
+    return `<button class="chip ${hw.submitted ? 'done' : 'yet'}" onclick="toggleSubmit(${hw.id})" title="押すと切り替え">${hw.submitted ? '✓ ' : ''}${esc(label)}</button>`;
+  }
+
+  function renderCheck() {
+    setToggleButton('check-only-yet', ui.checkOnlyYet);
+    const c = document.getElementById('check-container');
+    if (ui.checkMode === 'date') return renderCheckByDate(c);
+    if (ui.checkMode === 'hw') return renderCheckByHw(c);
+    return renderCheckByTitle(c);
+  }
+
+  function renderCheckByDate(c) {
+    const date = document.getElementById('check-date').value;
+    const hws = db.homeworks.filter(h => h.date === date);
+    if (hws.length === 0) { c.innerHTML = '<p>指定日の宿題データはありません。</p>'; return; }
+
+    let html = '<div class="student-grid">', shown = 0;
+    sortedStudents().forEach(s => {
+      const list = hws.filter(h => h.studentId === s.id).sort(compareHw);
+      if (list.length === 0) return;
+      if (ui.checkOnlyYet && list.every(h => h.submitted)) return;
+      shown++;
+      html += `<div class="student-card">
+        <div class="student-card-header">
+          <h4>${esc(studentLabel(s))}</h4>
+          <button class="btn-green" style="font-size:12px; padding:3px 6px;" onclick="submitAllForStudent(${s.id}, '${date}')">全提出済</button>
+        </div>`;
+      list.forEach(h => {
+        html += `<div class="hw-item-row">
+          <div><span>${esc(hwLabel(h))}</span>
+            <span class="${h.submitted ? 'status-done' : 'status-yet'}" style="margin-left:5px;">${h.submitted ? '✓ 済' : '未'}</span></div>
+          <div style="white-space:nowrap;">
+            <button class="btn-sub" onclick="toggleSubmit(${h.id})">${h.submitted ? '未に戻す' : '提出'}</button>
+            <button class="btn-danger" onclick="deleteHomework(${h.id})">×</button>
+          </div>
+        </div>`;
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+    c.innerHTML = shown === 0 ? '<p>この日の未提出はありません。</p>' : html;
+  }
+
+  function renderCheckByHw(c) {
+    const key = document.getElementById('check-hw').value;
+    const hws = db.homeworks.filter(h => hwKey(h) === key);
+    if (hws.length === 0) { c.innerHTML = '<p>宿題が登録されていません。</p>'; return; }
+    const done = hws.filter(h => h.submitted).length;
+    let html = `<div class="flex-gap count-box"><strong>提出 ${done} / ${hws.length}人</strong>
+      <button class="btn-green" onclick="submitAllForKey(document.getElementById('check-hw').value)">全員提出済にする</button>
+      <button class="btn-danger" onclick="deleteHomeworkKey(document.getElementById('check-hw').value)">この宿題を全員分削除</button></div>`;
+    html += '<table><thead><tr><th style="width:3em">番号</th><th>名前</th><th style="width:9em">状態</th></tr></thead><tbody>';
+    let shown = 0;
+    sortedStudents().forEach(s => {
+      const h = hws.find(x => x.studentId === s.id);
+      if (!h || (ui.checkOnlyYet && h.submitted)) return;
+      shown++;
+      html += `<tr><td>${s.no}</td><td>${esc(s.name)}</td>
+        <td><button class="chip ${h.submitted ? 'done' : 'yet'}" onclick="toggleSubmit(${h.id})">${h.submitted ? '✓ 提出済' : '未提出 → 提出'}</button></td></tr>`;
+    });
+    html += '</tbody></table>';
+    c.innerHTML = shown === 0 ? html.replace('<tbody></tbody>', '<tbody><tr><td colspan="3">未提出の児童はいません。</td></tr></tbody>') : html;
+  }
+
+  function renderCheckByTitle(c) {
+    const title = document.getElementById('check-title').value;
+    const hws = db.homeworks.filter(h => h.title === title);
+    if (hws.length === 0) { c.innerHTML = '<p>宿題が登録されていません。</p>'; return; }
+    const done = hws.filter(h => h.submitted).length;
+    let html = `<div class="count-box"><strong>「${esc(title)}」全${new Set(hws.map(hwKey)).size}回分　提出 ${done} / ${hws.length}件</strong></div><div class="row-list">`;
+    let shown = 0;
+    sortedStudents().forEach(s => {
+      const list = hws.filter(h => h.studentId === s.id).sort(compareHw);
+      if (list.length === 0) return;
+      if (ui.checkOnlyYet && list.every(h => h.submitted)) return;
+      shown++;
+      const sd = list.filter(h => h.submitted).length;
+      html += `<div class="row"><div class="row-name">${esc(studentLabel(s))}<span class="rate">${sd} / ${list.length}</span></div>
+        <div class="row-items">${list.map(h => chipHtml(h, { withDate: true, pagesOnly: true })).join('')}</div></div>`;
+    });
+    html += '</div>';
+    c.innerHTML = shown === 0 ? '<p>未提出の児童はいません。</p>' : html;
+  }
+
+  // ---------- ④ 個人別データ ----------
+  function renderPersonal() {
+    setToggleButton('pr-only-yet', ui.prOnlyYet);
+    const inP = periodFilter('pr');
+    const hws = db.homeworks.filter(inP);
+    const total = hws.length, done = hws.filter(h => h.submitted).length;
+    document.getElementById('pr-stats').innerHTML =
+      `<strong>${esc(periodText('pr'))}</strong>　クラス全体の提出率: <strong>${total ? (done / total * 100).toFixed(1) : 0}%</strong>（${total}件中 ${done}件提出）`;
+
+    const c = document.getElementById('pr-container');
+    if (db.students.length === 0) { c.innerHTML = '<p class="muted">児童が登録されていません。</p>'; return; }
+    const showDate = periodMode('pr') !== 'day';
+    let html = '<div class="row-list">', shown = 0;
+    sortedStudents().forEach(s => {
+      const list = hws.filter(h => h.studentId === s.id).sort(compareHw);
+      const sd = list.filter(h => h.submitted).length;
+      if (ui.prOnlyYet && sd === list.length) return;
+      shown++;
+      const rate = list.length ? (sd / list.length * 100).toFixed(1) : '-';
+      html += `<div class="row"><div class="row-name">${esc(studentLabel(s))}<span class="rate">${sd} / ${list.length}（${rate}${list.length ? '%' : ''}）</span></div>
+        <div class="row-items">${list.length ? list.map(h => chipHtml(h, { withDate: showDate })).join('') : '<span class="muted">宿題なし</span>'}</div></div>`;
+    });
+    html += '</div>';
+    c.innerHTML = shown === 0 ? '<p>この期間に未提出のある児童はいません。</p>' : html;
+  }
+
+  function renderDataTable() {
+    const tbody = document.querySelector('#data-table tbody');
+    const rows = [...db.homeworks].sort((a, b) => {
+      const sa = studentById(a.studentId), sb = studentById(b.studentId);
+      return b.date.localeCompare(a.date) || ((sa ? sa.no : 0) - (sb ? sb.no : 0)) || compareHw(a, b);
+    });
+    tbody.innerHTML = rows.map(h => {
+      const s = studentById(h.studentId);
+      return `<tr><td>${esc(shortDate(h.date))}</td><td>${s ? s.no : ''}</td><td>${s ? esc(s.name) : '不明'}</td><td>${esc(hwLabel(h))}</td>
+        <td class="${h.submitted ? 'status-done' : 'status-yet'}">${h.submitted ? '提出済' : '未提出'}</td>
+        <td><button class="btn-danger" onclick="deleteHomework(${h.id})">削除</button></td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="muted">宿題データはありません。</td></tr>';
+  }
+
+  // ---------- ⑤ 未提出一覧 ----------
+  // 児童ごと・日付ごとにまとめた未提出データ
+  function unsubmittedGroups() {
+    const inP = periodFilter('un');
+    const list = db.homeworks.filter(h => !h.submitted && inP(h));
+    const result = [];
+    sortedStudents().forEach(s => {
+      const mine = list.filter(h => h.studentId === s.id).sort(compareHw);
+      if (mine.length === 0) return;
+      const byDate = [];
+      mine.forEach(h => {
+        let g = byDate.find(x => x.date === h.date);
+        if (!g) { g = { date: h.date, items: [] }; byDate.push(g); }
+        g.items.push(h);
+      });
+      result.push({ student: s, count: mine.length, byDate });
+    });
+    return result;
+  }
+
+  function renderUnsubmitted() {
+    const groups = unsubmittedGroups();
+    const count = groups.reduce((n, g) => n + g.count, 0);
+    document.getElementById('un-stats').innerHTML =
+      `<strong>${esc(periodText('un'))}</strong>　未提出 <strong>${groups.length}名・${count}件</strong>`;
+    const c = document.getElementById('un-container');
+    if (groups.length === 0) { c.innerHTML = '<p>未提出の宿題はありません。</p>'; return; }
+    const showDate = periodMode('un') !== 'day';
+    let html = '<div class="row-list">';
+    groups.forEach(g => {
+      html += `<div class="row"><div class="row-name">${esc(studentLabel(g.student))}<span class="rate">${g.count}件</span></div><div class="row-items">`;
+      g.byDate.forEach(d => {
+        if (showDate) html += `<span class="date-label">${esc(shortDate(d.date))}</span>`;
+        d.items.forEach(h => {
+          html += `<button class="chip yet" onclick="markSubmitted(${h.id})">${esc(hwLabel(h))}<span class="act">提出</span></button>`;
+        });
+      });
+      html += '</div></div>';
+    });
+    c.innerHTML = html + '</div>';
+  }
+
+  // ---------- A4印刷 ----------
+  function printUnsubmitted() {
+    const groups = unsubmittedGroups();
+    const count = groups.reduce((n, g) => n + g.count, 0);
+    const showDate = periodMode('un') !== 'day';
+    let html = `<h1>宿題未提出一覧</h1>
+      <div class="print-meta"><span>対象: ${esc(periodText('un'))}</span><span>未提出 ${groups.length}名・${count}件　作成: ${esc(longDate(todayLocal()))}</span></div>`;
+    if (groups.length === 0) {
+      html += '<p>未提出の宿題はありません。</p>';
+    } else {
+      html += '<table><thead><tr><th class="p-no">番号</th><th class="p-name">名前</th><th>未提出の宿題（提出したら☑）</th></tr></thead><tbody>';
+      groups.forEach(g => {
+        const items = [];
+        g.byDate.forEach(d => d.items.forEach(h => {
+          items.push(`<span class="p-item">□ ${showDate ? esc(shortDate(h.date)) + ' ' : ''}${esc(hwLabel(h))}</span>`);
+        }));
+        html += `<tr><td class="p-no">${g.student.no}</td><td class="p-name">${esc(g.student.name)}</td><td>${items.join(' ')}</td></tr>`;
+      });
+      html += '</tbody></table>';
+    }
+    document.getElementById('print-area').innerHTML = html;
+    window.print();
+  }
+
+  // ---------- 起動 ----------
+  window.onload = function() {
+    const today = todayLocal();
+    // ブラウザに「このデータを自動で消さないで」と依頼（端末内だけの処理）
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+    ['bulk-hw-date', 'hw-date', 'check-date'].forEach(id => document.getElementById(id).value = today);
+    buildPeriod('pr', 'range', renderPersonal);
+    buildPeriod('un', 'day', renderUnsubmitted);
+    renderAll();
+  };
+</script>
+</body>
+</html>
