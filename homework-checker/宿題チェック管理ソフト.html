@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>宿題チェック管理ソフト</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; background: #f5f5f5; color: #333; }
+    h1, h2, h3 { color: #2c3e50; }
+    .card { background: #fff; padding: 15px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .card-highlight { background: #eef7ff; border: 1px solid #3498db; }
+    input, select, button { padding: 8px; margin: 5px 0; font-size: 14px; }
+    button { cursor: pointer; background: #3498db; color: white; border: none; border-radius: 4px; }
+    button:hover { background: #2980b9; }
+    button.btn-green { background: #2ecc71; }
+    button.btn-green:hover { background: #27ae60; }
+    button.btn-danger { background: #e74c3c; padding: 4px 8px; font-size: 12px; }
+    button.btn-danger:hover { background: #c0392b; }
+    button.btn-sub { background: #7f8c8d; padding: 4px 8px; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f0f0f0; }
+    .status-done { color: green; font-weight: bold; }
+    .status-yet { color: red; font-weight: bold; }
+    .flex-gap { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .student-tag { display: inline-flex; align-items: center; background: #eee; padding: 4px 8px; margin: 3px; border-radius: 4px; gap: 6px; }
+    
+    /* 児童ごとのチェック表示用グリッド */
+    .student-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .student-card {
+      background: #fafafa;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .student-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+    .student-card-header h4 { margin: 0; font-size: 16px; color: #2c3e50; }
+    .hw-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px dashed #eee;
+    }
+    @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+  <h1>宿題チェック管理システム</h1>
+
+  <!-- ① 児童名の登録・管理 -->
+  <div class="card">
+    <h2>① 児童名の登録・削除</h2>
+    <form id="student-form" onsubmit="addStudent(event)">
+      <input type="text" id="student-name" placeholder="児童名を入力してEnter" required>
+      <button type="submit">登録</button>
+    </form>
+    <div id="student-list" style="margin-top: 10px;"></div>
+  </div>
+
+  <!-- ② 宿題の登録（一括 ＆ 個別） -->
+  <div class="card card-highlight">
+    <h2>② 宿題の登録</h2>
+    
+    <h3>【全員に一括割当】 クラス全員に同じ宿題を出す場合</h3>
+    <div class="flex-gap">
+      <label>日付: <input type="date" id="bulk-hw-date"></label>
+      <input type="text" id="bulk-hw-title" placeholder="宿題名（例: 漢字ドリル p.10）">
+      <button onclick="addBulkHomework()" class="btn-green">全員分を一括作成</button>
+    </div>
+
+    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ccc;">
+
+    <h3>【個別追加】 あとから個人別に追加・提出された場合</h3>
+    <div class="flex-gap">
+      <label>日付: <input type="date" id="hw-date"></label>
+      <select id="hw-student-select"><option value="">児童を選択</option></select>
+      <input type="text" id="hw-title" placeholder="宿題名（例: 計算ドリル）">
+      <button onclick="addHomework()">個別に追加入力</button>
+    </div>
+  </div>
+
+  <!-- ③ 提出チェック（児童ごとにグループ表示） -->
+  <div class="card">
+    <h2>③ 宿題提出チェック（児童ごと）</h2>
+    <div class="flex-gap">
+      <label>日付選択: <input type="date" id="check-date" onchange="renderCheckList()"></label>
+    </div>
+    <div id="check-list-container"></div>
+  </div>
+
+  <!-- ④ 毎日の宿題提出状況 ＆ 個人別累計提出率 -->
+  <div class="card">
+    <h2>④ 全体の提出状況一覧 ＆ 個人別累計提出率</h2>
+    <div id="summary-stats" style="margin-bottom: 15px;"></div>
+
+    <div class="grid-2">
+      <!-- 個人別累計提出率 -->
+      <div>
+        <h3>【個人別】累計提出率</h3>
+        <table id="personal-rate-table">
+          <thead>
+            <tr>
+              <th>児童名</th>
+              <th>提出 / 宿題数</th>
+              <th>累計提出率</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- 日別・宿題別一覧 -->
+      <div>
+        <h3>【全体】日別・宿題別データ（削除可能）</h3>
+        <table id="summary-table">
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>児童名</th>
+              <th>宿題名</th>
+              <th>状態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ 未提出児童と宿題名の一覧 -->
+  <div class="card">
+    <h2>⑤ 未提出一覧</h2>
+    <div class="flex-gap">
+      <label>表示対象日: <input type="date" id="unsubmitted-date" onchange="renderUnsubmitted()"></label>
+    </div>
+    <div id="unsubmitted-container"></div>
+  </div>
+
+<script>
+  let db = JSON.parse(localStorage.getItem('hw_app_db')) || {
+    students: [],
+    homeworks: []
+  };
+
+  window.onload = function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('bulk-hw-date').value = today;
+    document.getElementById('hw-date').value = today;
+    document.getElementById('check-date').value = today;
+    document.getElementById('unsubmitted-date').value = today;
+
+    renderAll();
+  };
+
+  function saveData() {
+    localStorage.setItem('hw_app_db', JSON.stringify(db));
+    renderAll();
+  }
+
+  function renderAll() {
+    renderStudents();
+    renderCheckList();
+    renderSummary();
+    renderUnsubmitted();
+  }
+
+  // ① 児童登録・一覧表示・削除
+  function addStudent(e) {
+    e.preventDefault();
+    const input = document.getElementById('student-name');
+    const name = input.value.trim();
+    if (name) {
+      db.students.push({ id: Date.now(), name: name });
+      input.value = '';
+      saveData();
+    }
+  }
+
+  function deleteStudent(studentId, name) {
+    if (confirm(`児童「${name}」を削除しますか？\n（関連する宿題データも消去されます）`)) {
+      db.students = db.students.filter(s => s.id !== studentId);
+      db.homeworks = db.homeworks.filter(h => h.studentId !== studentId);
+      saveData();
+    }
+  }
+
+  function renderStudents() {
+    const listDiv = document.getElementById('student-list');
+    const select = document.getElementById('hw-student-select');
+    
+    if (db.students.length === 0) {
+      listDiv.innerHTML = '<p style="color: #777;">登録されている児童はいません。</p>';
+    } else {
+      let html = `<div><strong>登録済児童 (${db.students.length}名):</strong></div><div style="margin-top: 5px;">`;
+      db.students.forEach(s => {
+        html += `<span class="student-tag">${s.name} <button class="btn-danger" onclick="deleteStudent(${s.id}, '${s.name}')">削除</button></span>`;
+      });
+      html += '</div>';
+      listDiv.innerHTML = html;
+    }
+    
+    const currentSelectVal = select.value;
+    select.innerHTML = '<option value="">児童を選択</option>';
+    db.students.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      select.appendChild(opt);
+    });
+    select.value = currentSelectVal;
+  }
+
+  // ② 全員分を一括作成
+  function addBulkHomework() {
+    const date = document.getElementById('bulk-hw-date').value;
+    const title = document.getElementById('bulk-hw-title').value.trim();
+
+    if (!date || !title) {
+      alert('日付と宿題名を入力してください。');
+      return;
+    }
+
+    if (db.students.length === 0) {
+      alert('先に児童を登録してください。');
+      return;
+    }
+
+    const baseTime = Date.now();
+    db.students.forEach((student, index) => {
+      db.homeworks.push({
+        id: baseTime + index,
+        date: date,
+        studentId: student.id,
+        title: title,
+        submitted: false
+      });
+    });
+
+    document.getElementById('bulk-hw-title').value = '';
+    alert(`全児童（${db.students.length}名）に「${title}」を一括登録しました！`);
+    saveData();
+  }
+
+  // ② 個別追加
+  function addHomework() {
+    const date = document.getElementById('hw-date').value;
+    const studentId = Number(document.getElementById('hw-student-select').value);
+    const title = document.getElementById('hw-title').value.trim();
+
+    if (!date || !studentId || !title) {
+      alert('日付・児童・宿題名を入力してください。');
+      return;
+    }
+
+    db.homeworks.push({
+      id: Date.now(),
+      date: date,
+      studentId: studentId,
+      title: title,
+      submitted: false
+    });
+
+    document.getElementById('hw-title').value = '';
+    saveData();
+  }
+
+  // ③ 提出チェック画面（児童ごとにカード化）
+  function renderCheckList() {
+    const targetDate = document.getElementById('check-date').value;
+    const container = document.getElementById('check-list-container');
+    const targetHws = db.homeworks.filter(h => h.date === targetDate);
+
+    if (targetHws.length === 0) {
+      container.innerHTML = '<p>指定日の宿題データはありません。</p>';
+      return;
+    }
+
+    // 児童ごとに宿題をグループ化
+    const studentMap = {};
+    targetHws.forEach(hw => {
+      if (!studentMap[hw.studentId]) {
+        studentMap[hw.studentId] = [];
+      }
+      studentMap[hw.studentId].push(hw);
+    });
+
+    let html = '<div class="student-grid">';
+    db.students.forEach(student => {
+      const hws = studentMap[student.id];
+      if (hws && hws.length > 0) {
+        html += `<div class="student-card">
+          <div class="student-card-header">
+            <h4>${student.name}</h4>
+            <button class="btn-green" style="font-size:12px; padding:3px 6px;" onclick="submitAllForStudent(${student.id}, '${targetDate}')">全提出済</button>
+          </div>`;
+        
+        hws.forEach(hw => {
+          html += `<div class="hw-item-row">
+            <div>
+              <span>${hw.title}</span>
+              <span class="${hw.submitted ? 'status-done' : 'status-yet'}" style="margin-left: 5px;">
+                ${hw.submitted ? '✓ 済' : '未'}
+              </span>
+            </div>
+            <div>
+              <button class="btn-sub" onclick="toggleSubmit(${hw.id})">${hw.submitted ? '未に戻す' : '提出'}</button>
+              <button class="btn-danger" onclick="deleteHomework(${hw.id})">×</button>
+            </div>
+          </div>`;
+        });
+
+        html += `</div>`;
+      }
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  function toggleSubmit(hwId) {
+    const hw = db.homeworks.find(h => h.id === hwId);
+    if (hw) {
+      hw.submitted = !hw.submitted;
+      saveData();
+    }
+  }
+
+  // 指定児童の対象日の宿題をまとめて提出済にする
+  function submitAllForStudent(studentId, date) {
+    let updated = false;
+    db.homeworks.forEach(hw => {
+      if (hw.studentId === studentId && hw.date === date) {
+        hw.submitted = true;
+        updated = true;
+      }
+    });
+    if (updated) saveData();
+  }
+
+  // 宿題データの削除機能
+  function deleteHomework(hwId) {
+    if (confirm('この宿題データを削除しますか？')) {
+      db.homeworks = db.homeworks.filter(h => h.id !== hwId);
+      saveData();
+    }
+  }
+
+  // ④ 一覧＆個人別累計％
+  function renderSummary() {
+    const total = db.homeworks.length;
+    const submittedCount = db.homeworks.filter(h => h.submitted).length;
+    const percentage = total > 0 ? ((submittedCount / total) * 100).toFixed(1) : 0;
+
+    document.getElementById('summary-stats').innerHTML = 
+      `<strong>クラス全体の累計提出率: ${percentage}%</strong> （全体 ${total} 件中 ${submittedCount} 件提出済）`;
+
+    // 1. 個人別累計提出率テーブル
+    const personalTbody = document.querySelector('#personal-rate-table tbody');
+    personalTbody.innerHTML = '';
+
+    db.students.forEach(student => {
+      const studentHws = db.homeworks.filter(h => h.studentId === student.id);
+      const studentTotal = studentHws.length;
+      const studentSubmitted = studentHws.filter(h => h.submitted).length;
+      const studentRate = studentTotal > 0 ? ((studentSubmitted / studentTotal) * 100).toFixed(1) : 0;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${student.name}</td>
+        <td>${studentSubmitted} / ${studentTotal}</td>
+        <td><strong>${studentRate}%</strong></td>
+      `;
+      personalTbody.appendChild(tr);
+    });
+
+    // 2. 日別・宿題別一覧テーブル
+    const summaryTbody = document.querySelector('#summary-table tbody');
+    summaryTbody.innerHTML = '';
+    
+    const sortedHws = [...db.homeworks].sort((a,b) => b.date.localeCompare(a.date));
+    sortedHws.forEach(hw => {
+      const student = db.students.find(s => s.id === hw.studentId);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${hw.date}</td>
+        <td>${student ? student.name : '不明'}</td>
+        <td>${hw.title}</td>
+        <td class="${hw.submitted ? 'status-done' : 'status-yet'}">${hw.submitted ? '提出済' : '未提出'}</td>
+        <td><button class="btn-danger" onclick="deleteHomework(${hw.id})">削除</button></td>
+      `;
+      summaryTbody.appendChild(tr);
+    });
+  }
+
+  // ⑤ 未提出一覧
+  function renderUnsubmitted() {
+    const targetDate = document.getElementById('unsubmitted-date').value;
+    const container = document.getElementById('unsubmitted-container');
+    const unsubmittedList = db.homeworks.filter(h => h.date === targetDate && !h.submitted);
+
+    if (unsubmittedList.length === 0) {
+      container.innerHTML = '<p>この日の未提出宿題はありません。</p>';
+      return;
+    }
+
+    let html = '<table><tr><th>児童名</th><th>未提出の宿題名</th></tr>';
+    unsubmittedList.forEach(hw => {
+      const student = db.students.find(s => s.id === hw.studentId);
+      html += `<tr>
+        <td>${student ? student.name : '不明'}</td>
+        <td>${hw.title}</td>
+      </tr>`;
+    });
+    html += '</table>';
+    container.innerHTML = html;
+  }
+</script>
+</body>
+</html>
