@@ -77,8 +77,7 @@
       .row-name { width: auto; }
     }
 
-    /* A4印刷：未提出一覧だけを印刷する */
-    @page { size: A4 portrait; margin: 12mm; }
+    /* 印刷：#print-area だけを印刷する（用紙の向きは印刷ボタンごとに切り替え） */
     @media print {
       body { margin: 0; background: #fff; color: #000; }
       body > *:not(#print-area) { display: none !important; }
@@ -94,6 +93,16 @@
       #print-area .p-no { width: 8%; text-align: center; }
       #print-area .p-name { width: 22%; }
       #print-area .p-item { display: inline-block; margin-right: 14px; white-space: nowrap; }
+
+      /* 掲示用：宿題ごとに1枚 */
+      #print-area .poster { page-break-after: always; break-after: page; }
+      #print-area .poster:last-child { page-break-after: auto; break-after: auto; }
+      #print-area .poster-head { border-bottom: 3px solid #000; padding-bottom: 3mm; margin-bottom: 6mm; }
+      #print-area .poster-title { font-size: 34pt; font-weight: bold; line-height: 1.2; }
+      #print-area .poster-sub { font-size: 20pt; margin-top: 1mm; }
+      #print-area .poster-label { font-size: 16pt; margin-bottom: 3mm; }
+      #print-area .poster-names { line-height: 1.6; }
+      #print-area .poster-name { display: inline-block; white-space: nowrap; margin: 0 1.2em 0 0; }
     }
   </style>
 </head>
@@ -183,14 +192,28 @@
     <h2>⑤ 未提出一覧</h2>
     <div id="un-period"></div>
     <div class="flex-gap">
-      <button onclick="printUnsubmitted()">🖨 A4で印刷</button>
+      <button onclick="printUnsubmitted()">🖨 一覧をA4で印刷（縦）</button>
+      <button onclick="printPosters()" class="btn-green">🖨 掲示用をA4で印刷（横・宿題ごとに1枚）</button>
     </div>
     <div id="un-stats" class="count-box"></div>
     <p class="note">「提出」を押すと提出済になり、一覧から消えます。</p>
     <div id="un-container"></div>
   </div>
 
+  <!-- ⑥ バックアップ -->
+  <div class="card">
+    <h2>⑥ データのバックアップ</h2>
+    <p class="note">データはこの端末のブラウザの中だけに保存されています。ときどき「書き出し」でファイルに保存しておくと、ブラウザのデータが消えたときや別の端末に移すときに「読み込み」で元に戻せます。（通信はしません）</p>
+    <div class="flex-gap">
+      <button onclick="exportBackup()">💾 バックアップを書き出す</button>
+      <button class="btn-sub" style="padding:8px;" onclick="document.getElementById('backup-file').click()">📂 バックアップを読み込む</button>
+      <input type="file" id="backup-file" accept=".json,application/json" style="display:none" onchange="importBackup(this)">
+    </div>
+    <p class="note">⚠ バックアップファイルには児童名が入っています。USBメモリなどに保存するときは学校の個人情報の決まりに従ってください。</p>
+  </div>
+
   <!-- 印刷用（画面には表示しない） -->
+  <style id="page-style"></style>
   <div id="print-area"></div>
 
 <script>
@@ -698,7 +721,81 @@
       html += '</tbody></table>';
     }
     document.getElementById('print-area').innerHTML = html;
+    printWithPage('A4 portrait', '12mm');
+  }
+
+  function printWithPage(size, margin) {
+    document.getElementById('page-style').textContent = `@page { size: ${size}; margin: ${margin}; }`;
     window.print();
+  }
+
+  // 掲示用：宿題（日付＋宿題名＋ページ）ごとに1枚、未提出児童の名前を並べる
+  function printPosters() {
+    const inP = periodFilter('un');
+    const groups = new Map();
+    db.homeworks.filter(h => !h.submitted && inP(h)).sort(compareHw).forEach(h => {
+      const k = hwKey(h);
+      if (!groups.has(k)) groups.set(k, { hw: h, students: [] });
+      const s = studentById(h.studentId);
+      if (s) groups.get(k).students.push(s);
+    });
+    if (groups.size === 0) { alert('未提出の宿題はありません。'); return; }
+
+    let html = '';
+    groups.forEach(({ hw, students }) => {
+      students.sort((a, b) => (a.no - b.no) || (a.id - b.id));
+      // 人数が多いときは文字を小さくして1枚に収める
+      const n = students.length;
+      const size = n <= 12 ? 40 : n <= 20 ? 34 : n <= 30 ? 30 : n <= 40 ? 26 : 20;
+      const p = pageText(hw);
+      html += `<div class="poster">
+        <div class="poster-head">
+          <div class="poster-title">${esc(hw.title)}${p ? '　' + esc(p) : ''}</div>
+          <div class="poster-sub">${esc(longDate(hw.date))}</div>
+        </div>
+        <div class="poster-label">まだ出していない人（${n}人）</div>
+        <div class="poster-names" style="font-size:${size}pt">${students.map(s => `<span class="poster-name">${esc(s.name)}</span>`).join('')}</div>
+      </div>`;
+    });
+    document.getElementById('print-area').innerHTML = html;
+    printWithPage('A4 landscape', '12mm');
+  }
+
+  // ---------- ⑥ バックアップ ----------
+  function exportBackup() {
+    const data = { app: '宿題チェッカー', version: 1, exportedAt: new Date().toISOString(), db: db };
+    const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `宿題チェッカー_バックアップ_${todayLocal()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  function importBackup(input) {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try { data = JSON.parse(reader.result); } catch (e) { alert('ファイルを読み込めませんでした。宿題チェッカーのバックアップファイルを選んでください。'); return; }
+      const d = data && data.db;
+      const ok = d && Array.isArray(d.students) && Array.isArray(d.homeworks) &&
+        d.students.every(s => typeof s.id === 'number' && typeof s.name === 'string') &&
+        d.homeworks.every(h => typeof h.id === 'number' && typeof h.studentId === 'number' && typeof h.title === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(h.date));
+      if (!ok) { alert('宿題チェッカーのバックアップファイルではないようです。'); return; }
+      const when = data.exportedAt ? new Date(data.exportedAt).toLocaleString('ja-JP') : '不明';
+      if (!confirm(`バックアップ（${when} 作成、児童${d.students.length}名・宿題${d.homeworks.length}件）を読み込みます。\n今入っているデータは、このバックアップの内容に置きかわります。よろしいですか？`)) return;
+      d.students.forEach((s, i) => { if (s.no == null) s.no = i + 1; });
+      d.homeworks.forEach(h => { if (h.pageFrom == null) h.pageFrom = ''; if (h.pageTo == null) h.pageTo = ''; h.submitted = !!h.submitted; });
+      db = { students: d.students, homeworks: d.homeworks };
+      saveData();
+      alert('バックアップを読み込みました。');
+    };
+    reader.readAsText(file);
   }
 
   // ---------- 起動 ----------
