@@ -161,7 +161,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>漢字小テストメーカー</h1>
     <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver" title="このページの版">ver 8.3（2026.10.4） PC版</span>
+    <span class="ver" title="このページの版">ver 8.4（2026.10.8） PC版</span>
   </header>
 
   <div class="layout">
@@ -267,6 +267,7 @@ h2.sec{margin:0;font-size:17px}
           <span class="hint">用紙の大きさ</span>
           <div class="seg" id="segPaper">
             <button type="button" data-v="auto" id="paperAuto">おすすめ</button>
+            <button type="button" data-v="B5">B5</button>
             <button type="button" data-v="A4">A4</button>
             <button type="button" data-v="B4">B4</button>
             <button type="button" data-v="A3">A3</button>
@@ -565,7 +566,7 @@ function validateQs(){
 }
 
 /* ---------- 用紙とレイアウト ---------- */
-const PAPERS = {A4:[297,210], B4:[364,257], A3:[420,297]};
+const PAPERS = {B5:[257,182], A4:[297,210], B4:[364,257], A3:[420,297]};
 function rowsOf(n){ return SPLITS[n] ? SPLITS[n].length : Math.max(1, Math.ceil(n / 10)); }
 function recommendPaper(n){ return n === 50 ? "A3" : n === 25 ? "B4" : rowsOf(n) <= 2 ? "A4" : "B4"; }
 function paperNow(){ return state.paper === "auto" ? recommendPaper(qs.length || state.count) : state.paper; }
