@@ -82,10 +82,11 @@ details>summary{cursor:pointer;font-weight:bold;padding:2px 0}
 .head .info .bx{display:inline-block;inline-size:9mm;block-size:9mm;border:.3mm solid #000;margin-inline:.6mm 1mm;flex:none}
 .head .info .bx.grow{flex:1;min-inline-size:20mm;margin-inline-end:0}
 .head .info .sp{inline-size:4mm;flex:none}
+.head.nomeate{block-size:27mm;grid-template-rows:14mm 12mm}
 .head .meate{grid-row:3;grid-column:1;display:flex;align-items:center;font-size:4.2mm;white-space:nowrap;overflow:hidden}
 .head .meate .ml{border:.3mm solid #000;border-radius:1.5mm;padding:.6mm 1.5mm;margin-inline-end:2mm;flex:none}
 .head .meate .mt{flex:1;border-block-end:.3mm dashed #777;block-size:8mm;line-height:8mm;overflow:hidden;font-size:4.6mm}
-.head .hyouka{grid-row:1/span 3;grid-column:2;border:.45mm solid #000;border-radius:5mm;position:relative}
+.head .hyouka{grid-row:1/-1;grid-column:2;border:.45mm solid #000;border-radius:5mm;position:relative}
 .head .hyouka span{position:absolute;inset-block-start:1.2mm;inset-inline-start:2mm;font-size:2.8mm;color:#555}
 .line{display:flex;align-items:center;margin-block-end:3mm;flex:none}
 .num{inline-size:7mm;flex:none;display:flex;justify-content:center;align-items:center}
@@ -109,6 +110,8 @@ details>summary{cursor:pointer;font-weight:bold;padding:2px 0}
 .emo{flex:none;display:flex;align-items:center;justify-content:center;line-height:1;
   font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif}
 .gap{flex:none}
+.hintbox{flex:none;display:flex;align-items:center;justify-content:center;line-height:1;border:.35mm solid #000;border-radius:2.5mm;
+  white-space:nowrap;letter-spacing:0}
 .credit{position:absolute;bottom:4mm;right:12mm;font-size:2.2mm;color:#888;font-family:sans-serif}
 
 @media (max-width:900px){
@@ -132,7 +135,7 @@ details>summary{cursor:pointer;font-weight:bold;padding:2px 0}
 <div class="app">
 <aside class="panel">
   <h1>ひらがな・カタカナ れんしゅうプリント</h1>
-  <p class="ver">1年生むけ　ver 1.0（ネットなしで つかえます）</p>
+  <p class="ver">1年生むけ　ver 1.1（ネットなしで つかえます）</p>
 
   <div class="sec">
     <h2><span class="no">1</span>文字の しゅるい</h2>
@@ -155,6 +158,8 @@ details>summary{cursor:pointer;font-weight:bold;padding:2px 0}
     <label class="chk"><input type="checkbox" data-type="B"><span>B　うつしがき<small>おてほんを見て、あいたマスに書く</small></span></label>
     <label class="chk"><input type="checkbox" data-type="C"><span>C　ことばの なぞり・うつし<small>その字をつかった ことばを なぞって、となりに書く</small></span></label>
     <label class="chk"><input type="checkbox" data-type="D"><span>D　あなあき ことば<small>ことばの あいたところに 字を入れる</small></span></label>
+    <div class="row" style="padding-left:26px"><label class="k">入れる字を<br>書いておく</label>
+      <div class="seg" id="hintSeg"><button type="button" data-v="none">書かない</button><button type="button" data-v="before">ことばの まえ<span class="sub">よこがき：左／たてがき：上</span></button><button type="button" data-v="after">ことばの あと<span class="sub">よこがき：右／たてがき：下</span></button></div></div>
     <label class="chk"><input type="checkbox" id="stroke"><span>かきじゅんを のせる<small>1画ずつ ふえていく図を、字ごとに 1行 入れます</small></span></label>
   </div>
 
@@ -202,8 +207,8 @@ details>summary{cursor:pointer;font-weight:bold;padding:2px 0}
   <div class="sec">
     <h2><span class="no">7</span>見出し・こたえ</h2>
     <div class="row"><label class="k">タイトル</label><input type="text" id="title" maxlength="30"></div>
-    <div class="row"><label class="k">めあて</label><input type="text" id="meate" maxlength="30" placeholder="（空らんにすると 書きこみ用の線になります）"></div>
-    <p class="hint">名前・日づけ・くみと ばんごう・ひょうかの らんは、いつも入ります。</p>
+    <div class="row"><label class="k">めあて</label><input type="text" id="meate" maxlength="30" placeholder="（空らんにすると めあての らんは 入りません）"></div>
+    <p class="hint">めあてを 空らんにすると、プリントの めあての らんは 入りません。名前・日づけ・くみと ばんごう・ひょうかの らんは、いつも入ります。</p>
     <label class="chk"><input type="checkbox" id="answer"><span>こたえのページを つける<small>D（あなあき ことば）の こたえを 赤い字で入れた ページを つけます</small></span></label>
   </div>
 
@@ -231,7 +236,7 @@ details>summary{cursor:pointer;font-weight:bold;padding:2px 0}
 // ===== 基本の表 =====
 const PAPERS = {B5:[182,257], A4:[210,297], B4:[257,364]};   // たて長のときの はば・高さ(mm)
 const PAPER_ORDER = ["B5","A4","B4"];
-const PAD = 12, HEAD = 38, HEADGAP = 5, LABEL = 7, LGAP = 3, GAP = 4;
+const PAD = 12, HEADGAP = 5, LABEL = 7, LGAP = 3, GAP = 4;
 const CELL_MM = {L:22, M:18, S:15};
 const TYPES = ["A","B","C","D"];
 const TYPE_NAME = {A:"なぞりがき", B:"うつしがき", C:"ことば", D:"あなあき"};
@@ -258,7 +263,7 @@ const STORE_KEY = "kanaPrintMaker.v1";
 const S = {
   script:"hira", sel:{hira:[], kata:[]}, types:{A:true, B:true, C:true, D:false}, stroke:true,
   order:"char", dir:"h", orient:"p", cell:"M", count:10, paper:"auto", wordMode:"random", seed:1,
-  picked:{}, title:"", titleAuto:true, meate:"", answer:false
+  picked:{}, title:"", titleAuto:true, meate:"", answer:false, hint:"none"
 };
 let CUSTOM = {hira:{add:[], del:[]}, kata:{add:[], del:[]}};
 function load(){
@@ -294,6 +299,7 @@ function shuffle(arr, r){ const a = arr.slice(); for (let i = a.length - 1; i > 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 // ===== 紙に 入る量 =====
+const headMM = () => S.meate.trim() ? 38 : 27;
 function capacity(paper){
   let [W, H] = PAPERS[paper];
   if (S.orient === "l") [W, H] = [H, W];
@@ -302,7 +308,7 @@ function capacity(paper){
   const cell = CELL_MM[S.cell];
   return {paper, W, H, cell, inline, avail:inline - LABEL,
     cells:Math.floor((inline - LABEL) / cell),
-    lines:Math.floor((block - HEAD - HEADGAP + LGAP) / (cell + LGAP))};
+    lines:Math.floor((block - headMM() - HEADGAP + LGAP) / (cell + LGAP))};
 }
 const selChars = () => S.sel[S.script].slice().sort((a, b) => ORDER[S.script][a] - ORDER[S.script][b]);
 const activeTypes = () => TYPES.filter(t => S.types[t]);
@@ -332,8 +338,9 @@ function plan(){
   // 字ごとに つかえる ことばと かたち
   const info = chars.map((c, ci) => {
     let unpicked = false;
-    let ws = all.filter(x => positions(x.w, c).length && units(x.w) + 1 <= cap.cells);
-    const tooLong = all.filter(x => positions(x.w, c).length && units(x.w) + 1 > cap.cells).length;
+    const extra = 1 + (S.types.D && S.hint !== "none" ? [...c].length : 0);
+    let ws = all.filter(x => positions(x.w, c).length && units(x.w) + extra <= cap.cells);
+    const tooLong = all.filter(x => positions(x.w, c).length && units(x.w) + extra > cap.cells).length;
     if (S.wordMode === "pick") {
       const p = S.picked[S.script + ":" + c] || [];
       const picked = ws.filter(x => p.includes(x.w));
@@ -451,6 +458,12 @@ function lineHTML(l, no, cap, answer){
       while (used + GAP + L <= avail + 0.01) { body += `<div class="gap" style="inline-size:${GAP}mm"></div>` + wordCells("copy"); used += GAP + L; }
     } else {
       body = emo + wordCells("hole");
+      if (S.hint !== "none") {
+        const k = keyCs.length, hw = cell * (0.55 + 0.45 * k);
+        const box = `<div class="hintbox" style="inline-size:${hw.toFixed(2)}mm;block-size:${(cell*0.8).toFixed(2)}mm;font-size:${(cell*0.5).toFixed(2)}mm">${esc(l.c)}</div>`;
+        const sp = `<div class="gap" style="inline-size:${GAP}mm"></div>`;
+        body = S.hint === "before" ? box + sp + body : body + sp + box;
+      }
     }
   }
   return `<div class="line" style="block-size:${cell}mm">${label}${body}</div>`;
@@ -462,10 +475,10 @@ function pageHTML(P, answer){
   const lines = P.lines.map(l => lineHTML(l, l.type === "S" ? 0 : ++no, cap, answer)).join("");
   return `<div class="page" style="width:${cap.W}mm;height:${cap.H}mm">
     <div class="sheet ${S.dir === "v" ? "v" : "h"}">
-      <div class="head">
+      <div class="head${S.meate.trim() ? "" : " nomeate"}">
         <div class="title">${esc(title)}</div>
         <div class="info"><span class="bx"></span>がつ<span class="bx"></span>にち<span class="sp"></span><span class="bx"></span>くみ<span class="bx"></span>ばん<span class="sp"></span>なまえ<span class="bx grow"></span></div>
-        <div class="meate"><span class="ml">めあて</span><span class="mt">${esc(S.meate)}</span></div>
+        ${S.meate.trim() ? `<div class="meate"><span class="ml">めあて</span><span class="mt">${esc(S.meate)}</span></div>` : ""}
         <div class="hyouka"><span>${answer ? "" : ""}</span></div>
       </div>
       ${lines}
@@ -546,7 +559,7 @@ function renderEditor(){
 
 function renderControls(){
   setSeg("scriptSeg", S.script); setSeg("orderSeg", S.order); setSeg("dirSeg", S.dir);
-  setSeg("orientSeg", S.orient); setSeg("cellSeg", S.cell); setSeg("wordModeSeg", S.wordMode);
+  setSeg("orientSeg", S.orient); setSeg("hintSeg", S.hint || "none"); setSeg("cellSeg", S.cell); setSeg("wordModeSeg", S.wordMode);
   for (const el of document.querySelectorAll("[data-type]")) el.checked = !!S.types[el.dataset.type];
   $("stroke").checked = S.stroke; $("answer").checked = S.answer;
   if (document.activeElement !== $("title")) $("title").value = S.title || defaultTitle();
@@ -627,7 +640,7 @@ function init(){
   load();
   bindSeg("scriptSeg", "script", () => { if (S.titleAuto) S.title = ""; });
   bindSeg("orderSeg", "order"); bindSeg("dirSeg", "dir"); bindSeg("orientSeg", "orient");
-  bindSeg("cellSeg", "cell"); bindSeg("wordModeSeg", "wordMode"); bindSeg("paperSeg", "paper");
+  bindSeg("cellSeg", "cell"); bindSeg("hintSeg", "hint"); bindSeg("wordModeSeg", "wordMode"); bindSeg("paperSeg", "paper");
   $("kanaTable").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.k) toggleChars([b.dataset.k]);
