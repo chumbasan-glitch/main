@@ -76,14 +76,15 @@ details>summary{cursor:pointer;font-weight:bold;padding:2px 0}
 .page{background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.18);position:relative;overflow:hidden;padding:12mm;color:#000}
 .sheet{width:100%;height:100%;font-family:"UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","UD デジタル 教科書体 NK-R","UD Digi Kyokasho NK-R","KanaKlee","Hiragino Mincho ProN",serif}
 .sheet.v{writing-mode:vertical-rl}
-.head{block-size:38mm;margin-block-end:5mm;display:grid;grid-template-columns:1fr 32mm;grid-template-rows:14mm 12mm 10mm;column-gap:4mm;row-gap:1mm}
-.head .title{grid-row:1;grid-column:1;font-size:7mm;line-height:14mm;white-space:nowrap;overflow:hidden;letter-spacing:.08em}
+.head{block-size:52mm;margin-block-end:5mm;display:grid;grid-template-columns:1fr 32mm;grid-template-rows:13mm 10mm 16mm 10mm;column-gap:4mm;row-gap:1mm}
+.head .title{grid-row:1;grid-column:1;font-size:7mm;line-height:13mm;white-space:nowrap;overflow:hidden;letter-spacing:.08em}
 .head .info{grid-row:2;grid-column:1;display:flex;align-items:center;font-size:4.2mm;white-space:nowrap;overflow:hidden}
 .head .info .bx{display:inline-block;inline-size:9mm;block-size:9mm;border:.3mm solid #000;margin-inline:.6mm 1mm;flex:none}
-.head .info .bx.grow{flex:1;min-inline-size:20mm;margin-inline-end:0}
+.head .name{grid-row:3;grid-column:1;display:flex;align-items:center;font-size:4.6mm;white-space:nowrap}
+.head .name .nb{flex:1;block-size:15mm;border:.4mm solid #000;border-radius:1.5mm;margin-inline-start:2mm}
 .head .info .sp{inline-size:4mm;flex:none}
-.head.nomeate{block-size:27mm;grid-template-rows:14mm 12mm}
-.head .meate{grid-row:3;grid-column:1;display:flex;align-items:center;font-size:4.2mm;white-space:nowrap;overflow:hidden}
+.head.nomeate{block-size:41mm;grid-template-rows:13mm 10mm 16mm}
+.head .meate{grid-row:4;grid-column:1;display:flex;align-items:center;font-size:4.2mm;white-space:nowrap;overflow:hidden}
 .head .meate .ml{border:.3mm solid #000;border-radius:1.5mm;padding:.6mm 1.5mm;margin-inline-end:2mm;flex:none}
 .head .meate .mt{flex:1;border-block-end:.3mm dashed #777;block-size:8mm;line-height:8mm;overflow:hidden;font-size:4.6mm}
 .head .hyouka{grid-row:1/-1;grid-column:2;border:.45mm solid #000;border-radius:5mm;position:relative}
@@ -135,7 +136,7 @@ details>summary{cursor:pointer;font-weight:bold;padding:2px 0}
 <div class="app">
 <aside class="panel">
   <h1>ひらがな・カタカナ れんしゅうプリント</h1>
-  <p class="ver">1年生むけ　ver 1.1（ネットなしで つかえます）</p>
+  <p class="ver">1年生むけ　ver 1.2（ネットなしで つかえます）</p>
 
   <div class="sec">
     <h2><span class="no">1</span>文字の しゅるい</h2>
@@ -299,7 +300,7 @@ function shuffle(arr, r){ const a = arr.slice(); for (let i = a.length - 1; i > 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 // ===== 紙に 入る量 =====
-const headMM = () => S.meate.trim() ? 38 : 27;
+const headMM = () => S.meate.trim() ? 52 : 41;
 function capacity(paper){
   let [W, H] = PAPERS[paper];
   if (S.orient === "l") [W, H] = [H, W];
@@ -477,7 +478,8 @@ function pageHTML(P, answer){
     <div class="sheet ${S.dir === "v" ? "v" : "h"}">
       <div class="head${S.meate.trim() ? "" : " nomeate"}">
         <div class="title">${esc(title)}</div>
-        <div class="info"><span class="bx"></span>がつ<span class="bx"></span>にち<span class="sp"></span><span class="bx"></span>くみ<span class="bx"></span>ばん<span class="sp"></span>なまえ<span class="bx grow"></span></div>
+        <div class="info"><span class="bx"></span>がつ<span class="bx"></span>にち<span class="sp"></span><span class="bx"></span>くみ<span class="bx"></span>ばん</div>
+        <div class="name">なまえ<span class="nb"></span></div>
         ${S.meate.trim() ? `<div class="meate"><span class="ml">めあて</span><span class="mt">${esc(S.meate)}</span></div>` : ""}
         <div class="hyouka"><span>${answer ? "" : ""}</span></div>
       </div>
