@@ -99,10 +99,21 @@
   .adv ul { margin: 2px 0 4px; }
   .tag { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 10px; background: var(--soft); margin-right: 6px; }
   .tag.fix { background: var(--main-weak); color: var(--link); }
+  [contenteditable="true"] { cursor: text; outline: none; }
+  [contenteditable="true"]:focus { box-shadow: inset 0 0 0 2px var(--link); background: var(--field); }
+  .print-title { display: none; font-weight: bold; font-size: 16px; margin: 0 0 6px; }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--toast-bg); color: var(--toast-ink); padding: 8px 18px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; }
   .toast.show { opacity: .92; }
   @media (max-width: 800px) { nav { display: none; } .wrap { padding: 12px 8px 80px; } .card { padding: 16px; } }
-  @media print { header, nav, .foot, .noprint { display: none !important; } .card { border: 0; } }
+  @media print {
+    @page { size: A3 landscape; margin: 8mm; }
+    html, body { background: #fff !important; color: #000 !important; }
+    body.printing * { visibility: hidden; }
+    body.printing #printArea, body.printing #printArea * { visibility: visible; }
+    body.printing #printArea { position: absolute; left: 0; top: 0; overflow: visible; }
+    body.printing .print-title { display: block; }
+    header, nav, .foot, .noprint { display: none !important; } .card { border: 0; }
+  }
 </style>
 </head>
 <body>
@@ -121,6 +132,8 @@
 <script>
 /* ---------- サーバーとのやりとり（スプレッドシートに保存） ---------- */
 var hasGas = typeof google !== 'undefined' && google.script && google.script.run;
+// HTML版（1つのファイルで使う版）。スプレッドシートの代わりに、画面で手直し・印刷・ファイル保存をする
+var STANDALONE = !hasGas && !!window.JW_STANDALONE;
 function call(fn) {
   var args = Array.prototype.slice.call(arguments, 1);
   return new Promise(function (resolve, reject) {
@@ -273,6 +286,9 @@ function renderStart() {
     '<div class="row">最初の答え<select id="loadFrom">' + opts([{ v: '', t: '最初から答える（標準の値が入っています）' }].concat(saves.map(function (s) { return { v: s.name, t: '「' + s.name + '」の答えを読み込んで直す' }; })), startView.loadFrom) + '</select></div>' +
     '<div class="row"><button class="btn primary" data-a="create">はじめる</button></div></div>' +
     '<p class="small">前年度の答えを読み込むと、クラス数や専科の先生など、変わったところだけ直せば使えます。</p>' +
+    (STANDALONE ? '<div class="item"><div class="row"><b>ファイルから読み込む</b><button class="btn small" data-a="loadAnswersFile">答えのファイルを選ぶ</button>' +
+      '<input type="file" id="answersFile" accept=".json,application/json" style="display:none"></div>' +
+      '<div class="small">「答えをファイルに保存」で保存したファイル（〜_答え.json）を選ぶと、上の「名前（年度）」で始めます。</div></div>' : '') +
     '<details class="item"><summary>書き出した答えの文字を貼りつけて始める</summary>' +
     '<p class="small">ほかのパソコンや相談用に書き出した答え（「{」で始まる長い文字）を貼りつけてください。</p>' +
     '<textarea id="importText" rows="4" style="width:100%"></textarea>' +
@@ -743,10 +759,13 @@ function renderSolve() {
   h += '<div class="row noprint"><button class="btn primary" data-a="solve"' + (running ? ' disabled' : '') + '>' + (result ? 'もう一度組む（別の時間割になります）' : '時間割を作る') + '</button></div>';
   h += '<div id="prog" style="display:' + (running ? 'block' : 'none') + '"><div class="progress"><div id="progBar"></div></div><div class="small" id="progMsg"></div></div>';
   if (result && !running) h += renderResult();
-  h += '<hr style="border:0;border-top:1px solid var(--line);margin:24px 0"><h3>スプレッドシートで手直ししたあと</h3>' +
+  if (!STANDALONE) h += '<hr style="border:0;border-top:1px solid var(--line);margin:24px 0"><h3>スプレッドシートで手直ししたあと</h3>' +
     '<p class="small">「時間割一覧」シートを手で直したら、このボタンで重なりや時数のずれを確認できます。スプレッドシートのメニュー「時間割ツール」→「時間割をチェックする」からもできます。</p>' +
-    '<button class="btn" data-a="check">スプレッドシートの時間割をチェックする</button><div id="checkOut"></div>' +
-    '<hr style="border:0;border-top:1px solid var(--line);margin:24px 0"><h3>答えを書き出す（相談用）</h3>' +
+    '<button class="btn" data-a="check">スプレッドシートの時間割をチェックする</button><div id="checkOut"></div>';
+  if (STANDALONE) h += '<hr style="border:0;border-top:1px solid var(--line);margin:24px 0"><h3>答えをファイルに保存</h3>' +
+    '<p class="small">答えは、このパソコンのブラウザに自動で保存されています。ほかのパソコンに移すときや、来年度に使うときのために、ファイルにも保存しておくと安心です。最初のページの「ファイルから読み込む」で読みこめます。</p>' +
+    '<button class="btn" data-a="saveAnswersFile">答えをファイルに保存</button>';
+  h += '<hr style="border:0;border-top:1px solid var(--line);margin:24px 0"><h3>答えを書き出す（相談用）</h3>' +
     '<p class="small">うまく組めないときに、答えをそのまま相談相手に渡したり、ほかのパソコンで続きをしたりできます。下のボタンで文字にし、コピーして渡してください。名前（先生の名前など）もふくまれます。</p>' +
     '<button class="btn" data-a="exportAnswers">答えを文字にする</button><div id="exportOut"></div>';
   return h;
@@ -770,8 +789,15 @@ function renderResult() {
     }).join('') + '</div>';
   }
   if (r.soft.length) h += '<details class="box note"><summary><b>守れなかった希望・ルールの一覧（' + r.soft.length + '件）</b></summary><ul>' + r.soft.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details>';
-  h += '<div class="row noprint" style="margin:12px 0"><button class="btn primary" data-a="write">スプレッドシートに書き出す</button> <button class="btn" data-a="pdf">A3のPDFを作る</button> <span id="writeMsg" class="small"></span></div>';
-  h += '<div class="scroll">' + previewTable(r.table) + '</div>';
+  if (STANDALONE) {
+    h += '<div class="row noprint" style="margin:12px 0"><button class="btn primary" data-a="printTable">印刷する（A3横）</button> ' +
+      '<button class="btn" data-a="saveXls">Excelで開けるファイルに保存</button> <button class="btn" data-a="checkLocal">手直しした時間割をチェックする</button></div>' +
+      '<p class="small noprint">下の時間割のマスは、クリックすると直接書きかえられます（先生・教室の表も同じです）。直したら「手直しした時間割をチェックする」で、時数のずれや重なりを確かめてください。直した内容は、このパソコンに自動で保存されます。</p>' +
+      '<div id="checkOut" class="noprint"></div>';
+  } else {
+    h += '<div class="row noprint" style="margin:12px 0"><button class="btn primary" data-a="write">スプレッドシートに書き出す</button> <button class="btn" data-a="pdf">A3のPDFを作る</button> <span id="writeMsg" class="small"></span></div>';
+  }
+  h += '<div class="scroll" id="printArea">' + (STANDALONE ? '<div class="print-title">' + esc(r.table.title) + '</div>' : '') + previewTable(r.table, STANDALONE) + '</div>';
   return h;
 }
 
@@ -780,7 +806,8 @@ function fitClass(t) { var n = String(t == null ? '' : t).length; return n <= 2 
 function cellDiv(t) { return '<div class="c' + fitClass(t) + '">' + esc(t) + '</div>'; }
 
 // スプレッドシートと同じ形のプレビュー
-function previewTable(t) {
+function previewTable(t, editable) {
+  var ed = function (attrs) { return editable ? ' contenteditable="true" spellcheck="false" ' + attrs : ''; };
   var MP = t.maxPeriods, D = t.days.length;
   var dayP = t.dayPeriods || t.days.map(function () { return MP; });
   var maxP = Math.max.apply(null, dayP.concat([1]));
@@ -793,14 +820,16 @@ function previewTable(t) {
     for (var p = 0; p < dayP[di]; p++) h += '<th' + (p === 0 && !hasM(di) ? ' class="day"' : '') + '>' + cellDiv(p + 1) + '</th>';
   });
   h += '</tr>';
-  t.classRows.forEach(function (r) {
+  t.classRows.forEach(function (r, ri) {
     h += '<tr><th>' + cellDiv(r.label) + '</th>';
     t.days.forEach(function (d, di) {
       if (hasM(di)) h += '<td class="mo dl">' + cellDiv(mod.grades.indexOf(r.grade) >= 0 ? mod.labels[di] : '') + '</td>';
       for (var p = 0; p < dayP[di]; p++) {
         var c = r.cells[di * MP + p];
         var k = c.k === 'fixed' ? 'fx' : c.k === 'none' ? 'no' : c.k === 'empty' ? 'em' : c.k === 'sat' ? 'sa' : '';
-        h += '<td class="' + k + (p === 0 && !hasM(di) ? ' dl' : '') + '">' + cellDiv(c.t) + '</td>';
+        var canEdit = editable && c.k !== 'none';
+        h += '<td class="' + k + (p === 0 && !hasM(di) ? ' dl' : '') + '">' +
+          (canEdit ? '<div class="c' + fitClass(c.t) + '"' + ed('data-ed="c" data-r="' + ri + '" data-s="' + (di * MP + p) + '"') + '>' + esc(c.t) + '</div>' : cellDiv(c.t)) + '</td>';
       }
     });
     h += '</tr>';
@@ -808,8 +837,8 @@ function previewTable(t) {
   h += '</table>';
 
   // 下：先生・特別教室ごとの小さな表を、左から詰めて並べる
-  var blocks = t.teacherRows.map(function (r) { return { title: r.title || r.label, cells: r.cells, off: r.off }; })
-    .concat(t.roomRows.filter(function (r) { return r.cells.some(function (c) { return c; }); }).map(function (r) { return { title: r.label, cells: r.cells }; }));
+  var blocks = t.teacherRows.map(function (r, i) { return { title: r.title || r.label, cells: r.cells, off: r.off, ed: 't', i: i }; })
+    .concat(t.roomRows.map(function (r, i) { return { title: r.label, cells: r.cells, ed: '', i: i }; }).filter(function (b) { return b.cells.some(function (c) { return c; }); }));
   h += '<div class="blocks">' + blocks.map(function (b) {
     var x = '<div class="blk"><div class="blk-t">' + esc(b.title) + '</div><table class="pv"><tr><th>' + cellDiv('') + '</th>' +
       t.days.map(function (d) { return '<th>' + cellDiv(d) + '</th>'; }).join('') + '</tr>';
@@ -817,7 +846,8 @@ function previewTable(t) {
       x += '<tr><th>' + cellDiv(p + 1) + '</th>';
       for (var di = 0; di < D; di++) {
         var sIdx = di * MP + p, k = p >= dayP[di] ? 'no' : (b.off && b.off[sIdx]) ? 'fx' : '';
-        x += '<td class="' + k + '">' + cellDiv(b.cells[sIdx] || '') + '</td>';
+        var v = b.cells[sIdx] || '';
+        x += '<td class="' + k + '">' + (editable && b.ed && k !== 'no' ? '<div class="c' + fitClass(v) + '"' + ed('data-ed="t" data-r="' + b.i + '" data-s="' + sIdx + '"') + '>' + esc(v) + '</div>' : cellDiv(v)) + '</td>';
       }
       x += '</tr>';
     }
@@ -828,6 +858,20 @@ function previewTable(t) {
 
 /* ---------- 入力の反映 ---------- */
 var renderTimer = null;
+// HTML版：時間割のマスを直接直したとき
+document.addEventListener('input', function (e) {
+  var el = e.target;
+  if (!el.dataset || !el.dataset.ed || !result) return;
+  var v = el.textContent.trim(), r = +el.dataset.r, s = +el.dataset.s;
+  if (el.dataset.ed === 'c') {
+    var cell = result.table.classRows[r].cells[s];
+    cell.t = v;
+    if (cell.k !== 'fixed' && cell.k !== 'sat') cell.k = v ? 'lesson' : 'empty';
+  } else if (el.dataset.ed === 't') {
+    result.table.teacherRows[r].cells[s] = v;
+  }
+  clearTimeout(saveTable.h); saveTable.h = setTimeout(saveTable, 500);
+});
 // 文字を入れている間も、答えに記録しておく（画面が書き直されても消えないように）
 document.addEventListener('input', function (e) {
   var el = e.target, k = el.dataset && el.dataset.k, t = el.dataset && (el.dataset.t || 'text');
@@ -837,6 +881,15 @@ document.addEventListener('input', function (e) {
 });
 document.addEventListener('change', function (e) {
   var el = e.target;
+  if (el.id === 'answersFile' && el.files && el.files[0]) {
+    var rd = new FileReader();
+    rd.onload = function () {
+      document.getElementById('importText').value = rd.result;
+      actions.importAnswers();
+    };
+    rd.readAsText(el.files[0], 'utf-8');
+    return;
+  }
   if (el.dataset && el.dataset.draft) {
     var t = A.teachers.filter(function (x) { return x.id === el.dataset.draft; })[0];
     if (!t) return;
@@ -948,7 +1001,7 @@ var actions = {
   open: function (d) {
     call('loadSave', d.n).then(function (json) {
       if (!json) return alert('読み込めませんでした。');
-      A = fixAnswers(JSON.parse(json)); saveName = d.n; result = null; go(1);
+      A = fixAnswers(JSON.parse(json)); saveName = d.n; result = loadTable(d.n); go(1);
     }).catch(function (err) { alert(err.message || err); });
   },
   create: function () {
@@ -1129,9 +1182,42 @@ var actions = {
       JW.solve(A, {
         async: true,
         onProgress: function (p, m) { bar.style.width = Math.round(p * 100) + '%'; msg.textContent = m + '…（' + Math.round(p * 100) + '%）'; },
-        done: function (r) { running = false; result = r; render(); }
+        done: function (r) { running = false; result = r; saveTable(); render(); }
       });
     }, 50);
+  },
+  printTable: function () {
+    var area = document.getElementById('printArea');
+    // A3横（およそ 1540×1080 ピクセル）に収まるように縮める
+    area.style.zoom = '';
+    var w = area.scrollWidth, hgt = area.scrollHeight;
+    area.style.zoom = Math.min(1, 1540 / w, 1060 / hgt);
+    document.body.classList.add('printing');
+    setTimeout(function () {
+      window.print();
+      document.body.classList.remove('printing');
+      area.style.zoom = '';
+    }, 50);
+  },
+  saveXls: function () {
+    downloadFile((result.table.title || '時間割一覧') + '.xls', 'application/vnd.ms-excel', sheetHtml(result.table));
+  },
+  saveAnswersFile: function () {
+    downloadFile((saveName || '時間割') + '_答え.json', 'application/json', JSON.stringify(A, null, 1));
+  },
+  loadAnswersFile: function () { document.getElementById('answersFile').click(); },
+  checkLocal: function () {
+    var t = result.table;
+    var sheet = { classRows: t.classRows.map(function (r) { return { label: r.label, cells: r.cells.map(function (c) { return c.t; }) }; }),
+      teacherRows: t.teacherRows.map(function (r) { return { label: r.label, cells: r.cells.slice() }; }) };
+    var ck = JW.check(A, sheet);
+    // 特別教室の表は、上の表から作り直す
+    if (ck.roomRows) t.roomRows = ck.roomRows.map(function (r, i) { return { label: (t.roomRows[i] || r).label, cells: r.cells }; });
+    saveTable();
+    render();
+    var out = document.getElementById('checkOut');
+    out.innerHTML = checkHtml(ck);
+    out.scrollIntoView({ behavior: 'smooth', block: 'start' });
   },
   write: function () {
     var m = document.getElementById('writeMsg'); m.textContent = '書き出しています…';
@@ -1155,12 +1241,87 @@ var actions = {
   }
 };
 
+// ファイルを保存する（ブラウザの「ダウンロード」に入る）
+function downloadFile(name, type, text) {
+  var blob = new Blob(['\ufeff' + text], { type: type + ';charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name.replace(/[\\/:*?"<>|]/g, '_');
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  toast('「' + a.download + '」を保存しました（ダウンロードフォルダ）');
+}
+
+// 組んだ時間割を、このパソコンに保存しておく（HTML版）
+function saveTable() {
+  if (!STANDALONE || !result || !saveName) return;
+  var keep = { table: result.table, unplaced: result.unplaced, hard: result.hard, soft: result.soft, advice: result.advice,
+    manual: result.manual, attempts: result.attempts, relaxed: result.relaxed };
+  try { localStorage.setItem('jw_result_' + saveName, JSON.stringify(keep)); } catch (e) {}
+}
+function loadTable(name) {
+  if (!STANDALONE) return null;
+  try { return JSON.parse(localStorage.getItem('jw_result_' + name) || 'null'); } catch (e) { return null; }
+}
+
+// Excelで開けるファイル（スプレッドシート版と同じ形：上にクラス、下に先生・教室の表）
+function sheetHtml(t) {
+  var D = t.days.length, MP = t.maxPeriods, dayP = t.dayPeriods, mod = t.module;
+  var maxP = Math.max.apply(null, dayP.concat([1]));
+  var cols = [];
+  t.days.forEach(function (d, di) {
+    if (!dayP[di]) return;
+    if (mod && mod.days.indexOf(di) >= 0) cols.push({ d: di, m: true });
+    for (var p = 0; p < dayP[di]; p++) cols.push({ d: di, p: p });
+  });
+  var W = 42, H = 24, BD = 'border:.5pt solid #888;';
+  function fs(v) { var n = String(v == null ? '' : v).length; return n <= 2 ? 10 : n === 3 ? 9 : n <= 8 ? 7 : 6; }
+  function td(v, bg, extra) { return '<td style="' + BD + 'text-align:center;vertical-align:middle;mso-number-format:\'\\@\';font-size:' + fs(v) + 'pt;background:' + (bg || '#fff') + ';' + (extra || '') + '">' + esc(v) + '</td>'; }
+  var nCols = Math.max(1 + cols.length, 4 * (D + 2));
+  var h = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">' +
+    '<style>table{border-collapse:collapse;font-family:"Noto Sans JP","Yu Gothic",sans-serif} td{height:' + H + 'px;width:' + W + 'px}</style></head><body><table>';
+  h += '<col span="' + nCols + '" width="' + W + '">';
+  h += '<tr><td colspan="' + nCols + '" style="font-size:14pt;font-weight:bold">' + esc(t.title) + '</td></tr>';
+  // 見出し
+  h += '<tr>' + td('クラス', '#dfe8f5', 'font-weight:bold');
+  t.days.forEach(function (d, di) { var n = cols.filter(function (c) { return c.d === di; }).length; if (n) h += '<td colspan="' + n + '" style="' + BD + 'text-align:center;font-weight:bold;background:#dfe8f5">' + esc(d) + '</td>'; });
+  h += '</tr><tr>' + td('', '#dfe8f5') + cols.map(function (c) { return td(c.m ? '朝' : c.p + 1, '#dfe8f5', 'font-weight:bold'); }).join('') + '</tr>';
+  t.classRows.forEach(function (r) {
+    h += '<tr>' + td(r.label, '#dfe8f5', 'font-weight:bold') + cols.map(function (c) {
+      if (c.m) return td(mod.grades.indexOf(r.grade) >= 0 ? mod.labels[c.d] : '', '#eef4ea');
+      var cell = r.cells[c.d * MP + c.p];
+      var bg = cell.k === 'fixed' ? '#e6e6e6' : cell.k === 'none' ? '#9e9e9e' : cell.k === 'empty' ? '#fff3c4' : cell.k === 'sat' ? '#e6f0fa' : '#fff';
+      return td(cell.t, bg);
+    }).join('') + '</tr>';
+  });
+  h += '<tr><td colspan="' + nCols + '"></td></tr>';
+  // 下の表：左から4つずつ並べる
+  var blocks = t.teacherRows.map(function (r) { return { title: r.title || r.label, cells: r.cells, off: r.off }; })
+    .concat(t.roomRows.filter(function (r) { return r.cells.some(function (c) { return c; }); }).map(function (r) { return { title: r.label, cells: r.cells }; }));
+  var per = Math.max(1, Math.floor((1 + cols.length + 1) / (D + 2)));
+  for (var b0 = 0; b0 < blocks.length; b0 += per) {
+    var band = blocks.slice(b0, b0 + per);
+    h += '<tr>' + band.map(function (b) { return '<td colspan="' + (D + 1) + '" style="font-weight:bold;font-size:9pt">' + esc(b.title) + '</td><td></td>'; }).join('') + '</tr>';
+    h += '<tr>' + band.map(function () { return td('', '#dfe8f5') + t.days.map(function (d) { return td(d, '#dfe8f5', 'font-weight:bold'); }).join('') + '<td></td>'; }).join('') + '</tr>';
+    for (var p = 0; p < maxP; p++) {
+      h += '<tr>' + band.map(function (b) {
+        return td(p + 1, '#dfe8f5', 'font-weight:bold') + t.days.map(function (d, di) {
+          var sIdx = di * MP + p, none = p >= dayP[di];
+          return td(none ? '' : (b.cells[sIdx] || ''), none ? '#9e9e9e' : (b.off && b.off[sIdx]) ? '#d9d9d9' : '#fff');
+        }).join('') + '<td></td>';
+      }).join('') + '</tr>';
+    }
+    h += '<tr><td colspan="' + nCols + '"></td></tr>';
+  }
+  return h + '</table></body></html>';
+}
+
 function checkHtml(r) {
   var h = '';
   h += r.must.length ? '<div class="box warn"><b>必ず直すところ（' + r.must.length + '件）</b><ul>' + r.must.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>'
     : '<div class="box good"><b>必ず直すところはありません。</b></div>';
   if (r.better.length) h += '<details class="box note"><summary><b>できれば直すところ（' + r.better.length + '件）</b></summary><ul>' + r.better.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details>';
-  h += '<p class="small">結果は「チェック結果」シートにも書きました。下の「特別教室」の表は、上の表から作り直しました。</p>';
+  h += STANDALONE ? '<p class="small">特別教室の表は、上の表から作り直しました。</p>' : '<p class="small">結果は「チェック結果」シートにも書きました。下の「特別教室」の表は、上の表から作り直しました。</p>';
   return h;
 }
 
