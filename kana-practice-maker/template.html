@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ひらがな・カタカナ れんしゅうプリント</title>
+<style>
+@font-face{font-family:"KanaKlee";src:url(data:font/woff2;base64,/*FONT*/) format("woff2");font-display:block}
+:root{
+  --bg:#F6F3EC;--panel:#FFFFFF;--ink:#2B2A27;--ink-soft:#6B675E;--line:#DDD6C8;
+  --accent:#2F7D6D;--accent-soft:#E3F1EC;--warn:#A4521C;--warn-soft:#FBEDE2;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"BIZ UDPGothic","Hiragino Sans","Meiryo","Yu Gothic",sans-serif;font-size:15px}
+button,input,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:400px 1fr;min-height:100vh}
+.panel{background:var(--panel);border-right:1px solid var(--line);padding:16px 16px 40px;overflow-y:auto;height:100vh;position:sticky;top:0}
+.preview{padding:16px;overflow:auto;min-width:0}
+h1{font-size:19px;margin:0 0 4px;letter-spacing:.04em}
+.ver{color:var(--ink-soft);font-size:12px;margin:0 0 12px}
+.sec{border-top:1px solid var(--line);padding:12px 0 6px}
+.sec>h2{font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:6px}
+.sec>h2 .no{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px}
+.hint{color:var(--ink-soft);font-size:12.5px;margin:4px 0 6px;line-height:1.55}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.seg button{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;cursor:pointer}
+.seg button.on{border-color:var(--accent);background:var(--accent-soft);font-weight:bold}
+.seg .sub{display:block;font-size:11px;color:var(--ink-soft);font-weight:normal}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0}
+.row>label.k{min-width:6em;color:var(--ink-soft);font-size:13px}
+.chk{display:flex;align-items:flex-start;gap:8px;padding:5px 0;cursor:pointer;line-height:1.4}
+.chk input{width:18px;height:18px;margin-top:1px;accent-color:var(--accent);flex:none}
+.chk small{display:block;color:var(--ink-soft)}
+input[type=text],input[type=number]{border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;width:100%}
+input[type=number]{width:5em;text-align:center;font-size:18px}
+.btn{border:1.5px solid var(--accent);background:#fff;color:var(--accent);border-radius:8px;padding:6px 12px;cursor:pointer}
+.btn.main{background:var(--accent);color:#fff;font-weight:bold;font-size:17px;padding:10px 18px;width:100%}
+.btn.small{padding:3px 9px;font-size:13px}
+/* 文字の表 */
+.kgroup{margin:8px 0 10px}
+.kgroup h3{font-size:13px;color:var(--ink-soft);margin:6px 0 4px;font-weight:normal}
+.ktable{display:grid;gap:3px}
+.krow{display:grid;grid-template-columns:44px repeat(5,1fr);gap:3px}
+.krow.y3{grid-template-columns:44px repeat(3,1fr)}
+.krow.free{grid-template-columns:44px repeat(5,1fr)}
+.rl{border:none;background:#EFEBE2;border-radius:6px;font-size:12px;cursor:pointer;color:var(--ink-soft);padding:0}
+.kb{border:1.5px solid var(--line);background:#fff;border-radius:7px;height:40px;cursor:pointer;
+  font-family:"UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","KanaKlee",serif;font-size:21px;padding:0;line-height:1}
+.kb.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.kb.empty{visibility:hidden}
+.tray{background:var(--accent-soft);border-radius:8px;padding:8px 10px;margin-top:6px;font-size:14px}
+.tray .chars{font-family:"UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","KanaKlee",serif;font-size:19px;letter-spacing:.15em;word-break:break-all}
+.warn{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 10px;font-size:13px;margin:6px 0;line-height:1.5}
+.ok{background:var(--accent-soft);border-radius:8px;padding:8px 10px;font-size:13.5px;margin:6px 0;line-height:1.6}
+.ok b{font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:16px;padding:3px 10px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.chip.on{border-color:var(--accent);background:var(--accent-soft)}
+.chip.off{opacity:.45;text-decoration:line-through}
+.chip .x{color:#B34;font-weight:bold;margin-left:2px}
+.pickc{margin:6px 0 10px}
+.pickc .t{font-family:"UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","KanaKlee",serif;font-size:18px}
+details{border:1.5px solid var(--line);border-radius:8px;padding:6px 10px;margin:6px 0}
+details>summary{cursor:pointer;font-weight:bold;padding:2px 0}
+.addrow{display:grid;grid-template-columns:1fr 70px auto;gap:6px;margin:6px 0}
+.foot{color:var(--ink-soft);font-size:11.5px;line-height:1.6;margin-top:18px}
+.foot a{color:inherit}
+.sumtbl{font-size:13px;line-height:1.7}
+.sumtbl .ch{font-family:"UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","KanaKlee",serif;font-size:16px}
+.ptitle{color:var(--ink-soft);font-size:13px;margin:6px 0 6px}
+.empty-note{color:var(--ink-soft);text-align:center;margin-top:20vh;font-size:16px;line-height:1.8}
+
+/* ===== プリント ===== */
+.pages{display:flex;flex-direction:column;align-items:center;gap:18px}
+.page{background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.18);position:relative;overflow:hidden;padding:12mm;color:#000}
+.sheet{width:100%;height:100%;font-family:"UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","UD デジタル 教科書体 NK-R","UD Digi Kyokasho NK-R","KanaKlee","Hiragino Mincho ProN",serif}
+.sheet.v{writing-mode:vertical-rl}
+.head{block-size:38mm;margin-block-end:5mm;display:grid;grid-template-columns:1fr 32mm;grid-template-rows:14mm 12mm 10mm;column-gap:4mm;row-gap:1mm}
+.head .title{grid-row:1;grid-column:1;font-size:7mm;line-height:14mm;white-space:nowrap;overflow:hidden;letter-spacing:.08em}
+.head .info{grid-row:2;grid-column:1;display:flex;align-items:center;font-size:4.2mm;white-space:nowrap;overflow:hidden}
+.head .info .bx{display:inline-block;inline-size:9mm;block-size:9mm;border:.3mm solid #000;margin-inline:.6mm 1mm;flex:none}
+.head .info .bx.grow{flex:1;min-inline-size:20mm;margin-inline-end:0}
+.head .info .sp{inline-size:4mm;flex:none}
+.head .meate{grid-row:3;grid-column:1;display:flex;align-items:center;font-size:4.2mm;white-space:nowrap;overflow:hidden}
+.head .meate .ml{border:.3mm solid #000;border-radius:1.5mm;padding:.6mm 1.5mm;margin-inline-end:2mm;flex:none}
+.head .meate .mt{flex:1;border-block-end:.3mm dashed #777;block-size:8mm;line-height:8mm;overflow:hidden;font-size:4.6mm}
+.head .hyouka{grid-row:1/span 3;grid-column:2;border:.45mm solid #000;border-radius:5mm;position:relative}
+.head .hyouka span{position:absolute;inset-block-start:1.2mm;inset-inline-start:2mm;font-size:2.8mm;color:#555}
+.line{display:flex;align-items:center;margin-block-end:3mm;flex:none}
+.num{inline-size:7mm;flex:none;display:flex;justify-content:center;align-items:center}
+.num b{display:inline-grid;place-items:center;inline-size:5.2mm;block-size:5.2mm;border:.3mm solid #000;border-radius:50%;font-size:3.2mm;font-weight:normal;
+  font-family:"BIZ UDPGothic","Hiragino Sans","Meiryo",sans-serif;text-combine-upright:all;line-height:1}
+.num.kj{font-size:2.3mm;line-height:1.15;text-align:center;color:#333}
+.grp{display:flex;flex:none}
+.cell{position:relative;flex:none;border:.35mm solid #000;display:flex;align-items:center;justify-content:center;line-height:1}
+.grp>.cell+.cell{margin-inline-start:-.35mm}
+.cell::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:.22mm dashed #9a9a9a}
+.cell::after{content:"";position:absolute;top:50%;left:0;right:0;border-top:.22mm dashed #9a9a9a}
+.cell>*{position:relative;z-index:1}
+.cell .m{color:#000}
+.cell .t{color:#ADADAD}
+.cell .a{color:#E0001B}
+.cell span{writing-mode:horizontal-tb}
+.sheet.v .cell .sm{transform:translate(.24em,-.24em)}
+.sheet.v .cell .cho{transform:rotate(90deg)}
+.cell svg{position:absolute;inset:0;width:100%;height:100%;writing-mode:horizontal-tb}
+.solid{flex:none;display:flex;align-items:center;justify-content:center;line-height:1}
+.emo{flex:none;display:flex;align-items:center;justify-content:center;line-height:1;
+  font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif}
+.gap{flex:none}
+.credit{position:absolute;bottom:4mm;right:12mm;font-size:2.2mm;color:#888;font-family:sans-serif}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .panel{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line)}
+}
+@media print{
+  html,body{background:#fff}
+  .panel,.ptitle,.noprint{display:none !important}
+  .app{display:block}
+  .preview{padding:0;overflow:visible}
+  .pages{display:block;zoom:1 !important}
+  .page{box-shadow:none;break-after:page;page-break-after:always;margin:0}
+  .page:last-child{break-after:auto;page-break-after:auto}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+<style id="pagesize"></style>
+</head>
+<body>
+<div class="app">
+<aside class="panel">
+  <h1>ひらがな・カタカナ れんしゅうプリント</h1>
+  <p class="ver">1年生むけ　ver 1.0（ネットなしで つかえます）</p>
+
+  <div class="sec">
+    <h2><span class="no">1</span>文字の しゅるい</h2>
+    <div class="seg" id="scriptSeg">
+      <button type="button" data-v="hira">ひらがな</button>
+      <button type="button" data-v="kata">カタカナ</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">2</span>れんしゅうする字を えらぶ</h2>
+    <p class="hint">字をおすと えらべます（もう一度おすと はずれます）。左はしの「あ行」などをおすと、その行を まとめて えらべます。</p>
+    <div id="kanaTable"></div>
+    <div class="tray" id="tray"></div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">3</span>もんだいの かたち</h2>
+    <label class="chk"><input type="checkbox" data-type="A"><span>A　なぞりがき<small>うすい字を なぞる</small></span></label>
+    <label class="chk"><input type="checkbox" data-type="B"><span>B　うつしがき<small>おてほんを見て、あいたマスに書く</small></span></label>
+    <label class="chk"><input type="checkbox" data-type="C"><span>C　ことばの なぞり・うつし<small>その字をつかった ことばを なぞって、となりに書く</small></span></label>
+    <label class="chk"><input type="checkbox" data-type="D"><span>D　あなあき ことば<small>ことばの あいたところに 字を入れる</small></span></label>
+    <label class="chk"><input type="checkbox" id="stroke"><span>かきじゅんを のせる<small>1画ずつ ふえていく図を、字ごとに 1行 入れます</small></span></label>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">4</span>ならべかた・むき</h2>
+    <div class="row"><label class="k">ならべかた</label>
+      <div class="seg" id="orderSeg"><button type="button" data-v="char">字ごと</button><button type="button" data-v="type">かたちごと</button></div></div>
+    <div class="row"><label class="k">書くむき</label>
+      <div class="seg" id="dirSeg"><button type="button" data-v="h">よこがき</button><button type="button" data-v="v">たてがき</button></div></div>
+    <div class="row"><label class="k">紙のむき</label>
+      <div class="seg" id="orientSeg"><button type="button" data-v="p">たて長</button><button type="button" data-v="l">よこ長</button></div></div>
+    <div class="row"><label class="k">マスの大きさ</label>
+      <div class="seg" id="cellSeg"><button type="button" data-v="L">大</button><button type="button" data-v="M">中</button><button type="button" data-v="S">小</button></div></div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">5</span>もんだいの数と 紙の大きさ</h2>
+    <p class="hint">1行が1もんです。</p>
+    <div class="row">
+      <button type="button" class="btn" id="minus">－</button>
+      <input type="number" id="count" min="1" value="10">
+      <button type="button" class="btn" id="plus">＋</button>
+      <span>もん</span>
+    </div>
+    <div id="countInfo"></div>
+    <div class="row"><label class="k">紙の大きさ</label></div>
+    <div class="seg" id="paperSeg"></div>
+    <div id="paperInfo"></div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">6</span>ことばの きめかた（C・D）</h2>
+    <div class="seg" id="wordModeSeg">
+      <button type="button" data-v="random">ランダム</button>
+      <button type="button" data-v="fixed">いつも同じ</button>
+      <button type="button" data-v="pick">先生がえらぶ</button>
+    </div>
+    <div id="wordModeArea"></div>
+    <details id="wordEditor">
+      <summary>ことばリストを へんしゅうする</summary>
+      <div id="wordEditorBody"></div>
+    </details>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">7</span>見出し・こたえ</h2>
+    <div class="row"><label class="k">タイトル</label><input type="text" id="title" maxlength="30"></div>
+    <div class="row"><label class="k">めあて</label><input type="text" id="meate" maxlength="30" placeholder="（空らんにすると 書きこみ用の線になります）"></div>
+    <p class="hint">名前・日づけ・くみと ばんごう・ひょうかの らんは、いつも入ります。</p>
+    <label class="chk"><input type="checkbox" id="answer"><span>こたえのページを つける<small>D（あなあき ことば）の こたえを 赤い字で入れた ページを つけます</small></span></label>
+  </div>
+
+  <div class="sec">
+    <button type="button" class="btn main" id="printBtn">いんさつする</button>
+    <p class="hint" id="printHint"></p>
+  </div>
+
+  <div class="foot">
+    書体：Windowsでは「UD デジタル 教科書体」、iPadなどでは「Klee One」（SIL Open Font License）で表示・印刷されます。<br>
+    かきじゅんの図：KanjiVG（© Ulrich Apel, CC BY-SA 3.0）をもとにしています。<br>
+    えらんだ字・せってい・ことばの へんしゅうは、このパソコン（ブラウザ）に 自動で 保存されます。
+  </div>
+</aside>
+
+<main class="preview">
+  <div class="ptitle" id="ptitle"></div>
+  <div class="pages" id="pages"></div>
+</main>
+</div>
+
+<script>
+/*DATA*/
+
+// ===== 基本の表 =====
+const PAPERS = {B5:[182,257], A4:[210,297], B4:[257,364]};   // たて長のときの はば・高さ(mm)
+const PAPER_ORDER = ["B5","A4","B4"];
+const PAD = 12, HEAD = 38, HEADGAP = 5, LABEL = 7, LGAP = 3, GAP = 4;
+const CELL_MM = {L:22, M:18, S:15};
+const TYPES = ["A","B","C","D"];
+const TYPE_NAME = {A:"なぞりがき", B:"うつしがき", C:"ことば", D:"あなあき"};
+const SMALL = new Set([..."ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ"]);
+
+const toKata = s => s.replace(/[ぁ-ゖ]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60));
+const H_GROUPS = [
+  {name:"せいおん（あ〜ん）", rows:[["あ","い","う","え","お"],["か","き","く","け","こ"],["さ","し","す","せ","そ"],["た","ち","つ","て","と"],["な","に","ぬ","ね","の"],["は","ひ","ふ","へ","ほ"],["ま","み","む","め","も"],["や","","ゆ","","よ"],["ら","り","る","れ","ろ"],["わ","","","","を"],["ん","","","",""]]},
+  {name:"だくおん・はんだくおん（゛゜）", rows:[["が","ぎ","ぐ","げ","ご"],["ざ","じ","ず","ぜ","ぞ"],["だ","ぢ","づ","で","ど"],["ば","び","ぶ","べ","ぼ"],["ぱ","ぴ","ぷ","ぺ","ぽ"]]},
+  {name:"ようおん（小さい ゃ・ゅ・ょ）", y3:true, rows:[..."きしちにひみりぎじびぴ"].map(a => [a+"ゃ", a+"ゅ", a+"ょ"])},
+  {name:"小さい っ", free:true, rows:[["っ"]]}
+];
+const GROUPS = {
+  hira: H_GROUPS,
+  kata: H_GROUPS.map((g, i) => ({...g,
+    name:["せいおん（ア〜ン）","だくおん・はんだくおん（゛゜）","ようおん（小さい ャ・ュ・ョ）","小さい ッ・のばす ー"][i],
+    rows:g.rows.map(r => r.map(toKata)).map(r => g.free ? [...r, "ー"] : r)}))
+};
+const ORDER = {};
+for (const sc of ["hira","kata"]) { ORDER[sc] = {}; let i = 0; for (const g of GROUPS[sc]) for (const r of g.rows) for (const c of r) if (c) ORDER[sc][c] = i++; }
+
+// ===== せってい（保存する） =====
+const STORE_KEY = "kanaPrintMaker.v1";
+const S = {
+  script:"hira", sel:{hira:[], kata:[]}, types:{A:true, B:true, C:true, D:false}, stroke:true,
+  order:"char", dir:"h", orient:"p", cell:"M", count:10, paper:"auto", wordMode:"random", seed:1,
+  picked:{}, title:"", titleAuto:true, meate:"", answer:false
+};
+let CUSTOM = {hira:{add:[], del:[]}, kata:{add:[], del:[]}};
+function load(){
+  try {
+    const d = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+    if (d && d.S) Object.assign(S, d.S);
+    if (d && d.custom) CUSTOM = Object.assign(CUSTOM, d.custom);
+  } catch(e) {}
+}
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify({S, custom:CUSTOM})); } catch(e) {} }
+
+// ===== ことば =====
+function wordList(sc){
+  const del = new Set(CUSTOM[sc].del);
+  const seen = new Set(), out = [];
+  for (const [w, e] of [...WORDS[sc].filter(x => !del.has(x[0])), ...CUSTOM[sc].add]) {
+    if (seen.has(w)) continue; seen.add(w); out.push({w, e:e || ""});
+  }
+  return out;
+}
+// ことばの中で その字が つかわれている場所
+function positions(w, key){
+  const cs = [...w], k = [...key], res = [];
+  for (let i = 0; i < cs.length; i++) {
+    if (k.length === 1) { if (cs[i] === k[0] && !SMALL.has(cs[i+1])) res.push(i); }
+    else if (cs[i] === k[0] && cs[i+1] === k[1]) res.push(i, i+1);
+  }
+  return res;
+}
+const units = w => [...w].reduce((n, c) => n + (c === " " || c === "　" ? 0.5 : 1), 0);
+function rng(seed){ let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function shuffle(arr, r){ const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// ===== 紙に 入る量 =====
+function capacity(paper){
+  let [W, H] = PAPERS[paper];
+  if (S.orient === "l") [W, H] = [H, W];
+  const w = W - PAD*2, h = H - PAD*2;
+  const inline = S.dir === "h" ? w : h, block = S.dir === "h" ? h : w;
+  const cell = CELL_MM[S.cell];
+  return {paper, W, H, cell, inline, avail:inline - LABEL,
+    cells:Math.floor((inline - LABEL) / cell),
+    lines:Math.floor((block - HEAD - HEADGAP + LGAP) / (cell + LGAP))};
+}
+const selChars = () => S.sel[S.script].slice().sort((a, b) => ORDER[S.script][a] - ORDER[S.script][b]);
+const activeTypes = () => TYPES.filter(t => S.types[t]);
+function strips(n){ return S.stroke ? Math.min(selChars().length, n) : 0; }
+function maxCount(paper){
+  const L = capacity(paper).lines;
+  for (let n = L; n >= 1; n--) if (n + strips(n) <= L) return n;
+  return 0;
+}
+function autoPaper(n){
+  for (const p of PAPER_ORDER) if (n + strips(n) <= capacity(p).lines) return p;
+  return "B4";
+}
+
+// ===== プリントの中身を きめる =====
+function plan(){
+  const chars = selChars(), types = activeTypes(), warn = [];
+  if (!chars.length || !types.length) return null;
+  const limitPaper = S.paper === "auto" ? "B4" : S.paper;
+  const maxN = maxCount(limitPaper);
+  let N = Math.max(1, Math.min(S.count, maxN));
+  const paper = S.paper === "auto" ? autoPaper(N) : S.paper;
+  const cap = capacity(paper);
+  const all = wordList(S.script);
+  const r = rng(S.seed);
+
+  // 字ごとに つかえる ことばと かたち
+  const info = chars.map((c, ci) => {
+    let unpicked = false;
+    let ws = all.filter(x => positions(x.w, c).length && units(x.w) + 1 <= cap.cells);
+    const tooLong = all.filter(x => positions(x.w, c).length && units(x.w) + 1 > cap.cells).length;
+    if (S.wordMode === "pick") {
+      const p = S.picked[S.script + ":" + c] || [];
+      const picked = ws.filter(x => p.includes(x.w));
+      if (picked.length) ws = picked; else unpicked = true;
+    } else if (S.wordMode === "random") {
+      ws = shuffle(ws, rng(S.seed * 31 + ci * 7 + 1));
+    }
+    const avail = types.filter(t => t === "A" || t === "B" || ws.length);
+    if ((S.types.C || S.types.D) && !ws.length)
+      warn.push(`「${c}」をつかう ことばが ${tooLong ? "（マスに 入りきる長さのものが）" : ""}ありません。ことばリストに 足すと C・Dも つくれます。`);
+    return {c, ws, avail, n:0, k:0, unpicked};
+  });
+  const usable = info.filter(x => x.avail.length);
+  if (!usable.length) return {warn, empty:true, maxN, paper, cap};
+  if (N < usable.length) warn.push(`えらんだ字（${usable.length}字）が もんだいの数より多いので、${N}字だけ 入ります。`);
+  for (let i = 0; i < N; i++) usable[i % usable.length].n++;
+
+  let g = 0;
+  for (const x of usable) {
+    const its = [];
+    for (let i = 0; i < x.n; i++) {
+      let t = types[g % types.length];
+      for (let s = 0; s < types.length && !x.avail.includes(t); s++) t = types[++g % types.length];
+      its.push({type:t, c:x.c}); g++;
+    }
+    its.sort((a, b) => TYPES.indexOf(a.type) - TYPES.indexOf(b.type));
+    for (const it of its) if (it.type === "C" || it.type === "D") { it.word = x.ws[x.k % x.ws.length]; x.k++; }
+    x.items = its;
+    if (x.unpicked && its.some(it => it.word)) warn.push(`「${x.c}」は ことばが えらばれていないので、リストの じゅんに つかいます。`);
+  }
+  const lines = [], used = usable.filter(x => x.n);
+  if (S.order === "char") {
+    for (const x of used) { if (S.stroke) lines.push({type:"S", c:x.c}); lines.push(...x.items); }
+  } else {
+    if (S.stroke) for (const x of used) lines.push({type:"S", c:x.c});
+    const flat = used.flatMap(x => x.items);
+    flat.sort((a, b) => TYPES.indexOf(a.type) - TYPES.indexOf(b.type));
+    lines.push(...flat);
+  }
+  return {paper, cap, lines, warn, maxN, N, used, hasD:lines.some(l => l.type === "D")};
+}
+
+// ===== プリントを かく =====
+function cellHTML(sz, inner, cls){
+  return `<div class="cell${cls ? " " + cls : ""}" style="inline-size:${sz}mm;block-size:${sz}mm;font-size:${(sz*0.78).toFixed(2)}mm">${inner || ""}</div>`;
+}
+const SMALL_ALL = new Set([...SMALL, "っ", "ッ"]);
+const ch = (c, k) => `<span class="${k}${SMALL_ALL.has(c) ? " sm" : c === "ー" ? " cho" : ""}">${esc(c)}</span>`;
+function strokeSVG(c, j){
+  const d = STROKES[c]; if (!d) return "";
+  let s = `<svg viewBox="0 0 109 109" aria-hidden="true">`;
+  for (let i = 0; i < j; i++) s += `<path d="${d.s[i]}" fill="none" stroke="#9c9c9c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  s += `<path d="${d.s[j]}" fill="none" stroke="#000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const m = d.s[j].match(/^M\s*([\d.]+)[ ,]([\d.]+)/);
+  if (m) s += `<circle cx="${m[1]}" cy="${m[2]}" r="4.5" fill="#000"/>`;
+  const [nx, ny] = d.n[j];
+  s += `<text x="${nx}" y="${ny}" font-size="15" font-family="sans-serif" font-weight="bold" fill="#000" stroke="#fff" stroke-width="3" paint-order="stroke" text-anchor="middle">${j+1}</text>`;
+  return s + `</svg>`;
+}
+function lineHTML(l, no, cap, answer){
+  const cell = cap.cell, avail = cap.avail;
+  const label = l.type === "S" ? `<div class="num kj">かき<br>じゅん</div>` : `<div class="num"><b>${no}</b></div>`;
+  let body = "";
+  const keyCs = l.c ? [...l.c] : [];
+  if (l.type === "S") {
+    const steps = keyCs.map(c => (STROKES[c] ? STROKES[c].s.length : 0));
+    const total = steps.reduce((a, b) => a + b, 0);
+    const gaps = (keyCs.length - 1) * GAP;
+    const sz = Math.min(cell, (avail - gaps) / Math.max(1, total));
+    body = keyCs.map(c => {
+      const n = STROKES[c] ? STROKES[c].s.length : 0;
+      let g = ""; for (let j = 0; j < n; j++) g += cellHTML(sz, strokeSVG(c, j));
+      return `<div class="grp">${g}</div>`;
+    }).join(`<div class="gap" style="inline-size:${GAP}mm"></div>`);
+  } else if (l.type === "A" || l.type === "B") {
+    const k = keyCs.length;
+    const model = `<div class="grp">${keyCs.map(c => cellHTML(cell, ch(c, "m"))).join("")}</div>`;
+    let rest = avail - k*cell - GAP;
+    const fill = c => l.type === "A" ? ch(c, "t") : "";
+    let more = "";
+    if (k === 1) {
+      const n = Math.floor(rest / cell); let g = "";
+      for (let i = 0; i < n; i++) g += cellHTML(cell, fill(keyCs[0]));
+      more = `<div class="grp">${g}</div>`;
+    } else {
+      const pg = 2;
+      let first = true;
+      while (rest >= k*cell + (first ? 0 : pg)) {
+        if (!first) more += `<div class="gap" style="inline-size:${pg}mm"></div>`;
+        more += `<div class="grp">${keyCs.map(c => cellHTML(cell, fill(c))).join("")}</div>`;
+        rest -= k*cell + (first ? 0 : pg); first = false;
+      }
+    }
+    body = model + `<div class="gap" style="inline-size:${GAP}mm"></div>` + more;
+  } else {
+    const w = l.word, cs = [...w.w];
+    const emo = `<div class="emo" style="inline-size:${cell}mm;block-size:${cell}mm;font-size:${(cell*0.68).toFixed(2)}mm">${esc(w.e)}</div>`;
+    const blanks = new Set(positions(w.w, l.c));
+    const wordCells = (mode) => {
+      let g = "", out = "";
+      const flush = () => { if (g) { out += `<div class="grp">${g}</div>`; g = ""; } };
+      cs.forEach((c, i) => {
+        if (c === " " || c === "　") { flush(); out += `<div class="gap" style="inline-size:${cell/2}mm"></div>`; return; }
+        let inner = "";
+        if (mode === "trace") inner = ch(c, "t");
+        else if (mode === "hole") inner = blanks.has(i) ? (answer ? ch(c, "a") : "") : ch(c, "m");
+        g += cellHTML(cell, inner);
+      });
+      flush(); return out;
+    };
+    if (l.type === "C") {
+      const L = units(w.w) * cell;
+      let used = cell + L;
+      body = emo + wordCells("trace");
+      while (used + GAP + L <= avail + 0.01) { body += `<div class="gap" style="inline-size:${GAP}mm"></div>` + wordCells("copy"); used += GAP + L; }
+    } else {
+      body = emo + wordCells("hole");
+    }
+  }
+  return `<div class="line" style="block-size:${cell}mm">${label}${body}</div>`;
+}
+function pageHTML(P, answer){
+  const cap = P.cap;
+  const title = (S.title || defaultTitle()) + (answer ? "（こたえ）" : "");
+  let no = 0;
+  const lines = P.lines.map(l => lineHTML(l, l.type === "S" ? 0 : ++no, cap, answer)).join("");
+  return `<div class="page" style="width:${cap.W}mm;height:${cap.H}mm">
+    <div class="sheet ${S.dir === "v" ? "v" : "h"}">
+      <div class="head">
+        <div class="title">${esc(title)}</div>
+        <div class="info"><span class="bx"></span>がつ<span class="bx"></span>にち<span class="sp"></span><span class="bx"></span>くみ<span class="bx"></span>ばん<span class="sp"></span>なまえ<span class="bx grow"></span></div>
+        <div class="meate"><span class="ml">めあて</span><span class="mt">${esc(S.meate)}</span></div>
+        <div class="hyouka"><span>${answer ? "" : ""}</span></div>
+      </div>
+      ${lines}
+    </div>
+    ${S.stroke ? `<div class="credit">かきじゅん：KanjiVG（CC BY-SA 3.0）</div>` : ""}
+  </div>`;
+}
+const defaultTitle = () => S.script === "hira" ? "ひらがなの れんしゅう" : "カタカナの れんしゅう";
+
+// ===== 画面 =====
+const $ = id => document.getElementById(id);
+function setSeg(id, v){ for (const b of $(id).querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === v); }
+
+function renderKana(){
+  const sel = new Set(S.sel[S.script]);
+  let h = "";
+  for (const g of GROUPS[S.script]) {
+    h += `<div class="kgroup"><h3>${esc(g.name)}</h3><div class="ktable">`;
+    for (const r of g.rows) {
+      const lab = g.free ? "小さい字" : (r[0] + (g.y3 ? "" : "行"));
+      h += `<div class="krow${g.y3 ? " y3" : ""}${g.free ? " free" : ""}"><button type="button" class="rl" data-row="${esc(r.filter(Boolean).join(","))}">${esc(lab)}</button>`;
+      for (const c of r) h += c ? `<button type="button" class="kb${sel.has(c) ? " on" : ""}" data-k="${esc(c)}">${esc(c)}</button>` : `<span class="kb empty"></span>`;
+      h += `</div>`;
+    }
+    h += `</div></div>`;
+  }
+  $("kanaTable").innerHTML = h;
+  const cs = selChars();
+  $("tray").innerHTML = cs.length
+    ? `えらんだ字（${cs.length}）<div class="chars">${esc(cs.join(" "))}</div><button type="button" class="btn small" id="clearSel">ぜんぶ はずす</button>`
+    : `まだ 字が えらばれていません。`;
+}
+
+function renderWordMode(){
+  let h = "";
+  if (S.wordMode === "random") h = `<p class="hint">作るたびに ことばが かわります。</p><button type="button" class="btn small" id="reshuffle">ことばを 入れかえる</button>`;
+  else if (S.wordMode === "fixed") h = `<p class="hint">ことばリストの 上から じゅんに つかいます。</p>`;
+  else {
+    const cs = selChars();
+    if (!cs.length) h = `<p class="hint">先に 字を えらんでください。</p>`;
+    else {
+      h = `<p class="hint">つかいたい ことばを おしてください（みどりが えらんだもの）。</p>`;
+      const all = wordList(S.script);
+      for (const c of cs) {
+        const ws = all.filter(x => positions(x.w, c).length);
+        const p = S.picked[S.script + ":" + c] || [];
+        h += `<div class="pickc"><span class="t">${esc(c)}</span>　`;
+        h += ws.length ? `<div class="chips">${ws.map(x => `<button type="button" class="chip${p.includes(x.w) ? " on" : ""}" data-pick="${esc(c)}" data-w="${esc(x.w)}">${esc(x.e)} ${esc(x.w)}</button>`).join("")}</div>`
+                       : `<span class="hint">ことばが ありません</span>`;
+        h += `</div>`;
+      }
+    }
+  }
+  $("wordModeArea").innerHTML = h;
+}
+
+let editorFilter = "";
+function renderEditor(){
+  const sc = S.script, del = new Set(CUSTOM[sc].del), added = new Set(CUSTOM[sc].add.map(x => x[0]));
+  const base = WORDS[sc].map(([w, e]) => ({w, e, off:del.has(w)}));
+  const list = [...base, ...CUSTOM[sc].add.map(([w, e]) => ({w, e, mine:true}))]
+    .filter(x => !editorFilter || x.w.includes(editorFilter));
+  $("wordEditorBody").innerHTML = `
+    <p class="hint">${sc === "hira" ? "ひらがな" : "カタカナ"}の ことばです。ことばを 足すと、その中の字を えらんだときに C・Dで つかわれます。</p>
+    <div class="addrow"><input type="text" id="newWord" placeholder="ことば（れい：${sc === "hira" ? "あさがお" : "アイス"}）" maxlength="12">
+      <input type="text" id="newEmoji" placeholder="えもじ" maxlength="8"><button type="button" class="btn" id="addWord">たす</button></div>
+    <p class="hint">えもじは なくても だいじょうぶです。Windowsでは「Windowsキー」＋「.（ピリオド）」で えもじを 入力できます。</p>
+    <div class="row"><input type="text" id="wordFilter" placeholder="さがす（字を入れると しぼりこめます）" value="${esc(editorFilter)}"></div>
+    <div class="chips">${list.map(x => `<button type="button" class="chip${x.off ? " off" : ""}" data-edit="${esc(x.w)}" title="${x.off ? "おすと もとにもどります" : "おすと けします"}">${esc(x.e)} ${esc(x.w)}${x.off ? "" : `<span class="x">×</span>`}</button>`).join("")}</div>
+    <p class="hint">「×」のついた ことばを おすと けせます（はじめから入っている ことばは、もう一度おすと もどります）。</p>
+    <div class="row">
+      <button type="button" class="btn small" id="exportWords">ことばを ファイルに 保存</button>
+      <label class="btn small">ファイルから よみこむ<input type="file" id="importWords" accept=".json,application/json" hidden></label>
+      <button type="button" class="btn small" id="resetWords">はじめの リストに もどす</button>
+    </div>
+    <p class="hint">「ファイルに保存」したものを、ほかのパソコンや iPadで「よみこむ」と、同じ ことばリストが つかえます。</p>`;
+}
+
+function renderControls(){
+  setSeg("scriptSeg", S.script); setSeg("orderSeg", S.order); setSeg("dirSeg", S.dir);
+  setSeg("orientSeg", S.orient); setSeg("cellSeg", S.cell); setSeg("wordModeSeg", S.wordMode);
+  for (const el of document.querySelectorAll("[data-type]")) el.checked = !!S.types[el.dataset.type];
+  $("stroke").checked = S.stroke; $("answer").checked = S.answer;
+  if (document.activeElement !== $("title")) $("title").value = S.title || defaultTitle();
+  if (document.activeElement !== $("meate")) $("meate").value = S.meate;
+}
+
+function renderAll(){
+  renderControls(); renderKana(); renderWordMode();
+  if ($("wordEditor").open) renderEditor();
+  renderPreview();
+  save();
+}
+
+function renderPreview(){
+  const P = plan();
+  // 紙の大きさの ボタン
+  const sug = autoPaper(P && P.N ? P.N : Math.min(S.count, maxCount("B4")));
+  $("paperSeg").innerHTML = `<button type="button" data-v="auto"${S.paper === "auto" ? ' class="on"' : ""}>おすすめ<span class="sub">いまは ${sug}</span></button>` +
+    PAPER_ORDER.map(p => `<button type="button" data-v="${p}"${S.paper === p ? ' class="on"' : ""}>${p}<span class="sub">${maxCount(p)}もんまで</span></button>`).join("");
+  const limitPaper = S.paper === "auto" ? "B4" : S.paper;
+  const maxN = maxCount(limitPaper);
+  $("count").max = maxN;
+  const shown = Math.max(1, Math.min(S.count, maxN));
+  if (document.activeElement !== $("count")) $("count").value = shown;
+  $("countInfo").innerHTML = `<p class="hint">いまの せっていでは、いちばん多くて <b>${maxN}もん</b>（${limitPaper}）まで えらべます${S.stroke && selChars().length ? "（かきじゅんの行も 入れて 数えています）" : ""}。</p>`;
+  const used = P && !P.empty ? P.paper : (S.paper === "auto" ? sug : S.paper);
+  $("paperInfo").innerHTML = S.paper === "auto"
+    ? `<div class="ok">おすすめの 紙：<b>${used}</b>　${S.orient === "p" ? "たて長" : "よこ長"}<br>${P && P.N ? P.N : S.count}もんが 入る いちばん小さい紙です。</div>`
+    : `<div class="ok">つかう紙：<b>${used}</b>　${S.orient === "p" ? "たて長" : "よこ長"}${sug !== used ? `<br>（${P && P.N ? P.N : S.count}もんなら ${sug} でも 入ります）` : ""}</div>`;
+  $("printHint").innerHTML = `いんさつの 画面で、用紙サイズを「<b>${used}</b>」、向きを「${S.orient === "p" ? "縦" : "横"}」、倍率を「100%（実際のサイズ）」にしてください。`;
+  $("pagesize").textContent = `@page{size:${capacity(used).W}mm ${capacity(used).H}mm;margin:0}`;
+
+  const pages = $("pages");
+  if (!P) {
+    pages.innerHTML = `<div class="empty-note">${!selChars().length ? "左の ②で、れんしゅうする字を えらんでください。" : "左の ③で、もんだいの かたちを 1つ いじょう えらんでください。"}</div>`;
+    $("ptitle").innerHTML = ""; return;
+  }
+  if (P.empty) {
+    pages.innerHTML = `<div class="empty-note">${P.warn.map(esc).join("<br>")}<br>A・Bの かたちも えらぶと プリントが できます。</div>`;
+    $("ptitle").innerHTML = ""; return;
+  }
+  let html = pageHTML(P, false);
+  if (S.answer && P.hasD) html += pageHTML(P, true);
+  pages.innerHTML = html;
+  // 内わけ
+  const rows = P.used.map(x => {
+    const cnt = {}; for (const it of x.items) cnt[it.type] = (cnt[it.type] || 0) + 1;
+    return `<span class="ch">${esc(x.c)}</span>：${TYPES.filter(t => cnt[t]).map(t => TYPE_NAME[t] + cnt[t]).join("・")}`;
+  }).join("　");
+  let warn = P.warn.map(w => `<div class="warn">${esc(w)}</div>`).join("");
+  if (S.answer && !P.hasD) warn += `<div class="warn">D（あなあき ことば）が ないので、こたえの ページは つきません。</div>`;
+  $("ptitle").innerHTML = `<div class="sumtbl">${P.paper}・${S.orient === "p" ? "たて長" : "よこ長"}・${S.dir === "h" ? "よこがき" : "たてがき"}　もんだい ${P.N}もん${S.stroke ? `（＋かきじゅん ${P.used.length}行）` : ""}<br>${rows}</div>${warn}`;
+  fitPreview();
+}
+function fitPreview(){
+  const pages = $("pages"), pg = pages.querySelector(".page");
+  if (!pg) return;
+  pages.style.zoom = 1;
+  const avail = $("pages").parentElement.clientWidth - 32;
+  const z = Math.min(1, avail / pg.offsetWidth);
+  pages.style.zoom = z;
+}
+
+// ===== そうさ =====
+function bindSeg(id, key, after){
+  $(id).addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b || !b.dataset.v) return;
+    S[key] = b.dataset.v; if (after) after(); renderAll();
+  });
+}
+function toggleChars(list){
+  const cur = new Set(S.sel[S.script]);
+  const allOn = list.every(c => cur.has(c));
+  for (const c of list) allOn ? cur.delete(c) : cur.add(c);
+  S.sel[S.script] = [...cur];
+}
+function init(){
+  load();
+  bindSeg("scriptSeg", "script", () => { if (S.titleAuto) S.title = ""; });
+  bindSeg("orderSeg", "order"); bindSeg("dirSeg", "dir"); bindSeg("orientSeg", "orient");
+  bindSeg("cellSeg", "cell"); bindSeg("wordModeSeg", "wordMode"); bindSeg("paperSeg", "paper");
+  $("kanaTable").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.k) toggleChars([b.dataset.k]);
+    else if (b.dataset.row) toggleChars(b.dataset.row.split(","));
+    renderAll();
+  });
+  $("tray").addEventListener("click", e => { if (e.target.id === "clearSel") { S.sel[S.script] = []; renderAll(); } });
+  for (const el of document.querySelectorAll("[data-type]")) el.addEventListener("change", () => { S.types[el.dataset.type] = el.checked; renderAll(); });
+  $("stroke").addEventListener("change", e => { S.stroke = e.target.checked; renderAll(); });
+  $("answer").addEventListener("change", e => { S.answer = e.target.checked; renderAll(); });
+  const curMax = () => maxCount(S.paper === "auto" ? "B4" : S.paper);
+  const setCount = v => { v = parseInt(v, 10); if (!isFinite(v)) return; S.count = Math.max(1, Math.min(v, curMax())); renderAll(); $("count").value = S.count; };
+  $("count").addEventListener("change", e => setCount(e.target.value));
+  $("minus").addEventListener("click", () => setCount(Math.min(S.count, curMax()) - 1));
+  $("plus").addEventListener("click", () => setCount(S.count + 1));
+  $("title").addEventListener("input", e => { S.title = e.target.value; S.titleAuto = !e.target.value.trim() || e.target.value === defaultTitle(); renderPreview(); save(); });
+  $("meate").addEventListener("input", e => { S.meate = e.target.value; renderPreview(); save(); });
+  $("wordModeArea").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.id === "reshuffle") { S.seed = (S.seed * 48271 + 11) % 2147483647; renderAll(); return; }
+    if (b.dataset.pick) {
+      const key = S.script + ":" + b.dataset.pick, p = new Set(S.picked[key] || []);
+      p.has(b.dataset.w) ? p.delete(b.dataset.w) : p.add(b.dataset.w);
+      S.picked[key] = [...p]; renderAll();
+    }
+  });
+  $("wordEditor").addEventListener("toggle", () => { if ($("wordEditor").open) renderEditor(); });
+  $("wordEditorBody").addEventListener("input", e => {
+    if (e.target.id === "wordFilter") { editorFilter = e.target.value.trim(); const pos = e.target.selectionStart; renderEditor(); const f = $("wordFilter"); f.focus(); f.setSelectionRange(pos, pos); }
+  });
+  $("wordEditorBody").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const sc = S.script, C = CUSTOM[sc];
+    if (b.id === "addWord") {
+      const w = $("newWord").value.trim().replace(/\s+/g, " "), em = $("newEmoji").value.trim();
+      if (!w) return;
+      if (wordList(sc).some(x => x.w === w)) { alert("その ことばは もう 入っています。"); return; }
+      C.del = C.del.filter(x => x !== w);
+      if (!WORDS[sc].some(x => x[0] === w)) C.add.push([w, em]);
+      renderAll(); renderEditor(); $("newWord").focus(); return;
+    }
+    if (b.dataset.edit) {
+      const w = b.dataset.edit;
+      if (C.add.some(x => x[0] === w)) C.add = C.add.filter(x => x[0] !== w);
+      else if (C.del.includes(w)) C.del = C.del.filter(x => x !== w);
+      else C.del.push(w);
+      renderAll(); renderEditor(); return;
+    }
+    if (b.id === "resetWords") {
+      if (!confirm("足した ことばと けした ことばを すべて もとにもどします。よろしいですか？")) return;
+      CUSTOM[sc] = {add:[], del:[]}; renderAll(); renderEditor(); return;
+    }
+    if (b.id === "exportWords") {
+      const blob = new Blob([JSON.stringify({app:"kana-print", version:1, custom:CUSTOM}, null, 1)], {type:"application/json"});
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "kana-kotoba.json";
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    }
+  });
+  $("wordEditorBody").addEventListener("change", e => {
+    if (e.target.id !== "importWords" || !e.target.files[0]) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      try {
+        const d = JSON.parse(fr.result);
+        if (!d || !d.custom || !d.custom.hira || !d.custom.kata) throw 0;
+        for (const sc of ["hira","kata"]) CUSTOM[sc] = {add:(d.custom[sc].add || []).filter(x => Array.isArray(x) && typeof x[0] === "string").map(x => [x[0], String(x[1] || "")]), del:(d.custom[sc].del || []).filter(x => typeof x === "string")};
+        alert("ことばリストを よみこみました。"); renderAll(); renderEditor();
+      } catch(err) { alert("このファイルは よみこめませんでした。"); }
+    };
+    fr.readAsText(e.target.files[0]);
+  });
+  $("printBtn").addEventListener("click", () => {
+    if (!$("pages").querySelector(".page")) { alert("先に 字と もんだいの かたちを えらんでください。"); return; }
+    window.print();
+  });
+  window.addEventListener("resize", fitPreview);
+  window.addEventListener("beforeprint", () => { $("pages").style.zoom = 1; });
+  window.addEventListener("afterprint", fitPreview);
+  renderAll();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitPreview);
+}
+init();
+</script>
+</body>
+</html>
