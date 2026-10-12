@@ -23,7 +23,7 @@ var JW = (function () {
   function subj(id, name, display, weekly, opt) {
     var hours = {};
     GRADES.forEach(function (g, i) { hours[g] = weekly[i]; });
-    var s = { id: id, name: name, display: display, hours: hours, room: '', roomGrades: [],
+    var s = { id: id, name: name, display: display, hours: hours, room: '', roomOff: [],
       maxPerDay: 1, pairs: 0, active: false, auto: true };
     for (var k in (opt || {})) s[k] = opt[k];
     return s;
@@ -70,7 +70,7 @@ var JW = (function () {
         subj('sansu', '算数', '算数', [4, 5, 5, 5, 5, 5]),
         subj('rika', '理科', '理科', [0, 0, 2, 3, 3, 3]),
         subj('seikatsu', '生活', '生活', [3, 3, 0, 0, 0, 0], { maxPerDay: 2, pairs: 1 }),
-        subj('ongaku', '音楽', '音楽', [2, 2, 2, 2, 1, 1], { room: '音楽室', roomGrades: [3, 4, 5, 6] }),
+        subj('ongaku', '音楽', '音楽', [2, 2, 2, 2, 1, 1], { room: '音楽室', roomOff: [1, 2] }),
         subj('zukou', '図画工作', '図画工作', [2, 2, 2, 2, 2, 2], { maxPerDay: 2, pairs: 'all' }),
         subj('katei', '家庭', '家庭', [0, 0, 0, 0, 2, 1], { room: '家庭科室', maxPerDay: 2, pairs: 'all' }),
         subj('taiiku', '体育', '体育', [3, 3, 3, 3, 3, 3], { room: '校庭', active: true }),
@@ -163,7 +163,8 @@ var JW = (function () {
   }
   function subjectRoom(s, g) {
     if (!s.room) return '';
-    if (s.roomGrades && s.roomGrades.length && s.roomGrades.indexOf(g) < 0) return '';
+    if ((s.roomOff || []).indexOf(g) >= 0) return '';
+    if (s.roomGrades && s.roomGrades.length && s.roomGrades.indexOf(g) < 0) return '';  // 古い保存データ
     return s.room;
   }
   function slotName(A, s) {
@@ -267,18 +268,11 @@ var JW = (function () {
     // 特別教室：同じ種類の部屋を、その学年が使える部屋のまとまり（pool）にする
     var phys = physicalRooms(A);
     var rooms = {}, poolName = {}, poolRooms = {}, poolGradeCap = {};
-    var noRoomMsg = {};
     function poolFor(kind, g) {
       if (!kind) return '';
       var idx = [];
       phys.forEach(function (r, i) { if (r.kind === kind && (!r.grades.length || r.grades.indexOf(g) >= 0)) idx.push(i); });
-      if (!idx.length) {
-        if (phys.some(function (r) { return r.kind === kind; }) && !noRoomMsg[kind + g]) {
-          noRoomMsg[kind + g] = 1;
-          errors.push(g + '年が使える' + kind + 'がありません（質問「特別教室」で使う学年を確認してください）。');
-        }
-        return '';
-      }
+      if (!idx.length) return '';   // その学年が使える部屋がない → 普通教室で組む
       var key = kind + '#' + idx.join(',');
       if (!rooms[key]) {
         rooms[key] = idx.reduce(function (t, i) { return t + phys[i].cap; }, 0);
@@ -480,8 +474,8 @@ var JW = (function () {
     });
 
     // 同じ時間にそろえる授業
-    var syncMembers = {};
-    (A.syncs || []).forEach(function (sg, gi) {
+    var syncMembers = {}, syncInfo = {};
+    syncGroups(A, opt.syncRnd).forEach(function (sg, gi) {
       var cis = (sg.classes || []).map(function (k) { return classIndex[k]; })
         .filter(function (x) { return x !== undefined; });
       if (cis.length < 2) return;
@@ -504,6 +498,8 @@ var JW = (function () {
       for (var j = 0; j < cnt; j++) {
         var key = gi + ':' + j;
         syncMembers[key] = cis.slice();
+        syncInfo[key] = { src: sg.src, target: sg.target,
+          pool: sg.pool ? sg.pool.map(function (k) { return classIndex[k]; }).filter(function (x) { return x !== undefined; }) : null };
         picks.forEach(function (list) { list[j].sync = key; });
       }
     });
@@ -602,7 +598,7 @@ var JW = (function () {
     });
 
     return { A: A, D: D, MP: MP, S: S, classes: classes, classIndex: classIndex, avail: avail,
-      fixedLabel: fixedLabel, satFree: satFree, units: units, pins: allPins(A, classes), classUnits: classUnits, syncMembers: syncMembers,
+      fixedLabel: fixedLabel, satFree: satFree, units: units, pins: allPins(A, classes), classUnits: classUnits, syncMembers: syncMembers, syncInfo: syncInfo,
       teachers: teachers, prefs: prefs, rooms: rooms, poolName: poolName, poolRooms: poolRooms, poolGradeCap: poolGradeCap, phys: phys,
       maxPerDay: maxPerDay, subjName: subjName, manualList: manualList,
       rules: A.rules || {}, errors: errors, notes: uniq(notes) };
@@ -816,6 +812,68 @@ var JW = (function () {
       }
     }
     return cost;
+  }
+
+  /* ---------- 同じ時間にそろえる授業 ---------- */
+  // 入力（学年全部／2クラスずつ／番号で決める／クラスを選ぶ）を、そろえるクラスの組に広げる
+  // rnd があるときは「組み合わせはツールにまかせる」の組をまぜて決める（ないときは番号順）
+  function syncGroups(A, rnd) {
+    var out = [];
+    (A.syncs || []).forEach(function (sg, si) {
+      var mode = sg.mode || 'pick', cnt = +sg.count || 0, same = sg.same !== false;
+      function push(keys, count, pool) {
+        if (keys.length >= 2 && count > 0) out.push({ src: si, classes: keys, target: sg.target, count: count, pool: pool });
+      }
+      function pairsOf(list) {
+        var groups = [];
+        for (var i = 0; i + 1 < list.length; i += 2) groups.push([list[i], list[i + 1]]);
+        if (list.length % 2 && sg.odd === 'three' && groups.length) groups[groups.length - 1].push(list[list.length - 1]);
+        return groups;
+      }
+      if (mode === 'pick') return push((sg.classes || []).slice(), cnt, null);
+      (sg.grades || []).forEach(function (g) {
+        var n = +(A.classCounts || {})[g] || 0, keys = [];
+        for (var i = 0; i < n; i++) keys.push(g + '-' + i);
+        if (keys.length < 2) return;
+        if (mode === 'grade') return push(keys, cnt, null);
+        if (mode === 'pattern') {
+          var by = {}, order = [];
+          keys.forEach(function (k, i) {
+            var p = (sg.pattern || {})[i + 1];
+            if (!p) return;
+            if (!by[p]) { by[p] = []; order.push(p); }
+            by[p].push(k);
+          });
+          return order.forEach(function (p) { push(by[p], cnt, null); });
+        }
+        if (mode === 'pair') return pairsOf(keys).forEach(function (gr) { push(gr, cnt, null); });
+        // pairAuto：毎回同じ相手なら組を1回決める。コマごとにちがってよいなら1コマずつ決める
+        for (var t = 0; t < (same ? 1 : cnt); t++) {
+          var list = keys.slice();
+          if (rnd) shuffle(list, rnd);
+          pairsOf(list).forEach(function (gr) { push(gr, same ? cnt : 1, keys); });
+        }
+      });
+    });
+    return out;
+  }
+  // 入力した「そろえる授業」から、できるクラスの組を文字にする（入力画面の確認用）
+  function syncPreview(A, sg) {
+    var B = { syncs: [sg], classCounts: A.classCounts };
+    var seen = {}, list = [];
+    syncGroups(B).forEach(function (x) {
+      var gi = x.classes.map(function (k) { return k.split('-').map(Number); });
+      var one = gi.every(function (p) { return p[0] === gi[0][0]; });
+      // 同じ学年なら「1年：1組・2組」、学年をまたぐなら「1年1組・2年2組」
+      var t = one ? gi[0][0] + '年：' + gi.map(function (p) { return className(A, p[0], p[1]); }).join('・')
+        : gi.map(function (p) { return classLabel(A, p[0], p[1]); }).join('・');
+      if (!seen[t]) { seen[t] = 1; list.push(t); }
+    });
+    return list;
+  }
+  function lcg(seed) {
+    var s = seed % 2147483647 || 1;
+    return function () { s = (s * 48271) % 2147483647; return s / 2147483647; };
   }
 
   /* ---------- 自動で組む ---------- */
@@ -1116,11 +1174,13 @@ var JW = (function () {
   function solve(A, opts) {
     opts = opts || {};
     var TRIES = opts.tries || 3;
+    // 組み合わせをツールにまかせる授業があるときは、組み合わせを変えて多めに試す
+    if (!opts.tries && (A.syncs || []).some(function (sg) { return sg.mode === 'pairAuto'; }) && effective(A).syncs.length) TRIES = 5;
     var seed0 = opts.seed || (Date.now() % 2147483647) || 1;
     var best = null, attempt = 0;
     function score(res) { return res.unplaced.length * 1000 + res.hard.length * 1000 + res.soft.length; }
     function once(done) {
-      var M = buildModel(A);
+      var M = buildModel(A, attempt ? { syncRnd: lcg(seed0 + attempt * 104729) } : {});
       var sv = new Solver(M, (seed0 + attempt * 7919) % 2147483647 || 1);
       var nUnits = M.units.length || 1;
       var base = Math.max(60000, Math.min(400000, nUnits * 600));
@@ -1714,6 +1774,7 @@ var JW = (function () {
     });
     // そろえる授業
     Object.keys(M.syncMembers).forEach(function (key) {
+      if (M.syncInfo[key].pool) return;   // 組み合わせをツールにまかせた授業は、下で確かめる
       var cis = M.syncMembers[key];
       var slots = cis.map(function (ci) {
         var id = M.classUnits[ci].filter(function (x) { return M.units[x].sync === key; })[0];
@@ -1728,7 +1789,34 @@ var JW = (function () {
         });
       }
       if (!ok && slots.length) must.push('同じ時間にそろえる授業：' + listText(cis.map(function (ci) { return M.classes[ci].label; })) + 'の' +
-        targetName(A, A.syncs[+key.split(':')[0]].target) + 'がそろっていません。');
+        targetName(A, M.syncInfo[key].target) + 'がそろっていません。');
+    });
+    // 組み合わせをツールにまかせた授業：同じ学年のどこかのクラスとそろっていればよい
+    var poolSeen = {};
+    Object.keys(M.syncInfo).forEach(function (key) {
+      var info = M.syncInfo[key];
+      if (!info.pool) return;
+      var pk = info.src + '|' + info.pool.join(',');
+      if (poolSeen[pk]) return;
+      poolSeen[pk] = 1;
+      var sg = A.syncs[info.src], cnt = +sg.count || 0, same = sg.same !== false;
+      var isT = function (id) { return id >= 0 && (M.units[id].subj === sg.target || M.units[id].variant === sg.target); };
+      var lack = [], total = 0;
+      info.pool.forEach(function (ci) {
+        var tally = {}, any = 0;
+        for (var s = 0; s < M.S; s++) {
+          if (!isT(st.grid[ci][s])) continue;
+          var mates = info.pool.filter(function (cj) { return cj !== ci && isT(st.grid[cj][s]); });
+          if (mates.length) any++;
+          mates.forEach(function (cj) { tally[cj] = (tally[cj] || 0) + 1; });
+        }
+        var got = same ? Object.keys(tally).reduce(function (m, k) { return Math.max(m, tally[k]); }, 0) : any;
+        if (got < cnt) { lack.push(M.classes[ci].label); total += cnt - got; }
+      });
+      // 2クラスずつで余ったクラスをそろえない設定なら、その分は足りなくてよい
+      var allow = info.pool.length % 2 && sg.odd !== 'three' ? cnt : 0;
+      if (total > allow) must.push('同じ時間にそろえる授業：' + listText(lack) + 'の' + targetName(A, sg.target) +
+        'が、' + (same ? '同じ相手のクラスと' : 'ほかのクラスと') + '週' + cnt + 'コマそろっていません。');
     });
     var W = weights(M, 0), out = [];
     for (var c = 0; c < M.classes.length; c++) evalClass(M, st, c, W, out);
@@ -1760,7 +1848,8 @@ var JW = (function () {
         });
         if (names.length > 1) {
           var together = Object.keys(M.syncMembers).some(function (key) {
-            return cis.every(function (ci) { return M.syncMembers[key].indexOf(ci) >= 0; });
+            var mem = M.syncInfo[key].pool || M.syncMembers[key];
+            return cis.every(function (ci) { return mem.indexOf(ci) >= 0; });
           });
           if (!together) must.push(T.name + '：' + slotName(A, s) + 'に' + listText(names) + 'の授業が重なっています。');
         }
@@ -1791,7 +1880,7 @@ var JW = (function () {
     DAYS: DAYS, GRADES: GRADES, STD: STD, weeksOf: weeksOf, defaultAnswers: defaultAnswers, uid: uid,
     className: className, classLabel: classLabel, classShort: classShort, targetName: targetName,
     targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText,
-    buildModel: buildModel, effective: effective, solve: solve, check: check, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel
+    buildModel: buildModel, effective: effective, solve: solve, check: check, syncPreview: syncPreview, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel
   };
 })();
 if (typeof module !== 'undefined') module.exports = JW;
