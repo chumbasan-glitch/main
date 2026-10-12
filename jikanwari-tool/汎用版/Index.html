@@ -94,6 +94,8 @@
   table.pv td.fx { background: var(--cell-fixed); } table.pv td.no { background: var(--cell-none); } table.pv td.em { background: var(--cell-empty); } table.pv td.sa { background: var(--cell-sat); } table.pv td.mo { background: var(--main-weak); }
   table.pv th.sec { text-align: left; background: var(--main-weak); padding: 2px 6px; }
   table.pv th.day { border-left: 2px solid var(--day-line); } table.pv td.dl { border-left: 2px solid var(--day-line); }
+  .perclass { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 13px; }
+  .perclass label { display: inline-flex; align-items: center; gap: 4px; }
   .adv { border-top: 1px solid var(--line); padding: 10px 0 4px; margin-top: 8px; }
   .adv-t { font-weight: bold; margin-bottom: 4px; }
   .adv ul { margin: 2px 0 4px; }
@@ -573,11 +575,23 @@ function renderHomeroom() {
       h += '<div class="row small">担任が入れる教科（質問「このツールで組む教科」で「組まない」にした教科）は：</div>' +
         '<div class="row chips"><label><input type="radio" name="hrm' + g + '" data-k="' + base + '.manual" data-t="text" value="gap"' + (G.manual !== 'auto' ? ' checked' : '') + '>空けておく（担任が自分のクラスにいる時間に空ける）</label>' +
         '<label><input type="radio" name="hrm' + g + '" data-k="' + base + '.manual" data-t="text" value="auto"' + (G.manual === 'auto' ? ' checked' : '') + '>すべてツールで組む</label></div>';
-      var optsList = [{ v: 'own', t: '各クラスの担任' }].concat(classes.map(function (c) { return { v: 'cls:' + c.key, t: c.label + 'の担任' }; })).concat([{ v: 'other', t: 'ほかの先生（専科・講師など）' }]);
+      var teacherOpts = classes.map(function (c) { return { v: 'cls:' + c.key, t: c.label + 'の担任' }; }).concat([{ v: 'other', t: 'ほかの先生（専科・講師など）' }]);
+      var optsList = [{ v: 'own', t: '各クラスの担任' }].concat(teacherOpts).concat([{ v: 'perclass', t: 'クラスごとに決める' }]);
+      var perOpts = [{ v: 'own', t: 'そのクラスの担任' }].concat(teacherOpts);
+      var gClasses = classes.filter(function (c) { return c.grade === g; });
       h += '<table class="t"><tr><th class="l">教科</th><th>週</th><th class="l">教える先生</th></tr>' +
         A.subjects.filter(function (s) { return (+s.hours[g] || 0) > 0; }).map(function (s) {
-          return '<tr><td class="l">' + esc(s.name) + '</td><td>' + s.hours[g] + '</td><td class="l"><select data-k="' + base + '.assign.' + s.id + '">' + opts(optsList, (G.assign || {})[s.id] || 'own') + '</select></td></tr>';
-        }).join('') + '</table>';
+          var a = (G.assign || {})[s.id] || 'own';
+          var row = '<tr><td class="l">' + esc(s.name) + '</td><td>' + s.hours[g] + '</td><td class="l"><select data-k="' + base + '.assign.' + s.id + '">' + opts(optsList, a) + '</select>';
+          if (a === 'perclass') {
+            var by = ((G.assignBy || {})[s.id]) || {};
+            row += '<div class="perclass">' + gClasses.map(function (c) {
+              return '<label>' + esc(c.label) + '<select data-k="' + base + '.assignBy.' + s.id + '.' + c.key + '">' + opts(perOpts, by[c.key] || 'own') + '</select></label>';
+            }).join('') + '</div>';
+          }
+          return row + '</td></tr>';
+        }).join('') + '</table>' +
+        '<p class="small">「クラスごとに決める」：例えば4クラスで理科と社会を2クラスずつ交換するときに使います（理科は1組・2組＝1組の担任、3組・4組＝3組の担任 など）。</p>';
       h += hrSummary(g, G);
       var others = A.subjects.filter(function (s) { return (+s.hours[g] || 0) > 0 && (G.assign || {})[s.id] === 'other'; });
       if (others.length && !A.features.teachers) h += '<div class="box warn small">「ほかの先生」にした教科（' + esc(others.map(function (s) { return s.name; }).join('・')) +
@@ -590,13 +604,18 @@ function renderHomeroom() {
 // 担任ごとの、ほかのクラスへ行く時数のまとめ
 function hrSummary(g, G) {
   var load = {};
+  var gClasses = allClasses().filter(function (c) { return c.grade === g; });
   A.subjects.forEach(function (s) {
-    var a = (G.assign || {})[s.id];
-    if (!a || a.indexOf('cls:') !== 0) return;
-    var key = a.slice(4), kg = +key.split('-')[0], n = +A.classCounts[g] || 0;
-    var away = (+s.hours[g] || 0) * (kg === g ? n - 1 : n);
-    (load[key] = load[key] || { n: 0, subs: [] }).n += away;
-    load[key].subs.push(s.name);
+    var a0 = (G.assign || {})[s.id] || 'own';
+    gClasses.forEach(function (c) {
+      var a = a0 === 'perclass' ? (((G.assignBy || {})[s.id] || {})[c.key] || 'own') : a0;
+      if (a.indexOf('cls:') !== 0) return;
+      var key = a.slice(4);
+      if (key === c.key) return; // 自分のクラス
+      var L = load[key] || (load[key] = { n: 0, subs: [] });
+      L.n += (+s.hours[g] || 0);
+      if (L.subs.indexOf(s.name) < 0) L.subs.push(s.name);
+    });
   });
   var keys = Object.keys(load);
   if (!keys.length) return '<p class="small">まだ交換する教科がありません。</p>';

@@ -418,6 +418,8 @@ var JW = (function () {
         var u = units[id];
         if (u.teachers.length) return; // 専科・講師が持つ授業
         var a = (G.assign || {})[u.subj] || 'own';
+        // クラスごとに決める（例：4クラスで、理科を1・2組は1組の担任、3・4組は3組の担任）
+        if (a === 'perclass') a = ((G.assignBy || {})[u.subj] || {})[c.key] || 'own';
         if (a === 'other') return;      // ほかの先生（専科・講師の担当で入れる）
         var key = a === 'own' ? c.key : a.slice(4);
         var ti = hrTeacher(key);
