@@ -198,7 +198,7 @@ function writeTimetable(table, saveName) {
   put(2, 1, 'クラス', HEAD); put(3, 1, '', HEAD);
   table.classRows.forEach(function (cr, i) {
     var r = classStart + i;
-    put(r, 1, cr.label, HEAD);
+    put(r, 1, cr.label + (cr.hr ? '\n' + cr.hr : ''), HEAD);  // 担任名を入れていれば、クラス名の下に
     slotCols.forEach(function (sIdx, j) {
       if (typeof sIdx === 'string') { put(r, 2 + j, mod.grades.indexOf(cr.grade) >= 0 ? mod.labels[sIdx.slice(1)] : '', '#eef4ea'); return; }
       var cell = cr.cells[sIdx];

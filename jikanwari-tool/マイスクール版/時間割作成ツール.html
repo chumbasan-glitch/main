@@ -119,6 +119,7 @@
     body.printing .print-title { display: block; }
     header, nav, .foot, .noprint { display: none !important; } .card { border: 0; }
   }
+  .hrn { font-size: 9px; line-height: 1; font-weight: normal; white-space: nowrap; overflow: hidden; }
 </style>
 </head>
 <body>
@@ -229,7 +230,7 @@ var JW = (function () {
       pins: [],
       module: { on: false, per: 3, count: 1, grades: GRADES.slice(), slots: {} },
       syncs: [],
-      rules: { dailyMax: true, pairs: true, spread: true, active: true }
+      rules: { dailyMax: true, pairs: true, spread: true, active: true, sixthHr: false, sixthHrStrict: false, senkaDaily: true, senkaDailyStrict: false }
     };
   }
 
@@ -242,6 +243,8 @@ var JW = (function () {
   }
   function classLabel(A, g, i) { return g + '年' + className(A, g, i); }
   // 表で使う短い名前（3年A組→3A、3年1組→3-1）
+  // 担任の名前（入れていなければ ''）
+  function hrNameOf(A, key) { return String(((A && A.hrNames) || {})[key] || '').trim(); }
   function classShort(A, g, i) {
     var n = className(A, g, i).replace(/組$/, '');
     return /^[0-9０-９]+$/.test(n) ? g + '-' + n : g + n;
@@ -470,7 +473,7 @@ var JW = (function () {
         if (!ds.length) return;
         dayOk[g] = A.days.map(function (x, d) { return ds.indexOf(d) >= 0; });
       });
-      return { name: t.name || '（名前なし）', off: off, expect: {}, dayOk: dayOk, group: !!t.groupGrade, chain: !!t.chainGrade, dayRoom: t.dayRoom || {} };
+      return { name: t.name || '（名前なし）', kind: t.kind, off: off, expect: {}, dayOk: dayOk, group: !!t.groupGrade, chain: !!t.chainGrade, dayRoom: t.dayRoom || {} };
     });
     (A.teachers || []).forEach(function (t, ti) {
       (t.jobs || []).forEach(function (j) {
@@ -560,8 +563,20 @@ var JW = (function () {
       }
     });
 
+    // 6時間目に入れない授業（講師・少人数・TT・その他の先生、ほかのクラスの担任が教える授業）
+    units.forEach(function (u) {
+      u.no6 = u.teachers.some(function (ti) { var T = teachers[ti]; return T.homeroom !== undefined ? T.homeroom !== u.cls : T.kind !== '専科'; });
+    });
     teachers.forEach(function (t, ti) {
       t.units = units.filter(function (u) { return u.teachers.indexOf(ti) >= 0 && !u.manual; }).map(function (u) { return u.id; });
+      // 専科：授業が1つもない日を作らない（土曜日は数えない）
+      t.daily = !!((A.rules || {}).senkaDaily && t.kind === '専科');
+      t.workDays = [];
+      A.days.forEach(function (dn, d) {
+        if (dn === '土') return;
+        for (var p = 0; p < MP; p++) if (!t.off[d * MP + p]) return t.workDays.push(d);
+      });
+      t.tcost = t.group || t.chain || t.daily;
       var keys = {};
       units.forEach(function (u) { if (u.teachers.indexOf(ti) >= 0) keys[u.sync || ('u' + u.id)] = 1; });
       var need = Object.keys(keys).length;
@@ -664,9 +679,10 @@ var JW = (function () {
   function weights(M, level) {
     var r = M.rules;
     var w = { hard: 100, pref: 8, daily: r.dailyMax ? 20 : 0, pair: r.pairs ? 40 : 0,
-      spread: r.spread ? 3 : 0, active: r.active ? 4 : 0, group: 6, chain: 3 };
+      spread: r.spread ? 3 : 0, active: r.active ? 4 : 0, group: 6, chain: 3,
+      sixth: r.sixthHr && !r.sixthHrStrict ? 10 : 0, senka: r.senkaDaily && !r.senkaDailyStrict ? 15 : 0 };
     if (level >= 1) w.pref = 1;               // 希望をゆるめる
-    if (level >= 2) { w.daily = Math.min(w.daily, 3); w.pair = Math.min(w.pair, 3); w.spread = Math.min(w.spread, 1); w.active = Math.min(w.active, 1); w.group = 1; w.chain = 1; } // 組み方のルールもゆるめる
+    if (level >= 2) { w.daily = Math.min(w.daily, 3); w.pair = Math.min(w.pair, 3); w.spread = Math.min(w.spread, 1); w.active = Math.min(w.active, 1); w.group = 1; w.chain = 1; w.sixth = Math.min(w.sixth, 2); w.senka = Math.min(w.senka, 3); } // 組み方のルールもゆるめる
     return w;
   }
 
@@ -748,14 +764,35 @@ var JW = (function () {
     for (var i = 0; i < u.teachers.length; i++) if (teacherBad(M, u.teachers[i], g, s)) return true;
     for (i = 0; i < u.prefs.length; i++) { var p = M.prefs[u.prefs[i]]; if (p.strict && prefBad(p, s)) return true; }
     if (u.pin !== undefined && u.pin !== s) return true;
+    if (u.no6 && M.rules.sixthHr && M.rules.sixthHrStrict && s % M.MP === 5) return true;
     return false;
   }
 
   // 同じ学年の授業を、できるだけ同じ曜日にまとめる（先生ごと）
+  // 専科の先生：授業が1つもない日を作らない（週の授業がその日数より少ないときは、その数の日に分ける）
+  function evalSenkaDays(M, st, t, W, out) {
+    var T = M.teachers[t], strict = M.rules.senkaDailyStrict, w = strict ? W.hard : W.senka;
+    if (!w) return 0;
+    var days = {}, blocks = {};
+    for (var i = 0; i < T.units.length; i++) {
+      var u = M.units[T.units[i]], s = st.pos[u.id];
+      blocks[u.sync || (u.pair >= 0 ? 'p' + Math.min(u.id, u.pair) : 'u' + u.id)] = 1;
+      if (s >= 0) days[Math.floor(s / M.MP)] = 1;
+    }
+    var need = Math.min(T.workDays.length, Object.keys(blocks).length);
+    var empty = T.workDays.filter(function (d) { return !days[d]; });
+    var miss = need - (T.workDays.length - empty.length);
+    if (miss <= 0) return 0;
+    if (out) out.push({ level: strict ? 'hard' : 'soft', kind: 'senkaDay', t: t, text: T.name + '：' +
+      empty.map(function (d) { return M.A.days[d]; }).join('・') + '曜日に授業が1つもありません。' });
+    return w * miss;
+  }
+
   function evalTeacher(M, st, t, W, out) {
     var T = M.teachers[t];
-    if ((!T.group && !T.chain) || !W.group) return 0;
-    var cost = 0, byGrade = {}, byDay = {};
+    var cost = T.daily ? evalSenkaDays(M, st, t, W, out) : 0;
+    if ((!T.group && !T.chain) || !W.group) return cost;
+    var byGrade = {}, byDay = {};
     for (var i = 0; i < T.units.length; i++) {
       var u = M.units[T.units[i]], s = st.pos[u.id];
       if (s < 0) continue;
@@ -822,6 +859,13 @@ var JW = (function () {
           if (out) out.push({ level: p.strict ? 'hard' : 'soft', kind: 'pref', pi: u.prefs[i], cls: c, subj: u.subj, text: lab + ' ' + slotName(M.A, s) + 'の' + u.display +
             '：「' + p.text + '」' + (p.strict ? '（絶対に守る）' : '') + 'の希望を守れませんでした。' });
         }
+      }
+      // 6時間目は担任の授業にする（講師・少人数・TT・その他、ほかの担任の授業は入れない）
+      if (u.no6 && M.rules.sixthHr && s % MP === 5) {
+        var strict6 = M.rules.sixthHrStrict;
+        cost += strict6 ? W.hard : W.sixth;
+        if (out && (strict6 || W.sixth)) out.push({ level: strict6 ? 'hard' : 'soft', kind: 'sixth', cls: c, text: lab + ' ' + slotName(M.A, s) + '：' +
+          listText(u.teachers.map(function (t) { return M.teachers[t].name; })) + 'の' + u.display + 'が入っています（6時間目は担任の授業にする）。' });
       }
       if (u.pin !== undefined && u.pin !== s) {
         cost += W.hard;
@@ -1007,10 +1051,11 @@ var JW = (function () {
   };
   Solver.prototype.setLevel = function (lv) { this.level = lv; this.W = weights(this.M, lv); this.recalc(); };
   Solver.prototype.hardCount = function () {
-    var M = this.M, st = this.st, W = { hard: 1, pref: 0, daily: 0, pair: 0, spread: 0, active: 0, group: 0 };
+    var M = this.M, st = this.st, W = { hard: 1, pref: 0, daily: 0, pair: 0, spread: 0, active: 0, group: 0, sixth: 0, senka: 0 };
     var n = 0;
     for (var c = 0; c < M.classes.length; c++) n += evalClass(M, st, c, W);
     for (var s = 0; s < M.S; s++) n += evalSlot(M, st, s, W);
+    for (var t = 0; t < M.teachers.length; t++) n += evalTeacher(M, st, t, W);
     return n;
   };
   // 2つのコマを入れかえてみて、よくなれば（または温度しだいで）採用する
@@ -1036,7 +1081,7 @@ var JW = (function () {
       slots.forEach(function (s) {
         var x = st.grid[c][s];
         if (x < 0) return;
-        M.units[x].teachers.forEach(function (t) { if ((M.teachers[t].group || M.teachers[t].chain) && ts.indexOf(t) < 0) ts.push(t); });
+        M.units[x].teachers.forEach(function (t) { if (M.teachers[t].tcost && ts.indexOf(t) < 0) ts.push(t); });
       });
     }
     collectTeachers();
@@ -1100,7 +1145,7 @@ var JW = (function () {
         for (k = 0; k < 2; k++) {
           if (pair2[k] < 0) continue;
           var tl = M.units[pair2[k]].teachers;
-          for (m = 0; m < tl.length; m++) if ((M.teachers[tl[m]].group || M.teachers[tl[m]].chain) && ts.indexOf(tl[m]) < 0) ts.push(tl[m]);
+          for (m = 0; m < tl.length; m++) if (M.teachers[tl[m]].tcost && ts.indexOf(tl[m]) < 0) ts.push(tl[m]);
         }
       }
       for (i = 0; i < ts.length; i++) before += this.tc[ts[i]];
@@ -1545,6 +1590,15 @@ var JW = (function () {
         add('group:' + x.t, T.name + '：同じ学年の授業を同じ曜日にまとめきれませんでした',
           x.g + '年の授業が' + x.n + 'つの曜日に分かれました（できれば' + x.ideal + 'つ）。同じ曜日にすると、クラスの時間割や教室と合わない時間がありました。',
           [RETRY, '質問「専科・講師の曜日」で、学年ごとに曜日を決める（例：' + x.g + '年は月・木）'], x.g + '年');
+      } else if (x.kind === 'sixth') {
+        add('sixth', '6時間目に担任以外の授業が入りました',
+          '講師・少人数・TTなどの授業を6時間目以外に入れようとしましたが、先生の勤務や教室、ほかの条件と合わない時間がありました。',
+          [RETRY, '質問「講師などの勤務」で、1〜5時間目の勤務を増やす', 'どうしても守りたいときは、質問「組み方のルール」で「絶対」にする'], c.label);
+      } else if (x.kind === 'senkaDay') {
+        var T3 = M.teachers[x.t];
+        add('senkaDay:' + x.t, T3.name + '：授業が1つもない日ができました',
+          '毎日どこかに授業を入れようとしましたが、クラスの時間割や学年ごとの曜日の指定などと合いませんでした。',
+          [RETRY, '学年ごとに曜日を決めているときは、質問「専科・講師の曜日」で曜日を見直す', 'どうしても守りたいときは、質問「組み方のルール」で「絶対」にする'], T3.name);
       } else if (x.kind === 'chain') {
         var T2 = M.teachers[x.t];
         add('chain:' + x.t, T2.name + '：同じ学年の授業を続けきれませんでした',
@@ -1571,7 +1625,7 @@ var JW = (function () {
         else if (st.grid[ci][s] >= 0) cells.push({ t: M.units[st.grid[ci][s]].display, k: 'lesson' });
         else cells.push({ t: '', k: 'empty' });
       }
-      return { label: c.short, full: c.label, grade: c.grade, cells: cells };
+      return { label: c.short, full: c.label, grade: c.grade, hr: hrNameOf(A, c.key), cells: cells };
     });
     // 曜日ごとの列の数（その曜日にいちばん多い時間数）
     var dayPeriods = A.days.map(function (d, di) {
@@ -1708,7 +1762,7 @@ var JW = (function () {
           if (hr !== undefined && ts.indexOf(hr) >= 0) return;
           var withHr = ts.some(function (t) { var k = kindOf(t); return k === '少人数' || k === 'TT'; });
           if (withHr) return;                            // 少人数・TTは担任もクラスにいる
-          names.push(c.short + '担任');
+          names.push(hrNameOf(A, c.key) || c.short + '担任');
         });
         // 講師・少人数・TT・その他
         src.forEach(function (t, ti) {
@@ -1751,7 +1805,7 @@ var JW = (function () {
     });
     var seenRow = {};
     (sheet.classRows || []).forEach(function (row) {
-      var ci = byLabel[String(row.label).trim()];
+      var ci = byLabel[String(row.label).split('\n')[0].trim()];
       if (ci === undefined) { if (String(row.label).trim()) must.push('「' + row.label + '」というクラスは、答えの中にありません。'); return; }
       seenRow[ci] = true;
       var c = M.classes[ci];
@@ -1789,7 +1843,7 @@ var JW = (function () {
     M.classes.forEach(function (c, ci) { if (!seenRow[ci]) must.push(c.label + 'の行が見つかりません。'); });
 
     // 先生は下の表を見てチェックするので、ここでは外す
-    M.units.forEach(function (u) { u.teachers = []; delete u.pin; });
+    M.units.forEach(function (u) { u.teachers = []; delete u.pin; u.no6 = false; });
     // 授業の固定は、表のその時間にその授業が入っているかで確かめる
     M.pins.forEach(function (pn) {
       var ci = M.classIndex[pn.cls];
@@ -1878,10 +1932,15 @@ var JW = (function () {
     (sheet.teacherRows || []).forEach(function (row) {
       var ti = tByName[String(row.label).trim()];
       if (ti === undefined) return;
-      var T = M.teachers[ti], count = {};
+      var T = M.teachers[ti], count = {}, lessonDays = {}, nLessons = 0;
       for (var s = 0; s < M.S; s++) {
         var names = expandNames(row.cells[s], byShort);
         if (!names.length) continue;
+        lessonDays[Math.floor(s / M.MP)] = 1; nLessons++;
+        // 6時間目は担任の授業にする
+        if (M.rules.sixthHr && s % M.MP === 5 && (T.homeroom !== undefined || T.kind !== '専科')) {
+          (M.rules.sixthHrStrict ? must : better).push(T.name + '：' + slotName(A, s) + 'に' + listText(names) + 'の授業が入っています（6時間目は担任の授業にする）。');
+        }
         var cis = names.map(function (n) { return byShort[n]; });
         rowWho[s] = rowWho[s] || {};
         cis.forEach(function (ci) { if (ci === undefined) return; (rowWho[s][ci] = rowWho[s][ci] || []).push(ti); });
@@ -1908,6 +1967,12 @@ var JW = (function () {
           }
         });
       }
+      if (T.daily) {
+        var empty = T.workDays.filter(function (d) { return !lessonDays[d]; });
+        if (empty.length && T.workDays.length - empty.length < Math.min(T.workDays.length, nLessons)) {
+          (M.rules.senkaDailyStrict ? must : better).push(T.name + '：' + empty.map(function (d) { return A.days[d]; }).join('・') + '曜日に授業が1つもありません。');
+        }
+      }
       Object.keys(T.expect).forEach(function (ci) {
         var n = count[ci] || 0, e = T.expect[ci];
         if (n !== e) must.push(T.name + '：' + M.classes[ci].label + 'の授業が週' + n + 'コマです（予定は' + e + 'コマ）。');
@@ -1929,7 +1994,7 @@ var JW = (function () {
     DAYS: DAYS, GRADES: GRADES, STD: STD, weeksOf: weeksOf, defaultAnswers: defaultAnswers, uid: uid,
     className: className, classLabel: classLabel, classShort: classShort, targetName: targetName,
     targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText,
-    buildModel: buildModel, solve: solve, check: check, syncPreview: syncPreview, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel
+    buildModel: buildModel, solve: solve, check: check, syncPreview: syncPreview, hrNameOf: hrNameOf, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel
   };
 })();
 if (typeof module !== 'undefined') module.exports = JW;
@@ -2042,6 +2107,7 @@ var STEPS = [
   { title: 'はじめに', render: renderStart },
   { title: 'クラス数', render: renderClassCounts },
   { title: 'クラスの呼び名', render: renderClassNames },
+  { title: '担任の名前', render: renderHrNames },
   { title: '1日のコマ数', render: renderPeriods },
   { title: '学校で使う教科', render: renderSubjects },
   { title: 'モジュール（朝の時間）', render: renderModule },
@@ -2131,6 +2197,23 @@ function renderClassNames() {
     h += '</table></div><p class="small">表では「3A」「4B」のように短く表示します。</p>';
   }
   return h;
+}
+
+function hrName(key) { return (!A.features || A.features.hrNames) ? JW.hrNameOf(A, key) : ''; }
+function renderHrNames() {
+  var h = '<h2>各クラスの担任の先生の名前を教えてください</h2>' +
+    '<p class="lead">名前を入れたクラスは、補教表や時間割に「1-1担任」ではなく先生の名前を出します。分からないクラスは空けておいて大丈夫です。</p>';
+  var maxN = Math.max.apply(null, JW.GRADES.map(function (g) { return +A.classCounts[g] || 0; }));
+  if (!A.hrNames) A.hrNames = {};
+  h += '<div class="scroll"><table class="t"><tr><th></th>' + range(1, maxN).map(function (i) { return '<th>' + i + 'クラス目</th>'; }).join('') + '</tr>';
+  JW.GRADES.forEach(function (g) {
+    var n = +A.classCounts[g] || 0;
+    if (!n) return;
+    h += '<tr><th>' + g + '年</th>' + range(0, maxN - 1).map(function (i) {
+      return '<td>' + (i < n ? '<div class="small">' + esc(JW.classLabel(A, g, i)) + '</div><input type="text" class="s" data-k="hrNames.' + g + '-' + i + '" value="' + esc(A.hrNames[g + '-' + i] || '') + '" placeholder="例：山田">' : '') + '</td>';
+    }).join('') + '</tr>';
+  });
+  return h + '</table></div>';
 }
 
 function renderPeriods() {
@@ -2625,6 +2708,14 @@ function renderSyncs() {
   return h;
 }
 
+// 「できるだけ／絶対」を選ぶ
+function strictRow(k) {
+  var r = A.rules;
+  if (!r[k]) return '';
+  var on = !!r[k + 'Strict'];
+  return '<div class="row chips" style="margin:-4px 0 10px 28px">守り方：<label><input type="radio" name="st' + k + '" data-k="rules.' + k + 'Strict" data-t="radio-false"' + (!on ? ' checked' : '') + '>できるだけ</label>' +
+    '<label><input type="radio" name="st' + k + '" data-k="rules.' + k + 'Strict" data-t="radio-true"' + (on ? ' checked' : '') + '>絶対（守れないときは、入らない授業が出ます）</label></div>';
+}
 function renderRules() {
   var r = A.rules;
   function tog(k, text, sub) {
@@ -2634,6 +2725,8 @@ function renderRules() {
   h += tog('dailyMax', '同じ教科は1日の上限まで（必ず守る）', '上限は下の表で教科ごとに決められます（国語は2回まで、など）。チェックしていると、上限をこえて入れることはありません。');
   h += tog('pairs', '2時間続きにする教科', '下の表で教科ごとに決めます。続きにするのは1・2、3・4、5・6時間目の組み合わせだけです（2・3時間目などにはしません）。図画工作と家庭は、最初から「すべて2時間続き（必ず）」になっていて、このチェックを外しても必ず守ります。');
   h += tog('spread', '同じ教科が特定の曜日にかたよらない', '算数が月・火・水に集中しない、など。');
+  h += tog('sixthHr', '6時間目は担任の授業にする', '講師・少人数・TT・その他の先生の授業と、教科担任制でほかの担任が教える授業は、6時間目に入れません（短縮などで6時間目がなくなることがあるため）。専科の授業は入ってもかまいません。') + strictRow('sixthHr');
+  h += tog('senkaDaily', '専科の先生は、授業が1つもない日を作らない', '専科の先生が、月〜金のどの日にも授業があるように組みます（土曜日は数えません）。週の授業が5コマより少ない先生は、そのコマ数の日に分けます。') + strictRow('senkaDaily');
   h += tog('active', '体育などの動きのある教科が続かない', '下の表で「動きのある教科」にチェックした教科が、2時間続けて入らないようにします。');
   h += '<div class="scroll"><table class="t"><tr><th class="l">教科</th><th>1日の上限</th><th>2時間続きの回数（週）</th><th>動きのある教科</th></tr>';
   A.subjects.forEach(function (s, si) {
@@ -2740,7 +2833,7 @@ function previewTable(t, editable) {
   });
   h += '</tr>';
   t.classRows.forEach(function (r, ri) {
-    h += '<tr><th>' + cellDiv(r.label) + '</th>';
+    h += '<tr><th>' + cellDiv(r.label) + (r.hr ? '<div class="hrn">' + esc(r.hr) + '</div>' : '') + '</th>';
     t.days.forEach(function (d, di) {
       if (hasM(di)) h += '<td class="mo dl">' + cellDiv(mod.grades.indexOf(r.grade) >= 0 ? mod.labels[di] : '') + '</td>';
       for (var p = 0; p < dayP[di]; p++) {
@@ -2921,6 +3014,8 @@ function fixAnswers(x) {
     delete s.roomGrades;
   });
   x.syncs.forEach(function (sg) { if (!sg.mode) sg.mode = 'pick'; });
+  if (x.rules.senkaDaily === undefined) x.rules.senkaDaily = true;
+  if (!x.hrNames) x.hrNames = {};
   return x;
 }
 
@@ -3224,7 +3319,7 @@ function sheetHtml(t) {
   t.days.forEach(function (d, di) { var n = cols.filter(function (c) { return c.d === di; }).length; if (n) h += '<td colspan="' + n + '" style="' + BD + 'text-align:center;font-weight:bold;background:#dfe8f5">' + esc(d) + '</td>'; });
   h += '</tr><tr>' + td('', '#dfe8f5') + cols.map(function (c) { return td(c.m ? '朝' : c.p + 1, '#dfe8f5', 'font-weight:bold'); }).join('') + '</tr>';
   t.classRows.forEach(function (r) {
-    h += '<tr>' + td(r.label, '#dfe8f5', 'font-weight:bold') + cols.map(function (c) {
+    h += '<tr>' + td(r.label + (r.hr ? '（' + r.hr + '）' : ''), '#dfe8f5', 'font-weight:bold') + cols.map(function (c) {
       if (c.m) return td(mod.grades.indexOf(r.grade) >= 0 ? mod.labels[c.d] : '', '#eef4ea');
       var cell = r.cells[c.d * MP + c.p];
       var bg = cell.k === 'fixed' ? '#e6e6e6' : cell.k === 'none' ? '#9e9e9e' : cell.k === 'empty' ? '#fff3c4' : cell.k === 'sat' ? '#e6f0fa' : '#fff';

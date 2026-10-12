@@ -122,6 +122,7 @@
     body.printing .print-title { display: block; }
     header, nav, .foot, .noprint { display: none !important; } .card { border: 0; }
   }
+  .hrn { font-size: 9px; line-height: 1; font-weight: normal; white-space: nowrap; overflow: hidden; }
 </style>
 </head>
 <body>
@@ -244,6 +245,7 @@ var STEPS = [
   { title: '使う機能', render: renderFeatures },
   { title: 'クラス数', render: renderClassCounts },
   { title: 'クラスの呼び名', render: renderClassNames },
+  { title: '担任の名前', render: renderHrNames, feat: 'hrNames' },
   { title: '1日のコマ数', render: renderPeriods },
   { title: '学校で使う教科', render: renderSubjects },
   { title: 'モジュール（朝の時間）', render: renderModule, feat: 'module' },
@@ -320,7 +322,8 @@ var FEATURES = [
   { k: 'module', t: 'モジュール（朝の短い時間）がある', d: '例：朝の15分に国語を行い、3回で1時間と数える。朝会などの教科外の時間も表に出せます。' },
   { k: 'sat', t: '土曜授業がある', d: '土曜日の列を時間割に出します。時数に数えるかどうかも選べます。' },
   { k: 'syncs', t: '同じ時間にそろえたい授業がある', d: '例：学年体育、少人数算数で2クラスを同じ時間にする。' },
-  { k: 'pins', t: '時間を決めて固定したい授業がある', d: '例：講師の5年1組の理科は火曜2時間目。' }
+  { k: 'pins', t: '時間を決めて固定したい授業がある', d: '例：講師の5年1組の理科は火曜2時間目。' },
+  { k: 'hrNames', t: '各クラスの担任名を入力する', d: '補教表や時間割に、「1-1担任」ではなく担任の先生の名前を出します。' }
 ];
 function renderFeatures() {
   var f = A.features;
@@ -359,6 +362,23 @@ function renderClassNames() {
     h += '</table></div><p class="small">表では「3A」「4B」のように短く表示します。</p>';
   }
   return h;
+}
+
+function hrName(key) { return (!A.features || A.features.hrNames) ? JW.hrNameOf(A, key) : ''; }
+function renderHrNames() {
+  var h = '<h2>各クラスの担任の先生の名前を教えてください</h2>' +
+    '<p class="lead">名前を入れたクラスは、補教表や時間割に「1-1担任」ではなく先生の名前を出します。分からないクラスは空けておいて大丈夫です。</p>';
+  var maxN = Math.max.apply(null, JW.GRADES.map(function (g) { return +A.classCounts[g] || 0; }));
+  if (!A.hrNames) A.hrNames = {};
+  h += '<div class="scroll"><table class="t"><tr><th></th>' + range(1, maxN).map(function (i) { return '<th>' + i + 'クラス目</th>'; }).join('') + '</tr>';
+  JW.GRADES.forEach(function (g) {
+    var n = +A.classCounts[g] || 0;
+    if (!n) return;
+    h += '<tr><th>' + g + '年</th>' + range(0, maxN - 1).map(function (i) {
+      return '<td>' + (i < n ? '<div class="small">' + esc(JW.classLabel(A, g, i)) + '</div><input type="text" class="s" data-k="hrNames.' + g + '-' + i + '" value="' + esc(A.hrNames[g + '-' + i] || '') + '" placeholder="例：山田">' : '') + '</td>';
+    }).join('') + '</tr>';
+  });
+  return h + '</table></div>';
 }
 
 function renderPeriods() {
@@ -620,7 +640,7 @@ function renderHomeroom() {
       h += '<div class="row small">担任が入れる教科（質問「このツールで組む教科」で「組まない」にした教科）は：</div>' +
         '<div class="row chips"><label><input type="radio" name="hrm' + g + '" data-k="' + base + '.manual" data-t="text" value="gap"' + (G.manual !== 'auto' ? ' checked' : '') + '>空けておく（担任が自分のクラスにいる時間に空ける）</label>' +
         '<label><input type="radio" name="hrm' + g + '" data-k="' + base + '.manual" data-t="text" value="auto"' + (G.manual === 'auto' ? ' checked' : '') + '>すべてツールで組む</label></div>';
-      var teacherOpts = classes.map(function (c) { return { v: 'cls:' + c.key, t: c.label + 'の担任' }; }).concat([{ v: 'other', t: 'ほかの先生（専科・講師など）' }]);
+      var teacherOpts = classes.map(function (c) { var nm = hrName(c.key); return { v: 'cls:' + c.key, t: c.label + 'の担任' + (nm ? '（' + nm + '）' : '') }; }).concat([{ v: 'other', t: 'ほかの先生（専科・講師など）' }]);
       var optsList = [{ v: 'own', t: '各クラスの担任' }].concat(teacherOpts).concat([{ v: 'perclass', t: 'クラスごとに決める' }]);
       var perOpts = [{ v: 'own', t: 'そのクラスの担任' }].concat(teacherOpts);
       var gClasses = classes.filter(function (c) { return c.grade === g; });
@@ -927,6 +947,14 @@ function renderSyncs() {
   return h;
 }
 
+// 「できるだけ／絶対」を選ぶ
+function strictRow(k) {
+  var r = A.rules;
+  if (!r[k]) return '';
+  var on = !!r[k + 'Strict'];
+  return '<div class="row chips" style="margin:-4px 0 10px 28px">守り方：<label><input type="radio" name="st' + k + '" data-k="rules.' + k + 'Strict" data-t="radio-false"' + (!on ? ' checked' : '') + '>できるだけ</label>' +
+    '<label><input type="radio" name="st' + k + '" data-k="rules.' + k + 'Strict" data-t="radio-true"' + (on ? ' checked' : '') + '>絶対（守れないときは、入らない授業が出ます）</label></div>';
+}
 function renderRules() {
   var r = A.rules;
   function tog(k, text, sub) {
@@ -936,6 +964,8 @@ function renderRules() {
   h += tog('dailyMax', '同じ教科は1日の上限まで（必ず守る）', '上限は下の表で教科ごとに決められます（国語は2回まで、など）。チェックしていると、上限をこえて入れることはありません。');
   h += tog('pairs', '2時間続きにする教科', '下の表で教科ごとに決めます。続きにするのは1・2、3・4、5・6時間目の組み合わせだけです（2・3時間目などにはしません）。図画工作と家庭は、最初から「すべて2時間続き（必ず）」になっていて、このチェックを外しても必ず守ります。');
   h += tog('spread', '同じ教科が特定の曜日にかたよらない', '算数が月・火・水に集中しない、など。');
+  h += tog('sixthHr', '6時間目は担任の授業にする', '講師・少人数・TT・その他の先生の授業と、教科担任制でほかの担任が教える授業は、6時間目に入れません（短縮などで6時間目がなくなることがあるため）。専科の授業は入ってもかまいません。') + strictRow('sixthHr');
+  h += tog('senkaDaily', '専科の先生は、授業が1つもない日を作らない', '専科の先生が、月〜金のどの日にも授業があるように組みます（土曜日は数えません）。週の授業が5コマより少ない先生は、そのコマ数の日に分けます。') + strictRow('senkaDaily');
   h += tog('active', '体育などの動きのある教科が続かない', '下の表で「動きのある教科」にチェックした教科が、2時間続けて入らないようにします。');
   h += '<div class="scroll"><table class="t"><tr><th class="l">教科</th><th>1日の上限</th><th>2時間続きの回数（週）</th><th>動きのある教科</th></tr>';
   A.subjects.forEach(function (s, si) {
@@ -1042,7 +1072,7 @@ function previewTable(t, editable) {
   });
   h += '</tr>';
   t.classRows.forEach(function (r, ri) {
-    h += '<tr><th>' + cellDiv(r.label) + '</th>';
+    h += '<tr><th>' + cellDiv(r.label) + (r.hr ? '<div class="hrn">' + esc(r.hr) + '</div>' : '') + '</th>';
     t.days.forEach(function (d, di) {
       if (hasM(di)) h += '<td class="mo dl">' + cellDiv(mod.grades.indexOf(r.grade) >= 0 ? mod.labels[di] : '') + '</td>';
       for (var p = 0; p < dayP[di]; p++) {
@@ -1231,6 +1261,8 @@ function fixAnswers(x) {
     delete s.roomGrades;
   });
   x.syncs.forEach(function (sg) { if (!sg.mode) sg.mode = 'pick'; });
+  if (x.rules.senkaDaily === undefined) x.rules.senkaDaily = true;
+  if (!x.hrNames) x.hrNames = {};
   return x;
 }
 
@@ -1540,7 +1572,7 @@ function sheetHtml(t) {
   t.days.forEach(function (d, di) { var n = cols.filter(function (c) { return c.d === di; }).length; if (n) h += '<td colspan="' + n + '" style="' + BD + 'text-align:center;font-weight:bold;background:#dfe8f5">' + esc(d) + '</td>'; });
   h += '</tr><tr>' + td('', '#dfe8f5') + cols.map(function (c) { return td(c.m ? '朝' : c.p + 1, '#dfe8f5', 'font-weight:bold'); }).join('') + '</tr>';
   t.classRows.forEach(function (r) {
-    h += '<tr>' + td(r.label, '#dfe8f5', 'font-weight:bold') + cols.map(function (c) {
+    h += '<tr>' + td(r.label + (r.hr ? '（' + r.hr + '）' : ''), '#dfe8f5', 'font-weight:bold') + cols.map(function (c) {
       if (c.m) return td(mod.grades.indexOf(r.grade) >= 0 ? mod.labels[c.d] : '', '#eef4ea');
       var cell = r.cells[c.d * MP + c.p];
       var bg = cell.k === 'fixed' ? '#e6e6e6' : cell.k === 'none' ? '#9e9e9e' : cell.k === 'empty' ? '#fff3c4' : cell.k === 'sat' ? '#e6f0fa' : '#fff';
