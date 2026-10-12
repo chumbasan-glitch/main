@@ -4,12 +4,14 @@
  * シート
  *   保存データ … 質問への答え（年度ごと）
  *   時間割一覧 … 出力した時間割（上：全クラス、下：専科・講師と特別教室）
+ *   補教表 … 空いている先生の一覧（補教用）
  *   チェック結果 … 手直し後のチェック結果
  */
 
 var SAVE_SHEET = '保存データ';
 var TABLE_SHEET = '時間割一覧';
 var CHECK_SHEET = 'チェック結果';
+var FREE_SHEET = '補教表';
 var CHUNK = 40000; // 1つのセルに入れる文字数（上限5万文字より少なめ）
 
 function doGet() {
@@ -275,10 +277,41 @@ function writeTimetable(table, saveName) {
 
   PropertiesService.getDocumentProperties().setProperty('layout', JSON.stringify({
     saveName: saveName, D: D, MP: MP, maxP: maxP, slotCols: slotCols,
-    classStart: classStart, classCount: classCount, blocks: layoutBlocks
+    classStart: classStart, classCount: classCount, blocks: layoutBlocks, days: days
   }));
+  if (table.free) writeFreeSheet_(ss, table.free, days, MP);
   ss.setActiveSheet(sh);
   return ss.getUrl() + '#gid=' + sh.getSheetId();
+}
+
+/* ---------------- 補教表 ---------------- */
+
+// 左に時間、上に曜日。マスの中に、その時間に空いている先生の名前を入れる
+function writeFreeSheet_(ss, free, dayNames, MP) {
+  var fs = ss.getSheetByName(FREE_SHEET);
+  if (fs) fs.clear(); else fs = ss.insertSheet(FREE_SHEET);
+  fs.getRange(1, 1, fs.getMaxRows(), fs.getMaxColumns()).breakApart();
+  var cols = 1 + free.days.length, rows = 2 + free.maxP;
+  if (fs.getMaxColumns() < cols) fs.insertColumnsAfter(fs.getMaxColumns(), cols - fs.getMaxColumns());
+  var out = [['補教表（空いている先生）'].concat(free.days.map(function () { return ''; }))];
+  out.push([''].concat(free.days.map(function (d) { return dayNames[d]; })));
+  for (var p = 0; p < free.maxP; p++) {
+    out.push([(p + 1) + '時間目'].concat(free.days.map(function (d) {
+      var c = free.cells[d * MP + p];
+      return c === null || c === undefined ? '—' : c.join('　');
+    })));
+  }
+  fs.getRange(1, 1, rows, cols).setValues(out);
+  fs.getRange(1, 1, 1, cols).merge().setFontWeight('bold').setFontSize(14);
+  fs.getRange(2, 1, 1, cols).setFontWeight('bold').setHorizontalAlignment('center').setBackground('#eeeeee');
+  fs.getRange(3, 1, free.maxP, 1).setFontWeight('bold').setHorizontalAlignment('center').setBackground('#eeeeee');
+  fs.getRange(3, 2, free.maxP, cols - 1).setWrap(true).setVerticalAlignment('top').setFontSize(11);
+  fs.getRange(2, 1, rows - 1, cols).setBorder(true, true, true, true, true, true);
+  fs.setColumnWidth(1, 70);
+  for (var c = 2; c <= cols; c++) fs.setColumnWidth(c, 200);
+  fs.setRowHeight(2, 24);
+  for (var r = 3; r <= rows; r++) fs.setRowHeight(r, 90);
+  fs.setHiddenGridlines(true);
 }
 
 /* ---------------- チェック ---------------- */
@@ -336,6 +369,7 @@ function writeCheckResult(result) {
         .setFontSizes(rows.map(function (row) { return row.map(fontSizeFor_); }));
     });
   }
+  if (result.free && L.days) writeFreeSheet_(ss, result.free, L.days, L.MP);
   var cs = ss.getSheetByName(CHECK_SHEET);
   if (cs) cs.clear(); else cs = ss.insertSheet(CHECK_SHEET);
   var out = [['チェックした日時', Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm')], ['', '']];

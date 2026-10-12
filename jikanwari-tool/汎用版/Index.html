@@ -96,6 +96,13 @@
   table.pv th.day { border-left: 2px solid var(--day-line); } table.pv td.dl { border-left: 2px solid var(--day-line); }
   .perclass { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 13px; }
   .perclass label { display: inline-flex; align-items: center; gap: 4px; }
+  table.ft { border-collapse: collapse; table-layout: fixed; }
+  table.ft th, table.ft td { border: 1px solid var(--cell-line); padding: 4px 6px; vertical-align: top; }
+  table.ft th { background: var(--soft); text-align: center; width: 3em; }
+  table.ft tr:first-child th { width: auto; }
+  table.ft td { width: 10.5em; font-size: 12px; line-height: 1.5; height: 4.2em; }
+  table.ft td.no { background: var(--cell-none); }
+  table.ft .fn { white-space: nowrap; margin-right: .6em; display: inline-block; }
   .adv { border-top: 1px solid var(--line); padding: 10px 0 4px; margin-top: 8px; }
   .adv-t { font-weight: bold; margin-bottom: 4px; }
   .adv ul { margin: 2px 0 4px; }
@@ -108,11 +115,10 @@
   .toast.show { opacity: .92; }
   @media (max-width: 800px) { nav { display: none; } .wrap { padding: 12px 8px 80px; } .card { padding: 16px; } }
   @media print {
-    @page { size: A3 landscape; margin: 8mm; }
     html, body { background: #fff !important; color: #000 !important; }
     body.printing * { visibility: hidden; }
-    body.printing #printArea, body.printing #printArea * { visibility: visible; }
-    body.printing #printArea { position: absolute; left: 0; top: 0; overflow: visible; }
+    body.printing .print-target, body.printing .print-target * { visibility: visible; }
+    body.printing .print-target { position: absolute; left: 0; top: 0; overflow: visible; }
     body.printing .print-title { display: block; }
     header, nav, .foot, .noprint { display: none !important; } .card { border: 0; }
   }
@@ -629,10 +635,18 @@ function renderTeachers() {
   var classes = allClasses();
   var h = '<h2>専科・講師・少人数・TTの先生と、担当する授業を教えてください</h2>' +
     '<p class="lead">担任以外の先生が入る授業です。同じ先生が同じ時間に2クラスへ入らないように組みます。いない場合は「次へ」で大丈夫です。</p>';
+  var sk = A.subsKinds || (A.subsKinds = { '講師': true, '少人数': true, 'TT': true, 'その他': true });
+  h += '<div class="item"><div class="row"><b>補教表に入れる先生の種類</b>' +
+    '<span class="chips"><label><input type="checkbox" checked disabled>専科</label>' +
+    ['講師', '少人数', 'TT', 'その他'].map(function (k) {
+      return '<label><input type="checkbox" data-k="subsKinds.' + k + '" data-t="bool"' + (sk[k] !== false ? ' checked' : '') + '>' + k + '</label>';
+    }).join('') + '</span></div>' +
+    '<div class="small">補教表（補教用の空き時間一覧）に、空き時間を出す先生の種類です。専科はいつも入れます。先生ごとに変えるときは、下の各先生の「補教表」で選んでください。</div></div>';
   A.teachers.forEach(function (t, ti) {
     h += '<div class="item"><div class="row"><b>先生' + (ti + 1) + '</b>名前<input type="text" class="m" data-k="teachers.' + ti + '.name" value="' + esc(t.name) + '" placeholder="例：音楽専科（山田）">' +
       '種類<select data-k="teachers.' + ti + '.kind">' + opts(['専科', '講師', '少人数', 'TT', 'その他'], t.kind) + '</select>' +
       (t.kind === 'その他' ? '<input type="text" class="s" data-k="teachers.' + ti + '.kindOther" value="' + esc(t.kindOther || '') + '" placeholder="例：ALT">' : '') +
+      '補教表<select data-k="teachers.' + ti + '.subsMode">' + opts([{ v: '', t: '種類どおり' }, { v: 'in', t: '入れる' }, { v: 'out', t: '入れない' }], t.subsMode || '') + '</select>' +
       '時間割での表し方<select data-k="teachers.' + ti + '.cellMode">' + opts([{ v: '', t: '教科名のまま' }, { v: 'bracket', t: '【　】' }, { v: 'text', t: '自由に書く' }], t.cellMode || '') + '</select>' +
       (t.cellMode === 'text' ? '<input type="text" class="s" data-k="teachers.' + ti + '.cellText" value="' + esc(t.cellText || '') + '" placeholder="例：補">' : '') +
       '<button class="btn small del" data-a="delTeacher" data-i="' + ti + '">この先生を削除</button></div>';
@@ -901,12 +915,33 @@ function renderResult() {
     h += '<div class="row noprint" style="margin:12px 0"><button class="btn primary" data-a="write">スプレッドシートに書き出す</button> <button class="btn" data-a="pdf">A3のPDFを作る</button> <span id="writeMsg" class="small"></span></div>';
   }
   h += '<div class="scroll" id="printArea">' + (STANDALONE ? '<div class="print-title">' + esc(r.table.title) + '</div>' : '') + previewTable(r.table, STANDALONE) + '</div>';
+  if (r.table.free) {
+    h += '<hr style="border:0;border-top:1px solid var(--line);margin:24px 0"><h3>補教表（補教用の空き時間一覧）</h3>' +
+      '<p class="small noprint">その時間に空いている先生です。担任は、自分のクラスに専科・講師が入っていて、自分はどこでも教えていない時間を出しています（少人数・TTの時間は出しません）。' +
+      (STANDALONE ? '時間割のマスを直したら、「手直しした時間割をチェックする」を押すと、この表も作り直します。' : '') + '</p>' +
+      (STANDALONE ? '<div class="row noprint"><button class="btn" data-a="printFree">補教表を印刷する（A4横）</button></div>' : '') +
+      '<div class="scroll" id="freeArea"><div class="print-title">' + esc((r.table.title || '').replace('時間割一覧', '補教表')) + '</div>' + freeTableHtml(r.table) + '</div>';
+  }
   return h;
 }
 
 // 文字数が多いマスは、文字を小さくして表示する
 function fitClass(t) { var n = String(t == null ? '' : t).length; return n <= 2 ? '' : n === 3 ? ' f3' : n <= 8 ? ' f4' : ' f9'; }
 function cellDiv(t) { return '<div class="c' + fitClass(t) + '">' + esc(t) + '</div>'; }
+
+// 補教表：左に時間、上に曜日、マスに空いている先生の名前
+function freeTableHtml(t) {
+  var f = t.free;
+  if (!f || !f.days.length) return '<p class="small">授業のある時間がありません。</p>';
+  var h = '<table class="ft"><tr><th></th>' + f.days.map(function (d) { return '<th>' + esc(t.days[d]) + '</th>'; }).join('') + '</tr>';
+  for (var p = 0; p < f.maxP; p++) {
+    h += '<tr><th>' + (p + 1) + '</th>' + f.days.map(function (d) {
+      var c = f.cells[d * t.maxPeriods + p];
+      return c === null || c === undefined ? '<td class="no"></td>' : '<td>' + c.map(function (n) { return '<span class="fn">' + esc(n) + '</span>'; }).join(' ') + '</td>';
+    }).join('') + '</tr>';
+  }
+  return h + '</table>';
+}
 
 // スプレッドシートと同じ形のプレビュー
 function previewTable(t, editable) {
@@ -1303,19 +1338,8 @@ var actions = {
       });
     }, 50);
   },
-  printTable: function () {
-    var area = document.getElementById('printArea');
-    // A3横（およそ 1540×1080 ピクセル）に収まるように縮める
-    area.style.zoom = '';
-    var w = area.scrollWidth, hgt = area.scrollHeight;
-    area.style.zoom = Math.min(1, 1540 / w, 1060 / hgt);
-    document.body.classList.add('printing');
-    setTimeout(function () {
-      window.print();
-      document.body.classList.remove('printing');
-      area.style.zoom = '';
-    }, 50);
-  },
+  printTable: function () { printArea('printArea', 'A3', 1540, 1060); },
+  printFree: function () { printArea('freeArea', 'A4', 1080, 740); },
   saveXls: function () {
     downloadFile((result.table.title || '時間割一覧') + '.xls', 'application/vnd.ms-excel', sheetHtml(result.table));
   },
@@ -1330,6 +1354,7 @@ var actions = {
     var ck = JW.check(A, sheet);
     // 特別教室の表は、上の表から作り直す
     if (ck.roomRows) t.roomRows = ck.roomRows.map(function (r, i) { return { label: (t.roomRows[i] || r).label, cells: r.cells }; });
+    if (ck.free) t.free = ck.free;
     saveTable();
     render();
     var out = document.getElementById('checkOut');
@@ -1357,6 +1382,23 @@ var actions = {
     }).catch(function (err) { out.innerHTML = '<div class="box warn">' + esc(err.message || err) + '</div>'; });
   }
 };
+
+// 印刷：用紙（A3横・A4横）に収まるように縮めて、その部分だけ印刷する
+function printArea(id, size, maxW, maxH) {
+  var area = document.getElementById(id);
+  var ps = document.getElementById('pageStyle') || document.head.appendChild(Object.assign(document.createElement('style'), { id: 'pageStyle' }));
+  ps.textContent = '@page { size: ' + size + ' landscape; margin: 8mm; }';
+  area.style.zoom = '';
+  area.style.zoom = Math.min(1, maxW / area.scrollWidth, maxH / area.scrollHeight);
+  area.classList.add('print-target');
+  document.body.classList.add('printing');
+  setTimeout(function () {
+    window.print();
+    document.body.classList.remove('printing');
+    area.classList.remove('print-target');
+    area.style.zoom = '';
+  }, 50);
+}
 
 // ファイルを保存する（ブラウザの「ダウンロード」に入る）
 function downloadFile(name, type, text) {
@@ -1429,6 +1471,18 @@ function sheetHtml(t) {
       }).join('') + '</tr>';
     }
     h += '<tr><td colspan="' + nCols + '"></td></tr>';
+  }
+  // 補教表
+  if (t.free && t.free.days.length) {
+    var f = t.free, CW = 3; // 1曜日あたり3列分の幅
+    h += '<tr><td colspan="' + nCols + '" style="font-size:12pt;font-weight:bold">補教表（補教用の空き時間一覧）</td></tr>';
+    h += '<tr>' + td('', '#dfe8f5') + f.days.map(function (d) { return '<td colspan="' + CW + '" style="' + BD + 'text-align:center;font-weight:bold;background:#dfe8f5">' + esc(t.days[d]) + '</td>'; }).join('') + '</tr>';
+    for (var fp = 0; fp < f.maxP; fp++) {
+      h += '<tr style="height:' + (H * 2) + 'px">' + td(fp + 1, '#dfe8f5', 'font-weight:bold') + f.days.map(function (d) {
+        var c = f.cells[d * MP + fp];
+        return '<td colspan="' + CW + '" style="' + BD + 'vertical-align:top;font-size:8pt;white-space:normal;background:' + (c ? '#fff' : '#9e9e9e') + '">' + esc(c ? c.join('　') : '') + '</td>';
+      }).join('') + '</tr>';
+    }
   }
   return h + '</table></body></html>';
 }

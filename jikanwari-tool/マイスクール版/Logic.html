@@ -1416,7 +1416,7 @@ var JW = (function () {
     });
     return { title: (A.name ? A.name + '　' : '') + '時間割一覧', days: A.days.slice(), maxPeriods: M.MP, dayPeriods: dayPeriods,
       module: mod ? { days: mdays, grades: (mod.grades || []).slice(), labels: mlabels } : null,
-      classRows: classRows, teacherRows: teacherRows, roomRows: roomRows };
+      classRows: classRows, teacherRows: teacherRows, roomRows: roomRows, free: freeTable(M, st) };
   }
 
   // 特別教室の行（1部屋ずつ）。同じ種類の部屋が2つ以上あるときは、前の部屋から順に割りふる
@@ -1456,6 +1456,73 @@ var JW = (function () {
       var single = list.length > 1 && tails.every(function (t) { return t.length === 1 && !/[0-9０-９\-]/.test(t); });
       return single ? g + tails.join('') : list.map(function (c) { return c.short; }).join('・');
     }).join('・');
+  }
+
+  /* ---------- 補教表（補教用の空き時間一覧） ---------- */
+  // 補教表に入れるか：専科はいつも、講師・少人数・TT・その他は種類ごと（A.subsKinds）、先生ごと（subsMode）に変えられる
+  function inSubs(A, t) {
+    if (t.subsMode === 'in') return true;
+    if (t.subsMode === 'out') return false;
+    if (t.kind === '専科') return true;
+    var k = A.subsKinds || {};
+    return k[t.kind] !== false;
+  }
+  // who(ci, s)：そのクラスのその時間に教えている先生（省略時は授業の担当から）
+  function freeTable(M, st, who) {
+    who = who || function (ci, s) { var id = st.grid[ci][s]; return id >= 0 ? M.units[id].teachers : []; };
+    var A = M.A, MP = M.MP, src = A.teachers || [];
+    var kindOf = function (ti) { return ti < src.length ? src[ti].kind : '担任'; };
+    // 授業のある曜日・時間（土曜日を数えない設定のときは、土曜日は出さない）
+    var schoolTime = [];
+    for (var s = 0; s < M.S; s++) schoolTime.push(M.classes.some(function (c, ci) { return M.avail[ci][s]; }));
+    var days = [], maxP = 0;
+    for (var d = 0; d < M.D; d++) {
+      var any = false;
+      for (var p = 0; p < MP; p++) if (schoolTime[d * MP + p]) { any = true; maxP = Math.max(maxP, p + 1); }
+      if (any) days.push(d);
+    }
+    // その時間に教えている先生
+    function teachingAt(s) {
+      var busy = {};
+      M.classes.forEach(function (c, ci) {
+        who(ci, s).forEach(function (t) { busy[t] = 1; });
+      });
+      return busy;
+    }
+    var hrOf = {};
+    M.teachers.forEach(function (T, ti) { if (T.homeroom !== undefined) hrOf[T.homeroom] = ti; });
+    var cells = {};
+    days.forEach(function (d) {
+      for (var p = 0; p < maxP; p++) {
+        var s = d * MP + p, names = [];
+        if (!schoolTime[s]) { cells[s] = null; continue; }
+        var busy = teachingAt(s);
+        // 専科
+        src.forEach(function (t, ti) {
+          if (t.kind === '専科' && inSubs(A, t) && !M.teachers[ti].off[s] && !busy[ti]) names.push(M.teachers[ti].name);
+        });
+        // 担任：自分のクラスに専科・講師（またはほかの担任）が入っていて、自分はどこでも教えていない
+        M.classes.forEach(function (c, ci) {
+          if (!M.avail[ci][s]) return;                   // 先に決まっている時間・授業のない時間
+          var hr = hrOf[ci];
+          if (hr !== undefined && busy[hr]) return;      // 教科担任制で、ほかのクラスに教えに行っている
+          var id = st.grid[ci][s];
+          if (id < 0) return;                            // 担任が入れる教科の空きマス
+          var u = M.units[id], ts = who(ci, s);
+          if (u.placeholder || !ts.length) return;
+          if (hr !== undefined && ts.indexOf(hr) >= 0) return;
+          var withHr = ts.some(function (t) { var k = kindOf(t); return k === '少人数' || k === 'TT'; });
+          if (withHr) return;                            // 少人数・TTは担任もクラスにいる
+          names.push(c.short + '担任');
+        });
+        // 講師・少人数・TT・その他
+        src.forEach(function (t, ti) {
+          if (t.kind !== '専科' && inSubs(A, t) && !M.teachers[ti].off[s] && !busy[ti]) names.push(M.teachers[ti].name);
+        });
+        cells[s] = names;
+      }
+    });
+    return { days: days, maxP: maxP, cells: cells };
   }
 
   /* ---------- スプレッドシートで手直ししたあとのチェック ---------- */
@@ -1583,7 +1650,7 @@ var JW = (function () {
     out.forEach(function (x) { (x.level === 'hard' ? must : better).push(x.text); });
 
     // 専科・講師（下の表）
-    var tByName = {};
+    var tByName = {}, rowWho = {};
     M.teachers.forEach(function (t, ti) { tByName[t.name] = ti; });
     (sheet.teacherRows || []).forEach(function (row) {
       var ti = tByName[String(row.label).trim()];
@@ -1593,6 +1660,8 @@ var JW = (function () {
         var names = expandNames(row.cells[s], byShort);
         if (!names.length) continue;
         var cis = names.map(function (n) { return byShort[n]; });
+        rowWho[s] = rowWho[s] || {};
+        cis.forEach(function (ci) { if (ci === undefined) return; (rowWho[s][ci] = rowWho[s][ci] || []).push(ti); });
         names.forEach(function (n, k) {
           if (cis[k] === undefined) must.push(T.name + ' ' + slotName(A, s) + '：「' + n + '」というクラスがありません。');
           else count[cis[k]] = (count[cis[k]] || 0) + 1;
@@ -1625,7 +1694,9 @@ var JW = (function () {
     });
 
     var roomRows = roomRowsOf(M, st);
-    return { must: uniq(must), better: uniq(better), roomRows: roomRows };
+    // 補教表は、下の表に書かれた先生で作り直す
+    var free = freeTable(M, st, function (ci, s) { return (rowWho[s] && rowWho[s][ci]) || []; });
+    return { must: uniq(must), better: uniq(better), roomRows: roomRows, free: free };
   }
 
   function uniq(a) { var o = {}; return a.filter(function (x) { if (o[x]) return false; o[x] = 1; return true; }); }
