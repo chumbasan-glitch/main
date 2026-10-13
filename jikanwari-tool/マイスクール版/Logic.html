@@ -165,10 +165,37 @@ var JW = (function () {
     return A.days[Math.floor(s / MP)] + (s % MP + 1);
   }
   function listText(arr) { return arr.join('・'); }
+  // 表で選んだマス（"曜日-時間" の一覧）を文字にする（例：毎日1時間目・月曜5時間目）
+  function cellsText(A, cells) {
+    var MP = A.maxPeriods, D = A.days.length, on = {};
+    (cells || []).forEach(function (c) { on[c] = 1; });
+    var n = Object.keys(on).length;
+    if (!n) return '';
+    if (n >= D * MP && A.days.every(function (x, d) { for (var q = 1; q <= MP; q++) if (!on[d + '-' + q]) return false; return true; })) return 'いつでも';
+    var everyP = [];
+    for (var q = 1; q <= MP; q++) if (A.days.every(function (x, d) { return on[d + '-' + q]; })) everyP.push(q);
+    var parts = everyP.length ? ['毎日' + everyP.join('・') + '時間目'] : [];
+    A.days.forEach(function (dn, d) {
+      var ps = [];
+      for (var q = 1; q <= MP; q++) if (on[d + '-' + q] && everyP.indexOf(q) < 0) ps.push(q);
+      if (ps.length === MP - everyP.length && ps.length > 1) parts.push(dn + '曜日' + (everyP.length ? 'のほかの時間' : ''));
+      else if (ps.length) parts.push(dn + '曜' + ps.join('・') + '時間目');
+    });
+    return parts.join('・');
+  }
+  // 希望で選んだマス（古い「曜日」「時間」の形もここで読みかえる）
+  function prefCells(A, p) {
+    if (p.cells) return p.cells;
+    var out = [];
+    A.days.forEach(function (x, d) {
+      if ((p.days || []).length && p.days.indexOf(d) < 0) return;
+      for (var q = 1; q <= A.maxPeriods; q++) if (!(p.periods || []).length || p.periods.indexOf(q) >= 0) out.push(d + '-' + q);
+    });
+    return out;
+  }
   function prefText(A, p) {
-    var days = (p.days || []).length ? p.days.map(function (d) { return A.days[d]; }).join('・') + '曜' : '';
-    var pers = (p.periods || []).length ? p.periods.join('・') + '時間目' : '';
-    var when = (days + (days && pers ? 'の' : '') + pers) || 'いつでも';
+    var when = cellsText(A, prefCells(A, p));
+    if (!when) return targetName(A, p.target) + '：時間のマスを選んでください';
     return targetName(A, p.target) + 'を' + when + (p.mode === 'avoid' ? 'に入れない' : 'に入れる');
   }
 
@@ -177,7 +204,15 @@ var JW = (function () {
 
   // 授業の固定と、「先に決まっている時間」で教科を選んだもの（学年の全クラス）をまとめる
   function allPins(A, classes) {
-    var list = (A.pins || []).slice();
+    var list = [];
+    (A.pins || []).forEach(function (pn) {
+      if (!pn.cells) return list.push(pn);   // 古い形（1つの時間）
+      var MP = A.maxPeriods;
+      var slots = pn.cells.map(function (c) { var a = c.split('-'); return (+a[0]) * MP + (+a[1] - 1); }).sort(function (a, b) { return a - b; });
+      if (!slots.length) return;
+      if (pn.how === 'some') return list.push({ teacher: pn.teacher, cls: pn.cls, target: pn.target, set: slots, count: Math.max(1, +pn.count || 1), cells: pn.cells });
+      slots.forEach(function (s) { list.push({ teacher: pn.teacher, cls: pn.cls, target: pn.target, day: Math.floor(s / MP), period: s % MP + 1 }); });
+    });
     (A.fixed || []).forEach(function (f) {
       if (!f.target || satOnly(A, f.day)) return;
       classes.forEach(function (c) {
@@ -468,13 +503,10 @@ var JW = (function () {
 
     // 希望
     var prefs = (A.prefs || []).map(function (p, pi) {
-      var mask = [];
-      for (var s = 0; s < S; s++) {
-        var d = Math.floor(s / MP), per = s % MP + 1;
-        var dOk = !(p.days || []).length || p.days.indexOf(d) >= 0;
-        var pOk = !(p.periods || []).length || p.periods.indexOf(per) >= 0;
-        mask.push(dOk && pOk);
-      }
+      var mask = [], on = {};
+      prefCells(A, p).forEach(function (c) { on[c] = 1; });
+      for (var s = 0; s < S; s++) mask.push(!!on[Math.floor(s / MP) + '-' + (s % MP + 1)]);
+      if (!mask.some(Boolean)) return { mode: p.mode, mask: mask, text: prefText(A, p), strict: false };   // マスを選んでいない希望は使わない
       units.forEach(function (u) {
         var gOk = !(p.grades || []).length || p.grades.indexOf(classes[u.cls].grade) >= 0;
         if (gOk && matches(u, p.target)) u.prefs.push(pi);
@@ -482,12 +514,27 @@ var JW = (function () {
       return { mode: p.mode, mask: mask, text: prefText(A, p), strict: !!p.strict };
     });
 
+    // 授業の固定（選んだマスのどこかに〇コマ）
+    function pinSome(pn, ci) {
+      var c = classes[ci], set = pn.set.filter(function (s) { return avail[ci][s]; });
+      var what = c.label + 'の' + targetName(A, pn.target) + '（' + cellsText(A, pn.cells) + 'のどこかに週' + pn.count + 'コマ）';
+      if (set.length < pn.count) { errors.push('授業の固定：' + what + 'は、授業を入れられる時間が' + set.length + 'コマしかありません。'); return; }
+      var ti = tIndex[pn.teacher];
+      var pool = classUnits[ci].map(function (id) { return units[id]; })
+        .filter(function (u) { return matches(u, pn.target) && u.pin === undefined && !u.pinSet; })
+        .sort(function (a, b) { return (!!a.sync - !!b.sync) || (ti === undefined ? 0 : ((b.teachers.indexOf(ti) >= 0) - (a.teachers.indexOf(ti) >= 0))); });
+      if (pool.length < pn.count) { errors.push('授業の固定：' + what + 'に入れる授業が足りません（組まない教科か、時数が足りません）。'); return; }
+      var mask = {};
+      set.forEach(function (s) { mask[s] = true; });
+      pool.slice(0, pn.count).forEach(function (u) { u.pinSet = mask; u.pinSetText = cellsText(A, pn.cells); });
+    }
     // 授業の固定（このクラスのこの授業を、この時間に）
     var tIndex = {};
     (A.teachers || []).forEach(function (t, ti) { tIndex[t.id] = ti; });
     allPins(A, classes).forEach(function (pn) {
       var ci = classIndex[pn.cls];
       if (ci === undefined || !pn.target) return;
+      if (pn.set) return pinSome(pn, ci);
       var s = (+pn.day) * MP + (+pn.period - 1), c = classes[ci];
       var what = c.label + 'の' + targetName(A, pn.target) + '（' + slotName(A, s) + '）';
       if (!avail[ci][s]) { errors.push('授業の固定：' + what + 'は、授業を入れられない時間です。'); return; }
@@ -678,6 +725,7 @@ var JW = (function () {
     for (var i = 0; i < u.teachers.length; i++) if (teacherBad(M, u.teachers[i], g, s)) return true;
     for (i = 0; i < u.prefs.length; i++) { var p = M.prefs[u.prefs[i]]; if (p.strict && prefBad(p, s)) return true; }
     if (u.pin !== undefined && u.pin !== s) return true;
+    if (u.pinSet && !u.pinSet[s]) return true;
     if (u.no6 && M.rules.sixthHr && M.rules.sixthHrStrict && s % M.MP === 5) return true;
     return false;
   }
@@ -780,6 +828,10 @@ var JW = (function () {
         cost += strict6 ? W.hard : W.sixth;
         if (out && (strict6 || W.sixth)) out.push({ level: strict6 ? 'hard' : 'soft', kind: 'sixth', cls: c, text: lab + ' ' + slotName(M.A, s) + '：' +
           listText(u.teachers.map(function (t) { return M.teachers[t].name; })) + 'の' + u.display + 'が入っています（6時間目は担任の授業にする）。' });
+      }
+      if (u.pinSet && !u.pinSet[s]) {
+        cost += W.hard;
+        if (out) out.push({ level: 'hard', kind: 'pin', cls: c, text: lab + 'の' + u.display + '：' + u.pinSetText + 'のどこかに固定していますが、' + slotName(M.A, s) + 'に入っています。' });
       }
       if (u.pin !== undefined && u.pin !== s) {
         cost += W.hard;
@@ -1334,6 +1386,7 @@ var JW = (function () {
           var p = M.prefs[pi];
           if (p.strict) { causes.push('絶対に守る希望「' + p.text + '」'); fixes.push('質問「教科の希望」で「' + p.text + '」を「できれば守る」にするか、時間を広げる'); }
         });
+        if (u.pinSet) { causes.push('授業の固定（' + u.pinSetText + 'のどこか）'); fixes.push('質問「教科の希望」の授業の固定で、マスを増やす'); }
         if (u.pin !== undefined) { causes.push('授業の固定（' + slotName(A, u.pin) + '）'); fixes.push('質問「教科の希望」の授業の固定を見直す'); }
       return { causes: causes, fixes: fixes };
     }
@@ -1758,11 +1811,16 @@ var JW = (function () {
     M.classes.forEach(function (c, ci) { if (!seenRow[ci]) must.push(c.label + 'の行が見つかりません。'); });
 
     // 先生は下の表を見てチェックするので、ここでは外す
-    M.units.forEach(function (u) { u.teachers = []; delete u.pin; u.no6 = false; });
+    M.units.forEach(function (u) { u.teachers = []; delete u.pin; delete u.pinSet; u.no6 = false; });
     // 授業の固定は、表のその時間にその授業が入っているかで確かめる
     M.pins.forEach(function (pn) {
       var ci = M.classIndex[pn.cls];
       if (ci === undefined || !pn.target) return;
+      if (pn.set) {
+        var got = pn.set.filter(function (s2) { var j = st.grid[ci][s2]; return j >= 0 && (M.units[j].subj === pn.target || M.units[j].variant === pn.target); }).length;
+        if (got < pn.count) must.push(M.classes[ci].label + '：' + cellsText(A, pn.cells) + 'のどこかに固定した' + targetName(A, pn.target) + 'が、週' + got + 'コマしか入っていません（' + pn.count + 'コマ）。');
+        return;
+      }
       var s = (+pn.day) * M.MP + (+pn.period - 1), id = st.grid[ci][s];
       var ok = id >= 0 && (M.units[id].subj === pn.target || M.units[id].variant === pn.target);
       if (!ok) must.push(M.classes[ci].label + '：' + slotName(A, s) + 'に固定した' + targetName(A, pn.target) + 'が入っていません。');
@@ -1908,7 +1966,7 @@ var JW = (function () {
   return {
     DAYS: DAYS, GRADES: GRADES, STD: STD, weeksOf: weeksOf, defaultAnswers: defaultAnswers, uid: uid,
     className: className, classLabel: classLabel, classShort: classShort, targetName: targetName,
-    targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText,
+    targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText, cellsText: cellsText, prefCells: prefCells,
     buildModel: buildModel, solve: solve, check: check, syncPreview: syncPreview, hrNameOf: hrNameOf, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel, roomSpec: roomSpec, roomSpecLabel: roomSpecLabel
   };
 })();

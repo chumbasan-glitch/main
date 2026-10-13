@@ -94,6 +94,8 @@
   table.pv td.fx { background: var(--cell-fixed); } table.pv td.no { background: var(--cell-none); } table.pv td.em { background: var(--cell-empty); } table.pv td.sa { background: var(--cell-sat); } table.pv td.mo { background: var(--main-weak); }
   table.pv th.sec { text-align: left; background: var(--main-weak); padding: 2px 6px; }
   table.pv th.day { border-left: 2px solid var(--day-line); } table.pv td.dl { border-left: 2px solid var(--day-line); }
+  .perclass { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 13px; }
+  .perclass label { display: inline-flex; align-items: center; gap: 4px; }
   table.ft { border-collapse: collapse; table-layout: fixed; }
   table.ft th, table.ft td { border: 1px solid var(--cell-line); padding: 4px 6px; vertical-align: top; }
   table.ft th { background: var(--soft); text-align: center; width: 3em; }
@@ -121,13 +123,20 @@
     header, nav, .foot, .noprint { display: none !important; } .card { border: 0; }
   }
   .hrn { font-size: 9px; line-height: 1; font-weight: normal; white-space: nowrap; overflow: hidden; }
+  table.sg { border-collapse: collapse; }
+  table.sg th, table.sg td { border: 1px solid var(--cell-line); text-align: center; padding: 0; width: 34px; height: 28px; }
+  table.sg td label { display: block; width: 100%; height: 100%; padding: 4px 0; cursor: pointer; }
+  table.sg td.on { background: var(--soft); }
+  table.sg .sgh { border: 0; background: none; color: inherit; font: inherit; font-weight: bold; cursor: pointer; width: 100%; height: 100%; padding: 4px; }
+  .sgb { display: inline-block; vertical-align: top; margin-left: 12px; }
+  .sgb .btn { margin: 0 4px 6px 0; }
 </style>
 </head>
 <body>
 <header>
   <h1>時間割作成ツール</h1>
   <span class="save" id="saveName"></span>
-  <span class="ver" id="appVersion" data-version="2.9">v2.9</span>
+  <span class="ver" id="appVersion" data-version="2.10">v2.10</span>
 </header>
 <div class="wrap">
   <nav><ol id="nav"></ol></nav>
@@ -236,18 +245,42 @@ var JW = (function () {
         room('体育館', 2), room('校庭', 3), room('音楽室', 1), room('図工室', 1), room('理科室', 1),
         room('家庭科室', 1), room('図書館', 1), room('PC室', 1)
       ],
-      variants: [
-        { id: 'v_tosho', subject: 'kokugo', name: '図書', display: 'と', room: '図書館', hours: perGrade(1), auto: true },
-        { id: 'v_taiikukan', subject: 'taiiku', name: '体育館体育', display: 'た', room: '体育館', hours: perGrade(1), auto: true }
-      ],
+      variants: [],
       teachers: [],
       fixed: [],
       prefs: [],
       pins: [],
       module: { on: false, per: 3, count: 1, grades: GRADES.slice(), slots: {} },
       syncs: [],
-      rules: { dailyMax: true, pairs: true, spread: true, active: true, sixthHr: false, sixthHrStrict: false, senkaDaily: true, senkaDailyStrict: false }
+      rules: { dailyMax: true, pairs: true, spread: true, active: true, sixthHr: false, sixthHrStrict: false, senkaDaily: true, senkaDailyStrict: false },
+      // 使う機能（使わない機能の質問は出さない）
+      features: { teachers: true, homeroom: false, variants: false, module: false, sat: false, syncs: false, pins: false },
+      // 教科担任制：学年ごとに { on, manual: 'gap'|'auto', assign: { 教科: 'own'|'cls:学年-組'|'other' } }
+      homeroom: { grades: {} }
     };
+  }
+
+  // 使わない機能の入力は、組むときには無いものとして扱う
+  function effective(A) {
+    var f = A.features;
+    if (!f || A._eff) return A;
+    var B = {};
+    for (var k in A) B[k] = A[k];
+    B._eff = true;
+    if (!f.module) B.module = { on: false, per: 3, count: 1, grades: [], slots: {} };
+    if (!f.sat && B.days.length > 5) {
+      B.days = B.days.slice(0, 5);
+      var per = {};
+      for (var g in B.periods) per[g] = (B.periods[g] || []).slice(0, 5);
+      B.periods = per;
+    }
+    if (!f.variants) B.variants = [];
+    if (!f.teachers) B.teachers = [];
+    if (!f.syncs) B.syncs = [];
+    if (!f.pins) B.pins = [];
+    if (!f.homeroom) B.homeroom = null;
+    if (!f.hrNames) B.hrNames = {};
+    return B;
   }
 
   function uid(prefix) { return prefix + Math.random().toString(36).slice(2, 8); }
@@ -303,10 +336,37 @@ var JW = (function () {
     return A.days[Math.floor(s / MP)] + (s % MP + 1);
   }
   function listText(arr) { return arr.join('・'); }
+  // 表で選んだマス（"曜日-時間" の一覧）を文字にする（例：毎日1時間目・月曜5時間目）
+  function cellsText(A, cells) {
+    var MP = A.maxPeriods, D = A.days.length, on = {};
+    (cells || []).forEach(function (c) { on[c] = 1; });
+    var n = Object.keys(on).length;
+    if (!n) return '';
+    if (n >= D * MP && A.days.every(function (x, d) { for (var q = 1; q <= MP; q++) if (!on[d + '-' + q]) return false; return true; })) return 'いつでも';
+    var everyP = [];
+    for (var q = 1; q <= MP; q++) if (A.days.every(function (x, d) { return on[d + '-' + q]; })) everyP.push(q);
+    var parts = everyP.length ? ['毎日' + everyP.join('・') + '時間目'] : [];
+    A.days.forEach(function (dn, d) {
+      var ps = [];
+      for (var q = 1; q <= MP; q++) if (on[d + '-' + q] && everyP.indexOf(q) < 0) ps.push(q);
+      if (ps.length === MP - everyP.length && ps.length > 1) parts.push(dn + '曜日' + (everyP.length ? 'のほかの時間' : ''));
+      else if (ps.length) parts.push(dn + '曜' + ps.join('・') + '時間目');
+    });
+    return parts.join('・');
+  }
+  // 希望で選んだマス（古い「曜日」「時間」の形もここで読みかえる）
+  function prefCells(A, p) {
+    if (p.cells) return p.cells;
+    var out = [];
+    A.days.forEach(function (x, d) {
+      if ((p.days || []).length && p.days.indexOf(d) < 0) return;
+      for (var q = 1; q <= A.maxPeriods; q++) if (!(p.periods || []).length || p.periods.indexOf(q) >= 0) out.push(d + '-' + q);
+    });
+    return out;
+  }
   function prefText(A, p) {
-    var days = (p.days || []).length ? p.days.map(function (d) { return A.days[d]; }).join('・') + '曜' : '';
-    var pers = (p.periods || []).length ? p.periods.join('・') + '時間目' : '';
-    var when = (days + (days && pers ? 'の' : '') + pers) || 'いつでも';
+    var when = cellsText(A, prefCells(A, p));
+    if (!when) return targetName(A, p.target) + '：時間のマスを選んでください';
     return targetName(A, p.target) + 'を' + when + (p.mode === 'avoid' ? 'に入れない' : 'に入れる');
   }
 
@@ -315,7 +375,15 @@ var JW = (function () {
 
   // 授業の固定と、「先に決まっている時間」で教科を選んだもの（学年の全クラス）をまとめる
   function allPins(A, classes) {
-    var list = (A.pins || []).slice();
+    var list = [];
+    (A.pins || []).forEach(function (pn) {
+      if (!pn.cells) return list.push(pn);   // 古い形（1つの時間）
+      var MP = A.maxPeriods;
+      var slots = pn.cells.map(function (c) { var a = c.split('-'); return (+a[0]) * MP + (+a[1] - 1); }).sort(function (a, b) { return a - b; });
+      if (!slots.length) return;
+      if (pn.how === 'some') return list.push({ teacher: pn.teacher, cls: pn.cls, target: pn.target, set: slots, count: Math.max(1, +pn.count || 1), cells: pn.cells });
+      slots.forEach(function (s) { list.push({ teacher: pn.teacher, cls: pn.cls, target: pn.target, day: Math.floor(s / MP), period: s % MP + 1 }); });
+    });
     (A.fixed || []).forEach(function (f) {
       if (!f.target || satOnly(A, f.day)) return;
       classes.forEach(function (c) {
@@ -351,6 +419,7 @@ var JW = (function () {
   // opt.includeManual … 担任が入れる教科（ツールで組まない教科）のコマも作る（チェック用）
   function buildModel(A, opt) {
     opt = opt || {};
+    A = effective(A);
     var D = A.days.length, MP = A.maxPeriods, S = D * MP;
     var errors = [], notes = [];
     var classes = [];
@@ -525,6 +594,61 @@ var JW = (function () {
       if (!txt) return;
       units.forEach(function (u) { if (u.teachers.indexOf(ti) >= 0) u.display = txt; });
     });
+    // 教科担任制：担任も1人の先生として扱い、同じ時間に2つのクラスで教えないようにする
+    var hrIndex = {};
+    function hrTeacher(key) {
+      if (hrIndex[key] !== undefined) return hrIndex[key];
+      var ci = classIndex[key];
+      if (ci === undefined) return -1;
+      // 担任が授業できるのは、自分のクラスに授業がある時間だけ（クラブ・委員会などの時間は行けない）
+      var off = [];
+      for (var s = 0; s < S; s++) off.push(!avail[ci][s]);
+      teachers.push({ name: hrNameOf(A, key) || classes[ci].short + '担任', off: off, expect: {}, dayOk: {}, group: false, chain: false, dayRoom: {}, homeroom: ci, subs: {} });
+      hrIndex[key] = teachers.length - 1;
+      return hrIndex[key];
+    }
+    var HR = A.homeroom && A.homeroom.grades ? A.homeroom.grades : {};
+    classes.forEach(function (c, ci) {
+      var G = HR[c.grade];
+      if (!G || !G.on) return;
+      classUnits[ci].forEach(function (id) {
+        var u = units[id];
+        if (u.teachers.length) return; // 専科・講師が持つ授業
+        var a = (G.assign || {})[u.subj] || 'own';
+        // クラスごとに決める（例：4クラスで、理科を1・2組は1組の担任、3・4組は3組の担任）
+        if (a === 'perclass') a = ((G.assignBy || {})[u.subj] || {})[c.key] || 'own';
+        if (a === 'other') return;      // ほかの先生（専科・講師の担当で入れる）
+        var key = a === 'own' ? c.key : a.slice(4);
+        var ti = hrTeacher(key);
+        if (ti < 0) return;
+        u.teachers.push(ti);
+        if (key !== c.key) {
+          // ほかのクラスへ教えに行く授業は、必ずツールで組む
+          teachers[ti].expect[ci] = (teachers[ti].expect[ci] || 0) + 1;
+          teachers[ti].away = true;
+          teachers[ti].subs[M_subjName(u.subj)] = 1;
+          u.manual = false;
+        } else if (G.manual === 'auto') {
+          u.manual = false;
+        } else if (u.manual && !opt.includeManual) {
+          // 担任が入れる授業は空けておく。ただし担任が自分のクラスにいる時間に空ける
+          u.manual = false; u.placeholder = true;
+        }
+      });
+    });
+    function M_subjName(id) { var sj = subjectById(A, id); return sj ? sj.name : id; }
+    // 教科担任制ではない学年の担任が、ほかの学年へ教えに行く場合：自分のクラスの授業もその担任のものにする
+    Object.keys(hrIndex).forEach(function (key) {
+      var ci = classIndex[key], G = HR[classes[ci].grade];
+      if (G && G.on) return;
+      classUnits[ci].forEach(function (id) {
+        var u = units[id];
+        if (u.teachers.length) return;
+        u.teachers.push(hrIndex[key]);
+        if (u.manual && !opt.includeManual) { u.manual = false; u.placeholder = true; }
+      });
+    });
+
     // 2時間続きの相手が担任の分になったときは、続きにしない
     units.forEach(function (u) { if (u.pair >= 0 && units[u.pair].manual !== u.manual) { units[u.pair].pair = -1; u.pair = -1; } });
 
@@ -606,13 +730,10 @@ var JW = (function () {
 
     // 希望
     var prefs = (A.prefs || []).map(function (p, pi) {
-      var mask = [];
-      for (var s = 0; s < S; s++) {
-        var d = Math.floor(s / MP), per = s % MP + 1;
-        var dOk = !(p.days || []).length || p.days.indexOf(d) >= 0;
-        var pOk = !(p.periods || []).length || p.periods.indexOf(per) >= 0;
-        mask.push(dOk && pOk);
-      }
+      var mask = [], on = {};
+      prefCells(A, p).forEach(function (c) { on[c] = 1; });
+      for (var s = 0; s < S; s++) mask.push(!!on[Math.floor(s / MP) + '-' + (s % MP + 1)]);
+      if (!mask.some(Boolean)) return { mode: p.mode, mask: mask, text: prefText(A, p), strict: false };   // マスを選んでいない希望は使わない
       units.forEach(function (u) {
         var gOk = !(p.grades || []).length || p.grades.indexOf(classes[u.cls].grade) >= 0;
         if (gOk && matches(u, p.target)) u.prefs.push(pi);
@@ -620,12 +741,27 @@ var JW = (function () {
       return { mode: p.mode, mask: mask, text: prefText(A, p), strict: !!p.strict };
     });
 
+    // 授業の固定（選んだマスのどこかに〇コマ）
+    function pinSome(pn, ci) {
+      var c = classes[ci], set = pn.set.filter(function (s) { return avail[ci][s]; });
+      var what = c.label + 'の' + targetName(A, pn.target) + '（' + cellsText(A, pn.cells) + 'のどこかに週' + pn.count + 'コマ）';
+      if (set.length < pn.count) { errors.push('授業の固定：' + what + 'は、授業を入れられる時間が' + set.length + 'コマしかありません。'); return; }
+      var ti = tIndex[pn.teacher];
+      var pool = classUnits[ci].map(function (id) { return units[id]; })
+        .filter(function (u) { return matches(u, pn.target) && u.pin === undefined && !u.pinSet; })
+        .sort(function (a, b) { return (!!a.sync - !!b.sync) || (ti === undefined ? 0 : ((b.teachers.indexOf(ti) >= 0) - (a.teachers.indexOf(ti) >= 0))); });
+      if (pool.length < pn.count) { errors.push('授業の固定：' + what + 'に入れる授業が足りません（組まない教科か、時数が足りません）。'); return; }
+      var mask = {};
+      set.forEach(function (s) { mask[s] = true; });
+      pool.slice(0, pn.count).forEach(function (u) { u.pinSet = mask; u.pinSetText = cellsText(A, pn.cells); });
+    }
     // 授業の固定（このクラスのこの授業を、この時間に）
     var tIndex = {};
     (A.teachers || []).forEach(function (t, ti) { tIndex[t.id] = ti; });
     allPins(A, classes).forEach(function (pn) {
       var ci = classIndex[pn.cls];
       if (ci === undefined || !pn.target) return;
+      if (pn.set) return pinSome(pn, ci);
       var s = (+pn.day) * MP + (+pn.period - 1), c = classes[ci];
       var what = c.label + 'の' + targetName(A, pn.target) + '（' + slotName(A, s) + '）';
       if (!avail[ci][s]) { errors.push('授業の固定：' + what + 'は、授業を入れられない時間です。'); return; }
@@ -816,6 +952,7 @@ var JW = (function () {
     for (var i = 0; i < u.teachers.length; i++) if (teacherBad(M, u.teachers[i], g, s)) return true;
     for (i = 0; i < u.prefs.length; i++) { var p = M.prefs[u.prefs[i]]; if (p.strict && prefBad(p, s)) return true; }
     if (u.pin !== undefined && u.pin !== s) return true;
+    if (u.pinSet && !u.pinSet[s]) return true;
     if (u.no6 && M.rules.sixthHr && M.rules.sixthHrStrict && s % M.MP === 5) return true;
     return false;
   }
@@ -918,6 +1055,10 @@ var JW = (function () {
         cost += strict6 ? W.hard : W.sixth;
         if (out && (strict6 || W.sixth)) out.push({ level: strict6 ? 'hard' : 'soft', kind: 'sixth', cls: c, text: lab + ' ' + slotName(M.A, s) + '：' +
           listText(u.teachers.map(function (t) { return M.teachers[t].name; })) + 'の' + u.display + 'が入っています（6時間目は担任の授業にする）。' });
+      }
+      if (u.pinSet && !u.pinSet[s]) {
+        cost += W.hard;
+        if (out) out.push({ level: 'hard', kind: 'pin', cls: c, text: lab + 'の' + u.display + '：' + u.pinSetText + 'のどこかに固定していますが、' + slotName(M.A, s) + 'に入っています。' });
       }
       if (u.pin !== undefined && u.pin !== s) {
         cost += W.hard;
@@ -1328,7 +1469,7 @@ var JW = (function () {
     opts = opts || {};
     var TRIES = opts.tries || 3;
     // 組み合わせをツールにまかせる授業があるときは、組み合わせを変えて多めに試す
-    if (!opts.tries && (A.syncs || []).some(function (sg) { return sg.mode === 'pairAuto'; })) TRIES = 5;
+    if (!opts.tries && (A.syncs || []).some(function (sg) { return sg.mode === 'pairAuto'; }) && effective(A).syncs.length) TRIES = 5;
     var seed0 = opts.seed || (Date.now() % 2147483647) || 1;
     var best = null, attempt = 0;
     function score(res) { return res.unplaced.length * 1000 + res.hard.length * 1000 + res.soft.length; }
@@ -1415,7 +1556,7 @@ var JW = (function () {
   function manualSummary(M) {
     var by = {}, order = [];
     M.units.forEach(function (u) {
-      if (!u.manual) return;
+      if (!u.manual && !u.placeholder) return;
       var k = M.classes[u.cls].grade + '年 ' + u.display;
       if (!by[k]) { by[k] = {}; order.push(k); }
       by[k][u.cls] = (by[k][u.cls] || 0) + 1;
@@ -1472,6 +1613,7 @@ var JW = (function () {
           var p = M.prefs[pi];
           if (p.strict) { causes.push('絶対に守る希望「' + p.text + '」'); fixes.push('質問「教科の希望」で「' + p.text + '」を「できれば守る」にするか、時間を広げる'); }
         });
+        if (u.pinSet) { causes.push('授業の固定（' + u.pinSetText + 'のどこか）'); fixes.push('質問「教科の希望」の授業の固定で、マスを増やす'); }
         if (u.pin !== undefined) { causes.push('授業の固定（' + slotName(A, u.pin) + '）'); fixes.push('質問「教科の希望」の授業の固定を見直す'); }
       return { causes: causes, fixes: fixes };
     }
@@ -1674,6 +1816,7 @@ var JW = (function () {
         if (M.fixedLabel[ci][s]) cells.push({ t: M.fixedLabel[ci][s], k: 'fixed' });
         else if (M.satFree[ci][s]) cells.push({ t: '', k: 'sat' });
         else if (!inDay) cells.push({ t: '', k: 'none' });
+        else if (st.grid[ci][s] >= 0 && M.units[st.grid[ci][s]].placeholder) cells.push({ t: '', k: 'empty' });
         else if (st.grid[ci][s] >= 0) cells.push({ t: M.units[st.grid[ci][s]].display, k: 'lesson' });
         else cells.push({ t: '', k: 'empty' });
       }
@@ -1696,7 +1839,13 @@ var JW = (function () {
       return cells;
     }
     var teacherRows = M.teachers.map(function (t, ti) {
-      var cells = occupancy(function (u) { return u.teachers.indexOf(ti) >= 0; });
+      if (t.homeroom !== undefined && !t.away) return null; // 自分のクラスだけを教える担任は出さない
+      var cells = occupancy(function (u) { return u.teachers.indexOf(ti) >= 0 && (t.homeroom === undefined || u.cls !== t.homeroom); });
+      if (t.homeroom !== undefined) {
+        var nAway = 0;
+        t.units.forEach(function (id) { if (st.pos[id] >= 0 && M.units[id].cls !== t.homeroom) nAway++; });
+        return { label: t.name, title: t.name + '（' + Object.keys(t.subs).join('・') + '）週' + nAway + '時間', cells: cells, off: t.off.slice() };
+      }
       // 見出しは「名前（担当する教科）」
       var subs = [];
       ((A.teachers[ti] || {}).jobs || []).forEach(function (j) {
@@ -1707,7 +1856,7 @@ var JW = (function () {
       t.units.forEach(function (id) { if (st.pos[id] >= 0) keys[M.units[id].sync || id] = 1; });
       var n = Object.keys(keys).length;
       return { label: t.name, title: t.name + (subs.length ? '（' + subs.join('・') + '）' : '') + (n ? '週' + n + '時間' : ''), cells: cells, off: t.off.slice() };
-    });
+    }).filter(Boolean);
     var roomRows = roomRowsOf(M, st);
     var mslots = moduleSlots(A.module), mdays = Object.keys(mslots).filter(function (d) { return mslots[d] && mslots[d].kind && mslots[d].kind !== 'none'; }).map(Number).sort();
     var mod = mdays.length ? A.module : null, mlabels = {};
@@ -1896,11 +2045,16 @@ var JW = (function () {
     M.classes.forEach(function (c, ci) { if (!seenRow[ci]) must.push(c.label + 'の行が見つかりません。'); });
 
     // 先生は下の表を見てチェックするので、ここでは外す
-    M.units.forEach(function (u) { u.teachers = []; delete u.pin; u.no6 = false; });
+    M.units.forEach(function (u) { u.teachers = []; delete u.pin; delete u.pinSet; u.no6 = false; });
     // 授業の固定は、表のその時間にその授業が入っているかで確かめる
     M.pins.forEach(function (pn) {
       var ci = M.classIndex[pn.cls];
       if (ci === undefined || !pn.target) return;
+      if (pn.set) {
+        var got = pn.set.filter(function (s2) { var j = st.grid[ci][s2]; return j >= 0 && (M.units[j].subj === pn.target || M.units[j].variant === pn.target); }).length;
+        if (got < pn.count) must.push(M.classes[ci].label + '：' + cellsText(A, pn.cells) + 'のどこかに固定した' + targetName(A, pn.target) + 'が、週' + got + 'コマしか入っていません（' + pn.count + 'コマ）。');
+        return;
+      }
       var s = (+pn.day) * M.MP + (+pn.period - 1), id = st.grid[ci][s];
       var ok = id >= 0 && (M.units[id].subj === pn.target || M.units[id].variant === pn.target);
       if (!ok) must.push(M.classes[ci].label + '：' + slotName(A, s) + 'に固定した' + targetName(A, pn.target) + 'が入っていません。');
@@ -2046,8 +2200,8 @@ var JW = (function () {
   return {
     DAYS: DAYS, GRADES: GRADES, STD: STD, weeksOf: weeksOf, defaultAnswers: defaultAnswers, uid: uid,
     className: className, classLabel: classLabel, classShort: classShort, targetName: targetName,
-    targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText,
-    buildModel: buildModel, solve: solve, check: check, syncPreview: syncPreview, hrNameOf: hrNameOf, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel, roomSpec: roomSpec, roomSpecLabel: roomSpecLabel
+    targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText, cellsText: cellsText, prefCells: prefCells,
+    buildModel: buildModel, effective: effective, solve: solve, check: check, syncPreview: syncPreview, hrNameOf: hrNameOf, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel, roomSpec: roomSpec, roomSpecLabel: roomSpecLabel
   };
 })();
 if (typeof module !== 'undefined') module.exports = JW;
@@ -2176,26 +2330,32 @@ function totalHours(g) { return A.subjects.reduce(function (a, s) { return a + (
 /* ---------- 質問の画面 ---------- */
 var STEPS = [
   { title: 'はじめに', render: renderStart },
+  { title: '使う機能', render: renderFeatures },
   { title: 'クラス数', render: renderClassCounts },
   { title: 'クラスの呼び名', render: renderClassNames },
-  { title: '担任の名前', render: renderHrNames },
+  { title: '担任の名前', render: renderHrNames, feat: 'hrNames' },
   { title: '1日のコマ数', render: renderPeriods },
   { title: '学校で使う教科', render: renderSubjects },
-  { title: 'モジュール（朝の時間）', render: renderModule },
+  { title: 'モジュール（朝の時間）', render: renderModule, feat: 'module' },
   { title: '教科の週の時数', render: renderHours },
   { title: '特別教室', render: renderRooms },
   { title: '教科の表示名と場所', render: renderDisplay },
-  { title: '教科の一部を別の場所で', render: renderVariants },
+  { title: '教科の一部を別の場所で', render: renderVariants, feat: 'variants' },
   { title: 'このツールで組む教科', render: renderAuto },
-  { title: '専科・講師の担当', render: renderTeachers },
-  { title: '講師などの勤務', render: renderTeacherOff },
-  { title: '専科・講師の曜日', render: renderTeacherDays },
+  { title: '教科担任制', render: renderHomeroom, feat: 'homeroom' },
+  { title: '専科・講師の担当', render: renderTeachers, feat: 'teachers' },
+  { title: '講師などの勤務', render: renderTeacherOff, feat: 'teachers' },
+  { title: '専科・講師の曜日', render: renderTeacherDays, feat: 'teachers' },
   { title: '先に決まっている時間', render: renderFixed },
   { title: '教科の希望', render: renderPrefs },
-  { title: '同じ時間にそろえる授業', render: renderSyncs },
+  { title: '同じ時間にそろえる授業', render: renderSyncs, feat: 'syncs' },
   { title: '組み方のルール', render: renderRules },
   { title: '時間割を作る', render: renderSolve }
 ];
+
+// 使わない機能の質問は出さない
+function visible(i) { var f = STEPS[i].feat; return !f || !A || !A.features || !!A.features[f]; }
+function visibleSteps() { return STEPS.map(function (s, i) { return i; }).filter(visible); }
 
 // 画面を書き直しても、入力中のマス（カーソル）がそのまま残るようにする
 var FOCUS_ATTRS = ['data-k', 'data-draft', 'data-f', 'data-ed', 'data-r', 'data-s', 'id', 'name'];
@@ -2242,26 +2402,28 @@ function render() {
 }
 function renderNow() {
   clearTimeout(renderTimer);
-  var nav = document.getElementById('nav');
-  nav.innerHTML = STEPS.map(function (s, i) {
+  var nav = document.getElementById('nav'), vis = visibleSteps();
+  nav.innerHTML = vis.map(function (i, n) {
     return '<li><button data-a="go" data-i="' + i + '" class="' + (i === step ? 'on' : '') + '"' + (!A && i > 0 ? ' disabled' : '') + '>' +
-      (i === 0 ? '' : i + '. ') + esc(s.title) + '</button></li>';
+      (i === 0 ? '' : n + '. ') + esc(STEPS[i].title) + '</button></li>';
   }).join('');
   document.getElementById('saveName').textContent = saveName ? '保存名：' + saveName : '';
-  var S = STEPS[step];
+  var S = STEPS[step], pos = vis.indexOf(step), last = vis.length - 1;
   var head = step === 0 ? '' :
-    '<div class="bar"><div style="width:' + Math.round(step / (STEPS.length - 1) * 100) + '%"></div></div>' +
-    '<div class="qno">質問 ' + step + ' / ' + (STEPS.length - 1) + '</div>';
+    '<div class="bar"><div style="width:' + Math.round(pos / last * 100) + '%"></div></div>' +
+    '<div class="qno">質問 ' + pos + ' / ' + last + '</div>';
   var foot = step === 0 ? '' :
     '<div class="foot"><button class="btn" data-a="prev">← もどる</button>' +
-    (step < STEPS.length - 1 ? '<button class="btn primary" data-a="next">保存して次へ →</button>' : '<span></span>') + '</div>';
+    (pos < last ? '<button class="btn primary" data-a="next">保存して次へ →</button>' : '<span></span>') + '</div>';
   document.getElementById('card').innerHTML = head + S.render() + foot;
 }
 
 function renderStart() {
   var saves = startView.saves;
   var h = '<h2>時間割作成ツール</h2><p class="lead">質問に1つずつ答えていくと、最後に学校全体の時間割ができます。答えはとちゅうで保存され、あとから続きができます。</p>';
-  if (!hasGas) h += '<div class="box note">いまはスプレッドシートにつながっていないため、答えはこのブラウザに保存されます。</div>';
+  if (!hasGas) h += '<div class="box note">答えは、このパソコンのブラウザに自動で保存されます。ほかのパソコンに移すときは、最後のページの「答えをファイルに保存」を使ってください。</div>' +
+    '<div class="item"><div class="row"><b>はじめて使うとき</b><button class="btn small" data-a="sample">見本の学校で試す</button></div>' +
+    '<div class="small">各学年3クラス、音楽・図工の専科と算数の少人数の先生がいて、5・6年は教科担任制の、架空の学校の答えが入ります。そのまま「時間割を作る」まで進めて、どんな時間割ができるか試せます。</div></div>';
   if (saves === null) return h + '<p>保存データを読み込んでいます…</p>';
   if (saves.length) {
     h += '<h3>続きから</h3><table class="t"><tr><th class="l">名前（年度）</th><th>更新日時</th><th></th></tr>' +
@@ -2281,6 +2443,26 @@ function renderStart() {
     '<p class="small">ほかのパソコンや相談用に書き出した答え（「{」で始まる長い文字）を貼りつけてください。</p>' +
     '<textarea id="importText" rows="4" style="width:100%"></textarea>' +
     '<div class="row"><button class="btn" data-a="importAnswers">貼りつけた答えで始める</button></div></details>';
+  return h;
+}
+
+var FEATURES = [
+  { k: 'teachers', t: '専科・講師の先生がいる', d: '音楽専科や理科の講師など、担任以外の先生が入る授業を、重ならないように組みます。勤務できない時間も入れられます。' },
+  { k: 'homeroom', t: '教科担任制をしている', d: '担任どうしで教科を交換する（例：5年1組の担任が5年全クラスの理科を教える）学年がある場合です。担任が同じ時間に2つのクラスにいないように組みます。' },
+  { k: 'variants', t: '教科の一部を、別の名前・場所で行う', d: '例：国語のうち週1コマは図書館で「図書」、体育のうち週1コマは体育館で行う。' },
+  { k: 'module', t: 'モジュール（朝の短い時間）がある', d: '例：朝の15分に国語を行い、3回で1時間と数える。朝会などの教科外の時間も表に出せます。' },
+  { k: 'sat', t: '土曜授業がある', d: '土曜日の列を時間割に出します。時数に数えるかどうかも選べます。' },
+  { k: 'syncs', t: '同じ時間にそろえたい授業がある', d: '例：学年体育、少人数算数で2クラスを同じ時間にする。' },
+  { k: 'pins', t: '時間を決めて固定したい授業がある', d: '例：講師の5年1組の理科は火曜2時間目。' },
+  { k: 'hrNames', t: '各クラスの担任名を入力する', d: '補教表や時間割に、「1-1担任」ではなく担任の先生の名前を出します。' }
+];
+function renderFeatures() {
+  var f = A.features;
+  var h = '<h2>学校で使う機能を選んでください</h2><p class="lead">チェックした機能の質問だけが出ます。あとから変えることもできます（チェックを外しても、入れた答えは消えません）。</p>';
+  h += FEATURES.map(function (x) {
+    return '<label class="choice' + (f[x.k] ? ' on' : '') + '"><input type="checkbox" data-k="features.' + x.k + '" data-t="bool"' + (f[x.k] ? ' checked' : '') + '> ' + esc(x.t) +
+      '<div class="small">' + esc(x.d) + '</div></label>';
+  }).join('');
   return h;
 }
 
@@ -2333,7 +2515,7 @@ function renderHrNames() {
 function renderPeriods() {
   var h = '<h2>学年ごとに、曜日のコマ数を教えてください</h2><p class="lead">朝会やクラブなど、授業以外の時間もふくめた「その日の時間数」です（クラブなどは、あとの質問「先に決まっている時間」で入れます）。</p>';
   h += '<div class="row">1日のいちばん多いコマ数：<select data-k="maxPeriods" data-t="num">' + opts([5, 6, 7], A.maxPeriods) + '</select>' +
-    '<label><input type="checkbox" data-a="toggleSat"' + (A.days.length > 5 ? ' checked' : '') + '> 土曜日も授業がある</label></div>';
+    '</div>';
   if (A.days.length > 5) {
     h += '<div class="item"><div class="row"><b>土曜日の授業を、週の時数に数えますか？</b></div>' +
       '<label class="choice' + (!A.satCount ? ' on' : '') + '"><input type="radio" name="sat" data-k="satCount" data-t="radio-false"' + (!A.satCount ? ' checked' : '') + '> 数えない（学期に1回程度など）' +
@@ -2569,6 +2751,79 @@ function onoff(path, on) {
 
 function kindText(t) { return t.kind === 'その他' && t.kindOther ? t.kindOther : t.kind; }
 function hoursText(j) { return j.hours === 'all' ? 'その教科の全部' : '週' + j.hours + 'コマ'; }
+function hrGrade(g) {
+  var H = A.homeroom || (A.homeroom = { grades: {} });
+  return H.grades[g] || (H.grades[g] = { on: false, manual: 'gap', assign: {} });
+}
+function renderHomeroom() {
+  var classes = allClasses();
+  var h = '<h2>教科担任制をしている学年と、教科の分担を教えてください</h2>' +
+    '<p class="lead">教科担任制の学年では、担任も1人の先生として扱い、同じ時間に2つのクラスで教えることがないように組みます。教科ごとに、誰が教えるかを選んでください。</p>' +
+    '<ul class="small"><li><b>各クラスの担任</b>：交換しない教科です。</li>' +
+    '<li><b>◯年◯組の担任</b>：その担任が、この学年の全クラスでその教科を教えます（ほかの学年の担任も選べます）。</li>' +
+    '<li><b>ほかの先生</b>：専科・講師・教科担任が教えます。質問「専科・講師の担当」で、その先生を入れてください。</li></ul>' +
+    '<p class="small">例：5年 ／ 理科＝5年1組の担任、社会＝5年2組の担任、外国語＝5年3組の担任、音楽＝ほかの先生（音楽専科）</p>';
+  JW.GRADES.forEach(function (g) {
+    var n = +A.classCounts[g] || 0;
+    if (!n) return;
+    var G = hrGrade(g), base = 'homeroom.grades.' + g;
+    h += '<div class="item"><div class="row"><b>' + g + '年</b>' +
+      '<span class="chips"><label><input type="radio" name="hr' + g + '" data-k="' + base + '.on" data-t="radio-false"' + (!G.on ? ' checked' : '') + '>していない</label>' +
+      '<label><input type="radio" name="hr' + g + '" data-k="' + base + '.on" data-t="radio-true"' + (G.on ? ' checked' : '') + '>している</label></span></div>';
+    if (G.on) {
+      h += '<div class="row small">担任が入れる教科（質問「このツールで組む教科」で「組まない」にした教科）は：</div>' +
+        '<div class="row chips"><label><input type="radio" name="hrm' + g + '" data-k="' + base + '.manual" data-t="text" value="gap"' + (G.manual !== 'auto' ? ' checked' : '') + '>空けておく（担任が自分のクラスにいる時間に空ける）</label>' +
+        '<label><input type="radio" name="hrm' + g + '" data-k="' + base + '.manual" data-t="text" value="auto"' + (G.manual === 'auto' ? ' checked' : '') + '>すべてツールで組む</label></div>';
+      var teacherOpts = classes.map(function (c) { var nm = hrName(c.key); return { v: 'cls:' + c.key, t: c.label + 'の担任' + (nm ? '（' + nm + '）' : '') }; }).concat([{ v: 'other', t: 'ほかの先生（専科・講師など）' }]);
+      var optsList = [{ v: 'own', t: '各クラスの担任' }].concat(teacherOpts).concat([{ v: 'perclass', t: 'クラスごとに決める' }]);
+      var perOpts = [{ v: 'own', t: 'そのクラスの担任' }].concat(teacherOpts);
+      var gClasses = classes.filter(function (c) { return c.grade === g; });
+      h += '<table class="t"><tr><th class="l">教科</th><th>週</th><th class="l">教える先生</th></tr>' +
+        A.subjects.filter(function (s) { return (+s.hours[g] || 0) > 0; }).map(function (s) {
+          var a = (G.assign || {})[s.id] || 'own';
+          var row = '<tr><td class="l">' + esc(s.name) + '</td><td>' + s.hours[g] + '</td><td class="l"><select data-k="' + base + '.assign.' + s.id + '">' + opts(optsList, a) + '</select>';
+          if (a === 'perclass') {
+            var by = ((G.assignBy || {})[s.id]) || {};
+            row += '<div class="perclass">' + gClasses.map(function (c) {
+              return '<label>' + esc(c.label) + '<select data-k="' + base + '.assignBy.' + s.id + '.' + c.key + '">' + opts(perOpts, by[c.key] || 'own') + '</select></label>';
+            }).join('') + '</div>';
+          }
+          return row + '</td></tr>';
+        }).join('') + '</table>' +
+        '<p class="small">「クラスごとに決める」：例えば4クラスで理科と社会を2クラスずつ交換するときに使います（理科は1組・2組＝1組の担任、3組・4組＝3組の担任 など）。</p>';
+      h += hrSummary(g, G);
+      var others = A.subjects.filter(function (s) { return (+s.hours[g] || 0) > 0 && (G.assign || {})[s.id] === 'other'; });
+      if (others.length && !A.features.teachers) h += '<div class="box warn small">「ほかの先生」にした教科（' + esc(others.map(function (s) { return s.name; }).join('・')) +
+        '）がありますが、質問「使う機能」で「専科・講師の先生がいる」が選ばれていません。選んで、その先生を入れてください。</div>';
+    }
+    h += '</div>';
+  });
+  return h;
+}
+// 担任ごとの、ほかのクラスへ行く時数のまとめ
+function hrSummary(g, G) {
+  var load = {};
+  var gClasses = allClasses().filter(function (c) { return c.grade === g; });
+  A.subjects.forEach(function (s) {
+    var a0 = (G.assign || {})[s.id] || 'own';
+    gClasses.forEach(function (c) {
+      var a = a0 === 'perclass' ? (((G.assignBy || {})[s.id] || {})[c.key] || 'own') : a0;
+      if (a.indexOf('cls:') !== 0) return;
+      var key = a.slice(4);
+      if (key === c.key) return; // 自分のクラス
+      var L = load[key] || (load[key] = { n: 0, subs: [] });
+      L.n += (+s.hours[g] || 0);
+      if (L.subs.indexOf(s.name) < 0) L.subs.push(s.name);
+    });
+  });
+  var keys = Object.keys(load);
+  if (!keys.length) return '<p class="small">まだ交換する教科がありません。</p>';
+  return '<ul class="small">' + keys.map(function (key) {
+    var p = key.split('-'), c = allClasses().filter(function (x) { return x.key === key; })[0];
+    return '<li>' + esc(c ? c.label : key) + 'の担任：ほかのクラスへ週' + load[key].n + 'コマ（' + esc(load[key].subs.join('・')) + '）</li>';
+  }).join('') + '</ul>';
+}
+
 function renderTeachers() {
   var classes = allClasses();
   var h = '<h2>専科・講師・少人数・TTの先生と、担当する授業を教えてください</h2>' +
@@ -2724,6 +2979,44 @@ function renderFixed() {
   return h;
 }
 
+// 曜日×時間の表でマスを選ぶ（値は "曜日-時間" の一覧）
+function slotGrid(path, cells) {
+  var on = {};
+  (cells || []).forEach(function (c) { on[c] = 1; });
+  var h = '<div class="row"><table class="sg"><tr><th></th>' + A.days.map(function (d, di) {
+    return '<th><button type="button" class="sgh" data-a="gridCol" data-p="' + path + '" data-c="' + di + '" title="' + d + '曜日をまとめて">' + d + '</button></th>';
+  }).join('') + '</tr>';
+  for (var q = 1; q <= A.maxPeriods; q++) {
+    h += '<tr><th><button type="button" class="sgh" data-a="gridRow" data-p="' + path + '" data-c="' + q + '" title="' + q + '時間目をまとめて">' + q + '</button></th>' + A.days.map(function (d, di) {
+      var v = di + '-' + q;
+      return '<td' + (on[v] ? ' class="on"' : '') + '><label><input type="checkbox" data-k="' + path + '" data-t="arrs" value="' + v + '"' + (on[v] ? ' checked' : '') + '></label></td>';
+    }).join('') + '</tr>';
+  }
+  return h + '</table><div class="sgb"><button type="button" class="btn small" data-a="gridAll" data-p="' + path + '">全部えらぶ</button>' +
+    '<button type="button" class="btn small" data-a="gridNone" data-p="' + path + '">全部はずす</button>' +
+    '<div class="small">曜日や時間の文字を押すと、その列・行をまとめて選べます。</div></div></div>';
+}
+function gridSet(path, list, add) {
+  var cur = (getPath(path) || []).slice();
+  list.forEach(function (v) {
+    var i = cur.indexOf(v);
+    if (add && i < 0) cur.push(v);
+    if (!add && i >= 0) cur.splice(i, 1);
+  });
+  setPath(path, cur);
+  result = null;
+  render();
+}
+function gridLine(path, list) {
+  var cur = getPath(path) || [];
+  gridSet(path, list, !list.every(function (v) { return cur.indexOf(v) >= 0; }));
+}
+function pinText(pn) {
+  var when = JW.cellsText(A, pn.cells);
+  if (!when) return '時間のマスを選んでください';
+  var what = (pn.cls ? JW.classLabel(A, +pn.cls.split('-')[0], +pn.cls.split('-')[1]) + 'の' : '') + (pn.target ? JW.targetName(A, pn.target) : '（教科を選んでください）');
+  return what + 'を' + when + (pn.how === 'some' ? 'のどこかに週' + (pn.count || 1) + 'コマ入れる' : 'に入れる（' + (pn.cells || []).length + 'コマ）');
+}
 function renderPrefs() {
   var h = '<h2>教科を入れる時間の希望や、固定したい授業はありますか？</h2>' +
     '<p class="lead">例：「1・2年の国語は午前中（1〜4時間目）に入れる」「体育は1時間目に入れない」。希望ごとに「絶対に守る」か「できれば守る」を選べます。守れなかった希望は最後に一覧で知らせます。</p>';
@@ -2732,8 +3025,7 @@ function renderPrefs() {
     h += '<div class="item"><div class="row">学年' + gradeChecks('prefs.' + i + '.grades', p.grades) + '<span class="small">（チェックなし＝全学年）</span></div>' +
       '<div class="row"><select data-k="prefs.' + i + '.target">' + targetOpts(p.target) + '</select>を' +
       '<select data-k="prefs.' + i + '.mode">' + opts([{ v: 'only', t: 'この時間に入れる' }, { v: 'avoid', t: 'この時間に入れない' }], p.mode) + '</select></div>' +
-      '<div class="row">曜日' + dayChecks('prefs.' + i + '.days', p.days) + '<span class="small">（チェックなし＝全部の曜日）</span></div>' +
-      '<div class="row">時間' + periodChecks('prefs.' + i + '.periods', p.periods) + '<span class="small">（チェックなし＝全部の時間）</span></div>' +
+      slotGrid('prefs.' + i + '.cells', p.cells) +
       '<div class="row chips"><label><input type="radio" name="strict' + i + '" data-k="prefs.' + i + '.strict" data-t="radio-true"' + (p.strict ? ' checked' : '') + '>絶対に守る</label>' +
       '<label><input type="radio" name="strict' + i + '" data-k="prefs.' + i + '.strict" data-t="radio-false"' + (!p.strict ? ' checked' : '') + '>できれば守る</label></div>' +
       '<div class="row"><span class="small">→ ' + esc(JW.prefText(A, p)) + (p.strict ? '（絶対に守る）' : '') + '</span><button class="btn small del" data-a="delPref" data-i="' + i + '">削除</button></div></div>';
@@ -2742,6 +3034,7 @@ function renderPrefs() {
   h += '<p class="small">「絶対に守る」は、守れないときは入らなかったコマとして知らせます。「できれば守る」は、組めないときはゆるめます。</p>';
 
   // 授業の固定
+  if (!A.features.pins) return h;
   var classes = allClasses();
   h += '<h3 style="margin-top:28px">授業の固定</h3><p class="small">「理科講師の5年1組の理科は火曜2時間目」のように、その時間に必ず入れる授業です。先生を選ぶと、その先生の担当だけが選べます。</p>';
   A.pins.forEach(function (pn, i) {
@@ -2751,8 +3044,11 @@ function renderPrefs() {
     h += '<div class="item"><div class="row">先生<select data-k="pins.' + i + '.teacher">' + opts([{ v: '', t: '指定なし' }].concat(A.teachers.map(function (x) { return { v: x.id, t: x.name || '（名前なし）' }; })), pn.teacher) + '</select>' +
       'クラス<select data-k="pins.' + i + '.cls">' + opts([{ v: '', t: '選んでください' }].concat(cl.map(function (c) { return { v: c.key, t: c.label }; })), pn.cls) + '</select>' +
       '教科<select data-k="pins.' + i + '.target">' + opts([{ v: '', t: '選んでください' }].concat(tg.map(function (x) { return { v: x.id, t: x.name }; })), pn.target) + '</select></div>' +
-      '<div class="row"><select data-k="pins.' + i + '.day" data-t="num">' + opts(A.days.map(function (d, di) { return { v: di, t: d + '曜日' }; }), pn.day) + '</select>' +
-      '<select data-k="pins.' + i + '.period" data-t="num">' + opts(range(1, A.maxPeriods).map(function (p) { return { v: p, t: p + '時間目' }; }), pn.period) + '</select>に固定' +
+      slotGrid('pins.' + i + '.cells', pn.cells) +
+      '<div class="row chips"><label><input type="radio" name="pinhow' + i + '" data-k="pins.' + i + '.how" data-t="text" value="all"' + (pn.how !== 'some' ? ' checked' : '') + '>選んだマス全部に入れる</label>' +
+      '<label><input type="radio" name="pinhow' + i + '" data-k="pins.' + i + '.how" data-t="text" value="some"' + (pn.how === 'some' ? ' checked' : '') + '>選んだマスのどこかに</label>' +
+      (pn.how === 'some' ? '週<select data-k="pins.' + i + '.count" data-t="num">' + opts(range(1, Math.max(1, (pn.cells || []).length)), pn.count || 1) + '</select>コマ入れる' : '') + '</div>' +
+      '<div class="row"><span class="small">→ ' + esc(pinText(pn)) + '</span>' +
       '<button class="btn small" data-a="copyPin" data-i="' + i + '">複製</button><button class="btn small del" data-a="delPin" data-i="' + i + '">削除</button></div></div>';
   });
   h += '<button class="btn small" data-a="addPin">＋ 授業を固定する</button>';
@@ -3065,6 +3361,7 @@ document.addEventListener('change', function (e) {
   } else v = el.value;
   setPath(k, v);
   if (/^teachers\.\d+\.kind$/.test(k) && v === '専科') getPath(k.replace(/\.kind$/, '')).off = {};
+  if (k === 'features.sat' && (!!v) !== (A.days.length > 5)) actions.toggleSat();
   if (/^module\.slots\.\d+\.kind$/.test(k) && v === 'subject') {
     var ms = getPath(k.replace(/\.kind$/, ''));
     if (!ms.target) ms.target = (A.subjects.filter(function (x) { return x.id === 'kokugo'; })[0] || A.subjects[0]).id;
@@ -3102,7 +3399,11 @@ function saveNow() {
   return call('saveAnswers', saveName, JSON.stringify(A)).then(function () { toast('保存しました'); })
     .catch(function (err) { alert('保存できませんでした：' + (err && err.message || err)); });
 }
-function go(i) { step = Math.max(0, Math.min(STEPS.length - 1, i)); render(); window.scrollTo(0, 0); }
+function go(i, dir) {
+  step = Math.max(0, Math.min(STEPS.length - 1, i));
+  while (!visible(step) && step > 0 && step < STEPS.length - 1) step += dir || 1;
+  render(); window.scrollTo(0, 0);
+}
 
 function fixAnswers(x) {
   // 古い保存データでも動くように、足りない項目をおぎなう
@@ -3117,6 +3418,9 @@ function fixAnswers(x) {
   });
   if (x.satCount === undefined) x.satCount = false;
   if (!x.pins) x.pins = [];
+  if (!x.features) x.features = { teachers: true, homeroom: false, variants: (x.variants || []).length > 0, module: !!(x.module && x.module.on),
+    sat: (x.days || []).length > 5, syncs: (x.syncs || []).length > 0, pins: (x.pins || []).length > 0 };
+  if (!x.homeroom) x.homeroom = { grades: {} };
   if (!x.module) x.module = JW.defaultAnswers().module;
   x.rooms.forEach(function (r) { r.gradeCap = r.gradeCap || {}; });
   // 図工・家庭は、すべて2時間続き（必ず）
@@ -3132,6 +3436,11 @@ function fixAnswers(x) {
   });
   x.syncs.forEach(function (sg) { if (!sg.mode) sg.mode = 'pick'; });
   if (x.rules.senkaDaily === undefined) x.rules.senkaDaily = true;
+  // 希望と授業の固定は、曜日×時間の表で選んだマスで持つ
+  x.prefs.forEach(function (p) { if (!p.cells) { p.cells = JW.prefCells(x, p); delete p.days; delete p.periods; } });
+  x.pins.forEach(function (pn) {
+    if (!pn.cells) { pn.cells = pn.day !== undefined && pn.period ? [pn.day + '-' + pn.period] : []; pn.how = 'all'; pn.count = 1; delete pn.day; delete pn.period; }
+  });
   if (!x.hrNames) x.hrNames = {};
   return x;
 }
@@ -3139,7 +3448,7 @@ function fixAnswers(x) {
 var actions = {
   go: function (d) { if (A || +d.i === 0) { if (A) { commitDrafts(); saveNow(); } go(+d.i); } },
   next: function () { commitDrafts(); saveNow(); go(step + 1); },
-  prev: function () { commitDrafts(); saveNow(); go(step - 1); },
+  prev: function () { commitDrafts(); saveNow(); go(step - 1, -1); },
   open: function (d) {
     call('loadSave', d.n).then(function (json) {
       if (!json) return alert('読み込めませんでした。');
@@ -3263,18 +3572,28 @@ var actions = {
     A = fixAnswers(x); A.name = name; saveName = name; result = null;
     saveNow().then(function () { go(1); });
   },
+  sample: function () {
+    var name = '見本の学校';
+    if ((startView.saves || []).some(function (s) { return s.name === name; }) && !confirm('「見本の学校」はすでにあります。最初の状態にもどしますか？')) return;
+    A = sampleAnswers(); A.name = name; saveName = name; result = null;
+    saveNow().then(function () { go(1); });
+  },
   addPin: function () {
     var t = A.teachers.filter(function (x) { return x.kind !== '専科'; })[0];
-    A.pins.push({ teacher: t ? t.id : '', cls: '', target: '', day: 0, period: 1 }); render();
+    A.pins.push({ teacher: t ? t.id : '', cls: '', target: '', cells: [], how: 'all', count: 1 }); render();
   },
-  copyPin: function (d) { var p = A.pins[+d.i]; A.pins.splice(+d.i + 1, 0, { teacher: p.teacher, cls: p.cls, target: p.target, day: p.day, period: p.period }); render(); },
+  copyPin: function (d) { A.pins.splice(+d.i + 1, 0, JSON.parse(JSON.stringify(A.pins[+d.i]))); render(); },
   delPin: function (d) { A.pins.splice(+d.i, 1); render(); },
-  addPref: function () { A.prefs.push({ grades: [], target: A.subjects[0].id, mode: 'only', days: [], periods: [] }); render(); },
+  addPref: function () { A.prefs.push({ grades: [], target: A.subjects[0].id, mode: 'only', cells: [] }); render(); },
+  gridCol: function (d) { var l = []; for (var q = 1; q <= A.maxPeriods; q++) l.push(d.c + '-' + q); gridLine(d.p, l); },
+  gridRow: function (d) { gridLine(d.p, A.days.map(function (x, di) { return di + '-' + d.c; })); },
+  gridAll: function (d) { var l = []; A.days.forEach(function (x, di) { for (var q = 1; q <= A.maxPeriods; q++) l.push(di + '-' + q); }); gridSet(d.p, l, true); },
+  gridNone: function (d) { setPath(d.p, []); result = null; render(); },
   delPref: function (d) { A.prefs.splice(+d.i, 1); render(); },
   prefPreset: function (d) {
     var find = function (name) { var s = A.subjects.filter(function (x) { return x.name === name; })[0] || A.subjects[0]; return s.id; };
-    if (d.p === 'morning') A.prefs.push({ grades: [1, 2], target: find('国語'), mode: 'only', days: [], periods: [1, 2, 3, 4] });
-    if (d.p === 'pe1') A.prefs.push({ grades: JW.GRADES.slice(), target: find('体育'), mode: 'avoid', days: [], periods: [1] });
+    if (d.p === 'morning') A.prefs.push({ grades: [1, 2], target: find('国語'), mode: 'only', cells: JW.prefCells(A, { periods: [1, 2, 3, 4] }) });
+    if (d.p === 'pe1') A.prefs.push({ grades: JW.GRADES.slice(), target: find('体育'), mode: 'avoid', cells: JW.prefCells(A, { periods: [1] }) });
     render();
   },
   addSync: function () { A.syncs.push({ mode: 'grade', grades: [], classes: [], target: A.subjects[0].id, count: 1, odd: 'skip', same: true }); render(); },
@@ -3475,6 +3794,28 @@ function sheetHtml(t) {
     }
   }
   return h + '</table></body></html>';
+}
+
+// 見本の学校（架空）
+function sampleAnswers() {
+  var x = JW.defaultAnswers();
+  x.classCounts = { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3 };
+  ['kokugo', 'shakai', 'sansu', 'rika', 'seikatsu', 'doutoku', 'sougou', 'gakkatsu'].forEach(function (id) { JW.subjectById(x, id).auto = false; });
+  JW.subjectById(x, 'zukou').room = '図工室'; JW.subjectById(x, 'zukou').roomOff = [1, 2, 3, 4];
+  var all = function (gs, t) { var a = []; gs.forEach(function (g) { for (var i = 0; i < 3; i++) a.push({ cls: g + '-' + i, target: t, hours: 'all' }); }); return a; };
+  x.teachers = [
+    { id: 'ts1', name: '音楽専科', kind: '専科', off: {}, jobs: all([3, 4, 5, 6], 'ongaku'), groupGrade: true, chainGrade: true, gradeDays: {}, dayRoom: {} },
+    { id: 'ts2', name: '図工専科', kind: '専科', off: {}, jobs: all([5, 6], 'zukou'), groupGrade: true, chainGrade: false, gradeDays: {}, dayRoom: {} },
+    { id: 'ts3', name: '少人数算数', kind: '少人数', off: { '0-1': true, '0-2': true, '0-3': true, '0-4': true, '0-5': true, '0-6': true },
+      jobs: [0, 1, 2].map(function (i) { return { cls: '4-' + i, target: 'sansu', hours: 2 }; }), groupGrade: false, gradeDays: {}, dayRoom: {} }
+  ];
+  x.features.homeroom = true;
+  x.homeroom = { grades: {
+    5: { on: true, manual: 'gap', assign: { rika: 'cls:5-0', shakai: 'cls:5-1', gaikokugo: 'cls:5-2', ongaku: 'other', zukou: 'other' } },
+    6: { on: true, manual: 'gap', assign: { rika: 'cls:6-0', shakai: 'cls:6-1', gaikokugo: 'cls:6-2', ongaku: 'other', zukou: 'other' } }
+  } };
+  x.prefs = [{ grades: [1, 2], target: 'taiiku', mode: 'avoid', days: [], periods: [5, 6], strict: false }];
+  return x;
 }
 
 function checkHtml(r) {

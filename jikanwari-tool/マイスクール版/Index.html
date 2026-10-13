@@ -122,13 +122,20 @@
     header, nav, .foot, .noprint { display: none !important; } .card { border: 0; }
   }
   .hrn { font-size: 9px; line-height: 1; font-weight: normal; white-space: nowrap; overflow: hidden; }
+  table.sg { border-collapse: collapse; }
+  table.sg th, table.sg td { border: 1px solid var(--cell-line); text-align: center; padding: 0; width: 34px; height: 28px; }
+  table.sg td label { display: block; width: 100%; height: 100%; padding: 4px 0; cursor: pointer; }
+  table.sg td.on { background: var(--soft); }
+  table.sg .sgh { border: 0; background: none; color: inherit; font: inherit; font-weight: bold; cursor: pointer; width: 100%; height: 100%; padding: 4px; }
+  .sgb { display: inline-block; vertical-align: top; margin-left: 12px; }
+  .sgb .btn { margin: 0 4px 6px 0; }
 </style>
 </head>
 <body>
 <header>
   <h1>時間割作成ツール</h1>
   <span class="save" id="saveName"></span>
-  <span class="ver" id="appVersion" data-version="2.9">v2.9</span>
+  <span class="ver" id="appVersion" data-version="2.10">v2.10</span>
 </header>
 <div class="wrap">
   <nav><ol id="nav"></ol></nav>
@@ -808,6 +815,44 @@ function renderFixed() {
   return h;
 }
 
+// 曜日×時間の表でマスを選ぶ（値は "曜日-時間" の一覧）
+function slotGrid(path, cells) {
+  var on = {};
+  (cells || []).forEach(function (c) { on[c] = 1; });
+  var h = '<div class="row"><table class="sg"><tr><th></th>' + A.days.map(function (d, di) {
+    return '<th><button type="button" class="sgh" data-a="gridCol" data-p="' + path + '" data-c="' + di + '" title="' + d + '曜日をまとめて">' + d + '</button></th>';
+  }).join('') + '</tr>';
+  for (var q = 1; q <= A.maxPeriods; q++) {
+    h += '<tr><th><button type="button" class="sgh" data-a="gridRow" data-p="' + path + '" data-c="' + q + '" title="' + q + '時間目をまとめて">' + q + '</button></th>' + A.days.map(function (d, di) {
+      var v = di + '-' + q;
+      return '<td' + (on[v] ? ' class="on"' : '') + '><label><input type="checkbox" data-k="' + path + '" data-t="arrs" value="' + v + '"' + (on[v] ? ' checked' : '') + '></label></td>';
+    }).join('') + '</tr>';
+  }
+  return h + '</table><div class="sgb"><button type="button" class="btn small" data-a="gridAll" data-p="' + path + '">全部えらぶ</button>' +
+    '<button type="button" class="btn small" data-a="gridNone" data-p="' + path + '">全部はずす</button>' +
+    '<div class="small">曜日や時間の文字を押すと、その列・行をまとめて選べます。</div></div></div>';
+}
+function gridSet(path, list, add) {
+  var cur = (getPath(path) || []).slice();
+  list.forEach(function (v) {
+    var i = cur.indexOf(v);
+    if (add && i < 0) cur.push(v);
+    if (!add && i >= 0) cur.splice(i, 1);
+  });
+  setPath(path, cur);
+  result = null;
+  render();
+}
+function gridLine(path, list) {
+  var cur = getPath(path) || [];
+  gridSet(path, list, !list.every(function (v) { return cur.indexOf(v) >= 0; }));
+}
+function pinText(pn) {
+  var when = JW.cellsText(A, pn.cells);
+  if (!when) return '時間のマスを選んでください';
+  var what = (pn.cls ? JW.classLabel(A, +pn.cls.split('-')[0], +pn.cls.split('-')[1]) + 'の' : '') + (pn.target ? JW.targetName(A, pn.target) : '（教科を選んでください）');
+  return what + 'を' + when + (pn.how === 'some' ? 'のどこかに週' + (pn.count || 1) + 'コマ入れる' : 'に入れる（' + (pn.cells || []).length + 'コマ）');
+}
 function renderPrefs() {
   var h = '<h2>教科を入れる時間の希望や、固定したい授業はありますか？</h2>' +
     '<p class="lead">例：「1・2年の国語は午前中（1〜4時間目）に入れる」「体育は1時間目に入れない」。希望ごとに「絶対に守る」か「できれば守る」を選べます。守れなかった希望は最後に一覧で知らせます。</p>';
@@ -816,8 +861,7 @@ function renderPrefs() {
     h += '<div class="item"><div class="row">学年' + gradeChecks('prefs.' + i + '.grades', p.grades) + '<span class="small">（チェックなし＝全学年）</span></div>' +
       '<div class="row"><select data-k="prefs.' + i + '.target">' + targetOpts(p.target) + '</select>を' +
       '<select data-k="prefs.' + i + '.mode">' + opts([{ v: 'only', t: 'この時間に入れる' }, { v: 'avoid', t: 'この時間に入れない' }], p.mode) + '</select></div>' +
-      '<div class="row">曜日' + dayChecks('prefs.' + i + '.days', p.days) + '<span class="small">（チェックなし＝全部の曜日）</span></div>' +
-      '<div class="row">時間' + periodChecks('prefs.' + i + '.periods', p.periods) + '<span class="small">（チェックなし＝全部の時間）</span></div>' +
+      slotGrid('prefs.' + i + '.cells', p.cells) +
       '<div class="row chips"><label><input type="radio" name="strict' + i + '" data-k="prefs.' + i + '.strict" data-t="radio-true"' + (p.strict ? ' checked' : '') + '>絶対に守る</label>' +
       '<label><input type="radio" name="strict' + i + '" data-k="prefs.' + i + '.strict" data-t="radio-false"' + (!p.strict ? ' checked' : '') + '>できれば守る</label></div>' +
       '<div class="row"><span class="small">→ ' + esc(JW.prefText(A, p)) + (p.strict ? '（絶対に守る）' : '') + '</span><button class="btn small del" data-a="delPref" data-i="' + i + '">削除</button></div></div>';
@@ -835,8 +879,11 @@ function renderPrefs() {
     h += '<div class="item"><div class="row">先生<select data-k="pins.' + i + '.teacher">' + opts([{ v: '', t: '指定なし' }].concat(A.teachers.map(function (x) { return { v: x.id, t: x.name || '（名前なし）' }; })), pn.teacher) + '</select>' +
       'クラス<select data-k="pins.' + i + '.cls">' + opts([{ v: '', t: '選んでください' }].concat(cl.map(function (c) { return { v: c.key, t: c.label }; })), pn.cls) + '</select>' +
       '教科<select data-k="pins.' + i + '.target">' + opts([{ v: '', t: '選んでください' }].concat(tg.map(function (x) { return { v: x.id, t: x.name }; })), pn.target) + '</select></div>' +
-      '<div class="row"><select data-k="pins.' + i + '.day" data-t="num">' + opts(A.days.map(function (d, di) { return { v: di, t: d + '曜日' }; }), pn.day) + '</select>' +
-      '<select data-k="pins.' + i + '.period" data-t="num">' + opts(range(1, A.maxPeriods).map(function (p) { return { v: p, t: p + '時間目' }; }), pn.period) + '</select>に固定' +
+      slotGrid('pins.' + i + '.cells', pn.cells) +
+      '<div class="row chips"><label><input type="radio" name="pinhow' + i + '" data-k="pins.' + i + '.how" data-t="text" value="all"' + (pn.how !== 'some' ? ' checked' : '') + '>選んだマス全部に入れる</label>' +
+      '<label><input type="radio" name="pinhow' + i + '" data-k="pins.' + i + '.how" data-t="text" value="some"' + (pn.how === 'some' ? ' checked' : '') + '>選んだマスのどこかに</label>' +
+      (pn.how === 'some' ? '週<select data-k="pins.' + i + '.count" data-t="num">' + opts(range(1, Math.max(1, (pn.cells || []).length)), pn.count || 1) + '</select>コマ入れる' : '') + '</div>' +
+      '<div class="row"><span class="small">→ ' + esc(pinText(pn)) + '</span>' +
       '<button class="btn small" data-a="copyPin" data-i="' + i + '">複製</button><button class="btn small del" data-a="delPin" data-i="' + i + '">削除</button></div></div>';
   });
   h += '<button class="btn small" data-a="addPin">＋ 授業を固定する</button>';
@@ -1216,6 +1263,11 @@ function fixAnswers(x) {
   });
   x.syncs.forEach(function (sg) { if (!sg.mode) sg.mode = 'pick'; });
   if (x.rules.senkaDaily === undefined) x.rules.senkaDaily = true;
+  // 希望と授業の固定は、曜日×時間の表で選んだマスで持つ
+  x.prefs.forEach(function (p) { if (!p.cells) { p.cells = JW.prefCells(x, p); delete p.days; delete p.periods; } });
+  x.pins.forEach(function (pn) {
+    if (!pn.cells) { pn.cells = pn.day !== undefined && pn.period ? [pn.day + '-' + pn.period] : []; pn.how = 'all'; pn.count = 1; delete pn.day; delete pn.period; }
+  });
   if (!x.hrNames) x.hrNames = {};
   return x;
 }
@@ -1349,16 +1401,20 @@ var actions = {
   },
   addPin: function () {
     var t = A.teachers.filter(function (x) { return x.kind !== '専科'; })[0];
-    A.pins.push({ teacher: t ? t.id : '', cls: '', target: '', day: 0, period: 1 }); render();
+    A.pins.push({ teacher: t ? t.id : '', cls: '', target: '', cells: [], how: 'all', count: 1 }); render();
   },
-  copyPin: function (d) { var p = A.pins[+d.i]; A.pins.splice(+d.i + 1, 0, { teacher: p.teacher, cls: p.cls, target: p.target, day: p.day, period: p.period }); render(); },
+  copyPin: function (d) { A.pins.splice(+d.i + 1, 0, JSON.parse(JSON.stringify(A.pins[+d.i]))); render(); },
   delPin: function (d) { A.pins.splice(+d.i, 1); render(); },
-  addPref: function () { A.prefs.push({ grades: [], target: A.subjects[0].id, mode: 'only', days: [], periods: [] }); render(); },
+  addPref: function () { A.prefs.push({ grades: [], target: A.subjects[0].id, mode: 'only', cells: [] }); render(); },
+  gridCol: function (d) { var l = []; for (var q = 1; q <= A.maxPeriods; q++) l.push(d.c + '-' + q); gridLine(d.p, l); },
+  gridRow: function (d) { gridLine(d.p, A.days.map(function (x, di) { return di + '-' + d.c; })); },
+  gridAll: function (d) { var l = []; A.days.forEach(function (x, di) { for (var q = 1; q <= A.maxPeriods; q++) l.push(di + '-' + q); }); gridSet(d.p, l, true); },
+  gridNone: function (d) { setPath(d.p, []); result = null; render(); },
   delPref: function (d) { A.prefs.splice(+d.i, 1); render(); },
   prefPreset: function (d) {
     var find = function (name) { var s = A.subjects.filter(function (x) { return x.name === name; })[0] || A.subjects[0]; return s.id; };
-    if (d.p === 'morning') A.prefs.push({ grades: [1, 2], target: find('国語'), mode: 'only', days: [], periods: [1, 2, 3, 4] });
-    if (d.p === 'pe1') A.prefs.push({ grades: JW.GRADES.slice(), target: find('体育'), mode: 'avoid', days: [], periods: [1] });
+    if (d.p === 'morning') A.prefs.push({ grades: [1, 2], target: find('国語'), mode: 'only', cells: JW.prefCells(A, { periods: [1, 2, 3, 4] }) });
+    if (d.p === 'pe1') A.prefs.push({ grades: JW.GRADES.slice(), target: find('体育'), mode: 'avoid', cells: JW.prefCells(A, { periods: [1] }) });
     render();
   },
   addSync: function () { A.syncs.push({ mode: 'grade', grades: [], classes: [], target: A.subjects[0].id, count: 1, odd: 'skip', same: true }); render(); },
