@@ -142,7 +142,7 @@
 <header>
   <h1>時間割作成ツール</h1>
   <span class="save" id="saveName"></span>
-  <span class="ver" id="appVersion" data-version="2.15">v2.15</span>
+  <span class="ver" id="appVersion" data-version="2.16">v2.16</span>
 </header>
 <div class="wrap">
   <nav><ol id="nav"></ol></nav>
@@ -307,35 +307,8 @@ var JW = (function () {
     if (a === 'other') return '';
     return a === 'own' ? key : a.slice(4);
   }
-  // 単純な入れかえ（裏表）：Xの担任がYで教科P、Yの担任がXで教科Qを、同じ時数だけ教える組
-  // 返す値：[{ x, y, p（Yで教える教科）, q（Xで教える教科） }]
-  function uraPairs(A, g) {
-    var G = ((A.homeroom || {}).grades || {})[g];
-    if (!G || !G.on || G.ura === false) return [];
-    var n = +(A.classCounts || {})[g] || 0, keys = [];
-    for (var i = 0; i < n; i++) keys.push(g + '-' + i);
-    var subs = (A.subjects || []).filter(function (s) { return (+s.hours[g] || 0) > 0; });
-    var out = [];
-    keys.forEach(function (x, xi) {
-      keys.forEach(function (y, yi) {
-        if (yi <= xi) return;
-        // 2クラスだけの入れかえ：その教科を、その担任が自分のクラスと相手のクラスだけで教えている
-        var only = function (sid, who) {
-          var ks = keys.filter(function (k) { return hrWho(A, g, sid, k) === who; });
-          return ks.length === 2 && ks.indexOf(x) >= 0 && ks.indexOf(y) >= 0;
-        };
-        var ps = subs.filter(function (s) { return only(s.id, x); });
-        var qs = subs.filter(function (s) { return only(s.id, y); });
-        ps.forEach(function (p) {
-          var k = qs.findIndex(function (q) { return +q.hours[g] === +p.hours[g]; });
-          if (k < 0) return;
-          out.push({ x: x, y: y, p: p.id, q: qs[k].id });
-          qs.splice(k, 1);
-        });
-      });
-    });
-    return out;
-  }
+  // 交換する時間をそろえるか（前の「裏表」のチェックも引きつぐ）
+  function swapOn(G) { return G.swap !== undefined ? !!G.swap : G.ura !== false; }
   // 担任の名前（入れていなければ ''）
   function hrNameOf(A, key) { return String(((A && A.hrNames) || {})[key] || '').trim(); }
   function classShort(A, g, i) {
@@ -786,21 +759,21 @@ var JW = (function () {
       }
     });
 
-    // 教科担任制の単純な入れかえ（裏表）：担任どうしが入れかわって教える授業を、同じ時間にそろえる
+    // 教科担任制：交換する時間をそろえる（その時間は、学年のどのクラスも自分の担任の授業にしない）
+    var swapRule = {};
     GRADES.forEach(function (g) {
-      uraPairs(A, g).forEach(function (pr, k) {
-        var X = classIndex[pr.x], Y = classIndex[pr.y], tX = hrIndex[pr.x], tY = hrIndex[pr.y];
-        if (X === undefined || Y === undefined || tX === undefined || tY === undefined) return;
-        var inY = classUnits[Y].map(function (id) { return units[id]; }).filter(function (u) { return u.subj === pr.p && u.teachers.indexOf(tX) >= 0 && !u.sync; });
-        var inX = classUnits[X].map(function (id) { return units[id]; }).filter(function (u) { return u.subj === pr.q && u.teachers.indexOf(tY) >= 0 && !u.sync; });
-        var m = Math.min(inY.length, inX.length);
-        if (inY.length !== inX.length) notes.push('裏表：' + classes[Y].label + 'の' + M_subjName(pr.p) + 'と' + classes[X].label + 'の' + M_subjName(pr.q) + 'はコマ数がちがうので、' + m + 'コマだけそろえます。');
-        for (var j = 0; j < m; j++) {
-          var key = 'ura' + g + ':' + k + ':' + j;
-          syncMembers[key] = [Y, X];
-          syncInfo[key] = { src: -1, target: pr.p, need: m, pool: null, ura: true };
-          inY[j].sync = key; inX[j].sync = key;
-        }
+      var G = HR[g];
+      if (!G || !G.on || !swapOn(G)) return;
+      swapRule[g] = !!G.swapStrict;
+    });
+    units.forEach(function (u) {
+      var g = classes[u.cls].grade;
+      if (swapRule[g] === undefined) return;
+      u.teachers.forEach(function (ti) {
+        var hc = teachers[ti].homeroom;
+        if (hc === undefined) return;
+        if (hc === u.cls) u.ownHr = true;
+        else if (classes[hc].grade === g) u.swapG = g;
       });
     });
     // 曜日のかたよりを気にしない教科（クラスごと）：週4コマ以上ある教科と、専科・講師の曜日を決めている授業
@@ -930,7 +903,7 @@ var JW = (function () {
     });
 
     return { A: A, D: D, MP: MP, S: S, classes: classes, classIndex: classIndex, avail: avail,
-      fixedLabel: fixedLabel, satFree: satFree, units: units, pins: allPins(A, classes), classUnits: classUnits, syncMembers: syncMembers, syncInfo: syncInfo, noSpread: noSpread,
+      fixedLabel: fixedLabel, satFree: satFree, units: units, pins: allPins(A, classes), classUnits: classUnits, syncMembers: syncMembers, syncInfo: syncInfo, noSpread: noSpread, swapRule: swapRule,
       teachers: teachers, prefs: prefs, rooms: rooms, poolName: poolName, poolRooms: poolRooms, poolGradeCap: poolGradeCap, poolKind: poolKind, phys: phys,
       maxPerDay: maxPerDay, subjName: subjName, manualList: manualList,
       rules: A.rules || {}, errors: errors, notes: uniq(notes) };
@@ -941,9 +914,9 @@ var JW = (function () {
     var r = M.rules;
     var w = { hard: 100, pref: 8, daily: r.dailyMax ? 20 : 0, pair: r.pairs ? 40 : 0,
       spread: r.spread ? 3 : 0, active: r.active ? 4 : 0, group: 6, chain: 3,
-      sixth: r.sixthHr && !r.sixthHrStrict ? 10 : 0, senka: r.senkaDaily && !r.senkaDailyStrict ? 15 : 0 };
+      sixth: r.sixthHr && !r.sixthHrStrict ? 10 : 0, senka: r.senkaDaily && !r.senkaDailyStrict ? 15 : 0, swap: 100 };
     if (level >= 1) w.pref = 1;               // 希望をゆるめる
-    if (level >= 2) { w.daily = Math.min(w.daily, 3); w.pair = Math.min(w.pair, 3); w.spread = Math.min(w.spread, 1); w.active = Math.min(w.active, 1); w.group = 1; w.chain = 1; w.sixth = Math.min(w.sixth, 2); w.senka = Math.min(w.senka, 3); } // 組み方のルールもゆるめる
+    if (level >= 2) { w.daily = Math.min(w.daily, 3); w.pair = Math.min(w.pair, 3); w.spread = Math.min(w.spread, 1); w.active = Math.min(w.active, 1); w.group = 1; w.chain = 1; w.sixth = Math.min(w.sixth, 2); w.senka = Math.min(w.senka, 3); w.swap = 20; } // 組み方のルールもゆるめる
     return w;
   }
 
@@ -989,6 +962,26 @@ var JW = (function () {
       }
       var rm = roomOf(M, u, s);
       if (rm) { (rc[rm] = rc[rm] || []).push(c); }
+    }
+    // 教科担任制：担任どうしの交換の授業がある時間に、自分の担任の授業のクラスがないか
+    if (M.swapRule) {
+      var sw = {}, own = {};
+      for (var c3 = 0; c3 < M.classes.length; c3++) {
+        var id3 = st.grid[c3][s];
+        if (id3 < 0) continue;
+        var u3 = M.units[id3], g3 = M.classes[c3].grade;
+        if (M.swapRule[g3] === undefined) continue;
+        if (u3.swapG) sw[g3] = 1;
+        else if (u3.ownHr) (own[g3] = own[g3] || []).push(c3);
+      }
+      for (var g4 in sw) {
+        if (!own[g4]) continue;
+        var strict4 = M.swapRule[g4], w4 = strict4 ? W.hard : W.swap;
+        if (!w4) continue;
+        cost += w4 * own[g4].length;
+        if (out) out.push({ level: strict4 ? 'hard' : 'soft', kind: 'swap', slot: s, g: +g4, text: g4 + '年 ' + slotName(M.A, s) + '：担任どうしの交換の授業がある時間に、' +
+          listText(own[g4].map(function (c) { return M.classes[c].label; })) + 'は自分の担任の授業です（交換する時間をそろえる）。' });
+      }
     }
     for (var tv in tk) {
       var par = M.teachers[tv].parent;
@@ -1360,7 +1353,7 @@ var JW = (function () {
   };
   Solver.prototype.setLevel = function (lv) { this.level = lv; this.W = weights(this.M, lv); this.recalc(); };
   Solver.prototype.hardCount = function () {
-    var M = this.M, st = this.st, W = { hard: 1, pref: 0, daily: 0, pair: 0, spread: 0, active: 0, group: 0, sixth: 0, senka: 0 };
+    var M = this.M, st = this.st, W = { hard: 1, pref: 0, daily: 0, pair: 0, spread: 0, active: 0, group: 0, sixth: 0, senka: 0, swap: 0 };
     var n = 0;
     for (var c = 0; c < M.classes.length; c++) n += evalClass(M, st, c, W);
     for (var s = 0; s < M.S; s++) n += evalSlot(M, st, s, W);
@@ -1581,7 +1574,26 @@ var JW = (function () {
 
   // 全体の流れ。onProgress(割合, メッセージ) を途中で呼ぶ。done(結果) で終わる。
   // 全部入らなかったときは、別の組み方で最大 TRIES 回まで試し、いちばんよいものを返す。
+  // 「交換する時間をそろえる（できるだけ）」の学年があるときは、まず「必ず」で組んでみて、
+  // 全部の授業が入ればそれを使う。入らない授業が出たら「できるだけ」で組み直す（授業は外さない）
   function solve(A, opts) {
+    opts = opts || {};
+    var HRg = ((A.homeroom || {}).grades) || {};
+    var soft = GRADES.filter(function (g) { var G = HRg[g]; return G && G.on && swapOn(G) && !G.swapStrict; });
+    if (!soft.length || !(effective(A).homeroom)) return solveCore(A, opts);
+    var B = JSON.parse(JSON.stringify(A));
+    soft.forEach(function (g) { B.homeroom.grades[g].swapStrict = true; });
+    var good = function (r) { return !r.unplaced.length && !r.hard.length; };
+    if (opts.async) {
+      return solveCore(B, Object.assign({}, opts, { done: function (r) {
+        if (good(r)) return opts.done && opts.done(r);
+        solveCore(A, opts);
+      } }));
+    }
+    var r = solveCore(B, opts);
+    return good(r) ? r : solveCore(A, opts);
+  }
+  function solveCore(A, opts) {
     opts = opts || {};
     var TRIES = opts.tries || 3;
     // 組み合わせをツールにまかせる授業があるときは、組み合わせを変えて多めに試す
@@ -1909,6 +1921,10 @@ var JW = (function () {
         add('senkaDay:' + x.t, T3.name + '：授業が1つもない日ができました',
           '毎日どこかに授業を入れようとしましたが、クラスの時間割や学年ごとの曜日の指定などと合いませんでした。',
           [RETRY, '学年ごとに曜日を決めているときは、質問「専科・講師の曜日」で曜日を見直す', 'どうしても守りたいときは、質問「組み方のルール」で「絶対」にする'], T3.name);
+      } else if (x.kind === 'swap') {
+        add('swap:' + x.g, x.g + '年：交換する時間をそろえきれませんでした',
+          '教科ごとの時数や、専科・講師の時間、教室の都合と合わせると、交換の時間に自分の担任の授業が入るクラスがありました。',
+          [RETRY, '交換する教科の時数をそろえると、そろえやすくなります', 'どうしても守りたいときは、質問「教科担任制」で「必ず」にする'], x.g + '年');
       } else if (x.kind === 'chain') {
         var T2 = M.teachers[x.t];
         add('chain:' + x.t, T2.name + '：同じ学年の授業を続けきれませんでした',
@@ -2322,7 +2338,7 @@ var JW = (function () {
     DAYS: DAYS, GRADES: GRADES, STD: STD, weeksOf: weeksOf, defaultAnswers: defaultAnswers, uid: uid,
     className: className, classLabel: classLabel, classShort: classShort, targetName: targetName,
     targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText, cellsText: cellsText, prefCells: prefCells,
-    buildModel: buildModel, effective: effective, solve: solve, check: check, syncPreview: syncPreview, uraPairs: uraPairs, hrNameOf: hrNameOf, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel, roomSpec: roomSpec, roomSpecLabel: roomSpecLabel
+    buildModel: buildModel, effective: effective, solve: solve, check: check, syncPreview: syncPreview, hrNameOf: hrNameOf, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel, roomSpec: roomSpec, roomSpecLabel: roomSpecLabel
   };
 })();
 if (typeof module !== 'undefined') module.exports = JW;
@@ -2943,17 +2959,15 @@ function renderHomeroom() {
   });
   return h;
 }
-// 単純な入れかえ（裏表）
+// 交換する時間をそろえる（前の「裏表」のチェックも引きつぐ）
 function uraHtml(g, G, base) {
-  var on = G.ura !== false;
-  var h = '<div class="row chips"><label><input type="checkbox" data-k="' + base + '.ura" data-t="bool"' + (on ? ' checked' : '') + '>単純な入れかえは、裏表で組む（担任どうしが入れかわって教える授業を、同じ時間にする）</label></div>';
+  var on = G.swap !== undefined ? !!G.swap : G.ura !== false;
+  var h = '<div class="row chips"><label><input type="checkbox" data-k="' + base + '.swap" data-t="bool"' + (on ? ' checked' : '') + '>交換する時間をそろえる</label></div>' +
+    '<div class="small" style="margin:-4px 0 6px 28px">どれかのクラスで担任どうしの交換の授業（ほかの担任が教える授業）がある時間は、学年のどのクラスも自分の担任の授業にしません（例：火曜1時間目に1組が理科（2組の担任）なら、2・3・4組も、ほかの担任か専科・講師の授業にします）。</div>';
   if (!on) return h;
-  var short = function (k) { var a = k.split('-'); return JW.className(A, +a[0], +a[1]); };
-  var name = function (id) { return JW.targetName(A, id); };
-  var list = JW.uraPairs(A, g);
-  return h + '<div class="small" style="margin:-4px 0 8px 28px">' + (list.length ? list.map(function (p) {
-    return '→ ' + esc(short(p.y) + 'の' + name(p.p) + '（' + short(p.x) + 'の担任）と、' + short(p.x) + 'の' + name(p.q) + '（' + short(p.y) + 'の担任）を同じ時間に');
-  }).join('<br>') : '同じ時数で入れかえている組は、まだありません。') + '</div>';
+  var st = !!G.swapStrict;
+  return h + '<div class="row chips" style="margin:-2px 0 8px 28px">守り方：<label><input type="radio" name="sws' + g + '" data-k="' + base + '.swapStrict" data-t="radio-false"' + (!st ? ' checked' : '') + '>できるだけ</label>' +
+    '<label><input type="radio" name="sws' + g + '" data-k="' + base + '.swapStrict" data-t="radio-true"' + (st ? ' checked' : '') + '>必ず（守れないときは、入らない授業が出ます）</label></div>';
 }
 // 担任ごとの、ほかのクラスへ行く時数のまとめ
 function hrSummary(g, G) {

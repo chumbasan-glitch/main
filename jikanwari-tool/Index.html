@@ -143,7 +143,7 @@
 <header>
   <h1>時間割作成ツール</h1>
   <span class="save" id="saveName"></span>
-  <span class="ver" id="appVersion" data-version="2.15">v2.15</span>
+  <span class="ver" id="appVersion" data-version="2.16">v2.16</span>
 </header>
 <div class="wrap">
   <nav><ol id="nav"></ol></nav>
@@ -767,17 +767,15 @@ function renderHomeroom() {
   });
   return h;
 }
-// 単純な入れかえ（裏表）
+// 交換する時間をそろえる（前の「裏表」のチェックも引きつぐ）
 function uraHtml(g, G, base) {
-  var on = G.ura !== false;
-  var h = '<div class="row chips"><label><input type="checkbox" data-k="' + base + '.ura" data-t="bool"' + (on ? ' checked' : '') + '>単純な入れかえは、裏表で組む（担任どうしが入れかわって教える授業を、同じ時間にする）</label></div>';
+  var on = G.swap !== undefined ? !!G.swap : G.ura !== false;
+  var h = '<div class="row chips"><label><input type="checkbox" data-k="' + base + '.swap" data-t="bool"' + (on ? ' checked' : '') + '>交換する時間をそろえる</label></div>' +
+    '<div class="small" style="margin:-4px 0 6px 28px">どれかのクラスで担任どうしの交換の授業（ほかの担任が教える授業）がある時間は、学年のどのクラスも自分の担任の授業にしません（例：火曜1時間目に1組が理科（2組の担任）なら、2・3・4組も、ほかの担任か専科・講師の授業にします）。</div>';
   if (!on) return h;
-  var short = function (k) { var a = k.split('-'); return JW.className(A, +a[0], +a[1]); };
-  var name = function (id) { return JW.targetName(A, id); };
-  var list = JW.uraPairs(A, g);
-  return h + '<div class="small" style="margin:-4px 0 8px 28px">' + (list.length ? list.map(function (p) {
-    return '→ ' + esc(short(p.y) + 'の' + name(p.p) + '（' + short(p.x) + 'の担任）と、' + short(p.x) + 'の' + name(p.q) + '（' + short(p.y) + 'の担任）を同じ時間に');
-  }).join('<br>') : '同じ時数で入れかえている組は、まだありません。') + '</div>';
+  var st = !!G.swapStrict;
+  return h + '<div class="row chips" style="margin:-2px 0 8px 28px">守り方：<label><input type="radio" name="sws' + g + '" data-k="' + base + '.swapStrict" data-t="radio-false"' + (!st ? ' checked' : '') + '>できるだけ</label>' +
+    '<label><input type="radio" name="sws' + g + '" data-k="' + base + '.swapStrict" data-t="radio-true"' + (st ? ' checked' : '') + '>必ず（守れないときは、入らない授業が出ます）</label></div>';
 }
 // 担任ごとの、ほかのクラスへ行く時数のまとめ
 function hrSummary(g, G) {
