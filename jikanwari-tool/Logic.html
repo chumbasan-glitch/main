@@ -613,6 +613,8 @@ var JW = (function () {
       if (!G || !G.on || !swapOn(G)) return;
       swapRule[g] = !!G.swapStrict;
     });
+    // 交換の授業は、クラス・教科ごとにまとめる（時数がちがうときは、いちばん少ない時数の分だけそろえる）
+    var swapGroups = {};
     units.forEach(function (u) {
       var g = classes[u.cls].grade;
       if (swapRule[g] === undefined) return;
@@ -620,7 +622,16 @@ var JW = (function () {
         var hc = teachers[ti].homeroom;
         if (hc === undefined) return;
         if (hc === u.cls) u.ownHr = true;
-        else if (classes[hc].grade === g) u.swapG = g;
+        else if (classes[hc].grade === g) (swapGroups[g] = swapGroups[g] || {})[u.cls + ':' + u.subj] = ((swapGroups[g] || {})[u.cls + ':' + u.subj] || []).concat([u]);
+      });
+    });
+    Object.keys(swapGroups).forEach(function (g) {
+      var lists = Object.keys(swapGroups[g]).map(function (k) { return swapGroups[g][k]; });
+      var minH = Math.min.apply(null, lists.map(function (l) { return l.length; }));
+      lists.forEach(function (l) {
+        // 2時間続きのコマから先にそろえる（続きの2コマが別々にならないように）
+        l.sort(function (a, b) { return (b.pair >= 0) - (a.pair >= 0); });
+        l.slice(0, minH).forEach(function (u) { u.swapG = +g; });
       });
     });
     // 曜日のかたよりを気にしない教科（クラスごと）：週4コマ以上ある教科と、専科・講師の曜日を決めている授業

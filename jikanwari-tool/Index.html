@@ -143,7 +143,7 @@
 <header>
   <h1>時間割作成ツール</h1>
   <span class="save" id="saveName"></span>
-  <span class="ver" id="appVersion" data-version="2.16">v2.16</span>
+  <span class="ver" id="appVersion" data-version="2.17">v2.17</span>
 </header>
 <div class="wrap">
   <nav><ol id="nav"></ol></nav>
@@ -771,7 +771,7 @@ function renderHomeroom() {
 function uraHtml(g, G, base) {
   var on = G.swap !== undefined ? !!G.swap : G.ura !== false;
   var h = '<div class="row chips"><label><input type="checkbox" data-k="' + base + '.swap" data-t="bool"' + (on ? ' checked' : '') + '>交換する時間をそろえる</label></div>' +
-    '<div class="small" style="margin:-4px 0 6px 28px">どれかのクラスで担任どうしの交換の授業（ほかの担任が教える授業）がある時間は、学年のどのクラスも自分の担任の授業にしません（例：火曜1時間目に1組が理科（2組の担任）なら、2・3・4組も、ほかの担任か専科・講師の授業にします）。</div>';
+    '<div class="small" style="margin:-4px 0 6px 28px">どれかのクラスで担任どうしの交換の授業（ほかの担任が教える授業）がある時間は、学年のどのクラスも自分の担任の授業にしません（例：火曜1時間目に1組が理科（2組の担任）なら、2・3・4組も、ほかの担任か専科・講師の授業にします）。交換する教科の時数がちがうときは、いちばん少ない時数の分だけそろえます。</div>';
   if (!on) return h;
   var st = !!G.swapStrict;
   return h + '<div class="row chips" style="margin:-2px 0 8px 28px">守り方：<label><input type="radio" name="sws' + g + '" data-k="' + base + '.swapStrict" data-t="radio-false"' + (!st ? ' checked' : '') + '>できるだけ</label>' +
