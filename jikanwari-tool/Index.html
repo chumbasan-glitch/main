@@ -115,15 +115,17 @@
   [contenteditable="true"] { cursor: text; outline: none; }
   [contenteditable="true"]:focus { box-shadow: inset 0 0 0 2px var(--link); background: var(--field); }
   .print-title { display: none; font-weight: bold; font-size: 16px; margin: 0 0 6px; }
+  #printHost { position: absolute; left: -20000px; top: 0; background: #fff; color: #000; }
+  #printHost .print-title { display: block; }
+  .psel { background: var(--soft); border-radius: 8px; padding: 6px 10px; margin: 8px 0; }
+  .psel details { margin-top: 4px; } .psel details .chips { margin: 4px 0; }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--toast-bg); color: var(--toast-ink); padding: 8px 18px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; }
   .toast.show { opacity: .92; }
   @media (max-width: 800px) { nav { display: none; } .wrap { padding: 12px 8px 80px; } .card { padding: 16px; } }
   @media print {
     html, body { background: #fff !important; color: #000 !important; }
-    body.printing * { visibility: hidden; }
-    body.printing .print-target, body.printing .print-target * { visibility: visible; }
-    body.printing .print-target { position: absolute; left: 0; top: 0; overflow: visible; }
-    body.printing .print-title { display: block; }
+    body.printing > *:not(#printHost) { display: none !important; }
+    body.printing #printHost { position: static !important; left: 0 !important; }
     header, nav, .foot, .noprint { display: none !important; } .card { border: 0; }
   }
   .hrn { font-size: 9px; line-height: 1; font-weight: normal; white-space: nowrap; overflow: hidden; }
@@ -140,7 +142,7 @@
 <header>
   <h1>時間割作成ツール</h1>
   <span class="save" id="saveName"></span>
-  <span class="ver" id="appVersion" data-version="2.12">v2.12</span>
+  <span class="ver" id="appVersion" data-version="2.13">v2.13</span>
 </header>
 <div class="wrap">
   <nav><ol id="nav"></ol></nav>
@@ -1190,6 +1192,7 @@ function renderResult() {
   } else {
     h += '<div class="row noprint" style="margin:12px 0"><button class="btn primary" data-a="write">スプレッドシートに書き出す</button> <button class="btn" data-a="pdf">A3のPDFを作る</button> <span id="writeMsg" class="small"></span></div>';
   }
+  if (STANDALONE) h += printSelHtml(r.table);
   h += '<div class="scroll" id="printArea">' + (STANDALONE ? '<div class="print-title">' + esc(r.table.title) + '</div>' : '') + previewTable(r.table, STANDALONE) + '</div>';
   if (r.table.free) {
     h += '<hr style="border:0;border-top:1px solid var(--line);margin:24px 0"><h3>補教表（補教用の空き時間一覧）</h3>' +
@@ -1251,10 +1254,9 @@ function previewTable(t, editable) {
   h += '</table>';
 
   // 下：先生・特別教室ごとの小さな表を、左から詰めて並べる
-  var blocks = t.teacherRows.map(function (r, i) { return { title: r.title || r.label, cells: r.cells, off: r.off, ed: 't', i: i }; })
-    .concat(t.roomRows.map(function (r, i) { return { title: r.label, cells: r.cells, ed: '', i: i }; }).filter(function (b) { return b.cells.some(function (c) { return c; }); }));
+  var blocks = printBlocks(t);
   h += '<div class="blocks">' + blocks.map(function (b) {
-    var x = '<div class="blk"><div class="blk-t">' + esc(b.title) + '</div><table class="pv"><tr><th>' + cellDiv('') + '</th>' +
+    var x = '<div class="blk" data-pk="' + b.pk + '" data-key="' + esc(b.key) + '"><div class="blk-t">' + esc(b.title) + '</div><table class="pv"><tr><th>' + cellDiv('') + '</th>' +
       t.days.map(function (d) { return '<th>' + cellDiv(d) + '</th>'; }).join('') + '</tr>';
     for (var p = 0; p < maxP; p++) {
       x += '<tr><th>' + cellDiv(p + 1) + '</th>';
@@ -1336,11 +1338,11 @@ document.addEventListener('change', function (e) {
     if (!el.checked && at >= 0) arr.splice(at, 1);
     if (t === 'arr') arr.sort(function (a, b) { return a - b; });
     v = arr;
-  } else if (t === 'arroff') {
-    var off = (getPath(k) || []).slice(), y = +el.value, at2 = off.indexOf(y);
+  } else if (t === 'arroff' || t === 'arrsoff') {
+    var off = (getPath(k) || []).slice(), y = t === 'arroff' ? +el.value : el.value, at2 = off.indexOf(y);
     if (!el.checked && at2 < 0) off.push(y);
     if (el.checked && at2 >= 0) off.splice(at2, 1);
-    v = off.sort(function (a, b) { return a - b; });
+    v = t === 'arroff' ? off.sort(function (a, b) { return a - b; }) : off;
   } else if (t === 'room') {
     v = el.value.trim();
     var old = el.dataset.old;
@@ -1373,7 +1375,7 @@ document.addEventListener('change', function (e) {
     if (js.length === 1) pn2.target = js[0].target;
   }
   if (k === 'maxPeriods') JW.GRADES.forEach(function (g) { A.periods[g] = (A.periods[g] || []).map(function (p) { return Math.min(p, v); }); });
-  result = null;
+  if (k.indexOf('printSel.') !== 0) result = null;   // 印刷に入れるものを選んだだけなら、時間割はそのまま
   // 文字や数字を入れたあとは、すぐに画面を書き直すと、続けて押したボタンが効かなくなるので少し待つ
   if (el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'number')) {
     clearTimeout(renderTimer);
@@ -1695,12 +1697,54 @@ var actions = {
 };
 
 // 印刷：用紙（A3横・A4横）に収まるように縮めて、その部分だけ印刷する
+// 下の小さな表の一覧（pk：t＝専科・講師、h＝教科担任制の担任、r＝特別教室）
+function printBlocks(t) {
+  return t.teacherRows.map(function (r, i) { return { title: r.title || r.label, cells: r.cells, off: r.off, ed: 't', i: i, pk: r.hr ? 'h' : 't', key: 't:' + r.label }; })
+    .concat(t.roomRows.map(function (r, i) { return { title: r.label, cells: r.cells, ed: '', i: i, pk: 'r', key: 'r:' + r.label }; }).filter(function (b) { return b.cells.some(function (c) { return c; }); }));
+}
+// 印刷に入れるもの（種類ごと＋1つずつ）
+var PRINT_KINDS = [{ k: 'main', t: 'クラスの時間割' }, { k: 't', t: '専科・講師の表' }, { k: 'h', t: '教科担任制の担任の表' }, { k: 'r', t: '特別教室の表' }];
+function printSel() {
+  var p = A.printSel || (A.printSel = {});
+  PRINT_KINDS.forEach(function (x) { if (p[x.k] === undefined) p[x.k] = true; });
+  if (!p.off) p.off = [];
+  return p;
+}
+function printSelHtml(t) {
+  var p = printSel(), blocks = printBlocks(t);
+  var kinds = PRINT_KINDS.filter(function (x) { return x.k === 'main' || blocks.some(function (b) { return b.pk === x.k; }); });
+  var h = '<div class="psel noprint"><b>印刷に入れるもの：</b><span class="chips">' + kinds.map(function (x) {
+    return '<label><input type="checkbox" data-k="printSel.' + x.k + '" data-t="bool"' + (p[x.k] ? ' checked' : '') + '>' + x.t + '</label>';
+  }).join('') + '</span><details' + (p.off.length ? ' open' : '') + '><summary class="small">くわしく選ぶ（先生・教室を1つずつ）</summary>' +
+    kinds.filter(function (x) { return x.k !== 'main'; }).map(function (x) {
+      return '<div class="chips"><b class="small">' + x.t + '</b>' + blocks.filter(function (b) { return b.pk === x.k; }).map(function (b) {
+        return '<label><input type="checkbox" data-k="printSel.off" data-t="arrsoff" value="' + esc(b.key) + '"' + (p[x.k] && p.off.indexOf(b.key) < 0 ? ' checked' : '') + (p[x.k] ? '' : ' disabled') + '>' + esc(b.key.slice(2)) + '</label>';
+      }).join('') + '</div>';
+    }).join('') + '</details></div>';
+  return h;
+}
+function printFilter(area) {
+  var p = printSel();
+  if (!p.main) area.querySelectorAll('table.pv.main').forEach(function (e) { e.remove(); });
+  area.querySelectorAll('.blk').forEach(function (e) {
+    if (!p[e.dataset.pk] || p.off.indexOf(e.dataset.key) >= 0) e.remove();
+  });
+}
 function printArea(id, size, maxW, maxH) {
-  var area = document.getElementById(id);
+  // 画面の表を写して、印刷用の場所（ページのいちばん外側）に置く。ほかのものはページに出さないので、白いページが出ない
+  var old = document.getElementById('printHost');
+  if (old) old.remove();
+  var area = document.body.appendChild(document.createElement('div'));
+  area.id = 'printHost';
+  var src = document.getElementById(id);
+  area.appendChild(src.cloneNode(true)).removeAttribute('id');
+  area.querySelectorAll('[contenteditable]').forEach(function (e) { e.removeAttribute('contenteditable'); });
+  if (id === 'printArea') printFilter(area);
   var ps = document.getElementById('pageStyle') || document.head.appendChild(Object.assign(document.createElement('style'), { id: 'pageStyle' }));
   ps.textContent = '@page { size: ' + size + ' landscape; margin: 8mm; }';
   // 用紙いっぱいに：表が縦長で横があまるときは、時間割の表を横に広げてから、大きくも小さくもする
-  area.style.zoom = ''; area.style.width = '';
+  area.style.zoom = '';
+  area.style.width = Math.max(src.scrollWidth, src.querySelector('table') ? src.querySelector('table').scrollWidth : 0) + 'px';   // まず、画面で見ている幅にする
   area.classList.add('print-fit');
   var ratio = maxW / maxH;
   if (area.scrollWidth / area.scrollHeight < ratio) {
@@ -1719,8 +1763,7 @@ function printArea(id, size, maxW, maxH) {
   setTimeout(function () {
     window.print();
     document.body.classList.remove('printing');
-    area.classList.remove('print-target', 'print-fit');
-    area.style.zoom = ''; area.style.width = '';
+    area.remove();
   }, 50);
 }
 

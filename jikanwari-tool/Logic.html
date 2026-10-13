@@ -595,6 +595,15 @@ var JW = (function () {
       }
     });
 
+    // 曜日のかたよりを気にしない教科（クラスごと）：週4コマ以上ある教科と、専科・講師の曜日を決めている授業
+    var noSpread = classes.map(function () { return {}; });
+    var subjCount = classes.map(function () { return {}; });
+    units.forEach(function (u) {
+      subjCount[u.cls][u.subj] = (subjCount[u.cls][u.subj] || 0) + 1;
+      var g = classes[u.cls].grade;
+      if (u.teachers.some(function (ti) { return teachers[ti].dayOk && teachers[ti].dayOk[g]; })) noSpread[u.cls][u.subj] = true;
+    });
+    subjCount.forEach(function (o, ci) { Object.keys(o).forEach(function (sj) { if (o[sj] >= 4) noSpread[ci][sj] = true; }); });
     // 6時間目に入れない授業（講師・少人数・TT・その他の先生、ほかのクラスの担任が教える授業）
     units.forEach(function (u) {
       u.no6 = u.teachers.some(function (ti) { var T = teachers[ti]; return T.homeroom !== undefined ? T.homeroom !== u.cls : T.kind !== '専科'; });
@@ -713,7 +722,7 @@ var JW = (function () {
     });
 
     return { A: A, D: D, MP: MP, S: S, classes: classes, classIndex: classIndex, avail: avail,
-      fixedLabel: fixedLabel, satFree: satFree, units: units, pins: allPins(A, classes), classUnits: classUnits, syncMembers: syncMembers, syncInfo: syncInfo,
+      fixedLabel: fixedLabel, satFree: satFree, units: units, pins: allPins(A, classes), classUnits: classUnits, syncMembers: syncMembers, syncInfo: syncInfo, noSpread: noSpread,
       teachers: teachers, prefs: prefs, rooms: rooms, poolName: poolName, poolRooms: poolRooms, poolGradeCap: poolGradeCap, poolKind: poolKind, phys: phys,
       maxPerDay: maxPerDay, subjName: subjName, manualList: manualList,
       rules: A.rules || {}, errors: errors, notes: uniq(notes) };
@@ -989,6 +998,7 @@ var JW = (function () {
     }
     if (W.spread) {
       for (sj in subjDays) {
+        if (M.noSpread && M.noSpread[c][sj]) continue;   // 週4コマ以上の教科・曜日を決めている授業は、かたよってもよい
         var ds = subjDays[sj].sort();
         var n = ds.length;
         if (n < 2 || n > D) continue;
@@ -1744,7 +1754,7 @@ var JW = (function () {
       if (t.homeroom !== undefined) {
         var nAway = 0;
         t.units.forEach(function (id) { if (st.pos[id] >= 0 && M.units[id].cls !== t.homeroom) nAway++; });
-        return { label: t.name, title: t.name + '（' + Object.keys(t.subs).join('・') + '）週' + nAway + '時間', cells: cells, off: t.off.slice() };
+        return { label: t.name, title: t.name + '（' + Object.keys(t.subs).join('・') + '）週' + nAway + '時間', cells: cells, off: t.off.slice(), hr: true };
       }
       // 見出しは「名前（担当する教科）」
       var subs = [];
