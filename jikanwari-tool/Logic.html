@@ -441,6 +441,36 @@ var JW = (function () {
         teachers[ti].expect[ci] = (teachers[ti].expect[ci] || 0) + n;
       });
     });
+    // 隔週で学年を交互に入る先生（例：TTが金曜日に1年と2年へ1週ごとに交互）
+    // 学年ごとに分身の先生を作り、その曜日に各クラス1コマずつ持たせる。同じ学年の中では時間が重ならない
+    (A.teachers || []).forEach(function (t, ti) {
+      (t.alts || []).forEach(function (al) {
+        if (!al.target || !(al.days || []).length || !(al.grades || []).length) return;
+        al.grades.forEach(function (g) {
+          var cis = classes.map(function (c, ci) { return c.grade === +g ? ci : -1; }).filter(function (x) { return x >= 0; });
+          if (!cis.length) return;
+          var vt = teachers.length;
+          teachers.push({ name: teachers[ti].name + '（' + g + '年）', kind: teachers[ti].kind, off: teachers[ti].off.slice(), expect: {}, dayOk: {},
+            group: false, chain: false, dayRoom: {}, parent: ti });
+          var T = teachers[ti];
+          T.altDays = T.altDays || {};
+          al.days.forEach(function (d) {
+            (T.altDays[d] = T.altDays[d] || []).push(+g);
+            var mask = {};
+            for (var p = 0; p < MP; p++) mask[(+d) * MP + p] = true;
+            cis.forEach(function (ci) {
+              var u = classUnits[ci].map(function (id) { return units[id]; })
+                .filter(function (x) { return matches(x, al.target) && x.pin === undefined && !x.pinSet && x.teachers.indexOf(vt) < 0; })
+                .sort(function (a, b) { return (a.teachers.length - b.teachers.length) || ((b.manual ? 1 : 0) - (a.manual ? 1 : 0)); })[0];
+              if (!u) { errors.push(T.name + '：' + classes[ci].label + 'の' + targetName(A, al.target) + 'がないので、' + A.days[d] + '曜日の隔週の授業を入れられません。'); return; }
+              u.teachers.push(vt); u.manual = false;
+              u.pinSet = mask; u.pinSetText = A.days[d] + '曜日';
+              T.expect[ci] = (T.expect[ci] || 0) + 1;
+            });
+          });
+        });
+      });
+    });
     // 時間割での表し方（例：後補充は【　】）
     (A.teachers || []).forEach(function (t, ti) {
       var txt = t.cellMode === 'bracket' ? '【　】' : t.cellMode === 'text' ? (t.cellText || '').trim() : '';
@@ -531,30 +561,35 @@ var JW = (function () {
 
     // 同じ時間にそろえる授業
     var syncMembers = {}, syncInfo = {};
-    syncGroups(A, opt.syncRnd).forEach(function (sg, gi) {
+    // 「週全部」で、コマごとに相手を変えるときの回数（そのクラスの教科のコマ数のうち、いちばん少ない数）
+    var countFor = function (keys, target) {
+      return Math.min.apply(null, keys.map(function (k) {
+        var ci = classIndex[k];
+        return ci === undefined ? 0 : classUnits[ci].filter(function (id) { return matches(units[id], target); }).length;
+      }));
+    };
+    syncGroups(A, opt.syncRnd, countFor).forEach(function (sg, gi) {
       var cis = (sg.classes || []).map(function (k) { return classIndex[k]; })
         .filter(function (x) { return x !== undefined; });
       if (cis.length < 2) return;
       if (!opt.includeManual && !isAuto(sg.target) &&
         !cis.some(function (ci) { return classUnits[ci].some(function (id) { return matches(units[id], sg.target); }); })) return offNote('同じ時間にそろえる授業', sg.target);
-      var cnt = +sg.count || 0;
-      var ok = true;
-      var picks = cis.map(function (ci) {
-        var pool = classUnits[ci].map(function (id) { return units[id]; })
+      var pools = cis.map(function (ci) {
+        return classUnits[ci].map(function (id) { return units[id]; })
           .filter(function (u) { return matches(u, sg.target) && !u.sync; })
           .sort(function (a, b) { return ((a.pair >= 0) - (b.pair >= 0)) || (b.teachers.length - a.teachers.length); });
-        if (pool.length < cnt) {
-          errors.push('同じ時間にそろえる授業：' + classes[ci].label + 'の' + targetName(A, sg.target) +
-            'は週' + pool.length + 'コマしかないので、' + cnt + 'コマそろえられません。');
-          ok = false;
-        }
-        return pool.slice(0, cnt);
       });
-      if (!ok) return;
+      var have = Math.min.apply(null, pools.map(function (pl) { return pl.length; }));
+      // 「週全部」は、そろえるクラスにある分すべて。時数より多い数を選んだときは、ある分だけそろえる
+      var cnt = sg.count === 'all' ? have : Math.min(+sg.count || 0, have);
+      if (sg.count !== 'all' && +sg.count > have) notes.push('同じ時間にそろえる授業：' + listText(cis.map(function (ci) { return classes[ci].label; })) + 'の' +
+        targetName(A, sg.target) + 'は週' + have + 'コマなので、' + have + 'コマそろえます。');
+      if (!cnt) return;
+      var picks = pools.map(function (pl) { return pl.slice(0, cnt); });
       for (var j = 0; j < cnt; j++) {
         var key = gi + ':' + j;
         syncMembers[key] = cis.slice();
-        syncInfo[key] = { src: sg.src, target: sg.target,
+        syncInfo[key] = { src: sg.src, target: sg.target, need: sg.same ? cnt : sg.need,
           pool: sg.pool ? sg.pool.map(function (k) { return classIndex[k]; }).filter(function (x) { return x !== undefined; }) : null };
         picks.forEach(function (list) { list[j].sync = key; });
       }
@@ -737,6 +772,13 @@ var JW = (function () {
       }
       var rm = roomOf(M, u, s);
       if (rm) { (rc[rm] = rc[rm] || []).push(c); }
+    }
+    for (var tv in tk) {
+      var par = M.teachers[tv].parent;
+      if (par !== undefined && tk[par]) {
+        cost += W.hard;
+        if (out) out.push({ level: 'hard', kind: 'teacher', slot: s, t: par, text: M.teachers[par].name + '：' + slotName(M.A, s) + 'に、隔週の授業とほかの授業が重なっています。' });
+      }
     }
     for (var t in tk) {
       var keys = Object.keys(tk[t]);
@@ -963,12 +1005,13 @@ var JW = (function () {
   /* ---------- 同じ時間にそろえる授業 ---------- */
   // 入力（学年全部／2クラスずつ／番号で決める／クラスを選ぶ）を、そろえるクラスの組に広げる
   // rnd があるときは「組み合わせはツールにまかせる」の組をまぜて決める（ないときは番号順）
-  function syncGroups(A, rnd) {
+  function syncGroups(A, rnd, countFor) {
     var out = [];
     (A.syncs || []).forEach(function (sg, si) {
-      var mode = sg.mode || 'pick', cnt = +sg.count || 0, same = sg.same !== false;
+      var mode = sg.mode || 'pick', cnt = sg.count === 'all' ? 'all' : (+sg.count || 0), same = sg.same !== false;
+      var need = cnt;
       function push(keys, count, pool) {
-        if (keys.length >= 2 && count > 0) out.push({ src: si, classes: keys, target: sg.target, count: count, pool: pool });
+        if (keys.length >= 2 && (count === 'all' || count > 0)) out.push({ src: si, classes: keys, target: sg.target, count: count, pool: pool, need: need, same: same });
       }
       function pairsOf(list) {
         var groups = [];
@@ -994,7 +1037,9 @@ var JW = (function () {
         }
         if (mode === 'pair') return pairsOf(keys).forEach(function (gr) { push(gr, cnt, null); });
         // pairAuto：毎回同じ相手なら組を1回決める。コマごとにちがってよいなら1コマずつ決める
-        for (var t = 0; t < (same ? 1 : cnt); t++) {
+        var times = same ? 1 : cnt === 'all' ? (countFor ? countFor(keys, sg.target) : 1) : cnt;
+        if (!same) need = times;
+        for (var t = 0; t < times; t++) {
           var list = keys.slice();
           if (rnd) shuffle(list, rnd);
           pairsOf(list).forEach(function (gr) { push(gr, same ? cnt : 1, keys); });
@@ -1693,7 +1738,9 @@ var JW = (function () {
     }
     var teacherRows = M.teachers.map(function (t, ti) {
       if (t.homeroom !== undefined && !t.away) return null; // 自分のクラスだけを教える担任は出さない
-      var cells = occupancy(function (u) { return u.teachers.indexOf(ti) >= 0 && (t.homeroom === undefined || u.cls !== t.homeroom); });
+      if (t.parent !== undefined) return null;               // 隔週の分身は、もとの先生の行に出す
+      var mine = function (u) { return u.teachers.some(function (x) { return x === ti || M.teachers[x].parent === ti; }); };
+      var cells = occupancy(function (u) { return mine(u) && (t.homeroom === undefined || u.cls !== t.homeroom); });
       if (t.homeroom !== undefined) {
         var nAway = 0;
         t.units.forEach(function (id) { if (st.pos[id] >= 0 && M.units[id].cls !== t.homeroom) nAway++; });
@@ -1706,9 +1753,9 @@ var JW = (function () {
         if (subs.indexOf(n) < 0 && t.name.indexOf(n) < 0) subs.push(n);
       });
       var keys = {};
-      t.units.forEach(function (id) { if (st.pos[id] >= 0) keys[M.units[id].sync || id] = 1; });
+      M.units.forEach(function (u) { if (mine(u) && st.pos[u.id] >= 0) keys[u.sync || u.id] = 1; });
       var n = Object.keys(keys).length;
-      return { label: t.name, title: t.name + (subs.length ? '（' + subs.join('・') + '）' : '') + (n ? '週' + n + '時間' : ''), cells: cells, off: t.off.slice() };
+      return { label: t.name, title: t.name + (subs.length ? '（' + subs.join('・') + '）' : '') + (n ? '週' + n + '時間' + (t.altDays ? '（隔週の分をふくむ）' : '') : ''), cells: cells, off: t.off.slice() };
     }).filter(Boolean);
     var roomRows = roomRowsOf(M, st);
     var mslots = moduleSlots(A.module), mdays = Object.keys(mslots).filter(function (d) { return mslots[d] && mslots[d].kind && mslots[d].kind !== 'none'; }).map(Number).sort();
@@ -1767,7 +1814,6 @@ var JW = (function () {
   function inSubs(A, t) {
     if (t.subsMode === 'in') return true;
     if (t.subsMode === 'out') return false;
-    if (t.kind === '専科') return true;
     var k = A.subsKinds || {};
     return k[t.kind] !== false;
   }
@@ -1775,7 +1821,7 @@ var JW = (function () {
   function freeTable(M, st, who) {
     who = who || function (ci, s) { var id = st.grid[ci][s]; return id >= 0 ? M.units[id].teachers : []; };
     var A = M.A, MP = M.MP, src = A.teachers || [];
-    var kindOf = function (ti) { return ti < src.length ? src[ti].kind : '担任'; };
+    var kindOf = function (ti) { return M.teachers[ti].kind || (ti < src.length ? src[ti].kind : '担任'); };
     // 授業のある曜日・時間（土曜日を数えない設定のときは、土曜日は出さない）
     var schoolTime = [];
     for (var s = 0; s < M.S; s++) schoolTime.push(M.classes.some(function (c, ci) { return M.avail[ci][s]; }));
@@ -1789,7 +1835,7 @@ var JW = (function () {
     function teachingAt(s) {
       var busy = {};
       M.classes.forEach(function (c, ci) {
-        who(ci, s).forEach(function (t) { busy[t] = 1; });
+        who(ci, s).forEach(function (t) { busy[t] = 1; if (M.teachers[t].parent !== undefined) busy[M.teachers[t].parent] = 1; });
       });
       return busy;
     }
@@ -1962,7 +2008,7 @@ var JW = (function () {
       var pk = info.src + '|' + info.pool.join(',');
       if (poolSeen[pk]) return;
       poolSeen[pk] = 1;
-      var sg = A.syncs[info.src], cnt = +sg.count || 0, same = sg.same !== false;
+      var sg = A.syncs[info.src], cnt = +info.need || 0, same = sg.same !== false;
       var isT = function (id) { return id >= 0 && (M.units[id].subj === sg.target || M.units[id].variant === sg.target); };
       var lack = [], total = 0;
       info.pool.forEach(function (ci) {
@@ -2014,7 +2060,11 @@ var JW = (function () {
           var g = M.classes[ci].grade, ok = T.dayOk[g];
           if (ok && !ok[Math.floor(s / M.MP)]) must.push(T.name + '：' + slotName(A, s) + 'は' + g + '年の授業をする曜日ではないのに、' + names[k] + 'の授業が入っています。');
         });
-        if (names.length > 1) {
+        var altG = (T.altDays || {})[Math.floor(s / M.MP)];
+        var alt = altG && cis.every(function (ci, k) {
+          return ci !== undefined && altG.indexOf(M.classes[ci].grade) >= 0 && cis.filter(function (cj) { return cj !== undefined && M.classes[cj].grade === M.classes[ci].grade; }).length === 1;
+        });
+        if (names.length > 1 && !alt) {
           var together = Object.keys(M.syncMembers).some(function (key) {
             var mem = M.syncInfo[key].pool || M.syncMembers[key];
             return cis.every(function (ci) { return mem.indexOf(ci) >= 0; });
