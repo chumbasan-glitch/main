@@ -137,7 +137,7 @@
 <header>
   <h1>時間割作成ツール</h1>
   <span class="save" id="saveName"></span>
-  <span class="ver" id="appVersion" data-version="2.10">v2.10</span>
+  <span class="ver" id="appVersion" data-version="2.11">v2.11</span>
 </header>
 <div class="wrap">
   <nav><ol id="nav"></ol></nav>
@@ -786,7 +786,7 @@ function renderTeachers() {
       h += '<table class="t"><tr><th class="l">クラス</th><th class="l">教科</th><th>コマ数</th><th></th></tr>' + t.jobs.map(function (j, ji) {
         var c = classes.filter(function (x) { return x.key === j.cls; })[0];
         return '<tr><td class="l">' + esc(c ? c.label : '（なくなったクラス）') + '</td><td class="l">' + esc(JW.targetName(A, j.target)) + '</td>' +
-          '<td><select data-k="teachers.' + ti + '.jobs.' + ji + '.hours" data-t="hours">' + opts([{ v: 'all', t: 'その教科の全部' }].concat(range(1, 10).map(function (n) { return { v: n, t: '週' + n + 'コマ' }; })), j.hours) + '</select></td>' +
+          '<td><select data-k="teachers.' + ti + '.jobs.' + ji + '.hours" data-t="hours">' + hoursOpts(targetHours(j.target, [+String(j.cls).split('-')[0]]), j.hours) + '</select></td>' +
           '<td><button class="btn small del" data-a="delJob" data-i="' + ti + '" data-j="' + ji + '">削除</button></td></tr>';
       }).join('') + '</table>';
     } else h += '<p class="small">まだ担当がありません。下から追加してください。</p>';
@@ -797,7 +797,7 @@ function renderTeachers() {
         return '<label><input type="checkbox" data-draft="' + t.id + '" data-f="grades" value="' + g + '"' + (dr.grades.indexOf(g) >= 0 ? ' checked' : '') + '>' + g + '年</label>';
       }).join('') + '</span>') +
       '<select id="jt' + ti + '" data-draft="' + t.id + '" data-f="target">' + targetOpts(dr.target) + '</select>' +
-      '<select id="jh' + ti + '" data-draft="' + t.id + '" data-f="hours">' + opts([{ v: 'all', t: 'その教科の全部' }].concat(range(1, 10).map(function (n) { return { v: n, t: '週' + n + 'コマ' }; })), dr.hours) + '</select>' +
+      '<select id="jh' + ti + '" data-draft="' + t.id + '" data-f="hours">' + hoursOpts(targetHours(dr.target, dr.cls ? [+dr.cls.split('-')[0]] : dr.grades), dr.hours) + '</select>' +
       '<button class="btn small" data-a="addJob" data-i="' + ti + '">追加</button></div>' +
       '<div class="small">「学年でまとめて」を選ぶと、チェックした学年の全クラスに同じ担当を追加します。例：3〜6年の音楽を全部。「追加」を押し忘れても、「先生を追加」や「次へ」を押したときに追加します。</div>' +
       '<div class="row" style="margin-top:8px"><b>曜日ごとの教室：</b>' + A.days.map(function (d, di) {
@@ -955,6 +955,18 @@ function pinText(pn) {
   if (!when) return '時間のマスを選んでください';
   var what = (pn.cls ? JW.classLabel(A, +pn.cls.split('-')[0], +pn.cls.split('-')[1]) + 'の' : '') + (pn.target ? JW.targetName(A, pn.target) : '（教科を選んでください）');
   return what + 'を' + when + (pn.how === 'some' ? 'のどこかに週' + (pn.count || 1) + 'コマ入れる' : 'に入れる（' + (pn.cells || []).length + 'コマ）');
+}
+// その教科（教科の一部も）の週の時数。学年をいくつか選んだときは、いちばん多い学年の数（学年なし＝クラスのある全学年）
+function targetHours(target, grades) {
+  var s = JW.subjectById(A, target), v = s ? null : JW.variantById(A, target);
+  var gs = (grades || []).length ? grades : JW.GRADES.filter(function (g) { return +A.classCounts[g]; });
+  return gs.reduce(function (m, g) { return Math.max(m, +((s || v || { hours: {} }).hours[g]) || 0); }, 0);
+}
+// 担当のコマ数の選び肢：週1コマ〜その教科の週の時数まで（前に入れた数が多いときは、その数も残して知らせる）
+function hoursOpts(max, cur) {
+  var list = [{ v: 'all', t: 'その教科の全部' }].concat(range(1, Math.max(1, max)).map(function (n) { return { v: n, t: '週' + n + 'コマ' }; }));
+  if (cur !== 'all' && +cur > Math.max(1, max)) list.push({ v: +cur, t: '週' + cur + 'コマ（時数より多い）' });
+  return opts(list, cur);
 }
 function renderPrefs() {
   var h = '<h2>教科を入れる時間の希望や、固定したい授業はありますか？</h2>' +
@@ -1264,7 +1276,12 @@ document.addEventListener('change', function (e) {
       if (!el.checked && i >= 0) dr.grades.splice(i, 1);
     } else if (f === 'hours') dr.hours = el.value === 'all' ? 'all' : +el.value;
     else dr[f] = el.value;
-    if (f === 'cls') render();
+    if (f === 'cls' || f === 'target' || f === 'grades') {
+      // 選んだ教科・学年の週の時数より多いコマ数は選べないので、合わせる
+      var mx = targetHours(dr.target, dr.cls ? [+dr.cls.split('-')[0]] : dr.grades);
+      if (dr.hours !== 'all' && mx && +dr.hours > mx) dr.hours = mx;
+      render();
+    }
     return;
   }
   var k = el.dataset && el.dataset.k;
@@ -1381,6 +1398,8 @@ function fixAnswers(x) {
     if (!pn.cells) { pn.cells = pn.day !== undefined && pn.period ? [pn.day + '-' + pn.period] : []; pn.how = 'all'; pn.count = 1; delete pn.day; delete pn.period; }
   });
   if (!x.hrNames) x.hrNames = {};
+  // 前の版で担任名を入れていたときは、「担任名を入力する」の機能を使う
+  if (x.features && x.features.hrNames === undefined) x.features.hrNames = Object.keys(x.hrNames).some(function (k) { return String(x.hrNames[k] || '').trim(); });
   return x;
 }
 

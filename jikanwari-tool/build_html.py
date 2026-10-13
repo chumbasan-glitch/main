@@ -10,8 +10,8 @@ html = html.replace('<base target="_top">\n', '')
 assert '<?!=' not in html
 # バージョン（Index.html の data-version）をファイル名に付ける。古い版のファイルは消す
 ver = re.search(r'data-version="([^"]+)"', index).group(1)
-for old in glob.glob(os.path.join(here, '時間割作成ツール（汎用版）*.html')):
+for old in glob.glob(os.path.join(here, '時間割作成ツール*.html')):
     os.remove(old)
-out = os.path.join(here, '時間割作成ツール（汎用版）_v' + ver + '.html')
+out = os.path.join(here, '時間割作成ツール_v' + ver + '.html')
 open(out, 'w', encoding='utf8').write(html)
 print('作成しました：', out)
