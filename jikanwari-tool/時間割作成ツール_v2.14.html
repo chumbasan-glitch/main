@@ -141,7 +141,7 @@
 <header>
   <h1>時間割作成ツール</h1>
   <span class="save" id="saveName"></span>
-  <span class="ver" id="appVersion" data-version="2.13">v2.13</span>
+  <span class="ver" id="appVersion" data-version="2.14">v2.14</span>
 </header>
 <div class="wrap">
   <nav><ol id="nav"></ol></nav>
@@ -297,6 +297,44 @@ var JW = (function () {
   }
   function classLabel(A, g, i) { return g + '年' + className(A, g, i); }
   // 表で使う短い名前（3年A組→3A、3年1組→3-1）
+  // 教科担任制：その学年のそのクラスのその教科を、どのクラスの担任が教えるか（'other'＝ほかの先生のときは ''）
+  function hrWho(A, g, subj, key) {
+    var G = ((A.homeroom || {}).grades || {})[g];
+    if (!G || !G.on) return key;
+    var a = (G.assign || {})[subj] || 'own';
+    if (a === 'perclass') a = ((G.assignBy || {})[subj] || {})[key] || 'own';
+    if (a === 'other') return '';
+    return a === 'own' ? key : a.slice(4);
+  }
+  // 単純な入れかえ（裏表）：Xの担任がYで教科P、Yの担任がXで教科Qを、同じ時数だけ教える組
+  // 返す値：[{ x, y, p（Yで教える教科）, q（Xで教える教科） }]
+  function uraPairs(A, g) {
+    var G = ((A.homeroom || {}).grades || {})[g];
+    if (!G || !G.on || G.ura === false) return [];
+    var n = +(A.classCounts || {})[g] || 0, keys = [];
+    for (var i = 0; i < n; i++) keys.push(g + '-' + i);
+    var subs = (A.subjects || []).filter(function (s) { return (+s.hours[g] || 0) > 0; });
+    var out = [];
+    keys.forEach(function (x, xi) {
+      keys.forEach(function (y, yi) {
+        if (yi <= xi) return;
+        // 2クラスだけの入れかえ：その教科を、その担任が自分のクラスと相手のクラスだけで教えている
+        var only = function (sid, who) {
+          var ks = keys.filter(function (k) { return hrWho(A, g, sid, k) === who; });
+          return ks.length === 2 && ks.indexOf(x) >= 0 && ks.indexOf(y) >= 0;
+        };
+        var ps = subs.filter(function (s) { return only(s.id, x); });
+        var qs = subs.filter(function (s) { return only(s.id, y); });
+        ps.forEach(function (p) {
+          var k = qs.findIndex(function (q) { return +q.hours[g] === +p.hours[g]; });
+          if (k < 0) return;
+          out.push({ x: x, y: y, p: p.id, q: qs[k].id });
+          qs.splice(k, 1);
+        });
+      });
+    });
+    return out;
+  }
   // 担任の名前（入れていなければ ''）
   function hrNameOf(A, key) { return String(((A && A.hrNames) || {})[key] || '').trim(); }
   function classShort(A, g, i) {
@@ -747,6 +785,23 @@ var JW = (function () {
       }
     });
 
+    // 教科担任制の単純な入れかえ（裏表）：担任どうしが入れかわって教える授業を、同じ時間にそろえる
+    GRADES.forEach(function (g) {
+      uraPairs(A, g).forEach(function (pr, k) {
+        var X = classIndex[pr.x], Y = classIndex[pr.y], tX = hrIndex[pr.x], tY = hrIndex[pr.y];
+        if (X === undefined || Y === undefined || tX === undefined || tY === undefined) return;
+        var inY = classUnits[Y].map(function (id) { return units[id]; }).filter(function (u) { return u.subj === pr.p && u.teachers.indexOf(tX) >= 0 && !u.sync; });
+        var inX = classUnits[X].map(function (id) { return units[id]; }).filter(function (u) { return u.subj === pr.q && u.teachers.indexOf(tY) >= 0 && !u.sync; });
+        var m = Math.min(inY.length, inX.length);
+        if (inY.length !== inX.length) notes.push('裏表：' + classes[Y].label + 'の' + M_subjName(pr.p) + 'と' + classes[X].label + 'の' + M_subjName(pr.q) + 'はコマ数がちがうので、' + m + 'コマだけそろえます。');
+        for (var j = 0; j < m; j++) {
+          var key = 'ura' + g + ':' + k + ':' + j;
+          syncMembers[key] = [Y, X];
+          syncInfo[key] = { src: -1, target: pr.p, need: m, pool: null, ura: true };
+          inY[j].sync = key; inX[j].sync = key;
+        }
+      });
+    });
     // 曜日のかたよりを気にしない教科（クラスごと）：週4コマ以上ある教科と、専科・講師の曜日を決めている授業
     var noSpread = classes.map(function () { return {}; });
     var subjCount = classes.map(function () { return {}; });
@@ -2266,7 +2321,7 @@ var JW = (function () {
     DAYS: DAYS, GRADES: GRADES, STD: STD, weeksOf: weeksOf, defaultAnswers: defaultAnswers, uid: uid,
     className: className, classLabel: classLabel, classShort: classShort, targetName: targetName,
     targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText, cellsText: cellsText, prefCells: prefCells,
-    buildModel: buildModel, effective: effective, solve: solve, check: check, syncPreview: syncPreview, hrNameOf: hrNameOf, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel, roomSpec: roomSpec, roomSpecLabel: roomSpecLabel
+    buildModel: buildModel, effective: effective, solve: solve, check: check, syncPreview: syncPreview, uraPairs: uraPairs, hrNameOf: hrNameOf, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel, roomSpec: roomSpec, roomSpecLabel: roomSpecLabel
   };
 })();
 if (typeof module !== 'undefined') module.exports = JW;
@@ -2877,6 +2932,7 @@ function renderHomeroom() {
           return row + '</td></tr>';
         }).join('') + '</table>' +
         '<p class="small">「クラスごとに決める」：例えば4クラスで理科と社会を2クラスずつ交換するときに使います（理科は1組・2組＝1組の担任、3組・4組＝3組の担任 など）。</p>';
+      h += uraHtml(g, G, base);
       h += hrSummary(g, G);
       var others = A.subjects.filter(function (s) { return (+s.hours[g] || 0) > 0 && (G.assign || {})[s.id] === 'other'; });
       if (others.length && !A.features.teachers) h += '<div class="box warn small">「ほかの先生」にした教科（' + esc(others.map(function (s) { return s.name; }).join('・')) +
@@ -2885,6 +2941,18 @@ function renderHomeroom() {
     h += '</div>';
   });
   return h;
+}
+// 単純な入れかえ（裏表）
+function uraHtml(g, G, base) {
+  var on = G.ura !== false;
+  var h = '<div class="row chips"><label><input type="checkbox" data-k="' + base + '.ura" data-t="bool"' + (on ? ' checked' : '') + '>単純な入れかえは、裏表で組む（担任どうしが入れかわって教える授業を、同じ時間にする）</label></div>';
+  if (!on) return h;
+  var short = function (k) { var a = k.split('-'); return JW.className(A, +a[0], +a[1]); };
+  var name = function (id) { return JW.targetName(A, id); };
+  var list = JW.uraPairs(A, g);
+  return h + '<div class="small" style="margin:-4px 0 8px 28px">' + (list.length ? list.map(function (p) {
+    return '→ ' + esc(short(p.y) + 'の' + name(p.p) + '（' + short(p.x) + 'の担任）と、' + short(p.x) + 'の' + name(p.q) + '（' + short(p.y) + 'の担任）を同じ時間に');
+  }).join('<br>') : '同じ時数で入れかえている組は、まだありません。') + '</div>';
 }
 // 担任ごとの、ほかのクラスへ行く時数のまとめ
 function hrSummary(g, G) {
