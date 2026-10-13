@@ -35,6 +35,7 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 16px; line-height: 1.6; }
   header { background: var(--main); color: var(--on-main); padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header .ver { margin-left: auto; font-size: 13px; opacity: .85; }
   header h1 { font-size: 18px; margin: 0; }
   header .save { font-size: 13px; opacity: .9; }
   .wrap { display: flex; max-width: 1200px; margin: 0 auto; gap: 20px; padding: 20px 16px 80px; }
@@ -126,6 +127,7 @@
 <header>
   <h1>時間割作成ツール</h1>
   <span class="save" id="saveName"></span>
+  <span class="ver" id="appVersion" data-version="2.9">v2.9</span>
 </header>
 <div class="wrap">
   <nav><ol id="nav"></ol></nav>
