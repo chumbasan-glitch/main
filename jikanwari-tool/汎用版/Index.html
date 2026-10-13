@@ -269,7 +269,50 @@ var STEPS = [
 function visible(i) { var f = STEPS[i].feat; return !f || !A || !A.features || !!A.features[f]; }
 function visibleSteps() { return STEPS.map(function (s, i) { return i; }).filter(visible); }
 
+// 画面を書き直しても、入力中のマス（カーソル）がそのまま残るようにする
+var FOCUS_ATTRS = ['data-k', 'data-draft', 'data-f', 'data-ed', 'data-r', 'data-s', 'id', 'name'];
+function focusKey() {
+  var el = document.activeElement;
+  if (!el || el === document.body) return null;
+  var edit = el.isContentEditable;
+  if (!edit && ['INPUT', 'SELECT', 'TEXTAREA'].indexOf(el.tagName) < 0) return null;
+  var key = { tag: el.tagName, attrs: {}, edit: edit };
+  FOCUS_ATTRS.forEach(function (a) { if (el.hasAttribute(a)) key.attrs[a] = el.getAttribute(a); });
+  if (el.type === 'radio' || el.type === 'checkbox') key.attrs.value = el.value;
+  if (!Object.keys(key.attrs).length) return null;
+  try { key.sel = [el.selectionStart, el.selectionEnd]; } catch (e) { key.sel = null; }
+  // Tab で移ったときのように、文字が全部えらばれているか（数字の欄は位置が分からないので、全部えらぶ）
+  key.all = !edit && el.select && (key.sel === null || key.sel[0] === null || (key.sel[0] === 0 && key.sel[1] === String(el.value).length && el.value !== ''));
+  return key;
+}
+function restoreFocus(key) {
+  if (!key) return;
+  var list = document.getElementsByTagName(key.tag);
+  for (var i = 0; i < list.length; i++) {
+    var el = list[i], ok = true;
+    for (var a in key.attrs) {
+      var v = a === 'value' ? el.value : el.getAttribute(a);
+      if (v !== key.attrs[a]) { ok = false; break; }
+    }
+    if (!ok) continue;
+    el.focus({ preventScroll: true });
+    if (key.edit) {   // 時間割のマス：カーソルを文字の最後へ
+      var rg = document.createRange(); rg.selectNodeContents(el); rg.collapse(false);
+      var sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(rg);
+    } else if (key.all) {
+      try { el.select(); } catch (e) {}
+    } else if (key.sel && key.sel[0] != null) {
+      try { el.setSelectionRange(key.sel[0], key.sel[1]); } catch (e) {}
+    }
+    return;
+  }
+}
 function render() {
+  var key = focusKey(), x = window.scrollX, y = window.scrollY;
+  renderNow();
+  if (key) { restoreFocus(key); window.scrollTo(x, y); }
+}
+function renderNow() {
   clearTimeout(renderTimer);
   var nav = document.getElementById('nav'), vis = visibleSteps();
   nav.innerHTML = vis.map(function (i, n) {
