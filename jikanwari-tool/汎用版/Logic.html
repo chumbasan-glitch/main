@@ -32,14 +32,28 @@ var JW = (function () {
   // 特別教室：count＝部屋の数、grades[k]＝k番目の部屋を使う学年（空＝全学年）
   function room(name, cap) { return { name: name, cap: cap, count: 1, grades: [[]] }; }
   var CIRCLED = '①②③④⑤⑥⑦⑧⑨';
-  function roomLabel(r, k) { return (+r.count || 1) > 1 ? r.name + CIRCLED.charAt(k) : r.name; }
+  // 部屋の呼び方（入れていなければ「音楽室①」のように丸数字）
+  function roomLabel(r, k) {
+    if ((+r.count || 1) <= 1) return r.name;
+    return String((r.labels || [])[k] || '').trim() || r.name + CIRCLED.charAt(k);
+  }
+  // 場所の指定：「音楽室」＝どの部屋でも、「音楽室#1」＝2つ目の部屋だけ
+  function roomSpec(v) {
+    var m = /^(.*)#(\d+)$/.exec(v || '');
+    return m ? { kind: m[1], only: +m[2] } : { kind: v || '', only: -1 };
+  }
+  function roomSpecLabel(A, v) {
+    var sp = roomSpec(v), r = (A.rooms || []).filter(function (x) { return x.name === sp.kind; })[0];
+    if (!r) return sp.kind;
+    return sp.only >= 0 && sp.only < (+r.count || 1) ? roomLabel(r, sp.only) : r.name;
+  }
   // 1部屋ずつに分けた特別教室の一覧
   function physicalRooms(A) {
     var list = [];
     (A.rooms || []).forEach(function (r) {
       var n = Math.max(1, +r.count || 1);
       for (var k = 0; k < n; k++) {
-        list.push({ kind: r.name, label: roomLabel(r, k), cap: Math.max(1, +r.cap || 1), grades: ((r.grades || [])[k] || []).slice(),
+        list.push({ kind: r.name, k: k, label: roomLabel(r, k), cap: Math.max(1, +r.cap || 1), grades: ((r.grades || [])[k] || []).slice(),
           gradeCap: r.gradeCap || {} });
       }
     });
@@ -270,11 +284,14 @@ var JW = (function () {
 
     // 特別教室：同じ種類の部屋を、その学年が使える部屋のまとまり（pool）にする
     var phys = physicalRooms(A);
-    var rooms = {}, poolName = {}, poolRooms = {}, poolGradeCap = {};
-    function poolFor(kind, g) {
-      if (!kind) return '';
+    var rooms = {}, poolName = {}, poolRooms = {}, poolGradeCap = {}, poolKind = {};
+    function poolFor(spec, g) {
+      if (!spec) return '';
+      var sp = roomSpec(spec), kind = sp.kind, only = sp.only;
+      // 指定した部屋がない（部屋の数を減らした）ときは、どの部屋でもよいことにする
+      if (only >= 0 && !phys.some(function (r) { return r.kind === kind && r.k === only; })) only = -1;
       var idx = [];
-      phys.forEach(function (r, i) { if (r.kind === kind && (!r.grades.length || r.grades.indexOf(g) >= 0)) idx.push(i); });
+      phys.forEach(function (r, i) { if (r.kind === kind && (only < 0 || r.k === only) && (!r.grades.length || r.grades.indexOf(g) >= 0)) idx.push(i); });
       if (!idx.length) return '';   // その学年が使える部屋がない → 普通教室で組む
       var key = kind + '#' + idx.join(',');
       if (!rooms[key]) {
@@ -289,6 +306,7 @@ var JW = (function () {
         });
         poolName[key] = idx.length === 1 ? phys[idx[0]].label : kind;
         poolRooms[key] = idx;
+        poolKind[key] = kind;
       }
       return key;
     }
@@ -614,7 +632,7 @@ var JW = (function () {
 
     return { A: A, D: D, MP: MP, S: S, classes: classes, classIndex: classIndex, avail: avail,
       fixedLabel: fixedLabel, satFree: satFree, units: units, pins: allPins(A, classes), classUnits: classUnits, syncMembers: syncMembers, syncInfo: syncInfo,
-      teachers: teachers, prefs: prefs, rooms: rooms, poolName: poolName, poolRooms: poolRooms, poolGradeCap: poolGradeCap, phys: phys,
+      teachers: teachers, prefs: prefs, rooms: rooms, poolName: poolName, poolRooms: poolRooms, poolGradeCap: poolGradeCap, poolKind: poolKind, phys: phys,
       maxPerDay: maxPerDay, subjName: subjName, manualList: manualList,
       rules: A.rules || {}, errors: errors, notes: uniq(notes) };
   }
@@ -634,6 +652,24 @@ var JW = (function () {
     var grid = M.classes.map(function () { var a = []; for (var s = 0; s < M.S; s++) a.push(-1); return a; });
     var pos = M.units.map(function () { return -1; });
     return { grid: grid, pos: pos };
+  }
+
+  // 1つの時間に、同じ種類の特別教室を使うクラスを部屋に割り当てる
+  // list：[{ ci, key }]（key＝そのクラスが使える部屋のまとまり）。入りきらないクラスは over に入る
+  function assignRooms(M, list) {
+    var inRoom = {}, over = [];
+    list = list.slice().sort(function (a, b) { return M.poolRooms[a.key].length - M.poolRooms[b.key].length; });
+    list.forEach(function (x) {
+      var g = M.classes[x.ci].grade, idx = M.poolRooms[x.key];
+      for (var j = 0; j < idx.length; j++) {
+        var r = M.phys[idx[j]], cur = inRoom[idx[j]] || [];
+        var cap = r.cap;
+        cur.concat([x.ci]).forEach(function (cj) { var gc = +r.gradeCap[M.classes[cj].grade]; if (gc > 0) cap = Math.min(cap, gc); });
+        if (cur.length + 1 <= cap) { (inRoom[idx[j]] = cur).push(x.ci); return; }
+      }
+      over.push(x.ci);
+    });
+    return { inRoom: inRoom, over: over };
   }
 
   function roomOf(M, u, s) { return u.roomByDay ? u.roomByDay[Math.floor(s / M.MP)] : u.room; }
@@ -661,6 +697,20 @@ var JW = (function () {
         cost += W.hard * (keys.length - 1);
         if (out) out.push({ level: 'hard', kind: 'teacher', slot: s, t: +t, text: M.teachers[t].name + '：' + slotName(M.A, s) +
           'に' + listText(keys.map(function (k) { return M.classes[tk[t][k][0]].label; })) + 'の授業が重なっています。' });
+      }
+    }
+    // 同じ種類の教室で、使える部屋のまとまりがちがうクラスがいるとき（例：第1音楽室だけ／どちらでも）は、部屋に割り当てて確かめる
+    var byKind = {};
+    for (var r0 in rc) (byKind[M.poolKind[r0]] = byKind[M.poolKind[r0]] || []).push(r0);
+    for (var kd in byKind) {
+      if (byKind[kd].length < 2) continue;
+      var list = [];
+      byKind[kd].forEach(function (key) { rc[key].forEach(function (c) { list.push({ ci: c, key: key }); }); delete rc[key]; });
+      var as = assignRooms(M, list);
+      if (as.over.length) {
+        cost += W.hard * as.over.length;
+        if (out) out.push({ level: 'hard', kind: 'room', slot: s, room: byKind[kd][0], text: kd + '：' + slotName(M.A, s) + 'に' +
+          list.length + 'クラス（' + listText(list.map(function (x) { return M.classes[x.ci].label; })) + '）が入っていて、部屋が足りません。' });
       }
     }
     for (var r in rc) {
@@ -1626,17 +1676,18 @@ var JW = (function () {
       return { label: r.label + gs, cells: [] };
     });
     for (var s = 0; s < M.S; s++) {
-      var inRoom = M.phys.map(function () { return []; });
-      Object.keys(M.poolRooms).forEach(function (key) {
-        var idx = M.poolRooms[key];
-        for (var ci = 0; ci < M.classes.length; ci++) {
-          var id = st.grid[ci][s];
-          if (id < 0 || roomOf(M, M.units[id], s) !== key) continue;
-          var k = 0;
-          while (k < idx.length - 1 && inRoom[idx[k]].length >= M.phys[idx[k]].cap) k++;
-          inRoom[idx[k]].push(ci);
-        }
+      var inRoom = M.phys.map(function () { return []; }), byKind = {};
+      for (var ci = 0; ci < M.classes.length; ci++) {
+        var id = st.grid[ci][s], key = id >= 0 ? roomOf(M, M.units[id], s) : '';
+        if (key) (byKind[M.poolKind[key]] = byKind[M.poolKind[key]] || []).push({ ci: ci, key: key });
+      }
+      Object.keys(byKind).forEach(function (kd) {
+        var as = assignRooms(M, byKind[kd]);
+        Object.keys(as.inRoom).forEach(function (i) { inRoom[i] = inRoom[i].concat(as.inRoom[i]); });
+        // 入りきらないクラスも、表には出しておく（チェックで知らせる）
+        as.over.forEach(function (c) { var key = byKind[kd].filter(function (x) { return x.ci === c; })[0].key; inRoom[M.poolRooms[key][0]].push(c); });
       });
+      inRoom = inRoom.map(function (a) { return a.slice().sort(function (x, y) { return x - y; }); });
       rows.forEach(function (r, i) { r.cells.push(compactNames(M, inRoom[i])); });
     }
     return rows;
@@ -1945,7 +1996,7 @@ var JW = (function () {
     DAYS: DAYS, GRADES: GRADES, STD: STD, weeksOf: weeksOf, defaultAnswers: defaultAnswers, uid: uid,
     className: className, classLabel: classLabel, classShort: classShort, targetName: targetName,
     targetList: targetList, subjectById: subjectById, variantById: variantById, prefText: prefText,
-    buildModel: buildModel, effective: effective, solve: solve, check: check, syncPreview: syncPreview, hrNameOf: hrNameOf, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel
+    buildModel: buildModel, effective: effective, solve: solve, check: check, syncPreview: syncPreview, hrNameOf: hrNameOf, moduleHours: moduleHours, moduleSlots: moduleSlots, physicalRooms: physicalRooms, roomLabel: roomLabel, roomSpec: roomSpec, roomSpecLabel: roomSpecLabel
   };
 })();
 if (typeof module !== 'undefined') module.exports = JW;

@@ -200,7 +200,25 @@ function allClasses() {
   return list;
 }
 function targetOpts(cur) { return opts(JW.targetList(A).map(function (t) { return { v: t.id, t: t.name }; }), cur); }
-function roomOpts(cur, emptyText) { return opts([{ v: '', t: emptyText || '普通教室（決めない）' }].concat(A.rooms.map(function (r) { return { v: r.name, t: r.name }; })), cur); }
+// 場所の選び肢：部屋が2つ以上ある教室は「どちらでも」と部屋ごと
+function roomChoices() {
+  var list = [];
+  A.rooms.forEach(function (r) {
+    var n = Math.max(1, +r.count || 1);
+    if (n === 1) return list.push({ v: r.name, t: r.name });
+    list.push({ v: r.name, t: r.name + '（' + (n === 2 ? 'どちらでも' : 'どれでも') + '）' });
+    for (var k = 0; k < n; k++) list.push({ v: r.name + '#' + k, t: '　' + JW.roomLabel(r, k) + 'だけ' });
+  });
+  return list;
+}
+function roomOpts(cur, emptyText) { return opts([{ v: '', t: emptyText || '普通教室（決めない）' }].concat(roomChoices()), cur); }
+// 教室の名前を変えた・消したときに、場所の指定（「音楽室」「音楽室#1」）を直す
+function renameSpec(v, old, nw) {
+  var sp = JW.roomSpec(v);
+  if (sp.kind !== old) return v;
+  if (nw === '') return '';
+  return sp.only >= 0 ? nw + '#' + sp.only : nw;
+}
 function gradeChecks(path, arr) {
   return '<span class="chips">' + JW.GRADES.map(function (g) {
     return '<label><input type="checkbox" data-k="' + path + '" data-t="arr" value="' + g + '"' + ((arr || []).indexOf(g) >= 0 ? ' checked' : '') + '>' + g + '年</label>';
@@ -483,12 +501,13 @@ function gradeCapRow(r, i) {
     }).join('') + '</div></td></tr>';
 }
 // 特別教室の質問で選んだ学年（その教室のどれかの部屋が「チェックなし＝全学年」なら全学年）
-function roomGradesOf(name) {
-  var r = A.rooms.filter(function (x) { return x.name === name; })[0];
+function roomGradesOf(spec) {
+  var sp = JW.roomSpec(spec), r = A.rooms.filter(function (x) { return x.name === sp.kind; })[0];
   var gs = JW.GRADES.filter(function (g) { return +A.classCounts[g]; });
   if (!r) return gs;
   var all = false, set = {};
   for (var k = 0; k < Math.max(1, +r.count || 1); k++) {
+    if (sp.only >= 0 && sp.only < (+r.count || 1) && k !== sp.only) continue;   // 部屋を1つ選んだときは、その部屋の学年だけ
     var a = (r.grades || [])[k] || [];
     if (!a.length) all = true;
     a.forEach(function (g) { set[g] = 1; });
@@ -546,7 +565,7 @@ function renderModule() {
 
 function renderRooms() {
   var h = '<h2>特別教室の数と、同時に使えるクラス数を教えてください</h2>' +
-    '<p class="lead">同じ教室が2つ以上ある場合は「数」を変え、それぞれの部屋を使う学年を選んでください（例：音楽室①は4〜6年、音楽室②は1〜3年）。' +
+    '<p class="lead">同じ教室が2つ以上ある場合は「数」を変え、それぞれの部屋の呼び方（例：第1音楽室、南音楽室。空けておくと音楽室①・②）と、使う学年を選んでください（例：第1音楽室は4〜6年、第2音楽室は1〜3年）。' +
     '「同時に使えるクラス数」は1部屋あたりの数です（体育館を半面ずつ使うなら2）。' +
     '学年によって上限がちがう場合は「学年によって上限を変える」を押してください（例：校庭は3クラスまで、5・6年が使うときは単独）。</p>';
   h += '<table class="t"><tr><th class="l">教室の名前</th><th>数</th><th>同時に使えるクラス数<div class="small">（1部屋あたり）</div></th><th class="l">使う学年<div class="small">（チェックなし＝全学年）</div></th><th></th></tr>';
@@ -556,7 +575,9 @@ function renderRooms() {
       '<td><select data-k="rooms.' + i + '.count" data-t="num">' + opts(range(1, 6), n) + '</select></td>' +
       '<td><select data-k="rooms.' + i + '.cap" data-t="num">' + opts(range(1, 8), r.cap) + '</select> クラスまで' + gradeCapBtn(r, i) + '</td>' +
       '<td class="l">' + range(0, n - 1).map(function (k) {
-        return '<div>' + (n > 1 ? '<b>' + esc(JW.roomLabel(r, k)) + '</b> ' : '') + gradeChecks('rooms.' + i + '.grades.' + k, (r.grades || [])[k]) + '</div>';
+        return '<div' + (n > 1 && k ? ' style="border-top:1px dashed var(--cell-line);margin-top:4px;padding-top:4px"' : '') + '>' +
+          (n > 1 ? '<div>' + (k + 1) + 'つ目の部屋の呼び方 <input type="text" class="m" data-k="rooms.' + i + '.labels.' + k + '" value="' + esc(((r.labels || [])[k]) || '') + '" placeholder="' + esc(r.name + '①②③④⑤⑥'.charAt(k)) + '"></div>' : '') +
+          gradeChecks('rooms.' + i + '.grades.' + k, (r.grades || [])[k]) + '</div>';
       }).join('') + '</td>' +
       '<td><button class="btn small del" data-a="delRoom" data-i="' + i + '">削除</button></td></tr>' + gradeCapRow(r, i);
   });
@@ -669,7 +690,7 @@ function renderTeachers() {
       '<div class="small">「学年でまとめて」を選ぶと、チェックした学年の全クラスに同じ担当を追加します。例：3〜6年の音楽を全部。「追加」を押し忘れても、「先生を追加」や「次へ」を押したときに追加します。</div>' +
       '<div class="row" style="margin-top:8px"><b>曜日ごとの教室：</b>' + A.days.map(function (d, di) {
         return '<label>' + d + '<select data-k="teachers.' + ti + '.dayRoom.' + di + '">' +
-          opts([{ v: '', t: '教科の設定どおり' }, { v: '__class', t: '普通教室' }].concat(A.rooms.map(function (r) { return { v: r.name, t: r.name }; })), (t.dayRoom || {})[di] || '') + '</select></label>';
+          opts([{ v: '', t: '教科の設定どおり' }, { v: '__class', t: '普通教室' }].concat(roomChoices()), (t.dayRoom || {})[di] || '') + '</select></label>';
       }).join(' ') + '</div>' +
       '<div class="small">音楽室が重なる日だけ普通教室にする、などに使います。「教科の設定どおり」は、質問「教科の表示名と場所」で決めた教室です。</div></div>';
   });
@@ -1116,9 +1137,9 @@ document.addEventListener('change', function (e) {
     v = el.value.trim();
     var old = el.dataset.old;
     // 教室の名前を変えたら、使っているところも変える
-    A.subjects.forEach(function (s) { if (s.room === old) s.room = v; });
-    A.teachers.forEach(function (t) { Object.keys(t.dayRoom || {}).forEach(function (d) { if (t.dayRoom[d] === old) t.dayRoom[d] = v; }); });
-    A.variants.forEach(function (x) { if (x.room === old) x.room = v; });
+    A.subjects.forEach(function (s) { s.room = renameSpec(s.room, old, v); });
+    A.teachers.forEach(function (t) { Object.keys(t.dayRoom || {}).forEach(function (d) { t.dayRoom[d] = renameSpec(t.dayRoom[d], old, v); }); });
+    A.variants.forEach(function (x) { x.room = renameSpec(x.room, old, v); });
   } else if (t === 'sname') {
     v = el.value.trim() || el.dataset.old;
     var sj = getPath(k.replace(/\.name$/, ''));
@@ -1246,9 +1267,9 @@ var actions = {
   delRoom: function (d) {
     var r = A.rooms[+d.i];
     A.rooms.splice(+d.i, 1);
-    A.subjects.forEach(function (s) { if (s.room === r.name) s.room = ''; });
-    A.variants.forEach(function (v) { if (v.room === r.name) v.room = ''; });
-    A.teachers.forEach(function (t) { Object.keys(t.dayRoom || {}).forEach(function (d) { if (t.dayRoom[d] === r.name) delete t.dayRoom[d]; }); });
+    A.subjects.forEach(function (s) { s.room = renameSpec(s.room, r.name, ''); });
+    A.variants.forEach(function (v) { v.room = renameSpec(v.room, r.name, ''); });
+    A.teachers.forEach(function (t) { Object.keys(t.dayRoom || {}).forEach(function (d) { if (JW.roomSpec(t.dayRoom[d]).kind === r.name) delete t.dayRoom[d]; }); });
     render();
   },
   addVariant: function () {
