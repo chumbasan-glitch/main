@@ -89,6 +89,7 @@
   table.pv .c { width: 3.6em; height: 2.4em; display: flex; align-items: center; justify-content: center; overflow: hidden; line-height: 1.1; word-break: break-all; padding: 0 1px; font-size: 12px; }
   table.pv .c.f3 { font-size: 10.5px; } table.pv .c.f4 { font-size: 9px; } table.pv .c.f9 { font-size: 8px; }
   table.pv th .c { font-weight: bold; }
+  table.pv th.hrc .c { font-weight: normal; }
   .print-fit { overflow: visible; }
   .print-fit table.pv.main { width: 100%; }
   .print-fit table.pv.main .c { width: auto; }
@@ -141,7 +142,7 @@
 <header>
   <h1>時間割作成ツール</h1>
   <span class="save" id="saveName"></span>
-  <span class="ver" id="appVersion" data-version="2.14">v2.14</span>
+  <span class="ver" id="appVersion" data-version="2.15">v2.15</span>
 </header>
 <div class="wrap">
   <nav><ol id="nav"></ol></nav>
@@ -3418,7 +3419,8 @@ function previewTable(t, editable) {
   var dayP = t.dayPeriods || t.days.map(function () { return MP; });
   var maxP = Math.max.apply(null, dayP.concat([1]));
   var mod = t.module, hasM = function (di) { return !!mod && dayP[di] > 0 && mod.days.indexOf(di) >= 0; };
-  var h = '<table class="pv main"><tr><th rowspan="2">' + cellDiv('') + '</th>';
+  var hasHr = t.classRows.some(function (r) { return r.hr; });   // 担任名を入れているときだけ「担任」の列を出す
+  var h = '<table class="pv main"><tr><th rowspan="2">' + cellDiv('') + '</th>' + (hasHr ? '<th rowspan="2">' + cellDiv('担任') + '</th>' : '');
   t.days.forEach(function (d, di) { if (dayP[di]) h += '<th class="day" colspan="' + (dayP[di] + (hasM(di) ? 1 : 0)) + '">' + esc(d) + '</th>'; });
   h += '</tr><tr>';
   t.days.forEach(function (d, di) {
@@ -3427,7 +3429,7 @@ function previewTable(t, editable) {
   });
   h += '</tr>';
   t.classRows.forEach(function (r, ri) {
-    h += '<tr><th>' + cellDiv(r.label) + (r.hr ? '<div class="hrn">' + esc(r.hr) + '</div>' : '') + '</th>';
+    h += '<tr><th>' + cellDiv(r.label) + '</th>' + (hasHr ? '<th class="hrc">' + cellDiv(r.hr || '') + '</th>' : '');
     t.days.forEach(function (d, di) {
       if (hasM(di)) h += '<td class="mo dl">' + cellDiv(mod.grades.indexOf(r.grade) >= 0 ? mod.labels[di] : '') + '</td>';
       for (var p = 0; p < dayP[di]; p++) {
@@ -3992,17 +3994,18 @@ function sheetHtml(t) {
   var W = 42, H = 24, BD = 'border:.5pt solid #888;';
   function fs(v) { var n = String(v == null ? '' : v).length; return n <= 2 ? 10 : n === 3 ? 9 : n <= 8 ? 7 : 6; }
   function td(v, bg, extra) { return '<td style="' + BD + 'text-align:center;vertical-align:middle;mso-number-format:\'\\@\';font-size:' + fs(v) + 'pt;background:' + (bg || '#fff') + ';' + (extra || '') + '">' + esc(v) + '</td>'; }
-  var nCols = Math.max(1 + cols.length, 4 * (D + 2));
+  var hasHr = t.classRows.some(function (r) { return r.hr; });
+  var nCols = Math.max(1 + (hasHr ? 1 : 0) + cols.length, 4 * (D + 2));
   var h = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">' +
     '<style>table{border-collapse:collapse;font-family:"Noto Sans JP","Yu Gothic",sans-serif} td{height:' + H + 'px;width:' + W + 'px}</style></head><body><table>';
   h += '<col span="' + nCols + '" width="' + W + '">';
   h += '<tr><td colspan="' + nCols + '" style="font-size:14pt;font-weight:bold">' + esc(t.title) + '</td></tr>';
   // 見出し
-  h += '<tr>' + td('クラス', '#dfe8f5', 'font-weight:bold');
+  h += '<tr>' + td('クラス', '#dfe8f5', 'font-weight:bold') + (hasHr ? td('担任', '#dfe8f5', 'font-weight:bold') : '');
   t.days.forEach(function (d, di) { var n = cols.filter(function (c) { return c.d === di; }).length; if (n) h += '<td colspan="' + n + '" style="' + BD + 'text-align:center;font-weight:bold;background:#dfe8f5">' + esc(d) + '</td>'; });
-  h += '</tr><tr>' + td('', '#dfe8f5') + cols.map(function (c) { return td(c.m ? '朝' : c.p + 1, '#dfe8f5', 'font-weight:bold'); }).join('') + '</tr>';
+  h += '</tr><tr>' + td('', '#dfe8f5') + (hasHr ? td('', '#dfe8f5') : '') + cols.map(function (c) { return td(c.m ? '朝' : c.p + 1, '#dfe8f5', 'font-weight:bold'); }).join('') + '</tr>';
   t.classRows.forEach(function (r) {
-    h += '<tr>' + td(r.label + (r.hr ? '（' + r.hr + '）' : ''), '#dfe8f5', 'font-weight:bold') + cols.map(function (c) {
+    h += '<tr>' + td(r.label, '#dfe8f5', 'font-weight:bold') + (hasHr ? td(r.hr || '', '#dfe8f5') : '') + cols.map(function (c) {
       if (c.m) return td(mod.grades.indexOf(r.grade) >= 0 ? mod.labels[c.d] : '', '#eef4ea');
       var cell = r.cells[c.d * MP + c.p];
       var bg = cell.k === 'fixed' ? '#e6e6e6' : cell.k === 'none' ? '#9e9e9e' : cell.k === 'empty' ? '#fff3c4' : cell.k === 'sat' ? '#e6f0fa' : '#fff';
