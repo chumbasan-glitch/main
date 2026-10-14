@@ -164,7 +164,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>漢字小テストメーカー</h1>
     <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver" title="このページの版">ver 8.4（2026.10.8）</span>
+    <span class="ver" title="このページの版">ver 8.5（2026.10.14）</span>
   </header>
 
   <div class="layout">
@@ -243,13 +243,14 @@ h2.sec{margin:0;font-size:17px}
             <button type="button" data-v="grid">マス目</button>
             <button type="button" data-v="guide">補助線付き</button>
           </div>
-          <span class="hint">ボーナス欄（10問以下のとき）</span>
+          <span class="hint">解答欄の下の欄（10問以下のとき）</span>
           <div class="seg" id="segBonus">
             <button type="button" data-v="off">つけない</button>
-            <button type="button" data-v="on">つける</button>
+            <button type="button" data-v="on">ボーナス欄</button>
+            <button type="button" data-v="fix">直し欄</button>
           </div>
           <div id="bonusOpts" hidden>
-            <span class="hint">解答欄：ボーナス欄の大きさ</span>
+            <span class="hint" id="bratioLbl">解答欄：ボーナス欄の大きさ</span>
             <div class="seg" id="segBratio">
               <button type="button" data-v="2">2:8</button>
               <button type="button" data-v="3">3:7</button>
@@ -260,7 +261,7 @@ h2.sec{margin:0;font-size:17px}
               <button type="button" data-v="8">8:2</button>
             </div>
           </div>
-          <p class="hint" id="bonusNote" hidden>11問以上のときは、ボーナス欄はつきません。</p>
+          <p class="hint" id="bonusNote" hidden>11問以上のときは、ボーナス欄・直し欄はつきません。</p>
         </div>
       </details>
 
@@ -616,8 +617,10 @@ function drawPage(canvas, answer, pxPerMm){
   setFont(tfs); vtext(title, c1x, M, tfs);
   const scoreH = c1w * 1.35, scoreW = c1w * 0.92;
   const scoreY = H - M - scoreH;
-  const bonus = state.bonus === "on" && qs.length > 0 && qs.length <= 10;
-  const bsY = bonus ? scoreY - 3 - scoreH : scoreY;
+  /* 解答欄の下の欄：ボーナス欄（得点欄つき）か直し欄（得点欄なし） */
+  const bonus = (state.bonus === "on" || state.bonus === "fix") && qs.length > 0 && qs.length <= 10;
+  const fixMode = bonus && state.bonus === "fix", bonusPts = bonus && !fixMode;
+  const bsY = bonusPts ? scoreY - 3 - scoreH : scoreY;
   if(state.label){
     const top = M + tfs * title.length + tfs * 0.6, room = bsY - 4 - top;
     const lfs = Math.min(tfs * 0.55, room / state.label.length);
@@ -627,7 +630,7 @@ function drawPage(canvas, answer, pxPerMm){
   const sfs = scoreW * 0.26; setFont(sfs, 600);
   ctx.textAlign = "right"; ctx.textBaseline = "alphabetic";
   ctx.fillText("／" + (state.score === "100" ? 100 : qs.length), P(c1x + scoreW / 2 - 1.2), P(H - M - 1.6));
-  if(bonus){
+  if(bonusPts){
     rect(c1x - scoreW / 2, bsY, scoreW, scoreH, 0.35);
     ctx.fillText("点", P(c1x + scoreW / 2 - 1.2), P(bsY + scoreH - 1.6));
     ctx.textAlign = "left"; ctx.textBaseline = "top";
@@ -772,12 +775,12 @@ function drawPage(canvas, answer, pxPerMm){
     }
     if(bonus){
       const aH = (boxH - 3) * Number(state.bratio) / 10, yB = top + rh - boxH + aH + 3, bH = boxH - 3 - aH, lx = x1 + lw / 2 + 1;
-      const t1 = "ボーナス", mk = state.newbox === "on" ? "□" : "――", t2 = low ? "（" + mk + "のかんじをつかったことば）" : "（" + mk + "の漢字を使った言葉）";
+      const t1 = fixMode ? (low ? "なおし" : "直し") : "ボーナス", mk = state.newbox === "on" ? "□" : "――", t2 = low ? "（" + mk + "のかんじをつかったことば）" : "（" + mk + "の漢字を使った言葉）";
       const f2 = Math.min(3.4, bH / [...t2].length);
-      if(f2 >= 2.6){
+      if(!fixMode && f2 >= 2.6){
         const f1 = Math.min(4.6, bH / t1.length / 1.3);
         setFont(f1); vtext(t1, lx + 2, yB, f1); setFont(f2, 500); vtext(t2, lx - 2.4, yB, f2);
-      } else { const f1 = Math.min(4.6, bH / t1.length); setFont(f1); vtext(t1, lx, yB + (bH - f1 * t1.length) / 2, f1); }
+      } else { const f1 = Math.min(fixMode ? 6 : 4.6, lw * 0.6, bH / t1.length); setFont(f1); vtext(t1, lx, yB + (bH - f1 * t1.length) / 2, f1); }
     }
     const bw = cw * 0.8;
     rowQs.forEach((x, c) => {
@@ -945,9 +948,10 @@ function renderOptions(){
   setSeg($("segBonus"), state.bonus);
   const bFit0 = (qs.length || state.count) <= 10;
   $("sum6").textContent = (FSZ_NAMES[state.fsz] || "ふつう") + "・" + (state.newbox === "on" ? "□あり" : "□なし");
-  $("sum7").textContent = ({grid:"マス目", guide:"補助線付き"}[state.box] || "通常") + "・" + (state.bonus === "on" && bFit0 ? "ボーナス " + state.bratio + ":" + (10 - state.bratio) : "ボーナスなし");
+  $("sum7").textContent = ({grid:"マス目", guide:"補助線付き"}[state.box] || "通常") + "・" + (state.bonus !== "off" && bFit0 ? (state.bonus === "fix" ? "直し欄 " : "ボーナス ") + state.bratio + ":" + (10 - state.bratio) : "下の欄なし");
   $("sum8").textContent = paperNow() + (state.paper === "auto" ? "（おすすめ）" : "") + "・" + (state.score === "100" ? "／100" : "／" + (qs.length || state.count)) + (state.label ? "・" + state.label : ""); setSeg($("segNewbox"), state.newbox); setSeg($("segBratio"), state.bratio);
-  const bOn = state.bonus === "on", bFit = (qs.length || state.count) <= 10;
+  $("bratioLbl").textContent = "解答欄：" + (state.bonus === "fix" ? "直し欄" : "ボーナス欄") + "の大きさ";
+  const bOn = state.bonus !== "off", bFit = (qs.length || state.count) <= 10;
   $("bonusOpts").hidden = !(bOn && bFit); $("bonusNote").hidden = !(bOn && !bFit);
   setSeg($("segView"), view);
   if(document.activeElement !== $("label")) $("label").value = state.label;
