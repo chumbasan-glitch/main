@@ -164,7 +164,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>漢字小テストメーカー</h1>
     <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver" title="このページの版">ver 9.0（2026.10.14）</span>
+    <span class="ver" title="このページの版">ver 9.1（2026.10.14）</span>
   </header>
 
   <div class="layout">
@@ -256,7 +256,7 @@ h2.sec{margin:0;font-size:17px}
             <button type="button" data-v="grid">マス目</button>
             <button type="button" data-v="guide">補助線付き</button>
           </div>
-          <span class="hint">解答欄の下の欄（10問以下のとき）</span>
+          <span class="hint">解答欄の下の欄（10問以下のとき／「文の中に□」は20問まで直し欄だけ）</span>
           <div class="seg" id="segBonus">
             <button type="button" data-v="off">つけない</button>
             <button type="button" data-v="on">ボーナス欄</button>
@@ -272,6 +272,14 @@ h2.sec{margin:0;font-size:17px}
               <button type="button" data-v="6">6:4</button>
               <button type="button" data-v="7">7:3</button>
               <button type="button" data-v="8">8:2</button>
+            </div>
+          </div>
+          <div id="fixboxOpts" hidden>
+            <span class="hint">直し欄の形</span>
+            <div class="seg" id="segFixbox">
+              <button type="button" data-v="long">通常</button>
+              <button type="button" data-v="grid">マス目</button>
+              <button type="button" data-v="guide">補助線付き</button>
             </div>
           </div>
           <p class="hint" id="bonusNote" hidden>11問以上のときや「文の中に□」の形のときは、ボーナス欄・直し欄はつきません。</p>
@@ -409,7 +417,7 @@ const MAX_Q = 20;
 const isBig = n => n === 25 || n === 50;
 const SPLITS = {25:[8, 8, 9], 50:[13, 13, 13, 11]};
 function fixCount(n){ n = Math.round(+n) || 10; if(isBig(n)) return n; if(n > MAX_Q) return n > 25 ? 50 : 25; return Math.max(1, n); }
-const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count", wakachi:"off", style:"normal" };
+const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count", wakachi:"off", style:"normal", fixbox:"long" };
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
@@ -621,14 +629,22 @@ function drawPage(canvas, answer, pxPerMm){
   const rect = (x, y, w, h, lw) => { ctx.lineWidth = P(lw); ctx.strokeRect(P(x), P(y), P(w), P(h)); };
   const INK = "#1a1a1a", RED = "#D0271D";
   /* マス目1つ（補助線付きなら十字の点線を薄く） */
-  const cellBox = (x, y, c) => {
+  const cellBox = (x, y, c, g = state.box === "guide") => {
     rect(x, y, c, c, 0.35);
-    if(state.box === "guide"){
+    if(g){
       ctx.save(); ctx.strokeStyle = "#B8B8B8"; ctx.setLineDash([P(0.8), P(0.7)]);
       line(x + c / 2, y + 0.4, x + c / 2, y + c - 0.4, 0.2); line(x + 0.4, y + c / 2, x + c - 0.4, y + c / 2, 0.2);
       ctx.restore();
     }
   };
+  /* 直し欄1つ：長細い四角／マス目／補助線付き（マスは最大1.5cm、欄の高さいっぱいに並べる） */
+  const fixArea = (cx, y, w, h) => {
+    if(state.fixbox !== "grid" && state.fixbox !== "guide"){ rect(cx - w / 2, y, w, h, 0.35); return; }
+    const n = Math.max(1, Math.floor(h / Math.min(w, 15) + 0.001)), c = Math.min(w, h / n);
+    for(let t = 0; t < n; t++) cellBox(cx - c / 2, y + t * c, c, state.fixbox === "guide");
+  };
+  /* 問題（解答欄）と直し欄のさかいめの線（印刷しても見える濃さ） */
+  const fixSep = (xa, y, xb) => { ctx.save(); ctx.strokeStyle = "#555"; line(xa, y, xb, y, 0.4); ctx.restore(); };
   ctx.strokeStyle = INK; ctx.fillStyle = INK;
 
   const M = 10, low = state.grade <= 2;
@@ -677,7 +693,9 @@ function drawPage(canvas, answer, pxPerMm){
   function drawBig(){
     const n0 = qs.length, splits = SPLITS[n0] || (n0 <= 10 ? [n0] : [Math.ceil(n0 / 2), Math.floor(n0 / 2)]);
     const R = splits.length, C = Math.max(8, ...splits);
-    const x1 = W - M - hw - 5, x0 = M, cw = (x1 - x0) / C, gap = 4;
+    /* 直し欄：問題ごとに、文の下のあいたところへ（左はしに「直し」の見出し） */
+    const fixOn = state.bonus === "fix" && !isBig(n0), lw2 = fixOn ? 8 : 0; /* 25問・50問は直し欄なし */
+    const x1 = W - M - hw - 5 - lw2, x0 = M, cw = (x1 - x0) / C, gap = 4;
     const rh = (H - 2 * M - (R - 1) * gap) / R, nd = Math.min(cw * 0.42, 7), V = rh - nd - 3;
     const learned = currentLearned(), K = 3.2; /* □は文字の約3倍 */
     const CMAX = qs.length === 50 ? 15 : 20;  /* □のめやす：50問は1.5cm、それ以外は2cm */
@@ -705,7 +723,8 @@ function drawPage(canvas, answer, pxPerMm){
     /* □は文字のK倍（上限CMAX）。□が上限に来ても、場所があれば文字だけ大きくする（文字は最大9mm） */
     const cOf = z => Math.min(z * K, CMAX);
     const hOf = (X, z) => X.mode === "write" ? X.out.reduce((a, t) => a + (t.t === "ch" ? z : t.base.length * cOf(z)), 0) : Math.max(X.out.length * z, 3 * cOf(z));
-    const fits = z => toks.every(X => hOf(X, z) <= V) && cOf(z) * 1.3 <= cw * 0.88;
+    const Vq = fixOn ? V * 0.62 : V; /* 直し欄があるときは、下の4割ほどを直し欄にあける */
+    const fits = z => toks.every(X => hOf(X, z) <= Vq) && cOf(z) * 1.3 <= cw * 0.88;
     let fs = Math.min(9, cw * 0.3);
     while(fs > 1 && !fits(fs)) fs -= 0.05;
     const lv = Number(state.fsz) || 0, want = fs * [0.8, 0.9, 1, 1.12, 1.25][lv + 2];
@@ -715,7 +734,14 @@ function drawPage(canvas, answer, pxPerMm){
     let i = 0;
     splits.forEach((cnt, r) => {
       const top = M + r * (rh + gap);
-      if(r > 0){ ctx.strokeStyle = "#999"; line(x0, top - gap / 2, x1, top - gap / 2, 0.2); ctx.strokeStyle = INK; }
+      if(r > 0){ ctx.strokeStyle = "#999"; line(M, top - gap / 2, x1, top - gap / 2, 0.2); ctx.strokeStyle = INK; }
+      if(fixOn){
+        const rowMax = Math.max(...toks.slice(i, i + cnt).map(X => hOf(X, fs)));
+        const fy = top + nd + 3 + rowMax + 4, fh = top + rh - fy, t1 = low ? "なおし" : "直し";
+        const f1 = Math.min(5.5, lw2 * 0.6, fh / t1.length); setFont(f1); vtext(t1, x1 + lw2 / 2 + 1, fy + (fh - f1 * t1.length) / 2, f1);
+        for(let col = 0; col < cnt; col++) fixArea(x1 - col * cw - cw / 2, fy, cw * 0.86, fh);
+        fixSep(x0, fy - 2, x1 + lw2);
+      }
       for(let col = 0; col < cnt; col++, i++){
         const cx = x1 - col * cw - cw / 2, X = toks[i], bw2 = c * 0.75;
         const lx = X.mode === "write" ? cx - c * 0.15 : cx - bw2 * 0.45;
@@ -810,6 +836,7 @@ function drawPage(canvas, answer, pxPerMm){
     /* 解答欄の高さ：マス目・補助線付きは、大きなマスがとれる高さを先にとる（全体の3/4まで） */
     let aHr = (boxH - 3) * Number(state.bratio) / 10;
     if(bigCells) aHr = Math.max(aHr, Math.min(A * Math.min(cw * 0.8, 15), (boxH - 3) * 0.75));
+    if(fixMode) fixSep(x0, top + rh - boxH + aHr + 1.5, x1 + lw);
     if(bonus){
       const aH = aHr, yB = top + rh - boxH + aH + 3, bH = boxH - 3 - aH, lx = x1 + lw / 2 + 1;
       const t1 = fixMode ? (low ? "なおし" : "直し") : "ボーナス", mk = state.newbox === "on" ? "□" : "――", t2 = low ? "（" + mk + "のかんじをつかったことば）" : "（" + mk + "の漢字を使った言葉）";
@@ -852,7 +879,8 @@ function drawPage(canvas, answer, pxPerMm){
       /* 答えの枠 */
       const yb = top + rh - boxH, chars = [...x.ans], m = chars.length;
       const aH = bonus ? aHr : boxH;
-      if(bonus) rect(cx - bw / 2, yb + aH + 3, bw, boxH - 3 - aH, 0.35);
+      if(fixMode) fixArea(cx, yb + aH + 3, bw, boxH - 3 - aH);
+      else if(bonus) rect(cx - bw / 2, yb + aH + 3, bw, boxH - 3 - aH, 0.35);
       if(state.box !== "long"){
         const cell = Math.min(bw, aH / A);
         for(let t = 0; t < m; t++) cellBox(cx - cell / 2, yb + t * cell, cell);
@@ -987,13 +1015,15 @@ function renderOptions(){
   $("fszMinus").disabled = state.fsz <= -2; $("fszPlus").disabled = state.fsz >= 2;
   setSeg($("segScore"), state.score); $("scoreCount").textContent = "問題数（／" + (qs.length || state.count) + "）";
   setSeg($("segBonus"), state.bonus);
-  const bFit0 = (qs.length || state.count) <= 10 && !inlineOn(qs.length || state.count);
+  const inl = inlineOn(qs.length || state.count), bFit0 = (qs.length || state.count) <= 10 && !inl, fixInl = inl && !isBig(qs.length || state.count) && state.bonus === "fix";
   $("sum6").textContent = (FSZ_NAMES[state.fsz] || "ふつう") + "・" + (state.newbox === "on" ? "□あり" : "□なし") + (state.grade <= 2 ? "・" + (state.wakachi === "on" ? "分かち書き" : "分かち書きなし") : "");
-  $("sum7").textContent = ({grid:"マス目", guide:"補助線付き"}[state.box] || "通常") + "・" + (state.bonus !== "off" && bFit0 ? (state.bonus === "fix" ? "直し欄 " : "ボーナス ") + state.bratio + ":" + (10 - state.bratio) : "下の欄なし");
+  $("sum7").textContent = ({grid:"マス目", guide:"補助線付き"}[state.box] || "通常") + "・" + (fixInl ? "直し欄" + ({grid:"（マス目）", guide:"（補助線付き）"}[state.fixbox] || "") : state.bonus !== "off" && bFit0 ? (state.bonus === "fix" ? "直し欄 " : "ボーナス ") + state.bratio + ":" + (10 - state.bratio) : "下の欄なし");
   $("sum8").textContent = paperNow() + (state.paper === "auto" ? "（おすすめ）" : "") + "・" + (state.score === "100" ? "／100" : "／" + (qs.length || state.count)) + (state.label ? "・" + state.label : ""); setSeg($("segNewbox"), state.newbox); setSeg($("segBratio"), state.bratio);
   $("bratioLbl").textContent = "解答欄：" + (state.bonus === "fix" ? "直し欄" : "ボーナス欄") + "の大きさ";
   const bOn = state.bonus !== "off", bFit = bFit0;
-  $("bonusOpts").hidden = !(bOn && bFit); $("bonusNote").hidden = !(bOn && !bFit);
+  $("bonusOpts").hidden = !(bOn && bFit); $("bonusNote").hidden = !(bOn && !bFit && !fixInl);
+  $("fixboxOpts").hidden = !(state.bonus === "fix" && (bFit || fixInl)); setSeg($("segFixbox"), state.fixbox);
+  $("bonusNote").textContent = isBig(qs.length || state.count) ? "25問・50問のときは、ボーナス欄・直し欄はつきません。" : inl ? "「文の中に□」の形では、ボーナス欄はつきません（直し欄はつけられます）。" : "11問以上のときは、ボーナス欄・直し欄はつきません。";
   setSeg($("segView"), view);
   if(document.activeElement !== $("label")) $("label").value = state.label;
 }
@@ -1323,6 +1353,7 @@ bindSeg("segWakachi", "wakachi", false);
 bindSeg("segBox", "box", false);
 bindSeg("segPaper", "paper", false);
 bindSeg("segBonus", "bonus", false);
+bindSeg("segFixbox", "fixbox", false);
 bindSeg("segBratio", "bratio", false);
 bindSeg("segNewbox", "newbox", false);
 bindSeg("segScore", "score", false);
