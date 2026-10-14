@@ -81,7 +81,9 @@ for ln, l in enumerate(open('%s%d.txt' % (PRE, G)), 1):
                     if k in base: print(ln, k, 'target kanji outside target', s); errs += 1
                     vis += base if all(learned(c, u) for c in base) else rd.split('/')[0]
             else:
-                c = m.group(3); items.append(('k', c, None, intgt))
+                c = m.group(3)
+                if c == '/': continue  # 分かち書きの区切り
+                items.append(('k', c, None, intgt))
                 if iskanji(c): print(ln, 'bare kanji', c, s); errs += 1
                 vis += c
         if pos != len(s): print(ln, 'BAD tail', s); errs += 1

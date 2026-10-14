@@ -164,7 +164,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>漢字小テストメーカー</h1>
     <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver" title="このページの版">ver 8.6（2026.10.14）</span>
+    <span class="ver" title="このページの版">ver 9.0（2026.10.14）</span>
   </header>
 
   <div class="layout">
@@ -214,6 +214,12 @@ h2.sec{margin:0;font-size:17px}
           <button type="button" data-v="random">ランダム</button>
         </div>
         <p class="hint">「半分ずつ」は、前半が読み、後半が書きになります。作ったあとで、1問ずつ切りかえられます。</p>
+        <span class="hint">問題の形</span>
+        <div class="seg" id="segStyle">
+          <button type="button" data-v="normal">解答欄が下</button>
+          <button type="button" data-v="inline">文の中に□</button>
+        </div>
+        <p class="hint" id="styleNote">「文の中に□」は短い文を使い、書きは文の中の□に、読みは右の（　）に書きます。25問・50問はこの形になります。</p>
       </div>
 
       <details class="fold" id="fold6">
@@ -226,6 +232,13 @@ h2.sec{margin:0;font-size:17px}
             <button type="button" id="fszPlus" aria-label="文字を大きく">＋</button>
           </div>
           <p class="hint" id="fszNote" hidden>これ以上は用紙に入らないため、大きくできません。</p>
+          <div id="wakachiBox">
+            <span class="hint">分かち書き（1・2年）</span>
+            <div class="seg" id="segWakachi">
+              <button type="button" data-v="off">しない</button>
+              <button type="button" data-v="on">する</button>
+            </div>
+          </div>
           <span class="hint">新出漢字（この学年で習う漢字）を□でかこむ</span>
           <div class="seg" id="segNewbox">
             <button type="button" data-v="off">かこまない</button>
@@ -261,7 +274,7 @@ h2.sec{margin:0;font-size:17px}
               <button type="button" data-v="8">8:2</button>
             </div>
           </div>
-          <p class="hint" id="bonusNote" hidden>11問以上のときは、ボーナス欄・直し欄はつきません。</p>
+          <p class="hint" id="bonusNote" hidden>11問以上のときや「文の中に□」の形のときは、ボーナス欄・直し欄はつきません。</p>
         </div>
       </details>
 
@@ -393,7 +406,7 @@ const MAX_Q = 20;
 const isBig = n => n === 25 || n === 50;
 const SPLITS = {25:[8, 8, 9], 50:[13, 13, 13, 11]};
 function fixCount(n){ n = Math.round(+n) || 10; if(isBig(n)) return n; if(n > MAX_Q) return n > 25 ? 50 : 25; return Math.max(1, n); }
-const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count" };
+const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count", wakachi:"off", style:"normal" };
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
@@ -430,7 +443,9 @@ function parseMarkup(s){
   while((m = re.exec(s))){
     if(m[0] === "["){ tgt = true; continue; }
     if(m[0] === "]"){ tgt = false; continue; }
-    if(m[1]) items.push({base:m[1], rd:m[2], tgt}); else items.push({text:m[3], tgt});
+    if(m[1]) items.push({base:m[1], rd:m[2], tgt});
+    else if(m[3] === "/") items.push({sp:true, text:"", tgt});  /* 分かち書きの区切り */
+    else items.push({text:m[3], tgt});
   }
   return items;
 }
@@ -465,12 +480,16 @@ function shortSentences(k){
   }
   return shortCache[k];
 }
-function sentencesFor(k){ return isBig(state.count) ? shortSentences(k).filter(s => !edits.hidden[s.id]) : activeSentences(k); }
+function sentencesFor(k){ return inlineOn(state.count) ? shortSentences(k).filter(s => !edits.hidden[s.id]) : activeSentences(k); }
 function findSentence(id){
   if(id.includes("#s")) return shortSentences(id.split("#")[0]).find(s => s.id === id) || null;
   const k = id.includes("#") ? id.split("#")[0] : (edits.custom.find(c => c.id === id) || {}).kanji;
   return k ? allSentences(k).find(s => s.id === id) : null;
 }
+/* 分かち書き：1・2年で「する」のときだけ、区切りを1字分あける */
+const wakachiOn = () => state.wakachi === "on" && state.grade <= 2;
+/* 文の中に□の形式：25・50問はいつも、5〜20問は選んだとき */
+const inlineOn = n => isBig(n) || state.style === "inline";
 function targetWrite(sen){ return sen.items.filter(i => i.tgt).map(i => i.base || i.text).join(""); }
 const rdMain = it => it.rd.split("/")[0];
 function targetRead(sen){ return sen.items.filter(i => i.tgt).map(i => i.rd ? rdMain(i) : i.text).join(""); }
@@ -484,6 +503,7 @@ function visible(sen, mode, learned, grade){
   let prev = false; /* 直前の□（送りがなも□に入れる） */
   for(const it of sen.items){
     if(!it.tgt) prev = false;
+    if(it.sp){ if(wakachiOn()) out.push({ch:"　", line:it.tgt, box:false}); continue; }
     if(it.tgt && mode === "read" && it.base){ for(const ch of it.base){ prev = isNew(ch); out.push({ch, line:true, box:prev}); } continue; }
     let str, box = false;
     if(it.tgt){ str = it.rd ? rdMain(it) : it.text; box = it.base ? [...it.base].some(isNew) : prev; prev = box; }
@@ -618,7 +638,8 @@ function drawPage(canvas, answer, pxPerMm){
   const scoreH = c1w * 1.35, scoreW = c1w * 0.92;
   const scoreY = H - M - scoreH;
   /* 解答欄の下の欄：ボーナス欄（得点欄つき）か直し欄（得点欄なし） */
-  const bonus = (state.bonus === "on" || state.bonus === "fix") && qs.length > 0 && qs.length <= 10;
+  const inline = inlineOn(qs.length);
+  const bonus = !inline && (state.bonus === "on" || state.bonus === "fix") && qs.length > 0 && qs.length <= 10;
   const fixMode = bonus && state.bonus === "fix", bonusPts = bonus && !fixMode;
   const bsY = bonusPts ? scoreY - 3 - scoreH : scoreY;
   if(state.label){
@@ -649,17 +670,19 @@ function drawPage(canvas, answer, pxPerMm){
   }
 
   /* 問題 */
-  if(isBig(qs.length)){ drawBig(); return {W, H, paper}; }
+  if(inline && qs.length){ drawBig(); return {W, H, paper}; }
   function drawBig(){
-    const splits = SPLITS[qs.length], R = splits.length, C = Math.max(...splits);
+    const n0 = qs.length, splits = SPLITS[n0] || (n0 <= 10 ? [n0] : [Math.ceil(n0 / 2), Math.floor(n0 / 2)]);
+    const R = splits.length, C = Math.max(8, ...splits);
     const x1 = W - M - hw - 5, x0 = M, cw = (x1 - x0) / C, gap = 4;
     const rh = (H - 2 * M - (R - 1) * gap) / R, nd = Math.min(cw * 0.42, 7), V = rh - nd - 3;
     const learned = currentLearned(), K = 3.2; /* □は文字の約3倍 */
-    const CMAX = qs.length === 25 ? 20 : 15;  /* □のめやす：25問は2cm、50問は1.5cm */
+    const CMAX = qs.length === 50 ? 15 : 20;  /* □のめやす：50問は1.5cm、それ以外は2cm */
     /* 書き：文の中に□（右に読みがな）／読み：傍線を引き、その右に大きな（　） */
     const toks = qs.map(q => {
       const sen = findSentence(q.sid), out = [];
       for(const it of sen.items){
+        if(it.sp){ if(wakachiOn()) out.push({t:"ch", ch:"　", line:q.mode === "read" && it.tgt}); continue; }
         if(q.mode === "write" && it.tgt && it.base){
           const last = out[out.length - 1], seg = {n:[...it.base].length, rd:rdMain(it)};
           if(last && last.t === "box"){ last.base.push(...it.base); last.segs.push(seg); }
@@ -676,14 +699,16 @@ function drawPage(canvas, answer, pxPerMm){
       return {mode:q.mode, out, rd:targetRead(sen2), alt:targetReadAlt(sen2)};
     });
     /* 読みの（　）：どの問題も同じ大きさ・位置（文の頭から、□3つ分の長さ） */
-    const bLen = () => 3 * K; /* 文字何個分か */
-    const units = X => X.mode === "write" ? X.out.reduce((a, t) => a + (t.t === "ch" ? 1 : t.base.length * K), 0) : Math.max(X.out.length, bLen());
-    const maxU = Math.max(...toks.map(units));
-    let fs = Math.min(V / maxU, cw * 0.88 / (K * 1.3), CMAX / K);
+    /* □は文字のK倍（上限CMAX）。□が上限に来ても、場所があれば文字だけ大きくする（文字は最大9mm） */
+    const cOf = z => Math.min(z * K, CMAX);
+    const hOf = (X, z) => X.mode === "write" ? X.out.reduce((a, t) => a + (t.t === "ch" ? z : t.base.length * cOf(z)), 0) : Math.max(X.out.length * z, 3 * cOf(z));
+    const fits = z => toks.every(X => hOf(X, z) <= V) && cOf(z) * 1.3 <= cw * 0.88;
+    let fs = Math.min(9, cw * 0.3);
+    while(fs > 1 && !fits(fs)) fs -= 0.05;
     const lv = Number(state.fsz) || 0, want = fs * [0.8, 0.9, 1, 1.12, 1.25][lv + 2];
     if(want > fs + 0.01) fszCapped = true;
     fs = Math.min(fs, want);
-    const c = fs * K;
+    const c = cOf(fs), bLen = () => 3 * c / fs; /* 読みの（　）は□3つ分 */
     let i = 0;
     splits.forEach((cnt, r) => {
       const top = M + r * (rh + gap);
@@ -949,18 +974,22 @@ function renderQList(){
 }
 function renderOptions(){
   setSeg($("segOrder"), state.order); setSeg($("segRw"), state.rw);
+  const big = isBig(qs.length || state.count);
+  setSeg($("segStyle"), big ? "inline" : state.style);
+  for(const b of $("segStyle").querySelectorAll("button")) b.disabled = big;
+  setSeg($("segWakachi"), state.wakachi); $("wakachiBox").hidden = state.grade > 2;
   setSeg($("segBox"), state.box); setSeg($("segPaper"), state.paper);
   const FSZ_NAMES = {"-2":"小さめ", "-1":"やや小さめ", "0":"ふつう", "1":"やや大きめ", "2":"大きめ"};
   $("fszLbl").textContent = FSZ_NAMES[state.fsz] || "ふつう";
   $("fszMinus").disabled = state.fsz <= -2; $("fszPlus").disabled = state.fsz >= 2;
   setSeg($("segScore"), state.score); $("scoreCount").textContent = "問題数（／" + (qs.length || state.count) + "）";
   setSeg($("segBonus"), state.bonus);
-  const bFit0 = (qs.length || state.count) <= 10;
-  $("sum6").textContent = (FSZ_NAMES[state.fsz] || "ふつう") + "・" + (state.newbox === "on" ? "□あり" : "□なし");
+  const bFit0 = (qs.length || state.count) <= 10 && !inlineOn(qs.length || state.count);
+  $("sum6").textContent = (FSZ_NAMES[state.fsz] || "ふつう") + "・" + (state.newbox === "on" ? "□あり" : "□なし") + (state.grade <= 2 ? "・" + (state.wakachi === "on" ? "分かち書き" : "分かち書きなし") : "");
   $("sum7").textContent = ({grid:"マス目", guide:"補助線付き"}[state.box] || "通常") + "・" + (state.bonus !== "off" && bFit0 ? (state.bonus === "fix" ? "直し欄 " : "ボーナス ") + state.bratio + ":" + (10 - state.bratio) : "下の欄なし");
   $("sum8").textContent = paperNow() + (state.paper === "auto" ? "（おすすめ）" : "") + "・" + (state.score === "100" ? "／100" : "／" + (qs.length || state.count)) + (state.label ? "・" + state.label : ""); setSeg($("segNewbox"), state.newbox); setSeg($("segBratio"), state.bratio);
   $("bratioLbl").textContent = "解答欄：" + (state.bonus === "fix" ? "直し欄" : "ボーナス欄") + "の大きさ";
-  const bOn = state.bonus !== "off", bFit = (qs.length || state.count) <= 10;
+  const bOn = state.bonus !== "off", bFit = bFit0;
   $("bonusOpts").hidden = !(bOn && bFit); $("bonusNote").hidden = !(bOn && !bFit);
   setSeg($("segView"), view);
   if(document.activeElement !== $("label")) $("label").value = state.label;
@@ -1286,6 +1315,8 @@ function bindSeg(id, key, regen){
 }
 bindSeg("segOrder", "order", true);
 bindSeg("segRw", "rw", true);
+bindSeg("segStyle", "style", true);
+bindSeg("segWakachi", "wakachi", false);
 bindSeg("segBox", "box", false);
 bindSeg("segPaper", "paper", false);
 bindSeg("segBonus", "bonus", false);
