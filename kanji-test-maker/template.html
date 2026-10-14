@@ -164,7 +164,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>漢字小テストメーカー</h1>
     <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver" title="このページの版">ver 8.5（2026.10.14）</span>
+    <span class="ver" title="このページの版">ver 8.6（2026.10.14）</span>
   </header>
 
   <div class="layout">
@@ -754,7 +754,13 @@ function drawPage(canvas, answer, pxPerMm){
     const nd = Math.min(cw * 0.5, rh * 0.1, 7.5);
     const V = rh - nd - 2;
     const f0 = Math.min(0.5, Math.max(0.3, A / (A + L * 0.6)));
-    const f = bonus ? Math.max(f0, 0.5) : f0;
+    let f = bonus ? Math.max(f0, 0.5) : f0;
+    /* マス目・補助線付きで下の欄があるとき：マスが小さくならないよう、先に解答欄の高さをとる（マスは最大1.5cm） */
+    const bigCells = bonus && state.box !== "long";
+    if(bigCells){
+      const cellT = Math.min(cw * 0.8, 15), ratio = Number(state.bratio) / 10;
+      f = Math.min(0.75, Math.max(f, (3 + A * cellT / ratio) / V));
+    }
     let boxH = V * f, Hs = V - boxH - 3;
     const fsFor = k => Math.min(Hs / Math.ceil(L / k), cw * 0.9 / (k * 1.25 + 0.3), 7.5);
     let best = {fs:fsFor(1), k:1};
@@ -764,7 +770,7 @@ function drawPage(canvas, answer, pxPerMm){
     if(lv){
       /* 文字の大きさを変える：問題文の場所と解答欄の高さを入れかえる */
       const want = best.fs * [0.8, 0.9, 1, 1.12, 1.25][lv + 2];
-      const minBox = V * (bonus ? 0.4 : 0.22), maxBox = V * 0.65;
+      const minBox = bigCells ? V * f : V * (bonus ? 0.4 : 0.22), maxBox = Math.max(V * 0.65, minBox);
       /* 行数はなるべく少なく：今の問題文の高さに入る最少の行数、入らなければいちばん低くなる行数 */
       const need = z => { let h = Infinity; for(let k = 1; k <= 4; k++) if(z * (k * 1.25 + 0.3) <= cw * 0.9){ const v = Math.ceil(L / k) * z; if(v <= Hs + 0.01) return v; h = Math.min(h, v); } return h; };
       let z = want;
@@ -773,8 +779,11 @@ function drawPage(canvas, answer, pxPerMm){
       fs = Math.max(z, lv > 0 ? best.fs : 0);
       boxH = Math.min(maxBox, V - 3 - need(fs)); Hs = V - 3 - boxH;
     }
+    /* 解答欄の高さ：マス目・補助線付きは、大きなマスがとれる高さを先にとる（全体の3/4まで） */
+    let aHr = (boxH - 3) * Number(state.bratio) / 10;
+    if(bigCells) aHr = Math.max(aHr, Math.min(A * Math.min(cw * 0.8, 15), (boxH - 3) * 0.75));
     if(bonus){
-      const aH = (boxH - 3) * Number(state.bratio) / 10, yB = top + rh - boxH + aH + 3, bH = boxH - 3 - aH, lx = x1 + lw / 2 + 1;
+      const aH = aHr, yB = top + rh - boxH + aH + 3, bH = boxH - 3 - aH, lx = x1 + lw / 2 + 1;
       const t1 = fixMode ? (low ? "なおし" : "直し") : "ボーナス", mk = state.newbox === "on" ? "□" : "――", t2 = low ? "（" + mk + "のかんじをつかったことば）" : "（" + mk + "の漢字を使った言葉）";
       const f2 = Math.min(3.4, bH / [...t2].length);
       if(!fixMode && f2 >= 2.6){
@@ -814,7 +823,7 @@ function drawPage(canvas, answer, pxPerMm){
       }
       /* 答えの枠 */
       const yb = top + rh - boxH, chars = [...x.ans], m = chars.length;
-      const aH = bonus ? (boxH - 3) * Number(state.bratio) / 10 : boxH;
+      const aH = bonus ? aHr : boxH;
       if(bonus) rect(cx - bw / 2, yb + aH + 3, bw, boxH - 3 - aH, 0.35);
       if(state.box !== "long"){
         const cell = Math.min(bw, aH / A);
