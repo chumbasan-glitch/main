@@ -1,6 +1,6 @@
 import pdfplumber, re, json, sys
 Z = str.maketrans('０１２３４５６７８９', '0123456789')
-MON = re.compile(r'^([0-9０-９]+)月$|^～$')
+MON = re.compile(r'^([0-9０-９]+)月$|^[～〜~]$')
 pdf = pdfplumber.open(sys.argv[1])
 lines = []
 for pg in pdf.pages:
@@ -25,13 +25,17 @@ for pg in pdf.pages:
 units = []; cur = None; last_mon = None
 for L in lines:
     for m in L['mon']:
-        if m == '～': last_mon = '～'; continue
+        if m in '～〜~': last_mon = '～'; continue
         if last_mon == '～': last_mon = m; continue   # 「５月～６月」の終わりの月
         last_mon = m
         cur = {'month': int(m[:-1].translate(Z)), 'ulines': [], 'title': None, 'blocks': [], 'pending': False, 'first': True}
         units.append(cur)
     if cur is None: continue
     u = ' '.join(L['unit']).strip()
+    # 月の欄がない単元（同じ月が続くとき）：1時間目の印があり、前の単元の時数がもう出ていれば新しい単元
+    if not L['mon'] and any(t.translate(Z) == '1' for t in L['ji']) and any(re.match(r'^[0-9０-９]+時間（', x) for x in cur['ulines']) and u and u[0] not in '◎○〇・■☆':
+        cur = {'month': cur['month'], 'ulines': [], 'title': None, 'blocks': [], 'pending': False, 'first': False}
+        units.append(cur)
     if u:
         if cur['first'] and not L['ji'] and L['mon'] and not cur['ulines']: cur['title'] = u
         elif L['title'] and not cur['ulines'] and cur['title'] is None: cur['title'] = u
@@ -46,7 +50,12 @@ for L in lines:
         if not cur['blocks']: cur['blocks'].append({'from': 1, 'to': 1, 'acts': [], 'subs': []})
         b = cur['blocks'][-1]
         if x < 239 and re.match(r'^[0-9０-９]', t):
-            b['acts'].append(re.sub(r'^[0-9０-９]+', '', t)); b['state'] = 'main'
+            # 活動の番号は単元の中で1から順に増える。次の番号の分だけ消す（「１３編の詩」→「３編の詩」）
+            run = re.match(r'^[0-9０-９]+', t).group(0)
+            exp = str(cur.get('actno', 0) + 1)
+            k = len(exp) if run.translate(Z).startswith(exp) else len(run)
+            cur['actno'] = int(run[:k].translate(Z))
+            b['acts'].append(t[k:]); b['state'] = 'main'
         elif t.startswith('・'):
             b['subs'].append(t[1:]); b['state'] = 'sub'
         elif b.get('state') == 'main' and x < 247 and b['acts']: b['acts'][-1] += t
