@@ -114,6 +114,18 @@ header.top .ver{margin-left:auto;color:var(--ink-soft);font-size:12px;white-spac
 .pv-meta{font-size:13px;color:var(--ink-soft);margin-left:auto}
 .paper-frame{background:var(--surface-2);border-radius:10px;padding:12px;display:flex;justify-content:center}
 .paper-frame canvas{display:block;width:100%;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.paper-frame.note{flex-direction:column;align-items:center;gap:14px}
+.paper-frame.note canvas{max-width:520px}
+.nrows-head,.nrow{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(0,1.3fr) 32px;gap:6px;align-items:center}
+.nrows-head{font-size:12.5px;font-weight:700;color:var(--ink-soft)}
+.nrows{display:flex;flex-direction:column;gap:5px;padding:2px}
+.nrows .pg{font-size:12.5px;font-weight:700;color:var(--accent);border-top:1.5px dashed var(--line);padding-top:6px;margin-top:4px}
+.nrow .no{font-size:13px;font-weight:700;color:var(--ink-soft);text-align:right;font-variant-numeric:tabular-nums}
+.nrow input{width:100%;min-width:0;font-family:"Klee One",serif;font-size:18px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.nrow input:focus{outline:2px solid var(--accent);outline-offset:0}
+.nrow .del{width:32px;height:32px;border:none;border-radius:50%;background:var(--surface-2);color:var(--ink-soft);font-size:16px;font-weight:700;cursor:pointer}
+.mode-seg button{font-size:16px;padding:11px 8px}
+body.note .test-only,body:not(.note) .note-only{display:none!important}
 .save{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .save .status{font-size:13px;color:var(--ink-soft);flex-basis:100%}
 .save .status.err{color:var(--red)}
@@ -164,17 +176,69 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>漢字小テストメーカー</h1>
     <span class="sub">光村図書・縦書き／学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver" title="このページの版">ver 9.1（2026.10.14）</span>
+    <span class="ver" title="このページの版">ver 10.0（2026.10.18）</span>
   </header>
 
   <div class="layout">
     <section class="panel" aria-label="テストの設定">
-      <div class="step">
+      <div class="seg mode-seg" id="segMode">
+        <button type="button" data-v="test">漢字テスト</button>
+        <button type="button" data-v="note">漢字ノート</button>
+      </div>
+      <div class="step note-only">
+        <div class="step-h"><span class="n">1</span>ノートの大きさ</div>
+        <div class="seg" id="segNgrid">
+          <button type="button" data-v="g5">5列×10マス</button>
+          <button type="button" data-v="g7">7列×12マス</button>
+          <button type="button" data-v="g8">8列×13マス</button>
+          <button type="button" data-v="g8s">8列×16マス</button>
+        </div>
+        <p class="hint">左ほどマスが大きくなります。どのマスにも十字の補助線と、右に読みがなの列がつきます。</p>
+      </div>
+
+      <div class="step note-only">
+        <div class="step-h"><span class="n">2</span>ノートに入れる字<span class="aside" id="ntextInfo"></span></div>
+        <div class="nrows-head"><span></span><span>字</span><span>読みがな</span><span></span></div>
+        <div class="nrows" id="nrows"></div>
+        <div class="row"><button class="btn small" type="button" id="nrowAdd">行をふやす</button><button class="link" type="button" id="nrowClear">全部消す</button></div>
+        <p class="hint">はじめの行の数は、①でえらんだノートの列の数と同じです。1行目がノートのいちばん右の列に入ります。空いた行の列は、何も入りません。<br><strong>列の数より多く入れたいときは「行をふやす」をおしてください。おしたときだけ行がふえ、列の数をこえた行は2ページ目（その次は3ページ目）に入ります。</strong>ノートの大きさを変えると、行の数はその列の数にもどります（入れた字は残っていて、行をふやすとまた出てきます）。「字」でEnterをおすと「読みがな」へ、「読みがな」でEnterをおすと次の行へ進みます。<br>読みがなを書いた行だけ、読みがなが入ります。言葉の読みは「だいしょう」のように続けて書くと、1字ずつの右に分けて入ります。うまく分かれないときは「だい・しょう」のように「・」で区切ってください。</p>
+      </div>
+
+      <div class="step note-only">
+        <div class="step-h"><span class="n">3</span>印刷するもの</div>
+        <div class="seg" id="segNcontent">
+          <button type="button" data-v="blank">マス目だけ</button>
+          <button type="button" data-v="model">マス目＋お手本</button>
+          <button type="button" data-v="trace">マス目＋なぞり書き</button>
+        </div>
+        <div id="ntraceBox" hidden>
+          <span class="hint">なぞり書き（うすい字）の数</span>
+          <div class="seg" id="segNtrace">
+            <button type="button" data-v="1">1</button><button type="button" data-v="2">2</button><button type="button" data-v="3">3</button><button type="button" data-v="4">4</button><button type="button" data-v="5">5</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="step note-only">
+        <div class="step-h"><span class="n">4</span>用紙と見出し</div>
+        <span class="hint">用紙の大きさ（たて向き）</span>
+        <div class="seg" id="segNpaper">
+          <button type="button" data-v="B5">B5</button>
+          <button type="button" data-v="A4">A4</button>
+        </div>
+        <span class="hint">日付と名前の書き方</span>
+        <div class="seg" id="segNhead">
+          <button type="button" data-v="kana">がつ・なまえ</button>
+          <button type="button" data-v="kanji">月・名前</button>
+        </div>
+      </div>
+
+      <div class="step test-only">
         <div class="step-h"><span class="n">1</span>学年</div>
         <div class="seg grades" id="grades"></div>
       </div>
 
-      <div class="step">
+      <div class="step test-only">
         <div class="step-h"><span class="n">2</span>単元<span class="aside" id="unitCount"></span></div>
         <div class="row">
           <button class="link" id="unitAll" type="button">全部えらぶ</button>
@@ -183,13 +247,13 @@ h2.sec{margin:0;font-size:17px}
         <div class="units" id="units"></div>
       </div>
 
-      <div class="step">
+      <div class="step test-only">
         <div class="step-h"><span class="n">3</span>出題する漢字<span class="aside" id="kanjiCount"></span></div>
         <p class="hint">タップすると、出題から外したり戻したりできます。</p>
         <div class="chips" id="chips"></div>
       </div>
 
-      <div class="step">
+      <div class="step test-only">
         <div class="step-h"><span class="n">4</span>問題数（20問まで、または25問・50問）<span class="aside" id="rowsInfo"></span></div>
         <div class="row">
           <div class="stepper">
@@ -201,7 +265,7 @@ h2.sec{margin:0;font-size:17px}
         </div>
       </div>
 
-      <div class="step">
+      <div class="step test-only">
         <div class="step-h"><span class="n">5</span>出し方</div>
         <div class="seg" id="segOrder">
           <button type="button" data-v="random">ランダム</button>
@@ -222,7 +286,7 @@ h2.sec{margin:0;font-size:17px}
         <p class="hint" id="styleNote">「文の中に□」は短い文を使い、書きは文の中の□に、読みは右の（　）に書きます。25問・50問はこの形になります。</p>
       </div>
 
-      <details class="fold" id="fold6">
+      <details class="fold test-only" id="fold6">
         <summary class="step-h"><span class="n">6</span>問題文<span class="aside" id="sum6"></span><span class="chev" aria-hidden="true"></span></summary>
         <div class="fold-body">
           <span class="hint">文字の大きさ</span>
@@ -247,7 +311,7 @@ h2.sec{margin:0;font-size:17px}
         </div>
       </details>
 
-      <details class="fold" id="fold7">
+      <details class="fold test-only" id="fold7">
         <summary class="step-h"><span class="n">7</span>解答欄<span class="aside" id="sum7"></span><span class="chev" aria-hidden="true"></span></summary>
         <div class="fold-body">
           <span class="hint">解答欄の形</span>
@@ -286,7 +350,7 @@ h2.sec{margin:0;font-size:17px}
         </div>
       </details>
 
-      <details class="fold" id="fold8">
+      <details class="fold test-only" id="fold8">
         <summary class="step-h"><span class="n">8</span>用紙と見出し<span class="aside" id="sum8"></span><span class="chev" aria-hidden="true"></span></summary>
         <div class="fold-body">
           <span class="hint">用紙の大きさ</span>
@@ -310,21 +374,21 @@ h2.sec{margin:0;font-size:17px}
 
     <section class="panel" aria-label="できあがり">
       <div class="pv-head">
-        <div class="seg" id="segView">
+        <div class="seg test-only" id="segView">
           <button type="button" data-v="q">問題</button>
           <button type="button" data-v="a">答え（先生用）</button>
         </div>
-        <button class="btn small" type="button" id="regen">作り直す</button>
+        <button class="btn small test-only" type="button" id="regen">作り直す</button>
         <span class="pv-meta" id="pvMeta"></span>
       </div>
-      <div class="paper-frame"><canvas id="pv" aria-label="プリントのプレビュー"></canvas></div>
+      <div class="paper-frame" id="pvFrame"><canvas id="pv" aria-label="プリントのプレビュー"></canvas></div>
       <div class="save">
         <button class="btn red" type="button" id="savePdf">PDFで保存（問題＋答え）</button>
         <button class="btn" type="button" id="saveImgQ">問題を画像で保存</button>
-        <button class="btn" type="button" id="saveImgA">答えを画像で保存</button>
+        <button class="btn test-only" type="button" id="saveImgA">答えを画像で保存</button>
         <span class="status" id="saveStatus">保存したPDFを開いて、ふだん使っている方法で印刷してください。</span>
       </div>
-      <div class="step">
+      <div class="step test-only">
         <div class="step-h">問題の一覧<span class="aside">読み・書きの切りかえと、例文の入れかえができます</span></div>
         <div class="qlist" id="qlist"></div>
       </div>
@@ -414,7 +478,7 @@ const MAX_Q = 20;
 const isBig = n => n === 25 || n === 50;
 const SPLITS = {25:[8, 8, 9], 50:[13, 13, 13, 11]};
 function fixCount(n){ n = Math.round(+n) || 10; if(isBig(n)) return n; if(n > MAX_Q) return n > 25 ? 50 : 25; return Math.max(1, n); }
-const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count", wakachi:"off", style:"normal", fixbox:"long" };
+const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count", wakachi:"off", style:"normal", fixbox:"long", mode:"test", ngrid:"g7", ncontent:"model", ntrace:"2", nyomi:"on", npaper:"B5", nhead:"kanji", ntext:"", nrows:null, nshow:0 };
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
@@ -598,7 +662,9 @@ function validateQs(){
 const PAPERS = {B5:[257,182], A4:[297,210], B4:[364,257], A3:[420,297]};
 function rowsOf(n){ return SPLITS[n] ? SPLITS[n].length : Math.max(1, Math.ceil(n / 10)); }
 function recommendPaper(n){ return n === 50 ? "A3" : n === 25 ? "B4" : rowsOf(n) <= 2 ? "A4" : "B4"; }
-function paperNow(){ return state.paper === "auto" ? recommendPaper(qs.length || state.count) : state.paper; }
+function paperNow(){ if(state.mode === "note") return state.npaper === "A4" ? "A4" : "B5"; return state.paper === "auto" ? recommendPaper(qs.length || state.count) : state.paper; }
+/* 用紙の大きさ（mm）：テストは横向き、ノートはたて向き */
+function pageSize(){ const [a, b] = PAPERS[paperNow()]; return state.mode === "note" ? [b, a] : [a, b]; }
 const FONT = '"UD Digi Kyokasho NP-B","UD デジタル 教科書体 NP-B","UD Digi Kyokasho N-B","UD デジタル 教科書体 N-B","Klee One","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
 const ROT = new Set([..."ー－―〜～…‥（）「」『』()-—［］【】〔〕"]);
 const SMALL = new Set([..."ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ"]);
@@ -899,6 +965,201 @@ function drawPage(canvas, answer, pxPerMm){
   return {W, H, paper};
 }
 
+
+/* ---------- 漢字ノート ---------- */
+const NGRIDS = {g5:{cols:5, rows:10}, g7:{cols:7, rows:12}, g8:{cols:8, rows:13}, g8s:{cols:8, rows:16}};
+/* 例文データから、漢字ごとの読みを集める（言葉の読みを1字ずつに分けるのに使う） */
+let READS = null;
+function readingMap(){
+  if(READS) return READS;
+  READS = new Map();
+  for(const k in SENT) for(const str of SENT[k]) for(const it of parseMarkup(str)){
+    if(!it.base || !it.rd || [...it.base].length !== 1) continue;
+    if(!READS.has(it.base)) READS.set(it.base, new Set());
+    for(const r of it.rd.split("/")) READS.get(it.base).add(r);
+  }
+  return READS;
+}
+const toHira = ch => /[ァ-ヶ]/.test(ch) ? String.fromCharCode(ch.charCodeAt(0) - 0x60) : ch;
+/* 「こうき」→「こう」「き」のように、1字ずつの読みに分ける（分けられなければ null） */
+function splitYomi(chars, y){
+  const parts = y.split(/[・･]/).map(t => t.trim());
+  if(parts.length > 1){
+    if(parts.length === chars.length) return parts.map((p, i) => isKanji(chars[i]) ? p : "");
+    const kn = chars.filter(isKanji).length;
+    if(parts.length === kn){ let j = 0; return chars.map(ch => isKanji(ch) ? parts[j++] : ""); }
+    return null;
+  }
+  const map = readingMap(), Y = [...y].map(toHira).join("");
+  const go = (i, p) => {
+    if(i === chars.length) return p === Y.length ? [] : null;
+    const ch = chars[i], src = ch === "々" && i > 0 ? chars[i - 1] : ch;
+    const cands = isKanji(ch) ? [...(map.get(src) || [])].sort((a, b) => b.length - a.length) : [toHira(ch)];
+    for(const cd of cands) if(cd && Y.startsWith(cd, p)){ const rest = go(i + 1, p + cd.length); if(rest) return [isKanji(ch) ? cd : "", ...rest]; }
+    return null;
+  };
+  return go(0, 0);
+}
+/* ノートに入れる字（1行が1列）。前の形（（　）つきの文）で残っていたら、行に分けて引きつぐ */
+function noteRows(){
+  if(!Array.isArray(state.nrows)){
+    state.nrows = (state.ntext || "").split(/\r?\n/).map(t => t.trim()).filter(Boolean).map(t => {
+      const m = t.match(/^(.*?)\s*[（(]([^）)]*)[）)]\s*$/); return m ? {w:m[1], y:m[2]} : {w:t, y:""};
+    });
+    state.ntext = "";
+  }
+  return state.nrows;
+}
+/* ノートの列の数だけ（1行目がいちばん右の列）。空いた行は null */
+function noteCols(){ return (NGRIDS[state.ngrid] || NGRIDS.g7).cols; }
+/* 出す行の数：ふだんは列の数。「行をふやす」をおしたときだけふえる（入れた字は、行をへらしても消さずに残す） */
+function noteShown(){
+  if(!(state.nshow >= noteCols())) state.nshow = noteCols();
+  const rows = noteRows();
+  while(rows.length < state.nshow) rows.push({w:"", y:""});
+  return rows.slice(0, state.nshow);
+}
+function noteEntries(){
+  const out = [];
+  for(const r of noteShown()){
+    const chars = [...(r.w || "").replace(/\s/g, "")];
+    if(!chars.length){ out.push(null); continue; }
+    const yomi = (r.y || "").trim();
+    const ys = !yomi ? null : chars.length === 1 ? [yomi] : splitYomi(chars, yomi);
+    out.push({chars, yomi, ys});
+  }
+  return out;
+}
+/* 列の数をこえた行は、次のページへ */
+function notePages(){
+  if(state.ncontent === "blank") return 1;
+  const es = noteEntries(); let last = -1; es.forEach((e, i) => { if(e) last = i; });
+  return Math.max(1, Math.ceil((last + 1) / noteCols()));
+}
+function drawNote(canvas, page, pxPerMm){
+  const [W, H] = pageSize();
+  canvas.width = Math.round(W * pxPerMm); canvas.height = Math.round(H * pxPerMm);
+  const S = canvas.width / W, ctx = canvas.getContext("2d"), P = v => v * S;
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const setFont = (mm, w) => { ctx.font = (w || 600) + " " + P(mm).toFixed(2) + "px " + FONT; };
+  const vtext = (str, x, yTop, fs) => { let y = yTop + fs / 2; for(const ch of str){
+    if(ROT.has(ch)){ ctx.save(); ctx.translate(P(x), P(y)); ctx.rotate(Math.PI / 2); ctx.fillText(ch, 0, 0); ctx.restore(); }
+    else if(SMALL.has(ch)) ctx.fillText(ch, P(x + fs * .1), P(y - fs * .1));
+    else ctx.fillText(ch, P(x), P(y));
+    y += fs; } };
+  const line = (x1, y1, x2, y2, w) => { ctx.lineWidth = P(w); ctx.beginPath(); ctx.moveTo(P(x1), P(y1)); ctx.lineTo(P(x2), P(y2)); ctx.stroke(); };
+  /* 水色の線：輪転機でも消えないよう、少しこいめ */
+  const OUT = "#178C88", LN = "#3AA7A3", GUIDE = "#7FC4C1", TEXT = "#178C88", INK = "#1a1a1a", FAINT = "#BDBDBD";
+  const M = 8, low = state.nhead === "kana", hw = 7;
+  /* マス目の大きさ（マスは正方形。読みがなの列はマスの1/4） */
+  const g = NGRIDS[state.ngrid] || NGRIDS.g7, rr = 0.25;
+  const xR = W - M - hw - 2, avW = xR - M, avH = H - 2 * M;
+  const c = Math.min(avW / (g.cols * (1 + rr)), avH / g.rows), u = c * (1 + rr);
+  const gw = g.cols * u, gh = g.rows * c, x0 = xR - gw, y0 = M + (avH - gh) / 2;
+  /* 右はし：日付と名前（たて書き、マス目の上はしから下はしまで） */
+  const hx = W - M - hw / 2, hfs = 4.2;
+  ctx.fillStyle = TEXT; setFont(hfs, 500);
+  const date = low ? "　　　がつ　　　にち　　　ようび" : "　　　月　　　日　　　曜日";
+  vtext(date, hx, y0, hfs);
+  const name = low ? "なまえ" : "名前", ny = y0 + hfs * [...date].length + 12;
+  setFont(hfs, 600); vtext(name, hx, ny, hfs);
+  /* マス目 */
+  ctx.save(); ctx.strokeStyle = GUIDE; ctx.setLineDash([P(0.9), P(0.8)]);
+  for(let i = 0; i < g.cols; i++){
+    const cx = x0 + i * u + c / 2;
+    line(cx, y0, cx, y0 + gh, 0.2);
+    for(let r = 0; r < g.rows; r++) line(x0 + i * u, y0 + r * c + c / 2, x0 + i * u + c, y0 + r * c + c / 2, 0.2);
+  }
+  ctx.restore();
+  ctx.strokeStyle = LN;
+  for(let i = 0; i <= g.cols; i++){ line(x0 + i * u, y0, x0 + i * u, y0 + gh, 0.3); if(i < g.cols) line(x0 + i * u + c, y0, x0 + i * u + c, y0 + gh, 0.3); }
+  for(let r = 1; r < g.rows; r++) line(x0, y0 + r * c, x0 + gw, y0 + r * c, 0.3);
+  ctx.strokeStyle = OUT; ctx.lineWidth = P(0.6); ctx.strokeRect(P(x0), P(y0), P(gw), P(gh));
+  /* 字（右の列から） */
+  if(state.ncontent === "blank") return;
+  const list = noteEntries().slice(page * g.cols, page * g.cols + g.cols);
+  list.forEach((e, i) => {
+    if(!e) return;
+    const xl = xR - (i + 1) * u, cx = xl + c / 2, L = Math.min(e.chars.length, g.rows);
+    const trace = state.ncontent === "trace", n = trace ? Math.max(1, Math.min(5, Number(state.ntrace) || 2)) : 1;
+    ctx.fillStyle = trace ? FAINT : INK; setFont(c * 0.78, 400);
+    for(let k = 0; k < n; k++){
+      if((k + 1) * L > g.rows) break;
+      e.chars.slice(0, L).forEach((ch, t) => ctx.fillText(ch, P(cx), P(y0 + (k * L + t) * c + c / 2 + c * 0.02)));
+    }
+    if(e.yomi){
+      /* 読みがな：1字ずつの右に（分けられないときは言葉の右のまん中に）。なぞり書きのときはうすい字で、なぞる字ごとに */
+      const sw = c * rr, rx = xl + c + sw / 2;
+      ctx.fillStyle = trace ? FAINT : INK;
+      for(let k = 0; k < n; k++){
+        if((k + 1) * L > g.rows) break;
+        const top = y0 + k * L * c;
+        if(e.ys) e.ys.slice(0, L).forEach((y, t) => {
+          if(!y) return;
+          const len = [...y].length, rf = Math.min(sw * 0.8, c * 0.3, c * 0.96 / len);
+          setFont(rf, 500); vtext(y, rx, top + t * c + (c - rf * len) / 2, rf);
+        });
+        else {
+          const len = [...e.yomi].length, rf = Math.min(sw * 0.8, c * 0.3, L * c * 0.96 / len);
+          setFont(rf, 500); vtext(e.yomi, rx, top + (L * c - rf * len) / 2, rf);
+        }
+      }
+    }
+  });
+}
+function renderNote(){
+  setSeg($("segMode"), state.mode);
+  document.body.classList.toggle("note", state.mode === "note");
+  setSaveMode(false);
+  if(state.mode !== "note") return;
+  setSeg($("segNgrid"), state.ngrid); setSeg($("segNcontent"), state.ncontent); setSeg($("segNtrace"), state.ntrace);
+ setSeg($("segNpaper"), state.npaper);
+  $("ntraceBox").hidden = state.ncontent !== "trace";
+  setSeg($("segNhead"), state.nhead);
+  if(!$("nrows").childElementCount) renderRows();
+  $("ntextInfo").textContent = noteEntries().filter(Boolean).length + "列分 ・ " + notePages() + "ページ";
+  if($("nrows").querySelectorAll(".nrow").length !== noteShown().length) renderRows();
+}
+/* 字と読みがなの入力らん（いちばん下には、いつも空の行を1つ置く）。日本語の変換中にこわさないよう、打っている行は作り直さない */
+function renderRows(focus){
+  const rows = noteShown(), N = noteCols();
+  const el = $("nrows"); el.innerHTML = "";
+  rows.forEach((r, i) => {
+    if(i % N === 0 && rows.length > N){ const h = document.createElement("div"); h.className = "pg"; h.textContent = (i / N + 1) + "ページ目"; el.appendChild(h); }
+    const d = document.createElement("div"); d.className = "nrow";
+    const no = document.createElement("span"); no.className = "no";
+    const w = document.createElement("input"); w.className = "nw"; w.value = r.w;
+    const y = document.createElement("input"); y.className = "ny"; y.value = r.y;
+    const del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "×";
+    const changed = () => { persist(); renderNote(); drawPreview(); };
+    w.addEventListener("input", () => { r.w = w.value; changed(); });
+    y.addEventListener("input", () => { r.y = y.value; changed(); });
+    const enter = (e, next) => { if(e.key !== "Enter" || e.isComposing || e.keyCode === 229) return; e.preventDefault(); next(); };
+    w.addEventListener("keydown", e => enter(e, () => y.focus()));
+    y.addEventListener("keydown", e => enter(e, () => { const all = [...el.querySelectorAll(".nrow")], nx = all[all.indexOf(d) + 1]; if(nx) nx.querySelector(".nw").focus(); else y.blur(); }));
+    /* ×：その行を空にする（列の位置はそのまま） */
+    del.addEventListener("click", () => { r.w = r.y = ""; w.value = y.value = ""; changed(); });
+    d.append(no, w, y, del); el.appendChild(d);
+  });
+  numberRows();
+  if(focus){ const row = el.querySelectorAll(".nrow")[focus[0]]; const inp = row && row.querySelector("." + focus[1]); if(inp) inp.focus(); }
+}
+function numberRows(){
+  [...$("nrows").querySelectorAll(".nrow")].forEach((d, i) => {
+    d.querySelector(".no").textContent = i + 1;
+    const w = d.querySelector(".nw"), y = d.querySelector(".ny");
+    w.placeholder = i === 0 ? "例：大小" : ""; y.placeholder = i === 0 ? "例：だいしょう" : "";
+    w.setAttribute("aria-label", (i + 1) + "行目の字"); y.setAttribute("aria-label", (i + 1) + "行目の読みがな");
+    d.querySelector(".del").setAttribute("aria-label", (i + 1) + "行目を空にする");
+  });
+}
+/* 印刷するページ：テストは問題と答え、ノートはページの数だけ */
+function printPages(){
+  if(state.mode === "note") return Array.from({length:notePages()}, (_, i) => ({label:"ノート" + (notePages() > 1 ? "（" + (i + 1) + "ページ目）" : ""), suffix:notePages() > 1 ? "_" + (i + 1) : "", draw:(c, px) => drawNote(c, i, px)}));
+  return [false, true].map(ans => ({label:ans ? "答え（先生用）" : "問題", suffix:ans ? "_答え" : "_問題", draw:(c, px) => drawPage(c, ans, px)}));
+}
+
 /* ---------- 画面 ---------- */
 const $ = id => document.getElementById(id);
 let view = "q";
@@ -1028,10 +1289,20 @@ let pvTimer = 0;
 function drawPreview(){
   clearTimeout(pvTimer);
   pvTimer = setTimeout(() => {
-    const c = $("pv"), frame = c.parentElement;
-    const cssW = Math.max(280, frame.clientWidth - 24);
-    const paper = paperNow(), [W, H] = PAPERS[paper];
+    const c = $("pv"), frame = $("pvFrame");
+    const note = state.mode === "note";
+    frame.classList.toggle("note", note);
+    for(const x of frame.querySelectorAll("canvas.extra")) x.remove();
+    const cssW = Math.min(note ? 520 : 1e9, Math.max(280, frame.clientWidth - 24));
+    const paper = paperNow(), [W, H] = pageSize();
     const px = cssW * Math.min(2, window.devicePixelRatio || 1) / W;
+    if(note){
+      drawNote(c, 0, px);
+      for(let i = 1; i < notePages(); i++){ const e = document.createElement("canvas"); e.className = "extra"; e.setAttribute("aria-label", (i + 1) + "ページ目"); drawNote(e, i, px); frame.appendChild(e); }
+      $("pvMeta").textContent = paper + "たて ・ " + notePages() + "ページ";
+      for(const id of ["savePdf","saveImgQ"]) $(id).disabled = false;
+      return;
+    }
     drawPage(c, view === "a", px);
     const R = rowsOf(qs.length);
     $("fszNote").hidden = !(fszCapped && state.fsz > 0);
@@ -1041,7 +1312,7 @@ function drawPreview(){
   }, 30);
 }
 function renderAll(){
-  renderGrades(); renderUnits(); renderChips(); renderCount(); renderOptions(); renderQList(); drawPreview(); renderEditor();
+  renderNote(); renderGrades(); renderUnits(); renderChips(); renderCount(); renderOptions(); renderQList(); drawPreview(); renderEditor();
 }
 
 /* ---------- 保存（PDF・画像） ---------- */
@@ -1063,8 +1334,9 @@ async function getDl(){
   return dl;
 }
 function setSaveMode(announce){
-  const can = !!dl || !dlChecked;
-  $("savePdf").textContent = can ? "PDFで保存（問題＋答え）" : "印刷用の画像を出す（問題＋答え）";
+  const can = !!dl || !dlChecked, what = state.mode === "note" ? "" : "（問題＋答え）";
+  $("savePdf").textContent = can ? "PDFで保存" + what : "印刷用の画像を出す" + what;
+  $("saveImgQ").textContent = state.mode === "note" ? "画像で保存" : "問題を画像で保存";
   $("saveImgQ").hidden = $("saveImgA").hidden = !can;
   if(!can && announce) status("「印刷用の画像を出す」をおして、出てきた画像を長押しで「写真に保存」してください。写真として " + paperNow() + " に印刷します。");
 }
@@ -1090,19 +1362,20 @@ function baseName(){
   const us = unitsOf(state.grade).filter(u => (state.sel[state.grade] || []).includes(u.no));
   const unit = us.length ? us[0].name.split("／")[0].replace(/[「」\s]/g, "") + (us.length > 1 ? "ほか" : "") : "";
   const d = new Date(), pad = n => String(n).padStart(2, "0");
+  if(state.mode === "note") return (state.nhead === "kana" ? "かんじノート" : "漢字ノート") + "_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
   return (state.grade <= 2 ? "かんじ小テスト" : "漢字小テスト") + "_" + state.grade + "年_" + unit + "_" + qs.length + "問_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
 }
 const PRINT_PX = 200 / 25.4;
 function canvasBlob(c, type, q){ return new Promise(res => c.toBlob(res, type, q)); }
 async function makePdf(){
   const pages = [];
-  for(const ans of [false, true]){
+  for(const pg of printPages()){
     const c = document.createElement("canvas");
-    drawPage(c, ans, PRINT_PX);
+    pg.draw(c, PRINT_PX);
     const b = await canvasBlob(c, "image/jpeg", 0.92);
     pages.push({bytes:new Uint8Array(await b.arrayBuffer()), w:c.width, h:c.height});
   }
-  const [W, H] = PAPERS[paperNow()], wPt = (W * 72 / 25.4).toFixed(2), hPt = (H * 72 / 25.4).toFixed(2);
+  const [W, H] = pageSize(), wPt = (W * 72 / 25.4).toFixed(2), hPt = (H * 72 / 25.4).toFixed(2);
   const enc = new TextEncoder(), chunks = [], offs = []; let len = 0;
   const push = x => { const b = typeof x === "string" ? enc.encode(x) : x; chunks.push(b); len += b.length; };
   const obj = (id, parts) => { offs[id] = len; push(id + " 0 obj\n"); parts.forEach(push); push("\nendobj\n"); };
@@ -1136,7 +1409,7 @@ async function withBusy(btn, fn){ const t = btn.textContent; btn.disabled = true
 $("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () => {
   await fontsReady;
   if(!(await getDl())){
-    const pages = [false, true].map(ans => { const c = document.createElement("canvas"); drawPage(c, ans, PRINT_PX); return {label:ans ? "答え（先生用）" : "問題", canvas:c}; });
+    const pages = printPages().map(pg => { const c = document.createElement("canvas"); pg.draw(c, PRINT_PX); return {label:pg.label, canvas:c}; });
     await showImages(pages);
     status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
     return;
@@ -1145,7 +1418,7 @@ $("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () =
   let blob;
   try{ blob = await makePdf(); }catch(err){ status("PDFを作れませんでした。「画像で保存」をためしてください。", "err"); return; }
   const r = await offer(baseName() + ".pdf", blob);
-  if(r === "saved") status("PDFを保存しました（1ページ目：問題、2ページ目：答え）。開いて印刷してください。用紙は " + paperNow() + " を選んでください。", "ok");
+  if(r === "saved") status(state.mode === "note" ? "PDFを保存しました。開いて印刷してください。用紙は " + paperNow() + "（たて）を選んでください。" : "PDFを保存しました（1ページ目：問題、2ページ目：答え）。開いて印刷してください。用紙は " + paperNow() + " を選んでください。", "ok");
   else status(...explain(r));
 }));
 async function saveImage(ans, btn){
@@ -1161,7 +1434,23 @@ async function saveImage(ans, btn){
     status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
   });
 }
-$("saveImgQ").addEventListener("click", e => saveImage(false, e.currentTarget));
+$("saveImgQ").addEventListener("click", e => state.mode === "note" ? saveNoteImages(e.currentTarget) : saveImage(false, e.currentTarget));
+async function saveNoteImages(btn){
+  await withBusy(btn, async () => {
+    await fontsReady;
+    const list = printPages().map(pg => { const c = document.createElement("canvas"); pg.draw(c, PRINT_PX); return {label:pg.label, suffix:pg.suffix, canvas:c}; });
+    await getDl();
+    if(dl){
+      for(const it of list){
+        const r = await offer(baseName() + it.suffix + ".png", await canvasBlob(it.canvas, "image/png"));
+        if(r !== "saved"){ status(...explain(r)); return; }
+      }
+      status("画像を保存しました。写真として " + paperNow() + "（たて）に印刷してください。", "ok"); return;
+    }
+    await showImages(list);
+    status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
+  });
+}
 $("saveImgA").addEventListener("click", e => saveImage(true, e.currentTarget));
 $("imgClose").addEventListener("click", () => { $("imgOverlay").hidden = true; });
 $("imgClose2").addEventListener("click", () => { $("imgOverlay").hidden = true; });
@@ -1354,6 +1643,11 @@ bindSeg("segFixbox", "fixbox", false);
 bindSeg("segBratio", "bratio", false);
 bindSeg("segNewbox", "newbox", false);
 bindSeg("segScore", "score", false);
+for(const [id, key] of [["segMode","mode"],["segNcontent","ncontent"],["segNtrace","ntrace"],["segNpaper","npaper"],["segNhead","nhead"]]) bindSeg(id, key, false);
+/* ノートの大きさを変えたら、行の数はその列の数にもどす（入れた字は残す） */
+$("segNgrid").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; state.ngrid = b.dataset.v; state.nshow = noteCols(); persist(); renderAll(); });
+$("nrowAdd").addEventListener("click", () => { noteShown(); state.nshow++; noteShown(); persist(); renderRows([state.nshow - 1, "nw"]); renderNote(); drawPreview(); });
+$("nrowClear").addEventListener("click", () => { if(!confirm("ノートに入れる字を全部消しますか？")) return; state.nrows = []; state.nshow = noteCols(); noteShown(); persist(); renderRows(); renderNote(); drawPreview(); });
 for(const [id, d] of [["fszMinus", -1], ["fszPlus", 1]]) $(id).addEventListener("click", () => {
   state.fsz = Math.max(-2, Math.min(2, (Number(state.fsz) || 0) + d)); persist(); renderAll();
 });
