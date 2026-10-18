@@ -73,10 +73,10 @@ textarea.ev,textarea.note{width:100%;min-height:38px;resize:vertical;font-size:1
 .slot.drag-over{outline:2px dashed var(--accent)}
 .slot .sh{display:flex;gap:3px;align-items:center}
 .slot .grip{cursor:grab;color:var(--ink-soft);font-size:12px;user-select:none;padding:0 2px}
-.slot select.subj{flex:1;min-width:0;font-weight:700;padding:2px;background:var(--cbg,#fff)}
+.slot input.subj,.asa input.subj{flex:1;min-width:0;font-weight:700;padding:2px 4px;background:var(--cbg,#fff)}
 .slot select.unit{width:100%;font-size:12px;padding:2px}
 .part{border-left:6px solid var(--c,#ddd);border-top:1.5px dashed var(--line);padding:3px 0 0 4px;margin-left:-10px;display:flex;flex-direction:column;gap:3px}
-.part select.psubj{flex:1;min-width:0;font-weight:700;padding:2px;background:var(--cbg,#fff)}
+.part input.psubj{flex:1;min-width:0;font-weight:700;padding:2px;background:var(--cbg,#fff)}
 .part input.phr{width:38px;flex:none;font-size:12px;padding:2px 3px;text-align:center}
 .part textarea.pct{width:100%;min-height:34px;resize:vertical;font-size:12px;padding:3px 4px}
 .part textarea.pct.auto{color:#4C5A52;background:var(--surface-2)}
@@ -87,7 +87,7 @@ textarea.ev,textarea.note{width:100%;min-height:38px;resize:vertical;font-size:1
 .psplit{align-self:flex-start;margin-top:2px}
 .sh input.hr{width:38px;flex:none;font-size:12px;padding:2px 3px;text-align:center}
 .asa .sh{display:flex;gap:3px}
-.asa .sh select{flex:1;min-width:0}
+.asa .sh input.subj{font-weight:400;font-size:12px}
 .slot select.unit.pinned{border-color:var(--accent);font-weight:700}
 .slot select.unit.skip{color:var(--ink-soft)}
 .slot .tw{position:relative}
@@ -110,6 +110,21 @@ table.tot tr.sum td{font-weight:700;background:var(--surface-2)}
 .chip{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid rgba(0,0,0,.15)}
 
 /* 時間割 */
+.ttwrap{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.tthead{display:flex;justify-content:space-between;font-size:20px;margin-bottom:4px}
+table.tt2{border-collapse:collapse;user-select:none}
+table.tt2 th,table.tt2 td{border:1.5px solid #333;text-align:center;vertical-align:middle}
+table.tt2 tr:first-child th{background:#CCCCFF;height:52px;font-size:22px;font-weight:400;width:70px}
+table.tt2 tr th:first-child{background:#CCCCFF;width:70px;font-size:28px;font-weight:400;height:70px}
+table.tt2 th small{display:block;font-size:10px}
+table.tt2 td{width:70px;height:70px;font-size:17px;font-weight:700;cursor:pointer;background:#fff}
+table.tt2 td:hover{outline:3px solid var(--accent);outline-offset:-3px}
+.ttpal{background:#9EF29E;border:1px solid #6CC86C;border-radius:6px;padding:10px;width:200px}
+.ttpt{text-align:center;font-size:13px;margin-bottom:8px}
+.ttbtns{display:grid;grid-template-columns:1fr 1fr;gap:3px;align-items:start}
+.ttbtns>div{display:flex;flex-direction:column;gap:3px}
+.ttbtns button{border:1px solid #8FBF8F;background:#CCFFCC;padding:3px 0;font-size:13px;border-radius:2px;box-shadow:inset -1px -1px 0 #7AA67A}
+.ttbtns button.on{background:var(--sc);border:2px solid #333;box-shadow:inset 1px 1px 2px rgba(0,0,0,.35);font-weight:700}
 table.tt{border-collapse:collapse}
 table.tt th,table.tt td{border:1px solid var(--line);padding:4px 6px;text-align:center}
 table.tt th{background:var(--surface-2)}
@@ -251,7 +266,7 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 // 保存のとき、このファイルの形をそのまま書き出すため、画面を作る前の状態をとっておく
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 const APP_VER = 2;
-const VERSION = "v3";
+const VERSION = "v4";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -712,13 +727,13 @@ function slotHtml(d, i, x, off) {
     const pm = pt.t !== undefined && pt.t !== null;
     const pcol = pt.s ? colorOf(pt.s) : "#E5E5E5";
     ph += `<div class="part" data-k="${k}" style="--c:${pcol};--cbg:${pt.s ? pcol + "55" : "#fff"}">
-      <div class="sh"><select class="psubj">${subjOptions(pt.s)}</select><input type="text" class="phr${hrWarn(pt)}" value="${esc(pt.h || "")}" placeholder="1/2" title="この部分の時数"><button class="pdel" title="分けるのをやめる">×</button></div>
+      <div class="sh"><input type="text" class="psubj" list="subjList" value="${esc(pt.s || "")}" placeholder="教科"><input type="text" class="phr${hrWarn(pt)}" value="${esc(pt.h || "")}" placeholder="1/2" title="この部分の時数"><button class="pdel" title="分けるのをやめる">×</button></div>
       ${inf2.label ? `<div class="plab">${esc(inf2.label)}</div>` : ""}${advBox(pt, inf2, "padv")}
       <textarea class="pct${pm ? "" : " auto"}" placeholder="内容（例：避難訓練）">${esc(pm ? pt.t : (inf2.auto || ""))}</textarea>
     </div>`;
   });
   return `<div class="slot${split ? " split" : ""}" draggable="true" data-d="${d}" data-i="${i}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}">
-    <div class="sh"><span class="grip" title="ドラッグして別のコマと入れかえ">⋮⋮</span><select class="subj">${subjOptions(x.s)}</select><input type="text" class="hr${hrWarn(x)}" value="${esc(x.h || "")}" placeholder="${split ? "1/2" : "1"}" title="このコマの時数（1/2・1/3など）。${split ? "分けたときは必ず入れます" : "空欄は1時間"}"></div>
+    <div class="sh"><span class="grip" title="ドラッグして別のコマと入れかえ">⋮⋮</span><input type="text" class="subj" list="subjList" value="${esc(x.s || "")}" placeholder="―"><input type="text" class="hr${hrWarn(x)}" value="${esc(x.h || "")}" placeholder="${split ? "1/2" : "1"}" title="このコマの時数（1/2・1/3など）。${split ? "分けたときは必ず入れます" : "空欄は1時間"}"></div>
     ${unitSel}${split ? advBox(x, inf, "madv") : ""}
     <div class="tw"><textarea class="ct${manual ? "" : " auto"}" placeholder="学習内容・めあて">${esc(val)}</textarea>${manual && units.length ? '<button class="rv" title="単元計画の内容にもどす">↺</button>' : ""}</div>
     ${ph}${!off && parts.length < 2 ? `<button class="btn small psplit" title="1時間の中に行事などがあるとき、コマを分けます（3つまで）">＋分ける</button>` : ""}
@@ -743,6 +758,7 @@ function renderWeek() {
     <button class="btn" id="wPrint">🖨 印刷（B5縦）</button>
   </div>
   <div class="weeklayout"><div>
+  <datalist id="subjList">${gradeSubjects().map(x => `<option value="${esc(x.name)}">`).join("")}<option value="なし"></datalist>
   <div class="gridwrap"><table class="wk"><colgroup><col style="width:44px">${days.map(() => "<col>").join("")}</colgroup><thead><tr><th class="lab"></th>`;
   for (const d of days) {
     const w = wday(d); const off = !isSchoolDay(d); const r = dayRec(d);
@@ -761,7 +777,7 @@ function renderWeek() {
   h += `</tr><tr><th class="lab">朝</th>`;
   for (const d of days) {
     const x = slotsOf(d)[0]; const col = x.s ? colorOf(x.s) : "#E5E5E5";
-    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><div class="asa" data-d="${d}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}"><div class="sh"><select class="subj">${subjOptions(x.s)}</select><input type="text" class="hr" value="${esc(x.h || "")}" placeholder="${esc(D.school.asaHours || "1/3")}" title="朝の時間の時数。空欄は設定の時数"></div><input type="text" class="ct" value="${esc(x.t || "")}" placeholder="内容"></div></td>`;
+    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><div class="asa" data-d="${d}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}"><div class="sh"><input type="text" class="subj" list="subjList" value="${esc(x.s || "")}" placeholder="―"><input type="text" class="hr" value="${esc(x.h || "")}" placeholder="${esc(D.school.asaHours || "1/3")}" title="朝の時間の時数。空欄は設定の時数"></div><input type="text" class="ct" value="${esc(x.t || "")}" placeholder="内容"></div></td>`;
   }
   h += "</tr>";
   for (let i = 1; i <= P(); i++) {
@@ -774,7 +790,7 @@ function renderWeek() {
   h += `</tr></tbody></table></div>
   <div class="memo" style="margin-top:8px"><b>メモ</b>（印刷では時数表の下）<textarea id="wMemo" placeholder="連絡・持ち物など">${esc(wr.memo || "")}</textarea></div>
   <div class="memo" style="margin-top:8px"><b>記録欄</b>（印刷ではいちばん下）<textarea id="wRec" placeholder="週の振り返り・記録">${esc(wr.rec || "")}</textarea></div>
-  <p class="hint">・教科を変えると、単元計画の続きが自動で入ります。「単元名③」の欄を変えると、次の時間から後ろが自動でずれます。<br>・コマの左の「⋮⋮」をドラッグすると、別のコマと入れかえられます（授業変更）。<br>・学習内容を書きかえると、その文が優先されます。「↺」で単元計画の内容にもどせます。</p>
+  <p class="hint">・教科の欄は、クリックすると一覧が出ます。打ち込んでもかまいません。消すときは「なし」を選びます。<br>・教科を変えると、単元計画の続きが自動で入ります。「単元名③」の欄を変えると、次の時間から後ろが自動でずれます。<br>・コマの左の「⋮⋮」をドラッグすると、別のコマと入れかえられます（授業変更）。<br>・学習内容を書きかえると、その文が優先されます。「↺」で単元計画の内容にもどせます。</p>
   </div>
   <div class="side">${weekTotalsHtml(mon)}</div></div>`;
   el.innerHTML = h;
@@ -795,6 +811,21 @@ function weekTotalsHtml(mon) {
   h += `<tr class="sum"><td class="n">合計</td><td>${fr(s0)}</td><td>${fr(s1)}</td><td></td><td></td></tr></table>
   <p class="hint">累計は年度のはじめからこの週の終わりまで（予定）です。${D.cls.startDate ? "使い始める前の時数もふくみます。" : ""}右の小さい欄に「1/2」などを入れたコマはその時数、空欄は1時間（朝は${esc(D.school.asaHours || "1/3")}時間）で数えます。</p>`;
   return h;
+}
+// 教科の欄：一覧から選ぶことも、打ち込むこともできる
+function bindSubj(inp, apply) {
+  const orig = inp.value;
+  inp.addEventListener("focus", () => { inp.placeholder = inp.value || "―"; inp.value = ""; });   // 一覧を全部出すため
+  inp.addEventListener("blur", () => { if (inp.value === "") inp.value = orig; });
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") inp.blur(); if (e.key === "Delete" && inp.value === "") { inp.dataset.clear = "1"; inp.blur(); } });
+  inp.addEventListener("change", () => {
+    const v = inp.value.trim();
+    if (v === "" || v === orig) return;
+    if (v === "―" || v === "なし") { apply(""); changed(); return; }
+    if (!subjByName(v)) toast("「" + v + "」は教科一覧にありません。時数表には出ません");
+    apply(v); changed();
+  });
+  inp.addEventListener("blur", () => { if (inp.dataset.clear) { delete inp.dataset.clear; apply(""); changed(); } });
 }
 function setHours(x, inp) {
   const v = inp.value.trim();
@@ -824,13 +855,13 @@ function bindWeek(el, mon) {
   $$("[data-on]", el).forEach(b => b.onclick = () => { const d = b.dataset.on; const r = ensureDay(d); if (r.off === true && !offReason(d)) delete r.off; else r.off = false; changed(); });
   $$(".asa", el).forEach(a => {
     const d = a.dataset.d;
-    $("select", a).onchange = e => { const s = ensureSlots(d); s[0] = {s: e.target.value}; changed(); };
+    bindSubj($("input.subj", a), v => { const s = ensureSlots(d); s[0] = {s: v}; });
     $("input.ct", a).oninput = e => { const s = ensureSlots(d); s[0].t = e.target.value; changed(false); };
     $("input.hr", a).onchange = e => { const s = ensureSlots(d); setHours(s[0], e.target); changed(); };
   });
   $$(".slot", el).forEach(sl => {
     const d = sl.dataset.d, i = +sl.dataset.i;
-    $("select.subj", sl).onchange = e => { const s = ensureSlots(d); s[i] = {s: e.target.value}; changed(); };
+    bindSubj($("input.subj", sl), v => { const s = ensureSlots(d); s[i] = {s: v, ...(s[i].parts ? {parts: s[i].parts} : {})}; });
     $("input.hr", sl).onchange = e => { setHours(ensureSlots(d)[i], e.target); changed(); };
     const ma = $("input.madv", sl);
     if (ma) ma.onchange = () => { const x = ensureSlots(d)[i]; if (ma.checked) delete x.adv; else x.adv = false; changed(); };
@@ -839,7 +870,7 @@ function bindWeek(el, mon) {
     $$(".part", sl).forEach(pe => {
       const k = +pe.dataset.k;
       const pt = () => ensureSlots(d)[i].parts[k];
-      $("select.psubj", pe).onchange = e => { ensureSlots(d)[i].parts[k] = {s: e.target.value, h: pt().h}; changed(); };
+      bindSubj($("input.psubj", pe), v => { ensureSlots(d)[i].parts[k] = {s: v, h: pt().h}; });
       $("input.phr", pe).onchange = e => { setHours(pt(), e.target); changed(); };
       $("button.pdel", pe).onclick = () => { const x = ensureSlots(d)[i]; x.parts.splice(k, 1); if (!x.parts.length) { delete x.parts; delete x.adv; } changed(); };
       const pa = $("input.padv", pe);
@@ -1001,21 +1032,50 @@ function doPrint() { renderPrint(); window.print(); }
 window.addEventListener("beforeprint", renderPrint);
 
 /* 時間割タブ */
+let ttPick = "";
 function renderTT() {
   const el = $("#tab-tt");
-  let h = `<h2>ふだんの時間割</h2><p class="hint">ここに入れた時間割が、毎週の週案（月〜金）に自動で入ります。週案で直したところは、そちらが優先されます。祝日と学校の休業日は自動で空欄になります。</p>
-  <table class="tt"><tr><th></th>${[1,2,3,4,5].map(w => `<th>${WD[w]}</th>`).join("")}</tr>`;
+  const subs = gradeSubjects();
+  if (ttPick && !subs.find(x => x.name === ttPick)) ttPick = "";
+  const c = D.cls;
+  let h = `<div class="ttwrap"><div>
+    <div class="tthead"><b>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</b><span>時間割</span></div>
+    <table class="tt2"><tr><th></th>${[1,2,3,4,5].map(w => `<th>${WD[w]}</th>`).join("")}</tr>`;
   for (let i = 0; i <= P(); i++) {
-    h += `<tr><th>${i === 0 ? "朝（" + esc(D.school.asaHours || "1/3") + "）" : i}</th>`;
+    h += `<tr><th>${i === 0 ? `朝<small>${esc(D.school.asaHours || "1/3")}時間</small>` : i}</th>`;
     for (const w of [1,2,3,4,5]) {
       const v = D.timetable[w][i] || "";
-      h += `<td style="background:${v ? colorOf(v) + "66" : "transparent"}"><select data-w="${w}" data-i="${i}">${subjOptions(v)}</select></td>`;
+      h += `<td data-w="${w}" data-i="${i}" style="${v ? "background:" + colorOf(v) : ""}">${esc(v)}</td>`;
     }
     h += "</tr>";
   }
-  h += `</table>`;
+  h += `</table></div>
+  <div class="ttpal"><div class="ttpt">ボタンを選んでから、マスをクリック</div>
+    <div class="ttbtns">${[subs.filter(x => !isSpecial(x)), subs.filter(isSpecial)].map(col => `<div>${col.map(x => `<button data-s="${esc(x.name)}" class="${ttPick === x.name ? "on" : ""}" style="--sc:${x.color}">${esc(x.name)}</button>`).join("")}</div>`).join("")}</div>
+    <p class="hint">・同じ教科のマスをもう一度クリックすると消えます。<br>・押したままなぞると、まとめて入れられます。</p>
+  </div></div>
+  <p class="hint">ここに入れた時間割が、毎週の週案（月〜金）に自動で入ります。週案で直したところは、そちらが優先されます。祝日と学校の休業日は自動で空欄になります。</p>`;
   el.innerHTML = h;
-  $$("select", el).forEach(s => s.onchange = () => { D.timetable[s.dataset.w][+s.dataset.i] = s.value; changed(); });
+  $$(".ttbtns button", el).forEach(b => b.onclick = () => { ttPick = ttPick === b.dataset.s ? "" : b.dataset.s; render(); });
+  // クリック1回で入れる。同じ教科ならけす。なぞってまとめて入れる
+  let painting = null;
+  const paint = td => {
+    const w = td.dataset.w, i = +td.dataset.i;
+    const v = painting === "" ? "" : ttPick;
+    D.timetable[w][i] = v;
+    td.textContent = v; td.style.background = v ? colorOf(v) : "";
+  };
+  $$("td[data-w]", el).forEach(td => {
+    td.onmousedown = e => {
+      e.preventDefault();
+      if (!ttPick) { toast("先に右の教科ボタンを選んでください"); return; }
+      painting = (D.timetable[td.dataset.w][+td.dataset.i] || "") === ttPick ? "" : ttPick;
+      paint(td);
+    };
+    td.onmouseenter = () => { if (painting !== null) paint(td); };
+  });
+  const end = () => { if (painting !== null) { painting = null; changed(false); } };
+  el.onmouseup = end; el.onmouseleave = end;
 }
 
 /* 単元計画タブ */
