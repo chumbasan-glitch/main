@@ -4,7 +4,7 @@ html, mdir = sys.argv[1], sys.argv[2]
 s = open(html).read()
 m = re.search(r'const PRESETS = (\{.*?\});\n', s, re.S)
 pre = json.loads(m.group(1).replace('<\\/', '</'))
-for g in [1, 2, 3, 4, 5]:
+for g in [1, 2, 3, 4, 5, 6]:
     d = json.load(open(f'{mdir}/math{g}.json'))
     units, seen = [], {}
     for u in d:

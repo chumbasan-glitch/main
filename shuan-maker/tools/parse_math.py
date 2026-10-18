@@ -16,8 +16,8 @@ def bullets(text, skip_monster=True):
         if l.startswith('●'): out.append(l)
         elif out: out[-1] += l
     return out
-HRS = re.compile(r'^[＜<](\d+)月.*?(\d+)時間[＞>]')
-PAGES = re.compile(r'^[＜<][^＞>]*ページ[＞>]')   # 時数のない単元（「＜2ページ＞」）
+HRS = re.compile(r'^[＜<](\d+)月?.*?(\d+)時間[＞>]')   # 「＜10下旬～…」のように「月」が抜けていても読む
+PAGES = re.compile(r'^[＜<][^＞>]*[ぺペ]ージ[＞>]')   # 時数のない単元（「＜2ページ＞」）
 onlyA = lambda r: val(r, 1) and not any(val(r, c) for c in (2, 3, 4))
 units, cur, gcol = [], None, None
 for r in range(1, ws.max_row + 1):
