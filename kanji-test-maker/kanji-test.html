@@ -1,5 +1,5 @@
 <!--ktm-start-->
-<title>かんジー工房</title>
+<title>カンジーツクール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
@@ -174,9 +174,9 @@ h2.sec{margin:0;font-size:17px}
 
 <div class="wrap">
   <header class="top">
-    <h1>かんジー工房</h1>
+    <h1>カンジーツクール</h1>
     <span class="sub">光村図書・縦書き／漢字の小テストと漢字ノートを、かんたんに作って印刷できます</span>
-    <span class="ver" title="このページの版">ver 10.2（2026.10.18）</span>
+    <span class="ver" title="このページの版">ver 10.3（2026.10.18）</span>
   </header>
 
   <div class="layout">
@@ -1365,8 +1365,8 @@ function baseName(){
   const us = unitsOf(state.grade).filter(u => (state.sel[state.grade] || []).includes(u.no));
   const unit = us.length ? us[0].name.split("／")[0].replace(/[「」\s]/g, "") + (us.length > 1 ? "ほか" : "") : "";
   const d = new Date(), pad = n => String(n).padStart(2, "0");
-  if(state.mode === "note") return "かんジー工房_ノート_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
-  return "かんジー工房_テスト_" + state.grade + "年_" + unit + "_" + qs.length + "問_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+  if(state.mode === "note") return "カンジーツクール_ノート_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+  return "カンジーツクール_テスト_" + state.grade + "年_" + unit + "_" + qs.length + "問_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
 }
 const PRINT_PX = 200 / 25.4;
 function canvasBlob(c, type, q){ return new Promise(res => c.toBlob(res, type, q)); }
