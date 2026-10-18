@@ -23,7 +23,7 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"UD デジタル 教科書体 NP-R","UD Digi Kyokasho NP-R","UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","BIZ UDPGothic","Yu Gothic UI","Meiryo",sans-serif;font-size:14px;line-height:1.5}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font,"MS UI Gothic","Meiryo",sans-serif);font-size:14px;line-height:1.5}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 16px;background:var(--accent);color:var(--accent-ink)}
@@ -78,6 +78,9 @@ textarea.ev,textarea.note{width:100%;min-height:38px;resize:vertical;font-size:1
 .slot .grip{cursor:grab;color:var(--ink-soft);font-size:12px;user-select:none;padding:0 2px}
 .slot input.subj,.asa input.subj{flex:1;min-width:0;font-weight:700;padding:2px 4px;background:var(--cbg,#fff)}
 .uf{display:flex;gap:3px}
+.crs{display:flex;gap:2px}
+.crs button{flex:1;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;font-size:11px;padding:0 2px;line-height:1.6}
+.crs button.on{border-color:var(--accent);background:var(--accent-soft);font-weight:700}
 .uf input.un{flex:1;min-width:0;font-size:12px;padding:2px 4px;font-weight:700}
 .uf input.no{width:44px;flex:none;font-size:12px;padding:2px 3px;text-align:center}
 .part{border-left:6px solid var(--c,#ddd);border-top:1.5px dashed var(--line);padding:3px 0 0 4px;margin-left:-10px;display:flex;flex-direction:column;gap:3px}
@@ -130,6 +133,7 @@ table.tt2 td:hover{border-color:var(--accent)}
 .ttpt{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--ink)}
 .ttbtns{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:start}
 .ttbtns>div{display:flex;flex-direction:column;gap:6px}
+.ttbtns.ttasa{display:flex;flex-direction:column;gap:6px}
 .ttbtns button{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:13px;text-align:left}
 .ttbtns button::before{content:"";width:12px;height:12px;border-radius:3px;background:var(--sc);border:1px solid rgba(0,0,0,.15);flex:none}
 .ttbtns button:hover{border-color:var(--accent)}
@@ -196,10 +200,10 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 @page{size:182mm 257mm;margin:7mm}
 @media print{
   body{background:#fff}
-  .app{display:none!important}
+  .app,#toast{display:none!important}
   #print{display:block}
 }
-#print{font-family:"UD デジタル 教科書体 NP-R","UD Digi Kyokasho NP-R","UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","BIZ UDPGothic","Yu Gothic UI","Meiryo",sans-serif;color:#000;width:168mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;
+#print{font-family:var(--font,"MS UI Gothic","Meiryo",sans-serif);color:#000;width:168mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;
   --pl:#2E8B88;--ph:#CCF5CC;--pb:#FFF0C8;--s1:#FFFFA6;--s2:#CCF5CC;--sub:#99EE99;--tot:#66E066}
 #print .ph{height:6mm;font-size:8pt;display:flex;align-items:flex-end;gap:4mm;padding-left:1mm;color:#666}
 #print .ph b{font-size:8.5pt;font-weight:400}
@@ -222,6 +226,12 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 #print .bigc{display:flex;align-items:center;justify-content:center;font-size:26pt;line-height:1}
 #print thead th.hk{font-size:7.5pt}
 #print td.spc{padding:0}
+#print td.stc{padding:0;vertical-align:top}
+#print .st{display:flex;height:4.6mm}
+#print .st .sj{flex:1;min-width:0;font-weight:700;padding:0 0.8mm;white-space:nowrap;overflow:hidden;line-height:4.6mm}
+#print .st .hr{width:var(--hw);flex:none;border-left:0.2mm solid var(--pl);font-size:8pt;text-align:center;line-height:4.6mm;white-space:nowrap}
+#print .st.x{border-bottom:0.2mm solid var(--pl);height:4.8mm}
+#print .st.x .sj,#print .st.x .hr{line-height:4.8mm}
 #print table.sub{width:100%;border-collapse:collapse;table-layout:fixed;margin:-0.2mm 0 0}
 #print table.sub td{border:0.2mm solid var(--pl);border-left:none;border-right:none}
 #print table.sub td.hr{border-left:0.2mm solid var(--pl)}
@@ -278,7 +288,15 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 // 保存のとき、このファイルの形をそのまま書き出すため、画面を作る前の状態をとっておく
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 const APP_VER = 2;
-const VERSION = "v5";
+// 設定で選べるフォント（週案の画面と印刷の両方に使う）
+const FONTS = {
+  msui:   {name: "MS UI Gothic",               css: '"MS UI Gothic"'},
+  mspmin: {name: "MS P明朝",                   css: '"ＭＳ Ｐ明朝","MS PMincho"'},
+  seikai: {name: "HG正楷書体",                 css: '"HG正楷書体-PRO","HGSeikaishotaiPRO","HG正楷書体","HGSeikaishotai"'},
+  udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
+};
+function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
+const VERSION = "v6";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -398,6 +416,9 @@ function normalize(d) {
   if ((d.ver || 1) < 2) { for (const k in d.cls.init) d.cls.init[k] *= 4; delete d.school.printColor; }
   d.ver = APP_VER;
   if (!d.cls.theme) d.cls.theme = "midori";
+  if (!d.cls.font) d.cls.font = "msui";
+  if (!d.cls.courses) d.cls.courses = {};
+  if (!Array.isArray(d.school.asaEvents)) d.school.asaEvents = ["全校朝会", "児童集会", "音楽朝会"];
   if (!d.cls.rateMode) d.cls.rateMode = "rate";
   return d;
 }
@@ -410,7 +431,7 @@ const subjUsed = s => D.cls.grade ? String(s.hours[gIdx()] ?? "").trim() !== "" 
 const subjHours = s => { const v = parseFloat(String(s.hours[gIdx()] ?? "")); return isFinite(v) ? v : null; };
 const gradeSubjects = () => D.school.subjects.filter(subjUsed);
 const topName = n => { const s = subjByName(n); return s && s.parent && subjByName(s.parent) ? s.parent : n; };
-const colorOf = n => (subjByName(n) || {}).color || "#DDDDDD";
+const colorOf = n => (subjByName(n) || {}).color || (isAsaEvent(n) ? "#E9E9E9" : "#DDDDDD");
 const yearStart = () => ymd(D.school.year, 4, 1);
 const yearEnd = () => ymd(D.school.year + 1, 3, 31);
 const startDate = () => (D.cls.startDate && D.cls.startDate > yearStart()) ? D.cls.startDate : yearStart();
@@ -474,7 +495,8 @@ function computeYear() {
     const units = D.units[x.s] || [];
     const ui = units.findIndex(u => u.name === x.unit);
     const un = units[ui];
-    info[key] = {unit: x.unit, nums, label: x.unit + nums.map(circ).join(""), auto: un && nums.length ? (un.lessons || [])[nums[0] - 1] || "" : ""};
+    const crs = courseOf(x);
+    info[key] = {unit: x.unit, nums, crs, label: x.unit + nums.map(circ).join("") + (crs ? " " + crs : ""), auto: un && nums.length ? (un.lessons || [])[nums[0] - 1] || "" : ""};
     if (un) {
       const sc = (sched[x.s] = sched[x.s] || []);
       const e = (sc[ui] = sc[ui] || {first: d, last: d, done: new Set()});
@@ -490,6 +512,7 @@ function computeYear() {
       const split = parts.length > 1;
       parts.forEach((pt, k) => {
         if (!pt.s) return;
+        if (i === 0 && isAsaEvent(pt.s)) return;   // 朝会は時数に数えない
         c[pt.s] = (c[pt.s] || 0) + (split ? parseHours(pt.h) : slotUnits(pt, i));
         if (i === 0) return;
         step(pt, d + "|" + i + (k ? "|" + k : ""), d);
@@ -520,6 +543,10 @@ function parseNos(v) {
   }
   return out;
 }
+// 算数の3展開（3年生以上）：コースは単元ごとに覚えておく
+const COURSES = ["ホップ", "ステップ", "ジャンプ"];
+const hasCourse = subj => D.cls.grade >= 3 && subj === "算数";
+const courseOf = x => hasCourse(x.s) && x.unit ? ((D.cls.courses[x.s] || {})[x.unit] || "") : "";
 // その単元で、この日より前に入れた最後の時の次の番号
 function nextNo(subj, unit, d, i) {
   let last = 0;
@@ -559,6 +586,7 @@ function slotUnits(x, i) {
   if (h > 0) return h;
   return i === 0 ? (parseHours(D.school.asaHours) || 4) : U;
 }
+const isAsaEvent = n => !!n && !subjByName(n) && (D.school.asaEvents || []).includes(n);
 const isSpecial = s => s.sp !== undefined ? !!s.sp : ["行事","クラブ","委員会"].includes(s.name);
 // 教科ごとの表（図書・書写などは国語にまとめる）
 function totalsRows(maps) {
@@ -666,6 +694,7 @@ function subjOptions(sel, withBlank = true) {
   return h;
 }
 function render() {
+  applyFont();
   $("#hdrCls").textContent = D.cls.grade ? `${D.school.year}年度　${D.cls.grade}年${D.cls.kumi ? D.cls.kumi + "組" : ""}　${D.cls.teacher}` : "";
   renderBanners();
   ({week: renderWeek, tt: renderTT, units: renderUnits, hours: renderHours, set: renderSet})[curTab]();
@@ -727,7 +756,8 @@ function weekTitle(mon) {
   return (n >= 1 ? "第" + n + "週　" : "") + md(days[0]) + "（" + WD[wday(days[0])] + "）〜" + md(days[days.length - 1]) + "（" + WD[wday(days[days.length - 1])] + "）";
 }
 function unitFields(x, cls) {
-  return `<div class="uf"><input type="text" class="un${cls}" list="ul-${esc(x.s)}" value="${esc(x.unit || "")}" placeholder="単元" title="単元名（一覧から選ぶか、打ち込む）"><input type="text" class="no${cls}" value="${esc(x.no || "")}" placeholder="時" title="何時間目か（例：2　2時間分なら 2-3）"></div>`;
+  const crs = hasCourse(x.s) && x.unit ? `<div class="crs">${COURSES.map(c => `<button class="${courseOf(x) === c ? "on" : ""}" data-c="${c}" title="${esc(x.unit)}のコース（この単元のコマすべてに入ります）">${c}</button>`).join("")}</div>` : "";
+  return `<div class="uf"><input type="text" class="un${cls}" list="ul-${esc(x.s)}" value="${esc(x.unit || "")}" placeholder="単元" title="単元名（一覧から選ぶか、打ち込む）"><input type="text" class="no${cls}" value="${esc(x.no || "")}" placeholder="時" title="何時間目か（例：2　2時間分なら 2-3）"></div>${crs}`;
 }
 function slotHtml(d, i, x, off) {
   const inf = cy().info[d + "|" + i] || {};
@@ -743,13 +773,13 @@ function slotHtml(d, i, x, off) {
     const pm = pt.t !== undefined && pt.t !== null;
     const pcol = pt.s ? colorOf(pt.s) : "#E5E5E5";
     ph += `<div class="part" data-k="${k}" style="--c:${pcol};--cbg:${pt.s ? pcol + "55" : "#fff"}">
-      <div class="sh"><input type="text" class="psubj" list="subjList" value="${esc(pt.s || "")}" placeholder="教科"><input type="text" class="phr${hrWarn(pt)}" value="${esc(pt.h || "")}" placeholder="1/2" title="この部分の時数"><button class="pdel" title="分けるのをやめる">×</button></div>
+      <div class="sh"><input type="text" class="psubj" list="subjList" value="${esc(pt.s || "")}" placeholder="教科"><input type="text" class="phr${hrWarn(pt)}" value="${esc(pt.h || "")}" placeholder="" title="この部分の時数"><button class="pdel" title="分けるのをやめる">×</button></div>
       ${pt.s ? unitFields(pt, " p") : ""}
       <textarea class="pct${pm ? "" : " auto"}" placeholder="内容（例：避難訓練）">${esc(pm ? pt.t : (inf2.auto || ""))}</textarea>
     </div>`;
   });
   return `<div class="slot${split ? " split" : ""}" draggable="true" data-d="${d}" data-i="${i}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}">
-    <div class="sh"><span class="grip" title="ドラッグして別のコマと入れかえ">⋮⋮</span><input type="text" class="subj" list="subjList" value="${esc(x.s || "")}" placeholder="―"><input type="text" class="hr${hrWarn(x)}" value="${esc(x.h || "")}" placeholder="${split ? "1/2" : "1"}" title="このコマの時数（1/2・1/3など）。${split ? "分けたときは必ず入れます" : "空欄は1時間"}"></div>
+    <div class="sh"><span class="grip" title="ドラッグして別のコマと入れかえ">⋮⋮</span><input type="text" class="subj" list="subjList" value="${esc(x.s || "")}" placeholder="―"><input type="text" class="hr${hrWarn(x)}" value="${esc(x.h || "")}" placeholder="${split ? "" : "1"}" title="このコマの時数（1/2・1/3など）。${split ? "分けたときは必ず入れます" : "空欄は1時間"}"></div>
     ${x.s ? unitFields(x, "") : ""}
     <div class="tw"><textarea class="ct${manual ? "" : " auto"}" placeholder="学習内容・めあて">${esc(val)}</textarea>${manual && inf.auto ? '<button class="rv" title="単元計画の内容にもどす">↺</button>' : ""}</div>
     ${ph}${!off && parts.length < 2 ? `<button class="btn small psplit" title="1時間の中に行事などがあるとき、コマを分けます（3つまで）">＋分ける</button>` : ""}
@@ -776,6 +806,7 @@ function renderWeek() {
   </div>
   <div class="weeklayout"><div>
   ${Object.keys(D.units).map(k => `<datalist id="ul-${esc(k)}">${(D.units[k] || []).map(u => `<option value="${esc(u.name)}">`).join("")}</datalist>`).join("")}
+  <datalist id="asaList">${gradeSubjects().map(x => `<option value="${esc(x.name)}">`).join("")}${(D.school.asaEvents || []).map(n => `<option value="${esc(n)}">`).join("")}<option value="なし"></datalist>
   <datalist id="subjList">${gradeSubjects().map(x => `<option value="${esc(x.name)}">`).join("")}<option value="なし"></datalist>
   <div class="gridwrap"><table class="wk"><colgroup><col style="width:44px">${days.map(() => "<col>").join("")}</colgroup><thead><tr><th class="lab"></th>`;
   for (const d of days) {
@@ -795,7 +826,7 @@ function renderWeek() {
   h += `</tr><tr><th class="lab">朝</th>`;
   for (const d of days) {
     const x = slotsOf(d)[0]; const col = x.s ? colorOf(x.s) : "#E5E5E5";
-    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><div class="asa" data-d="${d}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}"><div class="sh"><input type="text" class="subj" list="subjList" value="${esc(x.s || "")}" placeholder="―"><input type="text" class="hr" value="${esc(x.h || "")}" placeholder="${esc(D.school.asaHours || "1/3")}" title="朝の時間の時数。空欄は設定の時数"></div><input type="text" class="ct" value="${esc(x.t || "")}" placeholder="内容"></div></td>`;
+    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><div class="asa" data-d="${d}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}"><div class="sh"><input type="text" class="subj" list="asaList" value="${esc(x.s || "")}" placeholder="―"><input type="text" class="hr" value="${esc(x.h || "")}" placeholder="${isAsaEvent(x.s) ? "" : esc(D.school.asaHours || "1/3")}" title="朝の時間の時数。空欄は設定の時数"></div><input type="text" class="ct" value="${esc(x.t || "")}" placeholder="内容"></div></td>`;
   }
   h += "</tr>";
   for (let i = 1; i <= P(); i++) {
@@ -846,10 +877,20 @@ function bindSubj(inp, apply) {
     const v = inp.value.trim();
     if (v === "" || v === orig) return;
     if (v === "―" || v === "なし") { apply(""); changed(); return; }
-    if (!subjByName(v)) toast("「" + v + "」は教科一覧にありません。時数表には出ません");
+    if (!subjByName(v) && !isAsaEvent(v)) toast("「" + v + "」は教科一覧にありません。時数表には出ません");
     apply(v); changed();
   });
   inp.addEventListener("blur", () => { if (inp.dataset.clear) { delete inp.dataset.clear; apply(""); changed(); } });
+}
+// 分けたコマで1つの時数を入れたら、残りの1つに「1時間 − 入れた分」を自動で入れる
+function fillRest(x, edited) {
+  const all = [x, ...(x.parts || [])];
+  if (all.length < 2) return;
+  const cand = all.filter(p => p !== edited && (!(parseHours(p.h) > 0) || p.hAuto));
+  if (cand.length !== 1) return;
+  const used = all.filter(p => p !== cand[0]).reduce((a, p) => a + (parseHours(p.h) || 0), 0);
+  const rest = U - used;
+  if (rest > 0) { cand[0].h = fr(rest); cand[0].hAuto = true; } else if (cand[0].hAuto) { delete cand[0].h; delete cand[0].hAuto; }
 }
 function setHours(x, inp) {
   const v = inp.value.trim();
@@ -890,6 +931,12 @@ function bindWeek(el, mon) {
     const bindUnit = (box, get) => {
       if (!box) return;
       const uf = box.querySelector(":scope > .uf"); if (!uf) return;
+      const cr = box.querySelector(":scope > .crs");
+      if (cr) $$("button", cr).forEach(b => b.onclick = () => {
+        const x = get(); const m = (D.cls.courses[x.s] = D.cls.courses[x.s] || {});
+        if (m[x.unit] === b.dataset.c) delete m[x.unit]; else m[x.unit] = b.dataset.c;
+        changed();
+      });
       const un = $("input.un", uf), no = $("input.no", uf);
       if (!un) return;
       un.onchange = () => {
@@ -905,14 +952,14 @@ function bindWeek(el, mon) {
       };
     };
     bindUnit(sl, () => ensureSlots(d)[i]);
-    $("input.hr", sl).onchange = e => { setHours(ensureSlots(d)[i], e.target); changed(); };
+    $("input.hr", sl).onchange = e => { const x = ensureSlots(d)[i]; setHours(x, e.target); delete x.hAuto; fillRest(x, x); changed(); };
     const ps = $(".psplit", sl);
     if (ps) ps.onclick = () => { const x = ensureSlots(d)[i]; (x.parts = x.parts || []).push({s: "行事"}); changed(); };
     $$(".part", sl).forEach(pe => {
       const k = +pe.dataset.k;
       const pt = () => ensureSlots(d)[i].parts[k];
       bindSubj($("input.psubj", pe), v => { ensureSlots(d)[i].parts[k] = {s: v, h: pt().h}; });
-      $("input.phr", pe).onchange = e => { setHours(pt(), e.target); changed(); };
+      $("input.phr", pe).onchange = e => { const x = ensureSlots(d)[i]; setHours(pt(), e.target); delete pt().hAuto; fillRest(x, pt()); changed(); };
       $("button.pdel", pe).onclick = () => { const x = ensureSlots(d)[i]; x.parts.splice(k, 1); if (!x.parts.length) { delete x.parts; delete x.adv; } changed(); };
       bindUnit(pe, pt);
       const ta = $("textarea.pct", pe);
@@ -966,55 +1013,51 @@ function renderPrint() {
   // 高さ（mm）：本体 = 243 - 見出し6 - 記録欄27 - すきま
   const H = 243 - 6 - 1.5 - 25 - 5;
   const BH = 6.4;   // 中休み・昼休みの帯の高さ（2行分）
-  const fixed = 8 + 7 + 3.4 + 5 + BH * 2 + 9;
-  const per = (H - fixed) / P();   // 1コマ（上の細い欄＋内容）
-  const cont = per - 3.4;
+  const ST = 4.8;   // 教科の欄の高さ（11ポイント）
+  const fixed = 8 + 7 + ST + 5 + BH * 2 + 9;
+  const per = (H - fixed) / P();   // 1コマ（教科の欄＋内容）
+  const cont = per - ST;
+  const HW = days.length > 5 ? 4.5 : 6;              // 時数の欄の幅
+  const colw = (128 - 8) / days.length;              // 1日の幅
+  // 内容が入るいちばん大きい文字（9ポイントから小さくする）
+  const fit = (text, hmm) => {
+    const w = colw - 1.6;
+    for (let fs = 9; fs > 5; fs -= 0.5) {
+      const ch = fs * 0.3528, cpl = Math.max(1, Math.floor(w / ch)), lines = Math.floor(hmm / (ch * 1.28));
+      const need = String(text).split("\n").reduce((a, l) => a + Math.max(1, Math.ceil(Array.from(l).length / cpl)), 0);
+      if (need <= lines) return fs;
+    }
+    return 5;
+  };
+  // 教科の欄（11ポイント。長い名前は欄に入る大きさまで小さくする）
+  const strip = (pt, cls = "") => {
+    const nm = pt && pt.s ? pt.s : "";
+    const fs = nm ? Math.min(11, (colw - HW - 1.8) / (Array.from(nm).length * 0.3528)) : 11;
+    return `<div class="st${cls}"><div class="sj" style="font-size:${fs.toFixed(1)}pt;${nm ? "background:" + colorOf(nm) : ""}">${esc(nm)}</div><div class="hr">${pt && pt.s && pt.h ? esc(pt.h) : ""}</div></div>`;
+  };
+  const textOf = (d, i, k, pt) => {
+    const inf = info[d + "|" + i + (k ? "|" + k : "")] || {};
+    const txt = (pt.t !== undefined && pt.t !== null) ? pt.t : (inf.auto || "");
+    return {lab: inf.label || "", txt};
+  };
+  const bodyHtml = items => items.map(it => (it.lab ? `<span class="pu">${esc(it.lab)}</span>${it.txt ? "\n" : ""}` : "") + esc(it.txt)).filter(Boolean).join("\n");
+  const bodyText = items => items.map(it => (it.lab ? it.lab + (it.txt ? "\n" : "") : "") + it.txt).filter(Boolean).join("\n");
   // 休みの日は、名前を1コマに1字ずつ大きく書く
   const offChars = d => { const nm = Array.from(offName(d)); const per = Math.ceil(nm.length / P()); return i => nm.slice((i - 1) * per, i * per).join(""); };
   const cell = (d, i) => {
     const off = !isSchoolDay(d); const x = slotsOf(d)[i];
-    if (off) return [`<td class="sj hol"></td><td class="hr hol"></td>`, `<td colspan="2" class="hol">${i > 0 ? `<div class="bigc" style="height:${(cont - 0.3).toFixed(1)}mm">${esc(offChars(d)(i))}</div>` : ""}</td>`];
-    if (i > 0 && !x.s && !(x.parts || []).some(pt => pt.s)) return [`<td class="sj emp"></td><td class="hr emp"></td>`, `<td colspan="2" class="emp"></td>`];
-    if (i > 0 && x.parts && x.parts.length) return splitCell(d, i, x);
-    const hh = x.s && x.h ? esc(x.h) : "";
-    let body = "";
-    if (i === 0) body = esc(x.t || "");
-    else if (x.s) {
-      const inf = info[d + "|" + i] || {};
-      const txt = (x.t !== undefined && x.t !== null) ? x.t : (inf.auto || "");
-      body = (inf.label ? `<span class="pu">${esc(inf.label)}</span>${txt ? "\n" : ""}` : "") + esc(txt);
-    }
-    const len = body.length * (days.length > 5 ? 1.2 : 1);
-    const fs = i === 0 ? 7 : len > 110 ? 5.5 : len > 70 ? 6.2 : 7;
-    return [`<td class="sj" style="${x.s ? "background:" + colorOf(x.s) : ""}">${esc(x.s)}</td><td class="hr">${hh}</td>`, `<td colspan="2"><div class="cb" style="font-size:${fs}pt;max-height:${((i === 0 ? 5 : cont) - 0.3).toFixed(1)}mm">${body}</div></td>`];
-  };
-  // 分けたコマ：上の細い欄に「教科｜時数」を上下に並べ、内容はその下にまとめて書く
-  const splitCell = (d, i, x) => {
-    const all = [x, ...x.parts];
+    const ch = i === 0 ? 5 : cont;
+    if (off) return [`<td colspan="2" class="stc hol">${strip(null)}</td>`, `<td colspan="2" class="hol">${i > 0 ? `<div class="bigc" style="height:${(cont - 0.3).toFixed(1)}mm">${esc(offChars(d)(i))}</div>` : ""}</td>`];
+    if (i > 0 && !x.s && !(x.parts || []).some(pt => pt.s)) return [`<td colspan="2" class="stc emp">${strip(null)}</td>`, `<td colspan="2" class="emp"></td>`];
+    // 分けたコマ：2つ目からの教科の欄は内容の欄の上に重ねる（時数の欄の幅をそろえる）
+    const all = [x, ...(i > 0 && x.parts ? x.parts : [])];
     const parts = all.filter(pt => pt.s);
-    const row = pt => `<td class="sj" style="background:${colorOf(pt.s)}">${esc(pt.s)}</td><td class="hr">${pt.h ? esc(pt.h) : ""}</td>`;
-    const extra = parts.slice(1).map(pt => `<tr style="height:3.4mm">${row(pt)}</tr>`).join("");
-    const rest = cont - 3.4 * (parts.length - 1);
-    const items = parts.map(pt => {
-      const k = all.indexOf(pt);
-      const inf = info[d + "|" + i + (k ? "|" + k : "")] || {};
-      return {lab: inf.label || "", txt: (pt.t !== undefined && pt.t !== null) ? pt.t : (inf.auto || "")};
-    });
-    // 欄に入る字数（5.5ポイント）を見積もり、長い内容から「…」で切って全部の部分を見せる
-    const colw = (128 - 8) / days.length - (days.length > 5 ? 4.5 : 6) + (days.length > 5 ? 4.5 : 6) - 1.4;
-    const cpl = Math.max(6, Math.floor(colw / 1.95));
-    const lines = Math.floor((rest - 0.8) / 2.5);
-    const need = it => (it.lab ? Math.ceil(it.lab.length / cpl) : 0) + (it.txt ? Math.ceil(it.txt.length / cpl) : 0);
-    let total = items.reduce((a, it) => a + need(it), 0);
-    while (total > lines) {
-      const big = items.reduce((a, it) => (it.txt.length > a.txt.length ? it : a), items[0]);
-      if (big.txt.length <= cpl) break;
-      big.txt = big.txt.slice(0, Math.max(cpl - 1, big.txt.length - cpl - 1)).replace(/…$/, "") + "…";
-      total = items.reduce((a, it) => a + need(it), 0);
-    }
-    const body = items.map(it => (it.lab ? `<span class="pu">${esc(it.lab)}</span>${it.txt ? "\n" : ""}` : "") + esc(it.txt)).filter(Boolean).join("\n");
-    const fs = 5.5;
-    return [row(parts[0]), `<td colspan="2" class="spc">${extra ? `<table class="sub"><colgroup><col><col style="width:${days.length > 5 ? 4.5 : 6}mm"></colgroup>${extra}</table>` : ""}<div class="cb" style="font-size:${fs}pt;max-height:${(rest - 0.3).toFixed(1)}mm">${body}</div></td>`];
+    if (!parts.length) parts.push(x);
+    const extra = parts.slice(1).map(pt => strip(pt, " x")).join("");
+    const rest = ch - ST * (parts.length - 1);
+    const items = i === 0 ? [{lab: "", txt: x.t || ""}] : parts.map(pt => textOf(d, i, all.indexOf(pt), pt));
+    const fs = fit(bodyText(items), rest - 0.8);
+    return [`<td colspan="2" class="stc">${strip(parts[0])}</td>`, `<td colspan="2" class="spc">${extra}<div class="cb" style="font-size:${fs}pt;max-height:${(rest - 0.3).toFixed(1)}mm">${bodyHtml(items)}</div></td>`];
   };
   let h = `<div class="ph"><b>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</b><span>担任：${esc(c.teacher)}</span><span class="wt" style="margin-left:auto">${esc(weekTitle(mon))}</span></div>
   <div class="pbody"><table class="pw"><colgroup><col style="width:8mm">${days.map(() => `<col><col style="width:${days.length > 5 ? 4.5 : 6}mm">`).join("")}</colgroup>
@@ -1028,7 +1071,7 @@ function renderPrint() {
   h += "</tr>";
   const two = (i, lab, big) => {
     const cs = days.map(d => cell(d, i));
-    return `<tr style="height:3.4mm"><th class="l${big ? " big" : ""}" rowspan="2">${lab}</th>${cs.map(x => x[0]).join("")}</tr><tr style="height:${(i === 0 ? 5 : cont).toFixed(1)}mm">${cs.map(x => x[1]).join("")}</tr>`;
+    return `<tr style="height:${ST}mm"><th class="l${big ? " big" : ""}" rowspan="2">${lab}</th>${cs.map(x => x[0]).join("")}</tr><tr style="height:${(i === 0 ? 5 : cont).toFixed(1)}mm">${cs.map(x => x[1]).join("")}</tr>`;
   };
   const band = (key, lab) => `<tr class="band" style="height:${BH}mm"><th class="l">${lab}</th>${days.map(d => isSchoolDay(d) ? `<td colspan="2"><div class="cb" style="max-height:${BH - 0.3}mm">${esc(dayRec(d)[key] || "")}</div></td>` : `<td colspan="2" class="hol"></td>`).join("")}</tr>`;
   h += two(0, "モジュ<br>ール", false);
@@ -1044,7 +1087,8 @@ function renderPrint() {
   const rows = totalsRows([sumCounts(mon, last, false), sumCounts(yearStart(), last, true)]).filter(r => !r.child);
   const g1 = rows.filter(r => !r.sp), g2 = rows.filter(r => r.sp);
   const sum = g => [0, 1].map(k => g.reduce((a, r) => a + r.vals[k], 0));
-  const line = (r, k) => `<tr class="r${k % 2 ? 2 : 1}"><td class="n">${esc(r.name)}</td><td>${r.vals[0] ? fr(r.vals[0]) : ""}</td><td>${fr(r.vals[1])}</td><td class="rt">${rateCell(r)}</td></tr>`;
+  const nmFs = n => { const l = Array.from(n).length; return l > 3 ? `font-size:${Math.max(4.2, 6.3 * 3.6 / l).toFixed(1)}pt;letter-spacing:-0.05em` : ""; };
+  const line = (r, k) => `<tr class="r${k % 2 ? 2 : 1}"><td class="n" style="${nmFs(r.name)}">${esc(r.name)}</td><td>${r.vals[0] ? fr(r.vals[0]) : ""}</td><td>${fr(r.vals[1])}</td><td class="rt">${rateCell(r)}</td></tr>`;
   const s1 = sum(g1), s2 = sum(g2);
   let t = `<table class="pt2"><colgroup><col style="width:10mm"><col style="width:8.5mm"><col style="width:12mm"><col></colgroup><tr><th>教科</th><th>今週</th><th>累計</th><th>${D.cls.rateMode === "rest" ? "残り" : "達成率"}</th></tr>`;
   g1.forEach((r, k) => t += line(r, k));
@@ -1057,7 +1101,7 @@ function renderPrint() {
   h += `<div class="side">${t}<div class="memo"><span class="k">メモ</span>\n${esc(wr.memo || "")}</div></div></div>
   <div class="rec"><span class="k">記録欄</span>\n${esc(wr.rec || "")}</div>`;
   const pe = $("#print");
-  pe.style.cssText = themeVars(D.cls.theme);
+  pe.style.cssText = themeVars(D.cls.theme) + `;--hw:${days.length > 5 ? 4.5 : 6}mm`;
   pe.innerHTML = h;
 }
 function doPrint() { renderPrint(); window.print(); }
@@ -1068,7 +1112,7 @@ let ttPick = "";
 function renderTT() {
   const el = $("#tab-tt");
   const subs = gradeSubjects();
-  if (ttPick && !subs.find(x => x.name === ttPick)) ttPick = "";
+  if (ttPick && !subs.find(x => x.name === ttPick) && !isAsaEvent(ttPick)) ttPick = "";
   const c = D.cls;
   let h = `<div class="ttwrap"><div>
     <div class="tthead"><b>ふだんの時間割</b><span>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</span></div>
@@ -1084,6 +1128,8 @@ function renderTT() {
   h += `</table></div>
   <div class="ttpal"><div class="ttpt">教科を選んで、マスをクリック</div>
     <div class="ttbtns">${[subs.filter(x => !isSpecial(x)), subs.filter(isSpecial)].map(col => `<div>${col.map(x => `<button data-s="${esc(x.name)}" class="${ttPick === x.name ? "on" : ""}" style="--sc:${x.color}">${esc(x.name)}</button>`).join("")}</div>`).join("")}</div>
+    <div class="ttpt" style="margin-top:12px">朝会（朝の欄だけ・時数に数えない）</div>
+    <div class="ttbtns ttasa">${(D.school.asaEvents || []).map(n => `<button data-s="${esc(n)}" data-asa="1" class="${ttPick === n ? "on" : ""}" style="--sc:#E9E9E9">${esc(n)}</button>`).join("")}</div>
     <p class="hint">・同じ教科のマスをもう一度クリックすると消えます。<br>・押したままなぞると、まとめて入れられます。</p>
   </div></div>
   <p class="hint">ここに入れた時間割が、毎週の週案（月〜金）に自動で入ります。週案で直したところは、そちらが優先されます。祝日と学校の休業日は自動で空欄になります。</p>`;
@@ -1092,6 +1138,7 @@ function renderTT() {
   // クリック1回で入れる。同じ教科ならけす。なぞってまとめて入れる
   let painting = null;
   const paint = td => {
+    if (isAsaEvent(ttPick) && +td.dataset.i !== 0) return;
     const w = td.dataset.w, i = +td.dataset.i;
     const v = painting === "" ? "" : ttPick;
     D.timetable[w][i] = v;
@@ -1101,6 +1148,7 @@ function renderTT() {
     td.onmousedown = e => {
       e.preventDefault();
       if (!ttPick) { toast("先に右の教科ボタンを選んでください"); return; }
+      if (isAsaEvent(ttPick) && +td.dataset.i !== 0) { toast("朝会は朝の欄にだけ入れられます"); return; }
       painting = (D.timetable[td.dataset.w][+td.dataset.i] || "") === ttPick ? "" : ttPick;
       paint(td);
     };
@@ -1321,7 +1369,7 @@ function renderSet() {
   <h3>印刷の色</h3>
   <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${c.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
     <span class="tp"><span class="tph"></span><span class="tpb"></span><span class="tps"><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s1)"></i><i style="background:var(--sub)"></i><i style="background:var(--tot)"></i></span></span><b>${t.name}</b></button>`).join("")}</div>
-  <div class="setgrid" style="margin-top:10px"><label class="f">時数表の4列目<select id="sRate"><option value="rate"${c.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${c.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label></div>
+  <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(c.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${c.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${c.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label></div>
   <details class="box" style="margin-top:10px"${Object.values(c.init).some(Boolean) ? " open" : ""}><summary>年度のとちゅうから使うとき：それまでの時数</summary>
     <p class="hint">「週案を使い始める日」より前の時数を教科ごとに入れてください。累計にたされます。半端な時数は「12 1/3」のように入れられます。</p>
     <div class="row">${gradeSubjects().map(x => `<label class="f">${esc(x.name)}<input type="text" class="sInit" data-s="${esc(x.name)}" value="${c.init[x.name] ? fr(c.init[x.name]) : ""}" style="width:70px"></label>`).join("")}</div>
@@ -1334,6 +1382,7 @@ function renderSet() {
     <label class="f">第1週の月曜日<input type="date" id="sWeek1" value="${esc(s.week1)}"></label>
     <label class="f">1日の時間数<select id="sPeriods">${[5,6,7].map(n => `<option${s.periods === n ? " selected" : ""}>${n}</option>`).join("")}</select></label>
     <label class="f">朝（モジュール）の時数<input type="text" id="sAsa" value="${esc(s.asaHours || "1/3")}" placeholder="1/3"></label>
+    <label class="f" style="grid-column:span 2">朝会の名前（「、」で区切る・時数に数えない）<input type="text" id="sAsaEv" value="${esc((s.asaEvents || []).join("、"))}"></label>
   </div>
   <h3>学校の休業日（この期間は時間割が入りません）</h3>
   <table class="brk"><tr><th>名前</th><th>から</th><th>まで</th><th></th></tr>
@@ -1372,6 +1421,8 @@ function renderSet() {
   $("#sWeek1").onchange = upd(v => s.week1 = v ? mondayOf(v) : mondayOf(yearStart()));
   $("#sPeriods").onchange = upd(v => s.periods = +v);
   $("#sAsa").onchange = e => { const v = e.target.value.trim(); if (!(parseHours(v) > 0)) { toast("「1/3」のように入れてください"); return render(); } s.asaHours = v; changed(); };
+  $("#sAsaEv").onchange = e => { s.asaEvents = e.target.value.split(/[、,，\s]+/).map(x => x.trim()).filter(Boolean); changed(); };
+  $("#sFont").onchange = e => { c.font = e.target.value; changed(); };
   $$("[data-theme]", el).forEach(b => b.onclick = () => { c.theme = b.dataset.theme; changed(); });
   $("#sRate").onchange = upd(v => c.rateMode = v);
   $$("tr[data-b]", el).forEach(tr => {
