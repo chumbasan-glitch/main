@@ -23,7 +23,7 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"BIZ UDPGothic","Yu Gothic UI","Yu Gothic","Meiryo",sans-serif;font-size:14px;line-height:1.5}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"UD デジタル 教科書体 NP-R","UD Digi Kyokasho NP-R","UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","BIZ UDPGothic","Yu Gothic UI","Meiryo",sans-serif;font-size:14px;line-height:1.5}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 16px;background:var(--accent);color:var(--accent-ink)}
@@ -74,7 +74,9 @@ textarea.ev,textarea.note{width:100%;min-height:38px;resize:vertical;font-size:1
 .slot .sh{display:flex;gap:3px;align-items:center}
 .slot .grip{cursor:grab;color:var(--ink-soft);font-size:12px;user-select:none;padding:0 2px}
 .slot input.subj,.asa input.subj{flex:1;min-width:0;font-weight:700;padding:2px 4px;background:var(--cbg,#fff)}
-.slot select.unit{width:100%;font-size:12px;padding:2px}
+.uf{display:flex;gap:3px}
+.uf input.un{flex:1;min-width:0;font-size:12px;padding:2px 4px;font-weight:700}
+.uf input.no{width:44px;flex:none;font-size:12px;padding:2px 3px;text-align:center}
 .part{border-left:6px solid var(--c,#ddd);border-top:1.5px dashed var(--line);padding:3px 0 0 4px;margin-left:-10px;display:flex;flex-direction:column;gap:3px}
 .part input.psubj{flex:1;min-width:0;font-weight:700;padding:2px;background:var(--cbg,#fff)}
 .part input.phr{width:38px;flex:none;font-size:12px;padding:2px 3px;text-align:center}
@@ -110,21 +112,25 @@ table.tot tr.sum td{font-weight:700;background:var(--surface-2)}
 .chip{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid rgba(0,0,0,.15)}
 
 /* 時間割 */
-.ttwrap{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
-.tthead{display:flex;justify-content:space-between;font-size:20px;margin-bottom:4px}
-table.tt2{border-collapse:collapse;user-select:none}
-table.tt2 th,table.tt2 td{border:1.5px solid #333;text-align:center;vertical-align:middle}
-table.tt2 tr:first-child th{background:#CCCCFF;height:52px;font-size:22px;font-weight:400;width:70px}
-table.tt2 tr th:first-child{background:#CCCCFF;width:70px;font-size:28px;font-weight:400;height:70px}
-table.tt2 th small{display:block;font-size:10px}
-table.tt2 td{width:70px;height:70px;font-size:17px;font-weight:700;cursor:pointer;background:#fff}
-table.tt2 td:hover{outline:3px solid var(--accent);outline-offset:-3px}
-.ttpal{background:#9EF29E;border:1px solid #6CC86C;border-radius:6px;padding:10px;width:200px}
-.ttpt{text-align:center;font-size:13px;margin-bottom:8px}
-.ttbtns{display:grid;grid-template-columns:1fr 1fr;gap:3px;align-items:start}
-.ttbtns>div{display:flex;flex-direction:column;gap:3px}
-.ttbtns button{border:1px solid #8FBF8F;background:#CCFFCC;padding:3px 0;font-size:13px;border-radius:2px;box-shadow:inset -1px -1px 0 #7AA67A}
-.ttbtns button.on{background:var(--sc);border:2px solid #333;box-shadow:inset 1px 1px 2px rgba(0,0,0,.35);font-weight:700}
+.ttwrap{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.tthead{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}
+.tthead b{font-size:17px}
+.tthead span{color:var(--ink-soft);font-size:13px}
+table.tt2{border-collapse:separate;border-spacing:4px;user-select:none;margin-left:-4px}
+table.tt2 th{font-weight:700;color:var(--ink-soft);font-size:13px}
+table.tt2 tr:first-child th{height:28px}
+table.tt2 tr th:first-child{width:44px;font-size:18px;color:var(--ink)}
+table.tt2 th small{display:block;font-size:10px;font-weight:400;color:var(--ink-soft)}
+table.tt2 td{width:92px;height:52px;border:1.5px solid var(--line);border-radius:8px;text-align:center;vertical-align:middle;font-size:15px;font-weight:700;cursor:pointer;background:var(--surface);transition:border-color .1s}
+table.tt2 td:hover{border-color:var(--accent)}
+.ttpal{background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:12px;width:230px;position:sticky;top:12px}
+.ttpt{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--ink)}
+.ttbtns{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:start}
+.ttbtns>div{display:flex;flex-direction:column;gap:6px}
+.ttbtns button{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:13px;text-align:left}
+.ttbtns button::before{content:"";width:12px;height:12px;border-radius:3px;background:var(--sc);border:1px solid rgba(0,0,0,.15);flex:none}
+.ttbtns button:hover{border-color:var(--accent)}
+.ttbtns button.on{border-color:var(--accent);background:var(--accent-soft);font-weight:700;box-shadow:0 0 0 2px var(--accent-soft)}
 table.tt{border-collapse:collapse}
 table.tt th,table.tt td{border:1px solid var(--line);padding:4px 6px;text-align:center}
 table.tt th{background:var(--surface-2)}
@@ -144,7 +150,7 @@ table.tt select{width:110px;font-weight:700}
 .unitcard .aim{display:block;font-size:12px;color:var(--ink-soft);margin-top:4px}
 .unitcard .aim textarea{min-height:40px;font-size:12px}
 .unitcard .sched{font-size:12px;color:var(--accent);font-weight:700}
-.paste textarea{width:100%;min-height:120px;font-size:12px;font-family:"BIZ UDGothic","MS Gothic",monospace}
+.paste textarea{width:100%;min-height:120px;font-size:12px;font-family:"UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","BIZ UDGothic","MS Gothic",monospace}
 .msg{white-space:pre-wrap;font-size:13px;padding:8px 10px;border-radius:6px;background:var(--accent-soft);margin-top:6px}
 .msg.err{background:var(--warn-soft);color:var(--warn)}
 details.box{border:1.5px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:12px}
@@ -190,10 +196,11 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
   .app{display:none!important}
   #print{display:block}
 }
-#print{font-family:"BIZ UDPGothic","Yu Gothic","Meiryo",sans-serif;color:#000;width:168mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;
+#print{font-family:"UD デジタル 教科書体 NP-R","UD Digi Kyokasho NP-R","UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","BIZ UDPGothic","Yu Gothic UI","Meiryo",sans-serif;color:#000;width:168mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;
   --pl:#2E8B88;--ph:#CCF5CC;--pb:#FFF0C8;--s1:#FFFFA6;--s2:#CCF5CC;--sub:#99EE99;--tot:#66E066}
-#print .ph{height:6mm;font-size:10pt;display:flex;align-items:flex-end;gap:5mm;padding-left:1mm}
-#print .ph b{font-size:11pt}
+#print .ph{height:6mm;font-size:8pt;display:flex;align-items:flex-end;gap:4mm;padding-left:1mm;color:#666}
+#print .ph b{font-size:8.5pt;font-weight:400}
+#print .ph .wt{color:#000;font-size:10pt;font-weight:700}
 #print .pbody{display:flex;margin-top:1.5mm;border:0.35mm solid var(--pl)}
 #print table{border-collapse:collapse;table-layout:fixed}
 #print td,#print th{border:0.2mm solid var(--pl);padding:0;overflow:hidden;vertical-align:top}
@@ -221,6 +228,8 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 #print table.pt2 th{background:var(--ph);font-weight:400;height:5mm;vertical-align:middle;font-size:7pt}
 #print table.pt2 td{height:3.55mm;text-align:center;vertical-align:middle;white-space:nowrap;line-height:1}
 #print table.pt2 td.n{text-align:center}
+#print table.pt2 td{font-size:6.3pt;letter-spacing:-0.02em}
+#print table.pt2 td.rt{font-size:5.3pt}
 #print table.pt2 tr.r1 td{background:var(--s1)}
 #print table.pt2 tr.r2 td{background:var(--s2)}
 #print table.pt2 tr.sub td{background:var(--sub)}
@@ -455,24 +464,19 @@ function computeYear() {
   const sched = {};         // 教科 -> [ {first,last,used} ]
   const ptr = {};
   const st = startDate();
-  function step(x, key, d, hold) {
+  // コマに入れた【単元】【時】から、印刷用の「やまなし②③」と学習内容（最初の時のもの）を決める
+  function step(x, key, d) {
+    if (!x.unit) return;
+    const nums = parseNos(x.no);
     const units = D.units[x.s] || [];
-    if (!units.length) return;
-    if (D.unitStart[x.s] && d < D.unitStart[x.s]) { info[key] = {before: true}; return; }
-    if (x.skip) { info[key] = {skip: true}; return; }
-    let p = ptr[x.s] || {u: D.unitFrom[x.s] || 0, n: 0};
-    let pinned = false;
-    if (x.pin) { const [pu, pn] = x.pin.split(":").map(Number); if (units[pu]) { p = {u: pu, n: pn}; pinned = true; } }
-    if (p.u >= units.length) { info[key] = {done: true, pinned}; ptr[x.s] = p; return; }
-    const un = units[p.u];
-    info[key] = {u: p.u, n: p.n, pinned, hold, unit: un.name, label: un.name + circ(p.n + 1), auto: (un.lessons || [])[p.n] || ""};
-    if (hold) { ptr[x.s] = p; return; }   // 単元を進めない
-    const sc = (sched[x.s] = sched[x.s] || []);
-    const e = (sc[p.u] = sc[p.u] || {first: d, last: d, used: 0});
-    e.last = d; e.used++;
-    let nu = p.u, nn = p.n + 1;
-    if (nn >= lessonCount(un)) { nu++; nn = 0; }
-    ptr[x.s] = {u: nu, n: nn};
+    const ui = units.findIndex(u => u.name === x.unit);
+    const un = units[ui];
+    info[key] = {unit: x.unit, nums, label: x.unit + nums.map(circ).join(""), auto: un && nums.length ? (un.lessons || [])[nums[0] - 1] || "" : ""};
+    if (un) {
+      const sc = (sched[x.s] = sched[x.s] || []);
+      const e = (sc[ui] = sc[ui] || {first: d, last: d, done: new Set()});
+      e.last = d; nums.forEach(n => e.done.add(n));
+    }
   }
   for (let d = yearStart(); d <= yearEnd(); d = addDays(d, 1)) {
     if (d < st || !isSchoolDay(d)) continue;
@@ -485,7 +489,7 @@ function computeYear() {
         if (!pt.s) return;
         c[pt.s] = (c[pt.s] || 0) + (split ? parseHours(pt.h) : slotUnits(pt, i));
         if (i === 0) return;
-        step(pt, d + "|" + i + (k ? "|" + k : ""), d, split && pt.adv === false);
+        step(pt, d + "|" + i + (k ? "|" + k : ""), d);
       });
     });
     counts[d] = c;
@@ -500,6 +504,30 @@ function sumCounts(from, to, withInit) {
   for (const d in c) if (d >= from && d <= to) for (const k in c[d]) r[k] = (r[k] || 0) + c[d][k];
   if (withInit) for (const k in D.cls.init) r[k] = (r[k] || 0) + (D.cls.init[k] || 0);
   return r;
+}
+// 時の欄：「2」「2-3」「2・3」「2,4」などを番号の並びにする
+function parseNos(v) {
+  v = String(v ?? "").replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[－ー〜～]/g, "-").trim();
+  const out = [];
+  for (const part of v.split(/[,、・\s]+/)) {
+    const m = part.match(/^(\d+)(?:-(\d+))?$/);
+    if (!m) continue;
+    const a = +m[1], b = m[2] ? +m[2] : a;
+    for (let n = a; n <= Math.min(b, a + 9); n++) if (n >= 1 && !out.includes(n)) out.push(n);
+  }
+  return out;
+}
+// その単元で、この日より前に入れた最後の時の次の番号
+function nextNo(subj, unit, d, i) {
+  let last = 0;
+  for (const dd of Object.keys(D.days).sort()) {
+    if (dd > d) break;
+    (D.days[dd].slots || []).forEach((x, ii) => {
+      if (dd === d && ii >= i) return;
+      [x, ...(x.parts || [])].forEach(pt => { if (pt.s === subj && pt.unit === unit) last = Math.max(last, ...parseNos(pt.no), 0); });
+    });
+  }
+  return last + 1;
 }
 // 時数は1/12時間単位で数える（1/2・1/3・1/4を正しくたせるように）
 const U = 12;
@@ -695,31 +723,16 @@ function weekTitle(mon) {
   const n = weekNo(mon); const days = weekDays(mon);
   return (n >= 1 ? "第" + n + "週　" : "") + md(days[0]) + "（" + WD[wday(days[0])] + "）〜" + md(days[days.length - 1]) + "（" + WD[wday(days[days.length - 1])] + "）";
 }
+function unitFields(x, cls) {
+  return `<div class="uf"><input type="text" class="un${cls}" list="ul-${esc(x.s)}" value="${esc(x.unit || "")}" placeholder="単元" title="単元名（一覧から選ぶか、打ち込む）"><input type="text" class="no${cls}" value="${esc(x.no || "")}" placeholder="時" title="何時間目か（例：2　2時間分なら 2-3）"></div>`;
+}
 function slotHtml(d, i, x, off) {
   const inf = cy().info[d + "|" + i] || {};
-  const units = D.units[x.s] || [];
   const col = x.s ? colorOf(x.s) : "#E5E5E5";
-  let unitSel = "";
-  if (x.s && units.length) {
-    let o = "";
-    const autoLab = x.pin ? "自動にもどす" : inf.before ? "（単元計画の開始前）" : inf.done ? "（単元計画の終わり）" : inf.label ? inf.label : "自動";
-    o += `<option value="auto"${!x.pin && !x.skip ? " selected" : ""}>${esc(autoLab)}</option>`;
-    o += `<option value="skip"${x.skip ? " selected" : ""}>単元計画を使わない（テストなど）</option>`;
-    units.forEach((u, ui) => {
-      o += `<optgroup label="${esc(u.name)}">`;
-      for (let n = 0; n < lessonCount(u); n++) {
-        const v = ui + ":" + n;
-        o += `<option value="${v}"${x.pin === v ? " selected" : ""}>${esc(u.name + circ(n + 1))}${(u.lessons || [])[n] ? "　" + esc(String(u.lessons[n]).slice(0, 18)) : ""}</option>`;
-      }
-      o += "</optgroup>";
-    });
-    unitSel = `<select class="unit${x.pin ? " pinned" : ""}${x.skip ? " skip" : ""}" title="ここを変えると、次の時間から後ろが自動でずれます">${o}</select>`;
-  }
   const manual = x.t !== undefined && x.t !== null;
   const val = manual ? x.t : (inf.auto || "");
   const parts = x.parts || [];
   const split = parts.length > 0;
-  const advBox = (pt, inf2, cls) => (D.units[pt.s] || []).length && inf2.label ? `<label class="adv"><input type="checkbox" class="${cls}"${pt.adv === false ? "" : " checked"}> 単元を進める</label>` : "";
   const hrWarn = pt => split && pt.s && !(parseHours(pt.h) > 0) ? " warn" : "";
   let ph = "";
   parts.forEach((pt, k) => {
@@ -728,14 +741,14 @@ function slotHtml(d, i, x, off) {
     const pcol = pt.s ? colorOf(pt.s) : "#E5E5E5";
     ph += `<div class="part" data-k="${k}" style="--c:${pcol};--cbg:${pt.s ? pcol + "55" : "#fff"}">
       <div class="sh"><input type="text" class="psubj" list="subjList" value="${esc(pt.s || "")}" placeholder="教科"><input type="text" class="phr${hrWarn(pt)}" value="${esc(pt.h || "")}" placeholder="1/2" title="この部分の時数"><button class="pdel" title="分けるのをやめる">×</button></div>
-      ${inf2.label ? `<div class="plab">${esc(inf2.label)}</div>` : ""}${advBox(pt, inf2, "padv")}
+      ${pt.s ? unitFields(pt, " p") : ""}
       <textarea class="pct${pm ? "" : " auto"}" placeholder="内容（例：避難訓練）">${esc(pm ? pt.t : (inf2.auto || ""))}</textarea>
     </div>`;
   });
   return `<div class="slot${split ? " split" : ""}" draggable="true" data-d="${d}" data-i="${i}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}">
     <div class="sh"><span class="grip" title="ドラッグして別のコマと入れかえ">⋮⋮</span><input type="text" class="subj" list="subjList" value="${esc(x.s || "")}" placeholder="―"><input type="text" class="hr${hrWarn(x)}" value="${esc(x.h || "")}" placeholder="${split ? "1/2" : "1"}" title="このコマの時数（1/2・1/3など）。${split ? "分けたときは必ず入れます" : "空欄は1時間"}"></div>
-    ${unitSel}${split ? advBox(x, inf, "madv") : ""}
-    <div class="tw"><textarea class="ct${manual ? "" : " auto"}" placeholder="学習内容・めあて">${esc(val)}</textarea>${manual && units.length ? '<button class="rv" title="単元計画の内容にもどす">↺</button>' : ""}</div>
+    ${x.s ? unitFields(x, "") : ""}
+    <div class="tw"><textarea class="ct${manual ? "" : " auto"}" placeholder="学習内容・めあて">${esc(val)}</textarea>${manual && inf.auto ? '<button class="rv" title="単元計画の内容にもどす">↺</button>' : ""}</div>
     ${ph}${!off && parts.length < 2 ? `<button class="btn small psplit" title="1時間の中に行事などがあるとき、コマを分けます（3つまで）">＋分ける</button>` : ""}
   </div>`;
 }
@@ -758,6 +771,7 @@ function renderWeek() {
     <button class="btn" id="wPrint">🖨 印刷（B5縦）</button>
   </div>
   <div class="weeklayout"><div>
+  ${Object.keys(D.units).map(k => `<datalist id="ul-${esc(k)}">${(D.units[k] || []).map(u => `<option value="${esc(u.name)}">`).join("")}</datalist>`).join("")}
   <datalist id="subjList">${gradeSubjects().map(x => `<option value="${esc(x.name)}">`).join("")}<option value="なし"></datalist>
   <div class="gridwrap"><table class="wk"><colgroup><col style="width:44px">${days.map(() => "<col>").join("")}</colgroup><thead><tr><th class="lab"></th>`;
   for (const d of days) {
@@ -790,7 +804,7 @@ function renderWeek() {
   h += `</tr></tbody></table></div>
   <div class="memo" style="margin-top:8px"><b>メモ</b>（印刷では時数表の下）<textarea id="wMemo" placeholder="連絡・持ち物など">${esc(wr.memo || "")}</textarea></div>
   <div class="memo" style="margin-top:8px"><b>記録欄</b>（印刷ではいちばん下）<textarea id="wRec" placeholder="週の振り返り・記録">${esc(wr.rec || "")}</textarea></div>
-  <p class="hint">・教科の欄は、クリックすると一覧が出ます。打ち込んでもかまいません。消すときは「なし」を選びます。<br>・教科を変えると、単元計画の続きが自動で入ります。「単元名③」の欄を変えると、次の時間から後ろが自動でずれます。<br>・コマの左の「⋮⋮」をドラッグすると、別のコマと入れかえられます（授業変更）。<br>・学習内容を書きかえると、その文が優先されます。「↺」で単元計画の内容にもどせます。</p>
+  <p class="hint">・教科の欄は、クリックすると一覧が出ます。打ち込んでもかまいません。消すときは「なし」を選びます。<br>・教科の下に【単元】【時】を入れると、単元計画からその時間の学習内容が入ります。2時間分を1時間でやるときは、時に「2-3」と入れます（内容は第2時のもの、印刷は「やまなし②③」）。単元を選ぶと、時には前の続きの番号が入ります。<br>・コマの左の「⋮⋮」をドラッグすると、別のコマと入れかえられます（授業変更）。<br>・学習内容を書きかえると、その文が優先されます。「↺」で単元計画の内容にもどせます。</p>
   </div>
   <div class="side">${weekTotalsHtml(mon)}</div></div>`;
   el.innerHTML = h;
@@ -862,9 +876,25 @@ function bindWeek(el, mon) {
   $$(".slot", el).forEach(sl => {
     const d = sl.dataset.d, i = +sl.dataset.i;
     bindSubj($("input.subj", sl), v => { const s = ensureSlots(d); s[i] = {s: v, ...(s[i].parts ? {parts: s[i].parts} : {})}; });
+    const bindUnit = (box, get) => {
+      if (!box) return;
+      const uf = box.querySelector(":scope > .uf"); if (!uf) return;
+      const un = $("input.un", uf), no = $("input.no", uf);
+      if (!un) return;
+      un.onchange = () => {
+        const x = get(); const v = un.value.trim();
+        if (v) { x.unit = v; if (!x.no) x.no = String(nextNo(x.s, v, d, i)); } else { delete x.unit; delete x.no; }
+        delete x.t; changed();
+      };
+      no.onchange = () => {
+        const x = get(); const v = no.value.trim();
+        if (v && !parseNos(v).length) { toast("時は「2」や「2-3」のように入れてください"); no.value = x.no || ""; return; }
+        if (v) x.no = v; else delete x.no;
+        delete x.t; changed();
+      };
+    };
+    bindUnit(sl, () => ensureSlots(d)[i]);
     $("input.hr", sl).onchange = e => { setHours(ensureSlots(d)[i], e.target); changed(); };
-    const ma = $("input.madv", sl);
-    if (ma) ma.onchange = () => { const x = ensureSlots(d)[i]; if (ma.checked) delete x.adv; else x.adv = false; changed(); };
     const ps = $(".psplit", sl);
     if (ps) ps.onclick = () => { const x = ensureSlots(d)[i]; (x.parts = x.parts || []).push({s: "行事"}); changed(); };
     $$(".part", sl).forEach(pe => {
@@ -873,18 +903,10 @@ function bindWeek(el, mon) {
       bindSubj($("input.psubj", pe), v => { ensureSlots(d)[i].parts[k] = {s: v, h: pt().h}; });
       $("input.phr", pe).onchange = e => { setHours(pt(), e.target); changed(); };
       $("button.pdel", pe).onclick = () => { const x = ensureSlots(d)[i]; x.parts.splice(k, 1); if (!x.parts.length) { delete x.parts; delete x.adv; } changed(); };
-      const pa = $("input.padv", pe);
-      if (pa) pa.onchange = () => { if (pa.checked) delete pt().adv; else pt().adv = false; changed(); };
+      bindUnit(pe, pt);
       const ta = $("textarea.pct", pe);
       ta.oninput = () => { pt().t = ta.value; ta.classList.remove("auto"); changed(false); };
     });
-    const us = $("select.unit", sl);
-    if (us) us.onchange = e => {
-      const s = ensureSlots(d)[i]; const v = e.target.value;
-      delete s.pin; delete s.skip;
-      if (v === "skip") s.skip = true; else if (v !== "auto") s.pin = v;
-      changed();
-    };
     const ta = $("textarea.ct", sl);
     ta.oninput = () => { const s = ensureSlots(d)[i]; s.t = ta.value; ta.classList.remove("auto"); changed(false); };
     ta.onchange = () => render();
@@ -982,7 +1004,7 @@ function renderPrint() {
     const fs = 5.5;
     return [row(parts[0]), `<td colspan="2" class="spc">${extra ? `<table class="sub"><colgroup><col><col style="width:${days.length > 5 ? 4.5 : 6}mm"></colgroup>${extra}</table>` : ""}<div class="cb" style="font-size:${fs}pt;max-height:${(rest - 0.3).toFixed(1)}mm">${body}</div></td>`];
   };
-  let h = `<div class="ph"><b>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</b><span>担任：${esc(c.teacher)}</span><span style="margin-left:auto">${esc(weekTitle(mon))}</span></div>
+  let h = `<div class="ph"><b>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</b><span>担任：${esc(c.teacher)}</span><span class="wt" style="margin-left:auto">${esc(weekTitle(mon))}</span></div>
   <div class="pbody"><table class="pw"><colgroup><col style="width:8mm">${days.map(() => `<col><col style="width:${days.length > 5 ? 4.5 : 6}mm">`).join("")}</colgroup>
   <thead><tr style="height:8mm"><th class="l"></th>`;
   for (const d of days) { const t = parse(d); h += `<th>${t.getMonth() + 1}月${t.getDate()}日<br>${WD[t.getDay()]}</th><th class="hk">${isSchoolDay(d) ? "" : "休"}</th>`; }
@@ -1012,9 +1034,9 @@ function renderPrint() {
   const rows = totalsRows([sumCounts(mon, last, false), sumCounts(yearStart(), last, true)]).filter(r => !r.child);
   const g1 = rows.filter(r => !r.sp), g2 = rows.filter(r => r.sp);
   const sum = g => [0, 1].map(k => g.reduce((a, r) => a + r.vals[k], 0));
-  const line = (r, k) => `<tr class="r${k % 2 ? 2 : 1}"><td class="n">${esc(r.name)}</td><td>${r.vals[0] ? fr(r.vals[0]) : ""}</td><td>${fr(r.vals[1])}</td><td>${rateCell(r)}</td></tr>`;
+  const line = (r, k) => `<tr class="r${k % 2 ? 2 : 1}"><td class="n">${esc(r.name)}</td><td>${r.vals[0] ? fr(r.vals[0]) : ""}</td><td>${fr(r.vals[1])}</td><td class="rt">${rateCell(r)}</td></tr>`;
   const s1 = sum(g1), s2 = sum(g2);
-  let t = `<table class="pt2"><colgroup><col style="width:11.5mm"><col><col><col style="width:11mm"></colgroup><tr><th>教科</th><th>今週</th><th>累計</th><th>${D.cls.rateMode === "rest" ? "残り" : "達成率"}</th></tr>`;
+  let t = `<table class="pt2"><colgroup><col style="width:10mm"><col style="width:8.5mm"><col style="width:12mm"><col></colgroup><tr><th>教科</th><th>今週</th><th>累計</th><th>${D.cls.rateMode === "rest" ? "残り" : "達成率"}</th></tr>`;
   g1.forEach((r, k) => t += line(r, k));
   t += `<tr class="sub"><td>小計</td><td>${fr(s1[0])}</td><td>${fr(s1[1])}</td><td></td></tr><tr class="gap"><td colspan="4"></td></tr>`;
   if (g2.length) {
@@ -1039,18 +1061,18 @@ function renderTT() {
   if (ttPick && !subs.find(x => x.name === ttPick)) ttPick = "";
   const c = D.cls;
   let h = `<div class="ttwrap"><div>
-    <div class="tthead"><b>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</b><span>時間割</span></div>
+    <div class="tthead"><b>ふだんの時間割</b><span>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</span></div>
     <table class="tt2"><tr><th></th>${[1,2,3,4,5].map(w => `<th>${WD[w]}</th>`).join("")}</tr>`;
   for (let i = 0; i <= P(); i++) {
     h += `<tr><th>${i === 0 ? `朝<small>${esc(D.school.asaHours || "1/3")}時間</small>` : i}</th>`;
     for (const w of [1,2,3,4,5]) {
       const v = D.timetable[w][i] || "";
-      h += `<td data-w="${w}" data-i="${i}" style="${v ? "background:" + colorOf(v) : ""}">${esc(v)}</td>`;
+      h += `<td data-w="${w}" data-i="${i}" style="${v ? "background:" + colorOf(v) + ";border-color:" + colorOf(v) : ""}">${esc(v)}</td>`;
     }
     h += "</tr>";
   }
   h += `</table></div>
-  <div class="ttpal"><div class="ttpt">ボタンを選んでから、マスをクリック</div>
+  <div class="ttpal"><div class="ttpt">教科を選んで、マスをクリック</div>
     <div class="ttbtns">${[subs.filter(x => !isSpecial(x)), subs.filter(isSpecial)].map(col => `<div>${col.map(x => `<button data-s="${esc(x.name)}" class="${ttPick === x.name ? "on" : ""}" style="--sc:${x.color}">${esc(x.name)}</button>`).join("")}</div>`).join("")}</div>
     <p class="hint">・同じ教科のマスをもう一度クリックすると消えます。<br>・押したままなぞると、まとめて入れられます。</p>
   </div></div>
@@ -1063,7 +1085,7 @@ function renderTT() {
     const w = td.dataset.w, i = +td.dataset.i;
     const v = painting === "" ? "" : ttPick;
     D.timetable[w][i] = v;
-    td.textContent = v; td.style.background = v ? colorOf(v) : "";
+    td.textContent = v; td.style.background = v ? colorOf(v) : ""; td.style.borderColor = v ? colorOf(v) : "";
   };
   $$("td[data-w]", el).forEach(td => {
     td.onmousedown = e => {
@@ -1156,10 +1178,8 @@ function renderUnits() {
   let h = `<h2>単元計画</h2>
   ${pk.length ? `<details class="box"${Object.keys(D.units).length ? "" : " open"}><summary>教科書の年間指導計画から入れる</summary>
     <div class="row" style="margin:6px 0"><select id="pSel">${pk.map(k => `<option value="${k}">${esc(PRESETS[k].label)}</option>`).join("")}</select>
-    <label class="row" style="gap:4px">始める単元<select id="pFrom"></select></label>
-    <label class="row" style="gap:4px">始める日<input type="date" id="pStart" value="${unitStartDefault()}"></label>
     <button class="btn primary" id="pGo">入れる</button></div>
-    <p class="hint">年間の単元が順に入ります。「始める単元」より前の単元は、週案には入りません（あとから単元を選び直せます）。各時間の学習内容は、指導計画の「主な学習活動」です。</p>
+    <p class="hint">年間の単元名・時数・各時間の学習内容（指導計画の「主な学習活動」）が入ります。週案では、コマに【単元】【時】を入れると、その時間の学習内容が出ます。</p>
   </details>` : ""}
   <details class="box paste"${Object.keys(D.units).length ? "" : " open"}><summary>Excelから貼り付けて登録する</summary>
     <p class="hint">Excelで「教科｜単元名｜時間｜学習内容」の4列の表を作り、表をコピーして下に貼り付けてください。1行が1時間分です。<br>
@@ -1171,45 +1191,30 @@ function renderUnits() {
   </details>
   <div class="subjchips">${subs.map(s => `<button data-s="${esc(s.name)}" class="${s.name === curUnitSubj ? "on" : ""}"><span class="chip" style="background:${s.color}"></span>${esc(s.name)}<small>${(D.units[s.name] || []).length || ""}</small></button>`).join("")}</div>`;
   const list = D.units[curUnitSubj] || [];
-  if (curUnitSubj) h += `<div class="row" style="margin-bottom:10px"><label class="row" style="gap:6px"><b>${esc(curUnitSubj)}の単元計画を週案に入れ始める日</b><input type="date" id="uStart" value="${esc(D.unitStart[curUnitSubj] || "")}"></label><span class="hint">この日より前の${esc(curUnitSubj)}の時間には入りません。空欄なら年度のはじめからです。</span></div>`;
   list.forEach((u, ui) => {
     const s = (sc[curUnitSubj] || [])[ui];
     const n = lessonCount(u);
-    const skipped = ui < (D.unitFrom[curUnitSubj] || 0);
-    h += `<div class="unitcard${skipped ? " skipped" : ""}" data-u="${ui}">
+    h += `<div class="unitcard" data-u="${ui}">
       <div class="uh"><b>${u.month ? u.month + "月" : ui + 1}</b><input type="text" class="un" value="${esc(u.name)}" placeholder="単元名">
       <label class="row" style="gap:4px">時数<input type="number" class="utot" min="0" value="${u.total || n}"></label>
-      <span class="sched">${skipped ? "（始める単元より前なので入りません）" : s ? `予定：${md(s.first)}〜${md(s.last)}（${s.used}/${n}時間）` : "まだ週案に入っていません"}</span>
-      ${skipped || ui === (D.unitFrom[curUnitSubj] || 0) ? "" : `<button class="btn small" data-from title="この単元から週案に入れる">ここから始める</button>`}
+      <span class="sched">${s ? `週案：${md(s.first)}〜${md(s.last)}（${s.done.size}/${n}時間）` : "まだ週案に入っていません"}</span>
       <button class="btn small" data-mv="-1" title="上へ">↑</button><button class="btn small" data-mv="1" title="下へ">↓</button><button class="btn small danger" data-del>削除</button></div>
       <textarea class="ul" placeholder="1行に1時間分の学習内容を書きます（1行目＝1時間目）">${esc((u.lessons || []).join("\n"))}</textarea>
       <label class="aim">ねらい<textarea class="ua" placeholder="単元のねらい（指導目標）">${esc(u.aim || "")}</textarea></label>
     </div>`;
   });
   h += `<button class="btn" id="uNew">＋ ${esc(curUnitSubj)}の単元を追加</button>
-  <p class="hint">単元は上から順に週案に入ります。時数より学習内容の行が少ないときは、残りの時間は「単元名⑤」だけが入ります。</p>`;
+  <p class="hint">週案のコマに【単元】【時】を入れると、ここに書いた学習内容（その時の行）が入ります。</p>`;
   el.innerHTML = h;
   $$(".subjchips button", el).forEach(b => b.onclick = () => { curUnitSubj = b.dataset.s; render(); });
   if ($("#pSel")) {
-    const fillFrom = () => {
-      const pr = PRESETS[$("#pSel").value];
-      const t = parse($("#pStart").value || today()); const mo = t.getMonth() + 1;
-      const ord = m => (m + 8) % 12;   // 4月を0として並べる
-      let def = pr.units.findIndex(u => ord(u.month) >= ord(mo)); if (def < 0) def = 0;
-      $("#pFrom").innerHTML = pr.units.map((u, i) => `<option value="${i}"${i === def ? " selected" : ""}>${u.month}月　${esc(u.name)}（${u.total}時間）</option>`).join("");
-    };
-    fillFrom();
-    $("#pSel").onchange = fillFrom; $("#pStart").onchange = fillFrom;
     $("#pGo").onclick = () => {
       const pr = PRESETS[$("#pSel").value]; const sname = pr.subject;
       if (!subjByName(sname)) { toast("教科一覧に「" + sname + "」がありません"); return; }
       if ((D.units[sname] || []).length && !confirm(sname + "の単元計画を、" + pr.label + "に置きかえます。よろしいですか？")) return;
       D.units[sname] = JSON.parse(JSON.stringify(pr.units));
-      D.unitFrom[sname] = +$("#pFrom").value;
-      if ($("#pStart").value) D.unitStart[sname] = $("#pStart").value; else delete D.unitStart[sname];
-      for (const d in D.days) for (const x of D.days[d].slots || []) if (x.s === sname) delete x.pin;
       curUnitSubj = sname;
-      unitMsg = {err: false, text: `${sname}：${pr.units.length}単元（${pr.units.reduce((a, u) => a + u.total, 0)}時間）を入れました。「${pr.units[D.unitFrom[sname]].name}」から週案に入ります。`};
+      unitMsg = {err: false, text: `${sname}：${pr.units.length}単元（${pr.units.reduce((a, u) => a + u.total, 0)}時間）を入れました。`};
       changed();
     };
   }
@@ -1226,18 +1231,21 @@ function renderUnits() {
   };
   $("#uAdd").onclick = () => imp(false);
   $("#uRep").onclick = () => { if (confirm("貼り付けた教科の単元計画を、すべて置きかえます。よろしいですか？")) imp(true); };
-  if ($("#uStart")) $("#uStart").onchange = e => { if (e.target.value) D.unitStart[curUnitSubj] = e.target.value; else delete D.unitStart[curUnitSubj]; changed(); };
   $("#uNew").onclick = () => { if (!(D.units[curUnitSubj] || []).length) D.unitStart[curUnitSubj] = unitStartDefault(); (D.units[curUnitSubj] = D.units[curUnitSubj] || []).push({name: "新しい単元", total: 1, lessons: []}); changed(); };
   $$(".unitcard", el).forEach(card => {
     const ui = +card.dataset.u; const u = list[ui];
     $(".un", card).oninput = e => { u.name = e.target.value; changed(false); };
-    $(".un", card).onchange = () => render();
+    // 単元名を変えたら、週案に入れた単元名も合わせる
+    const oldName = u.name;
+    $(".un", card).onchange = () => {
+      for (const d in D.days) for (const x of D.days[d].slots || []) for (const pt of [x, ...(x.parts || [])]) if (pt.s === curUnitSubj && pt.unit === oldName) pt.unit = u.name;
+      changed();
+    };
     $(".utot", card).onchange = e => { u.total = Math.max(0, parseInt(e.target.value) || 0); changed(); };
     $(".ul", card).oninput = e => { u.lessons = e.target.value.split("\n"); while (u.lessons.length && u.lessons[u.lessons.length - 1] === "") u.lessons.pop(); changed(false); };
     $(".ul", card).onchange = () => render();
     $(".ua", card).oninput = e => { u.aim = e.target.value; changed(false); };
-    const fb = $("[data-from]", card);
-    if (fb) fb.onclick = () => { D.unitFrom[curUnitSubj] = ui; changed(); };
+
     $$("[data-mv]", card).forEach(b => b.onclick = () => { const j = ui + +b.dataset.mv; if (j < 0 || j >= list.length) return; [list[ui], list[j]] = [list[j], list[ui]]; fixPins(curUnitSubj, ui, j); changed(); });
     $("[data-del]", card).onclick = () => { if (!confirm("「" + u.name + "」を削除しますか？")) return; list.splice(ui, 1); fixPins(curUnitSubj, ui, -1); changed(); };
   });
