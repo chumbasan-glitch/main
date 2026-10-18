@@ -1,4 +1,4 @@
-<title>ノートメーカー</title>
+<title>ノートツクール</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -77,6 +77,8 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
 .stepper button{appearance:none;border:0;background:var(--surface-2);color:var(--ink);width:44px;height:44px;font-size:22px;cursor:pointer;font-family:inherit}
 .stepper input{width:58px;height:44px;border:0;text-align:center;font:inherit;font-size:18px;font-weight:700;background:var(--surface);color:var(--ink);font-variant-numeric:tabular-nums;-moz-appearance:textfield}
 .stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#userText{width:100%;box-sizing:border-box;font-family:var(--f-display);font-size:18px;line-height:1.5;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical}
+#userText:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .btn{appearance:none;border:1.5px solid var(--accent);background:var(--surface);color:var(--accent);border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;min-height:46px}
 .btn.primary{background:var(--accent);color:var(--accent-ink)}
 .btn:disabled{opacity:.5;cursor:default}
@@ -107,9 +109,9 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
 
 <div class="wrap">
   <header class="top">
-    <h1>ノートメーカー</h1>
+    <h1>ノートツクール</h1>
     <span class="sub">国語・算数・理科・社会・漢字練習・連絡帳・日記の白紙ノートをB5で作れます</span>
-    <span class="ver">ver 1.3</span>
+    <span class="ver">ver 1.4</span>
   </header>
 
   <div class="layout">
@@ -159,7 +161,17 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
       </section>
 
       <section class="step">
-        <div class="step-h"><span class="n">6</span>線の濃さ・用紙</div>
+        <div class="step-h"><span class="n">6</span>ノートに文字を入れる</div>
+        <textarea id="userText" rows="4" placeholder="例：はるが きた。&#10;（ここに書いた文字が、1マスに1文字ずつ入ります）"></textarea>
+        <p class="hint">1マスに1文字ずつ、国語・漢字・日記・連絡帳はたて書きで右の列から、算数・理科・社会は左上から入ります。改行すると、次の列（行）から書きはじめます。入りきらない文字は出ません。</p>
+        <div class="opt">
+          <span class="opt-label">文字の色</span>
+          <div class="choices" id="textColorChoices"></div>
+        </div>
+      </section>
+
+      <section class="step">
+        <div class="step-h"><span class="n">7</span>線の濃さ・用紙</div>
         <div class="opt">
           <span class="opt-label">線の濃さ（輪転機ではうすい線が消えやすいので「濃い」がおすすめ）</span>
           <div class="choices" id="colorChoices"></div>
@@ -171,7 +183,7 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
       </section>
 
       <section class="step">
-        <div class="step-h"><span class="n">7</span>保存・印刷</div>
+        <div class="step-h"><span class="n">8</span>保存・印刷</div>
         <div class="btn-row">
           <button class="btn primary" type="button" id="printBtn" hidden>印刷する</button>
           <button class="btn primary" type="button" id="savePdf">PDFで保存</button>
@@ -259,7 +271,7 @@ const PAPERS = [
 ];
 
 const state = {
-  note:"kokugo", color:1, paper:"b5", hira:true,
+  note:"kokugo", color:1, paper:"b5", hira:true, text:"", textColor:0,
   name:true, date:true, page:true, meate:false, matome:false,
   fmt:{kokugo:0, kanji:0, sansu:3},
   o:{
@@ -522,6 +534,20 @@ function numLabels(n){
   if(n <= 10) return base.slice(0, n);
   return base.concat(ops.slice(0, Math.min(3, n - 10)));
 }
+/* 数字は文字で、＋ − ＝ は線で描いて、マスのまん中にそろえる */
+function numCell(ctx, t, cx, cy, s, trace){
+  if(!"＋−＝".includes(t)){ text(ctx, t, cx, cy + s * 0.03, s * (t.length > 1 ? 0.62 : 0.72), "center", "middle", trace); return; }
+  const h = s * 0.27, lw = s * 0.055;
+  const bar = (x1, y1, x2, y2) => {
+    ctx.beginPath(); ctx.lineWidth = lw; ctx.lineCap = trace ? "butt" : "round";
+    ctx.setLineDash(trace ? [s * 0.06, s * 0.045] : []);
+    ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.lineCap = "butt"; ctx.setLineDash([]);
+  };
+  if(t === "＝"){ bar(cx - h, cy - s * 0.09, cx + h, cy - s * 0.09); bar(cx - h, cy + s * 0.09, cx + h, cy + s * 0.09); return; }
+  bar(cx - h, cy, cx + h, cy);
+  if(t === "＋") bar(cx, cy - h, cx, cy + h);
+}
 function drawGrid(ctx, m){
   const cols = state.a, rows = state.b, o = opt();
   const s = Math.min(m.w / cols, m.h / rows), gw = cols * s, gh = rows * s;
@@ -534,10 +560,7 @@ function drawGrid(ctx, m){
   for(let i = 1; i < cols; i++) line(ctx, x0 + i * s, y0, x0 + i * s, y0 + gh, o.five && i % 5 === 0 ? W_MID : W_THIN);
   for(let j = 1; j < rows; j++) line(ctx, x0, y0 + j * s, x0 + gw, y0 + j * s, (o.five && j > off && (j - off) % 5 === 0) || (off && j === 1) ? W_MID : W_THIN);
   if(off){
-    numLabels(cols).forEach((t, i) => {
-      const sz = s * (t.length > 1 ? 0.62 : 0.72);
-      text(ctx, t, x0 + (i + 0.5) * s, y0 + s * 0.53, sz, "center", "middle", nums === "trace");
-    });
+    numLabels(cols).forEach((t, i) => numCell(ctx, t, x0 + (i + 0.5) * s, y0 + s * 0.5, s, nums === "trace"));
   }
   frame(ctx, x0, y0, gw, gh);
 }
@@ -556,7 +579,7 @@ function drawRuled(ctx, m, k){
     line(ctx, m.x + m.w / 2, m.y + head * p, m.x + m.w / 2, m.y + m.h, W_THIN);
     if(head){
       const cw = m.w / 10;
-      numLabels(10).forEach((t, i) => text(ctx, t, m.x + (i + 0.5) * cw, m.y + p * 0.53, p * (t.length > 1 ? 0.62 : 0.72), "center", "middle", o.nums === "trace"));
+      numLabels(10).forEach((t, i) => numCell(ctx, t, m.x + (i + 0.5) * cw, m.y + p * 0.5, p, o.nums === "trace"));
       for(let i = 0; i < 10; i++){ dot(ctx, m.x + (i + 0.5) * cw, m.y + p + 0.5, 0.45); dot(ctx, m.x + (i + 0.5) * cw, m.y + m.h - 0.5, 0.45); }
       tri(ctx, m.x + m.w / 2, m.y - 0.4, "t"); tri(ctx, m.x + m.w / 2, m.y + m.h + 0.4, "b");
       tri(ctx, m.x - 0.4, m.y + m.h / 2, "l"); tri(ctx, m.x + m.w + 0.4, m.y + m.h / 2, "r");
@@ -604,8 +627,74 @@ function drawPage(ctx, ox, oy){
   else if(k === "vline") drawVLine(ctx, m);
   else if(k === "grid") drawGrid(ctx, m);
   else drawRuled(ctx, m, k);
+  drawUserText(ctx, m, k);
   ctx.restore();
 }
+/* ---------- ノートに入れる文字 ---------- */
+const TEXT_COLORS = [
+  {name:"黒", c:"#1E1E1E"},
+  {name:"線と同じ色", c:null},
+  {name:"うすい灰色（なぞり書き用）", c:"#9C9C9C"}
+];
+const ROTATE = "ー－―〜～…‥（）「」『』【】〈〉《》()[]〔〕";
+/* たて書きの1文字（のばす棒やかっこは回し、句読点は右上に寄せる） */
+function vchar(ctx, c, x, y, size){
+  if(ROTATE.includes(c)){ ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 2); text(ctx, c, 0, 0, size); ctx.restore(); return; }
+  if("、。，．".includes(c)){ text(ctx, c, x + size * 0.6, y - size * 0.55, size); return; }
+  if("ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ".includes(c)){ text(ctx, c, x + size * 0.1, y - size * 0.1, size); return; }
+  text(ctx, c, x, y, size);
+}
+/* 文字を1つずつ、マス（または行）に入れていく。改行すると次の列・行から */
+function lines(){ return state.text.replace(/\r/g, "").split("\n").map(l => [...l]); }
+function flow(cap, nSlots){
+  const out = []; let slot = 0, pos = 0;
+  for(const ln of lines()){
+    if(slot >= nSlots) break;
+    if(!ln.length){ slot++; pos = 0; continue; }
+    for(const c of ln){
+      if(pos >= cap){ slot++; pos = 0; }
+      if(slot >= nSlots) break;
+      out.push({c, slot, pos}); pos++;
+    }
+    slot++; pos = 0;
+  }
+  return out;
+}
+/* 横書きの ＋ − ＝ は、半角で入力しても、マスのまん中に線で描く */
+const OPS = {"+":"＋", "＋":"＋", "-":"−", "－":"−", "−":"−", "=":"＝", "＝":"＝"};
+function hchar(ctx, c, x, y, size){
+  if(OPS[c]) numCell(ctx, OPS[c], x, y, size / 0.72, false);
+  else text(ctx, c, x, y, size);
+}
+function drawUserText(ctx, m, k){
+  if(!state.text.trim()) return;
+  ctx.save();
+  const col = TEXT_COLORS[state.textColor].c || INK;
+  ctx.fillStyle = col; ctx.strokeStyle = col;
+  if(k === "vmasu"){
+    const cols = state.a, rows = state.b, s = m.h / rows, u = s * (1 + rubyRatio());
+    for(const it of flow(rows, cols)) vchar(ctx, it.c, m.x + m.w - (it.slot + 1) * u + s / 2, m.y + (it.pos + 0.5) * s, s * 0.74);
+  }else if(k === "vline"){
+    const u = m.w / state.a, cap = Math.floor(m.h / u);
+    for(const it of flow(cap, state.a)) vchar(ctx, it.c, m.x + m.w - (it.slot + 0.5) * u, m.y + (it.pos + 0.5) * u, u * 0.72);
+  }else if(k === "grid"){
+    const s = m.w / state.a, off = numsOn() ? 1 : 0;
+    for(const it of flow(state.a, state.b - off)) hchar(ctx, it.c, m.x + (it.pos + 0.5) * s, m.y + (it.slot + off + 0.5) * s, s * 0.72);
+  }else if(k === "renraku"){
+    const n = state.a, hw = 15, dw = (m.w - hw) / n, top = m.y + 27, bot = m.y + m.h - 20, p = dw * 0.9;
+    for(const it of flow(Math.floor((bot - top - 2) / p), n)) vchar(ctx, it.c, m.x + m.w - hw - (it.slot + 0.5) * dw, top + 1 + (it.pos + 0.5) * p, dw * 0.66);
+  }else{
+    const head = k === "nidan" && numsOn() ? 1 : 0, half = k === "half";
+    const top = half ? m.y + m.h * 0.45 : m.y, h = half ? m.h * 0.55 : m.h, p = h / (state.a + head);
+    const sz = p * 0.62, cw = sz * 1.04, colsN = k === "nidan" ? 2 : 1, w = m.w / colsN, cap = Math.floor((w - 4) / cw);
+    for(const it of flow(cap, state.a * colsN)){
+      const c = Math.floor(it.slot / state.a), r = it.slot % state.a;
+      hchar(ctx, it.c, m.x + c * w + 2 + (it.pos + 0.5) * cw, top + (r + head + 0.55) * p, sz);
+    }
+  }
+  ctx.restore();
+}
+
 /* 用紙1枚分（B4のときは同じノートを2ページ、まん中に切り取りの目じるし） */
 function drawSheet(canvas, px, single){
   INK = COLORS[state.color].c;
@@ -791,6 +880,8 @@ function renderCounts(){
 function renderStatic(){
   choiceRow($("noteChoices"), NOTES, state.note, v => { state.note = v; if(hasFormats()) applyFormat(state.fmt[v]); else fitCounts(); update(); }, "note-btn");
   choiceRow($("dateChoices"), [{id:true, name:"がつ・にち・ようび"}, {id:false, name:"月・日・曜日"}], state.hira, v => { state.hira = v; update(); });
+  choiceRow($("textColorChoices"), TEXT_COLORS.map((c, i) => ({id:i, name:c.name})), state.textColor, v => { state.textColor = v; update(); });
+  if(document.activeElement !== $("userText")) $("userText").value = state.text;
   choiceRow($("colorChoices"), COLORS.map((c, i) => ({id:i, name:c.name})), state.color, v => { state.color = v; update(); });
   choiceRow($("paperChoices"), PAPERS, state.paper, v => { state.paper = v; update(); });
   $("frameOpt").hidden = !hasFrames();
@@ -824,6 +915,7 @@ $("cMatome").addEventListener("change", e => { state.matome = e.target.checked; 
 $("cName").addEventListener("change", e => { state.name = e.target.checked; update(); });
 $("cDate").addEventListener("change", e => { state.date = e.target.checked; update(); });
 $("cPage").addEventListener("change", e => { state.page = e.target.checked; update(); });
+$("userText").addEventListener("input", e => { state.text = e.target.value; draw(); save(); });
 $("resetCounts").addEventListener("click", () => { resetShape(); update(); });
 
 /* この端末に、さいごの設定をおぼえておく */
@@ -833,7 +925,7 @@ function load(){
   try{
     const s = JSON.parse(localStorage.getItem(KEY) || "null");
     if(s && NOTES.some(n => n.id === s.note)){
-      for(const k of ["note","color","paper","hira","name","date","page","meate","matome","a","b"]) if(k in s) state[k] = s[k];
+      for(const k of ["note","color","paper","hira","text","textColor","name","date","page","meate","matome","a","b"]) if(k in s) state[k] = s[k];
       if(s.fmt) Object.assign(state.fmt, s.fmt);
       for(const n of Object.keys(state.o)) if(s.o && s.o[n]) Object.assign(state.o[n], s.o[n]);
       return true;
@@ -871,7 +963,7 @@ function status(msg, kind){ const el = $("saveStatus"); el.textContent = msg; el
 function baseName(){
   const d = new Date(), pad = n => String(n).padStart(2, "0");
   const nm = NOTES.find(x => x.id === state.note).name;
-  return "ノート_" + nm + "_" + (state.paper === "b5" ? "B5" : "B4") + "_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+  return "ノートツクール_" + nm + "_" + (state.paper === "b5" ? "B5" : "B4") + "_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
 }
 const PRINT_PX = 250 / 25.4;
 function canvasBlob(c, type, q){ return new Promise(res => c.toBlob(res, type, q)); }
