@@ -56,7 +56,12 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
 .choice[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
 .choice:focus-visible,.btn:focus-visible,.stepper button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .note-btn{font-family:var(--f-display);font-weight:600;font-size:17px;padding:8px 4px}
-.grade-btn{font-family:var(--f-display);font-weight:600;font-size:17px;padding:8px 0}
+.fmts{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.fmt{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:8px 6px;font:inherit;font-size:13px;line-height:1.3;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.fmt canvas{display:block;box-shadow:0 0 0 1px var(--line)}
+.fmt:hover{border-color:var(--accent)}
+.fmt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--accent)}
+.fmt:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .opt{display:flex;flex-direction:column;gap:6px}
 .opt-label{font-size:13px;font-weight:700;color:var(--ink-soft)}
 .checks{display:flex;flex-wrap:wrap;gap:8px}
@@ -101,8 +106,8 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
 <div class="wrap">
   <header class="top">
     <h1>ノートメーカー</h1>
-    <span class="sub">小学1〜6年の、各教科の白紙ノートをB5で作れます</span>
-    <span class="ver">ver 1.0</span>
+    <span class="sub">国語・算数・理科・社会・漢字練習・連絡帳・日記の白紙ノートをB5で作れます</span>
+    <span class="ver">ver 1.1</span>
   </header>
 
   <div class="layout">
@@ -112,10 +117,10 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
         <div class="choices grid4" id="noteChoices"></div>
       </section>
 
-      <section class="step">
-        <div class="step-h"><span class="n">2</span>学年</div>
-        <div class="choices grid6" id="gradeChoices"></div>
-        <p class="hint">学年をえらぶと、マスの大きさや形が学年に合わせて変わります。</p>
+      <section class="step" id="fmtStep">
+        <div class="step-h"><span class="n">2</span>見本の形</div>
+        <div class="fmts" id="fmtChoices"></div>
+        <p class="hint">見本と同じ列・行の数になります。下の「マス・行の数」で、ここから＋−できます。</p>
       </section>
 
       <section class="step">
@@ -127,7 +132,7 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
         <div class="step-h"><span class="n">4</span>マス・行の数</div>
         <div class="counts" id="countArea"></div>
         <div class="btn-row"><button class="btn" type="button" id="resetCounts">学年に合わせる</button></div>
-        <p class="hint">形や枠を変えると、マスの数は学年に合わせた数にもどります。</p>
+        <p class="hint">方眼・罫線などの形を変えると、ページいっぱいの数になります。</p>
       </section>
 
       <section class="step" id="extraStep">
@@ -141,6 +146,7 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
         </div>
         <div class="opt">
           <span class="opt-label">見出し</span>
+          <div class="choices" id="dateChoices"></div>
           <div class="checks">
             <label class="check"><input type="checkbox" id="cName">名前</label>
             <label class="check"><input type="checkbox" id="cDate">日付</label>
@@ -197,7 +203,7 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
 const $ = id => document.getElementById(id);
 const FONT = '"UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","UD デジタル 教科書体 NP-R","UD Digi Kyokasho NP-R","Klee One","Hiragino Mincho ProN",serif';
 
-/* ---------- ノートの種類と、学年ごとの決まり ---------- */
+/* ---------- ノートの種類と、見本の形 ---------- */
 const NOTES = [
   {id:"kokugo", name:"国語"},
   {id:"sansu", name:"算数"},
@@ -207,15 +213,39 @@ const NOTES = [
   {id:"renraku", name:"連絡帳"},
   {id:"nikki", name:"日記"}
 ];
-/* マスの大きさ（mm）：1年〜6年 */
-const SIZE = {
-  kokugo:[22,18,15,13,11,10],
-  kanji:[24,20,18,16,14,13],
-  nikki:[18,15,13,12,10,9],
-  grid:[15,13,12,10,8,7],      /* 算数・理科・社会の方眼 */
-  line:[14,12,11,10,9,8]       /* 横罫線の行の間かく */
+/* 国語・漢字・算数は、見本の画像と同じ列と行の形から選ぶ（a=よこ／列、b=たて／マス） */
+const FORMATS = {
+  kokugo:[
+    {a:4, b:6, hira:true, o:{form:"masu", cross:true, ruby:false}},
+    {a:6, b:8, hira:true, o:{form:"masu", cross:true, ruby:false}},
+    {a:7, b:10, hira:true, o:{form:"masu", cross:true, ruby:false}},
+    {a:8, b:12, hira:true, o:{form:"masu", cross:true, ruby:false}},
+    {a:12, b:18, hira:false, o:{form:"masu", cross:false, ruby:false}},
+    {a:12, hira:false, o:{form:"tate", center:true, ticks:false}},
+    {a:17, hira:false, o:{form:"tate", center:false, ticks:true}},
+    {a:15, b:22, hira:false, o:{form:"masu", cross:true, ruby:false}}
+  ],
+  kanji:[
+    {a:5, b:10, hira:true, o:{cross:true, ruby:true, rr:0.36}},
+    {a:7, b:12, hira:true, o:{cross:true, ruby:true, rr:0.26}},
+    {a:7, b:13, hira:true, o:{cross:true, ruby:true, rr:0.28}},
+    {a:8, b:13, hira:false, o:{cross:true, ruby:true, rr:0.21}},
+    {a:8, b:15, hira:false, o:{cross:true, ruby:true, rr:0.21}},
+    {a:10, b:20, hira:false, o:{cross:true, ruby:true, rr:0.3}}
+  ],
+  sansu:[
+    {a:10, b:7, hira:true, o:{form:"grid", orient:"l", nums:"on", cross:true, five:false, double:false}},
+    {a:12, b:8, hira:true, o:{form:"grid", orient:"l", nums:"on", cross:true, five:false, double:false}},
+    {a:10, b:15, hira:true, o:{form:"grid", orient:"p", nums:"on", cross:false, five:false, double:false}},
+    {a:12, b:18, hira:true, o:{form:"grid", orient:"p", nums:"on", cross:true, five:false, double:true}},
+    {a:13, b:18, hira:true, o:{form:"grid", orient:"p", nums:"on", cross:false, five:false, double:false}},
+    {a:17, hira:true, o:{form:"nidan", orient:"p", nums:"on", cross:false, five:false, double:false}},
+    {a:15, b:22, hira:false, o:{form:"grid", orient:"p", nums:"none", cross:true, five:true, double:false}},
+    {a:22, hira:false, o:{form:"yoko", orient:"p", nums:"none", cross:false, five:false, double:true}}
+  ]
 };
-const RUBY = 0.38;             /* ふりがな列の幅（マスに対する割合） */
+/* 見本の形がないノートや、形を変えたときのマスの大きさ（mm） */
+const SIZE = {masu:13, kanji:16, nikki:12, grid:10, line:10};
 const COLORS = [
   {name:"ふつう", c:"#3E9A78"},
   {name:"濃い（おすすめ）", c:"#1F7F5C"},
@@ -227,30 +257,30 @@ const PAPERS = [
 ];
 
 const state = {
-  note:"kokugo", grade:1, color:1, paper:"b5",
+  note:"kokugo", color:1, paper:"b5", hira:true,
   name:true, date:true, page:true, meate:false, matome:false,
+  fmt:{kokugo:0, kanji:0, sansu:3},
   o:{
-    kokugo:{form:"masu", cross:true, ruby:false},
-    sansu:{form:"grid", orient:"p", nums:"trace", cross:true, five:false},
-    rika:{form:"grid", cross:true, five:false},
-    shakai:{form:"grid", cross:true, five:false},
-    kanji:{cross:true, ruby:true},
+    kokugo:{form:"masu", cross:true, ruby:false, rr:0.3, center:true, ticks:false},
+    sansu:{form:"grid", orient:"p", nums:"on", cross:true, five:false, double:true},
+    rika:{form:"grid", cross:false, five:false},
+    shakai:{form:"grid", cross:false, five:false},
+    kanji:{cross:true, ruby:true, rr:0.36},
     nikki:{cross:true},
     renraku:{}
   },
-  a:6, b:8
+  a:4, b:6
 };
 
-function presetOptions(){
-  const g = state.grade, o = state.o;
-  o.kokugo = {form:"masu", cross:g <= 2, ruby:g >= 3};
-  o.sansu = {form:"grid", orient:o.sansu.orient || "p", nums:g === 1 ? "trace" : g === 2 ? "on" : "none", cross:g <= 3, five:g >= 5};
-  o.rika = {form:o.rika.form || "grid", cross:g <= 2, five:g >= 5};
-  o.shakai = {form:o.shakai.form || "grid", cross:g <= 2, five:g >= 5};
-  o.kanji = {cross:true, ruby:true};
-  o.nikki = {cross:g <= 2};
+const hasFormats = () => !!FORMATS[state.note];
+function applyFormat(i){
+  const f = FORMATS[state.note][i];
+  state.fmt[state.note] = i;
+  Object.assign(state.o[state.note], f.o);
+  state.a = f.a; if(f.b) state.b = f.b;
+  state.hira = f.hira;
 }
-const hira = () => state.grade <= 2;
+const hira = () => state.hira;
 const opt = () => state.o[state.note];
 const hasFrames = () => ["kokugo","sansu","rika","shakai"].includes(state.note);
 const isVertical = () => ["kokugo","kanji","nikki"].includes(state.note);
@@ -265,16 +295,21 @@ function kind(){
 }
 function rubyOn(){
   const n = state.note;
-  if(n === "kanji" || n === "kokugo") return !!opt().ruby;
+  if(n === "kanji") return !!opt().ruby;
+  if(n === "kokugo") return opt().form === "masu" && !!opt().ruby;
   return false;
 }
+const rubyRatio = () => rubyOn() ? (opt().rr || 0.3) : 0;
 function cellSize(){
-  const g = state.grade - 1, n = state.note, k = kind();
-  if(k === "grid") return SIZE.grid[g];
-  if(k === "yoko" || k === "nidan" || k === "half") return SIZE.line[g];
-  if(n === "kokugo") return SIZE.kokugo[g];
-  return SIZE[n][g];
+  const k = kind();
+  if(k === "grid") return SIZE.grid;
+  if(k === "yoko" || k === "nidan" || k === "half") return SIZE.line;
+  if(k === "vline") return SIZE.line;
+  if(state.note === "kanji") return SIZE.kanji;
+  if(state.note === "nikki") return SIZE.nikki;
+  return SIZE.masu;
 }
+const numsOn = () => state.note === "sansu" && (kind() === "grid" || kind() === "nidan") && opt().nums !== "none";
 
 /* ---------- 用紙の大きさ ---------- */
 function pageSize(){
@@ -325,16 +360,20 @@ function countSpec(){
   if(k === "half") return [{key:"a", label:"下の罫線の行数", min:2, max:40}];
   return [{key:"a", label:"行の数", min:2, max:50}];
 }
+/* 見本の形がないときは、ふつうの大きさのマスで、ページいっぱいの数にする */
 function fitCounts(){
   const k = kind();
   if(k === "renraku"){ state.a = 10; return; }
-  const m = mainBox(), s = cellSize(), u = s * (rubyOn() ? 1 + RUBY : 1);
-  if(k === "vmasu"){ state.a = Math.max(2, Math.floor(m.w / u + 0.01)); state.b = Math.max(2, Math.floor(m.h / s + 0.01)); return; }
-  if(k === "vline"){ state.a = Math.max(2, Math.floor(m.w / u + 0.01)); return; }
-  if(k === "grid"){ state.a = Math.max(2, Math.floor(m.w / s + 0.01)); state.b = Math.max(2, Math.floor(m.h / s + 0.01)); return; }
-  if(k === "half"){ state.a = Math.max(2, Math.floor(m.h * 0.55 / s + 0.01)); return; }
-  state.a = Math.max(2, Math.floor(m.h / s + 0.01));
+  const m = mainBox(), s = cellSize(), u = s * (1 + rubyRatio());
+  const f = n => Math.max(2, Math.floor(n + 0.01));
+  if(k === "vmasu"){ state.a = f(m.w / u); state.b = f(m.h / s); return; }
+  if(k === "vline"){ state.a = f(m.w / u); return; }
+  if(k === "grid"){ state.a = f(m.w / s); state.b = f(m.h / s); return; }
+  if(k === "half"){ state.a = f(m.h * 0.55 / s); return; }
+  if(k === "nidan" && numsOn()){ state.a = f(m.h / s) - 1; return; }
+  state.a = f(m.h / s);
 }
+function resetShape(){ if(hasFormats()) applyFormat(state.fmt[state.note]); else fitCounts(); }
 
 /* ---------- 描く ---------- */
 const W_FRAME = 0.6, W_THIN = 0.25, W_MID = 0.45, W_DOT = 0.25;
@@ -347,6 +386,20 @@ function line(ctx, x1, y1, x2, y2, w, dash){
   ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
 }
 function rect(ctx, x, y, w, h, lw){ ctx.setLineDash([]); ctx.lineWidth = lw; ctx.strokeRect(x, y, w, h); }
+function frame(ctx, x, y, w, h){
+  rect(ctx, x, y, w, h, W_FRAME);
+  if(opt().double) rect(ctx, x - 1.3, y - 1.3, w + 2.6, h + 2.6, W_THIN);
+}
+function dot(ctx, x, y, r){ ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+/* 内がわを向いた小さな三角（まん中の目じるし） */
+function tri(ctx, x, y, dir){
+  const s = 1.3, d = {l:[1,0], r:[-1,0], t:[0,1], b:[0,-1]}[dir];
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x - d[0] * s - d[1] * s * 0.7, y - d[1] * s - d[0] * s * 0.7);
+  ctx.lineTo(x - d[0] * s + d[1] * s * 0.7, y - d[1] * s + d[0] * s * 0.7);
+  ctx.closePath(); ctx.fill();
+}
 /* 文字：mm単位のまま小さな文字を描くと、ブラウザによって大きさがくるうので、10倍にして描く */
 function text(ctx, s, x, y, size, align, base, trace){
   ctx.save();
@@ -405,20 +458,19 @@ function drawBand(ctx, x, y, w, h, label, vertical){
 }
 function drawFrames(ctx){
   if(!hasFrames()) return;
-  const c = contentBox(), v = isVertical();
-  const L = hira() ? ["めあて", "まとめ"] : ["めあて", "まとめ"];
-  if(v){
-    if(state.meate) drawBand(ctx, c.x + c.w - BAND, c.y, BAND, c.h, L[0], true);
-    if(state.matome) drawBand(ctx, c.x, c.y, BAND, c.h, L[1], true);
+  const c = contentBox();
+  if(isVertical()){
+    if(state.meate) drawBand(ctx, c.x + c.w - BAND, c.y, BAND, c.h, "めあて", true);
+    if(state.matome) drawBand(ctx, c.x, c.y, BAND, c.h, "まとめ", true);
   }else{
-    if(state.meate) drawBand(ctx, c.x, c.y, c.w, BAND, L[0], false);
-    if(state.matome) drawBand(ctx, c.x, c.y + c.h - BAND, c.w, BAND, L[1], false);
+    if(state.meate) drawBand(ctx, c.x, c.y, c.w, BAND, "めあて", false);
+    if(state.matome) drawBand(ctx, c.x, c.y + c.h - BAND, c.w, BAND, "まとめ", false);
   }
 }
 
-/* たて書きのマス（国語・漢字・日記） */
+/* たて書きのマス（国語・漢字・日記）：各列の右に、ふりがな列 */
 function drawVMasu(ctx, m){
-  const cols = state.a, rows = state.b, r = rubyOn() ? RUBY : 0, cross = !!opt().cross;
+  const cols = state.a, rows = state.b, r = rubyRatio(), cross = !!opt().cross;
   const s = Math.min(m.w / (cols * (1 + r)), m.h / rows), u = s * (1 + r);
   const gw = cols * u, gh = rows * s, x0 = m.x + (m.w - gw) / 2, y0 = m.y + (m.h - gh) / 2;
   for(let i = 0; i < cols; i++){
@@ -431,18 +483,25 @@ function drawVMasu(ctx, m){
     }
   }
   for(let j = 1; j < rows; j++) line(ctx, x0, y0 + j * s, x0 + gw, y0 + j * s, W_THIN);
-  rect(ctx, x0, y0, gw, gh, W_FRAME);
+  frame(ctx, x0, y0, gw, gh);
 }
-/* たての罫線（国語） */
+/* たての罫線（国語）：中心の点線、目もり */
 function drawVLine(ctx, m){
-  const cols = state.a, r = rubyOn() ? RUBY : 0;
-  const u = m.w / cols, s = u / (1 + r);
+  const cols = state.a, o = opt(), u = m.w / cols;
   for(let i = 0; i < cols; i++){
     const cx = m.x + i * u;
     if(i > 0) line(ctx, cx, m.y, cx, m.y + m.h, W_THIN);
-    if(r) line(ctx, cx + s, m.y, cx + s, m.y + m.h, W_DOT, true);
+    if(o.center) line(ctx, cx + u / 2, m.y, cx + u / 2, m.y + m.h, W_DOT, true);
   }
-  rect(ctx, m.x, m.y, m.w, m.h, W_FRAME);
+  if(o.ticks){
+    const n = Math.round(m.h / u), p = m.h / n;
+    for(let j = 1; j < n; j++){
+      line(ctx, m.x, m.y + j * p, m.x + 1.2, m.y + j * p, W_THIN);
+      line(ctx, m.x + m.w - 1.2, m.y + j * p, m.x + m.w, m.y + j * p, W_THIN);
+    }
+    tri(ctx, m.x - 0.4, m.y + m.h / 2, "l"); tri(ctx, m.x + m.w + 0.4, m.y + m.h / 2, "r");
+  }
+  frame(ctx, m.x, m.y, m.w, m.h);
 }
 /* 方眼（算数・理科・社会） */
 function numLabels(n){
@@ -455,35 +514,43 @@ function drawGrid(ctx, m){
   const cols = state.a, rows = state.b, o = opt();
   const s = Math.min(m.w / cols, m.h / rows), gw = cols * s, gh = rows * s;
   const x0 = m.x + (m.w - gw) / 2, y0 = m.y + (m.h - gh) / 2;
-  const nums = state.note === "sansu" ? o.nums : "none";
+  const nums = numsOn() ? o.nums : "none", off = nums !== "none" ? 1 : 0;
   if(o.cross){
-    for(let i = 0; i < cols; i++) line(ctx, x0 + (i + 0.5) * s, y0 + (nums !== "none" ? s : 0), x0 + (i + 0.5) * s, y0 + gh, W_DOT, true);
-    for(let j = nums !== "none" ? 1 : 0; j < rows; j++) line(ctx, x0, y0 + (j + 0.5) * s, x0 + gw, y0 + (j + 0.5) * s, W_DOT, true);
+    for(let i = 0; i < cols; i++) line(ctx, x0 + (i + 0.5) * s, y0 + off * s, x0 + (i + 0.5) * s, y0 + gh, W_DOT, true);
+    for(let j = off; j < rows; j++) line(ctx, x0, y0 + (j + 0.5) * s, x0 + gw, y0 + (j + 0.5) * s, W_DOT, true);
   }
   for(let i = 1; i < cols; i++) line(ctx, x0 + i * s, y0, x0 + i * s, y0 + gh, o.five && i % 5 === 0 ? W_MID : W_THIN);
-  const off = nums !== "none" ? 1 : 0;
-  for(let j = 1; j < rows; j++) line(ctx, x0, y0 + j * s, x0 + gw, y0 + j * s, o.five && (j - off) % 5 === 0 && j > off ? W_MID : (j === 1 && off ? W_MID : W_THIN));
-  if(nums !== "none"){
+  for(let j = 1; j < rows; j++) line(ctx, x0, y0 + j * s, x0 + gw, y0 + j * s, (o.five && j > off && (j - off) % 5 === 0) || (off && j === 1) ? W_MID : W_THIN);
+  if(off){
     numLabels(cols).forEach((t, i) => {
       const sz = s * (t.length > 1 ? 0.62 : 0.72);
       text(ctx, t, x0 + (i + 0.5) * s, y0 + s * 0.53, sz, "center", "middle", nums === "trace");
     });
   }
-  rect(ctx, x0, y0, gw, gh, W_FRAME);
+  frame(ctx, x0, y0, gw, gh);
 }
 /* 横罫線・左右2段・上が白紙 */
 function drawRuled(ctx, m, k){
-  const n = state.a;
+  const o = opt(), head = k === "nidan" && numsOn() ? 1 : 0, n = state.a;
   let top = m.y, h = m.h;
   if(k === "half"){
     const bh = m.h * 0.45;
     top = m.y + bh; h = m.h - bh;
     line(ctx, m.x, top, m.x + m.w, top, W_FRAME);
   }
-  const p = h / n;
-  for(let j = 1; j < n; j++) line(ctx, m.x, top + j * p, m.x + m.w, top + j * p, W_THIN);
-  if(k === "nidan") line(ctx, m.x + m.w / 2, m.y, m.x + m.w / 2, m.y + m.h, W_THIN);
-  rect(ctx, m.x, m.y, m.w, m.h, W_FRAME);
+  const p = h / (n + head);
+  for(let j = 1; j < n + head; j++) line(ctx, m.x, top + j * p, m.x + m.w, top + j * p, head && j === 1 ? W_MID : W_THIN);
+  if(k === "nidan"){
+    line(ctx, m.x + m.w / 2, m.y + head * p, m.x + m.w / 2, m.y + m.h, W_THIN);
+    if(head){
+      const cw = m.w / 10;
+      numLabels(10).forEach((t, i) => text(ctx, t, m.x + (i + 0.5) * cw, m.y + p * 0.53, p * (t.length > 1 ? 0.62 : 0.72), "center", "middle", o.nums === "trace"));
+      for(let i = 0; i < 10; i++){ dot(ctx, m.x + (i + 0.5) * cw, m.y + p + 0.5, 0.45); dot(ctx, m.x + (i + 0.5) * cw, m.y + m.h - 0.5, 0.45); }
+      tri(ctx, m.x + m.w / 2, m.y - 0.4, "t"); tri(ctx, m.x + m.w / 2, m.y + m.h + 0.4, "b");
+      tri(ctx, m.x - 0.4, m.y + m.h / 2, "l"); tri(ctx, m.x + m.w + 0.4, m.y + m.h / 2, "r");
+    }
+  }
+  frame(ctx, m.x, m.y, m.w, m.h);
 }
 /* 連絡帳（右はしに見出しの列） */
 function drawRenraku(ctx, m){
@@ -507,7 +574,7 @@ function drawRenraku(ctx, m){
     vtext(ctx, "曜日", cx, y0 + rh * 2.5, 3.2, 3.6);
   }
   const mt = y0 + rh * 3, mb = yb - ih * 2;
-  if(state.grade <= 3) vtext(ctx, "れんらくすること", cx, (mt + mb) / 2, 5, 9);
+  if(hira()) vtext(ctx, "れんらくすること", cx, (mt + mb) / 2, 5, 9);
   else vtext(ctx, "連絡", cx, (mt + mb) / 2, 5.5, 14);
   text(ctx, "印", cx, yb - ih, 5);
 }
@@ -528,19 +595,19 @@ function drawPage(ctx, ox, oy){
   ctx.restore();
 }
 /* 用紙1枚分（B4のときは同じノートを2ページ、まん中に切り取りの目じるし） */
-function drawSheet(canvas, px){
+function drawSheet(canvas, px, single){
   INK = COLORS[state.color].c;
-  const [SW, SH] = sheetSize(), [W, H] = pageSize();
+  const [W, H] = pageSize(), [SW, SH] = single ? [W, H] : sheetSize();
   canvas.width = Math.round(SW * px); canvas.height = Math.round(SH * px);
   const ctx = canvas.getContext("2d");
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(px, 0, 0, px, 0, 0);
-  if(state.paper === "b5"){ drawPage(ctx, 0, 0); return; }
+  if(single || state.paper === "b5"){ drawPage(ctx, 0, 0); return; }
   const side = W < H;
   drawPage(ctx, 0, 0);
   drawPage(ctx, side ? W : 0, side ? 0 : H);
-  ctx.strokeStyle = "#8A9A92"; ctx.setLineDash([]); ctx.lineWidth = 0.25;
+  ctx.strokeStyle = "#8A9A92";
   if(side){ line(ctx, W, 0, W, 5, 0.25); line(ctx, W, SH - 5, W, SH, 0.25); }
   else{ line(ctx, 0, H, 5, H, 0.25); line(ctx, SW - 5, H, SW, H, 0.25); }
 }
@@ -571,31 +638,71 @@ function optChecks(label, items){
   for(const it of items){
     const lab = document.createElement("label"); lab.className = "check";
     const i = document.createElement("input"); i.type = "checkbox"; i.id = "o_" + it.key; i.checked = !!opt()[it.key];
-    i.addEventListener("change", () => { opt()[it.key] = i.checked; if(it.refit) fitCounts(); update(); });
+    i.addEventListener("change", () => { opt()[it.key] = i.checked; update(); });
     lab.append(i, document.createTextNode(it.name)); c.appendChild(lab);
   }
   d.append(l, c); return d;
 }
-function setOpt(key, val){ opt()[key] = val; fitCounts(); update(); }
+/* 形（方眼／罫線など）を変えたときは、ふつうの大きさでページいっぱいにする */
+function setForm(val){ opt().form = val; fitCounts(); update(); }
+function setOrient(val){ opt().orient = val; fitCounts(); update(); }
 
+function fmtLabel(f){
+  const o = f.o;
+  if(state.note === "sansu"){
+    const dir = o.orient === "l" ? "よこ向き" : "たて向き";
+    if(o.form === "nidan") return dir + "・左右2段 " + f.a + "行";
+    if(o.form === "yoko") return dir + "・横罫線 " + f.a + "行";
+    return dir + "・" + f.a + "×" + f.b;
+  }
+  if(o.form === "tate") return "たての罫線 " + f.a + "行";
+  return f.a + "列×" + f.b + "マス";
+}
+function renderFormats(){
+  const step = $("fmtStep"), box = $("fmtChoices");
+  step.hidden = !hasFormats();
+  if(!hasFormats()) return;
+  box.innerHTML = "";
+  const keep = JSON.stringify(state), cur = state.fmt[state.note];
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  FORMATS[state.note].forEach((f, i) => {
+    applyFormat(i); state.meate = state.matome = false; state.paper = "b5";
+    const b = document.createElement("button"); b.type = "button"; b.className = "fmt";
+    const c = document.createElement("canvas");
+    const [W, H] = pageSize(), cssW = W > H ? 96 : 68;
+    drawSheet(c, cssW * dpr / W, true);
+    c.style.width = cssW + "px"; c.style.height = (cssW * H / W) + "px";
+    const s = document.createElement("span"); s.textContent = fmtLabel(f);
+    b.append(c, s);
+    b.setAttribute("aria-label", "見本の形 " + (i + 1) + "：" + fmtLabel(f));
+    b.addEventListener("click", () => { applyFormat(i); update(); });
+    box.appendChild(b);
+    Object.assign(state, JSON.parse(keep));
+  });
+  [...box.children].forEach((b, i) => pressed(b, i === cur));
+}
 function renderOptions(){
   const box = $("optArea"); box.innerHTML = "";
   const n = state.note, o = opt();
   if(n === "kokugo"){
-    box.appendChild(optChoice("形", [{id:"masu", name:"マス"}, {id:"tate", name:"たての罫線（マスなし）"}], o.form, v => setOpt("form", v)));
-    box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}, {key:"ruby", name:"ふりがな列", refit:true}]));
+    box.appendChild(optChoice("形", [{id:"masu", name:"マス"}, {id:"tate", name:"たての罫線（マスなし）"}], o.form, setForm));
+    if(o.form === "tate") box.appendChild(optChecks("線", [{key:"center", name:"中心の点線"}, {key:"ticks", name:"ふちの目もり"}]));
+    else box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}, {key:"ruby", name:"ふりがな列"}]));
   }else if(n === "sansu"){
-    box.appendChild(optChoice("用紙の向き", [{id:"p", name:"たて向き"}, {id:"l", name:"よこ向き"}], o.orient, v => setOpt("orient", v)));
-    box.appendChild(optChoice("形", [{id:"grid", name:"方眼"}, {id:"yoko", name:"横罫線"}, {id:"nidan", name:"左右2段の罫線"}], o.form, v => setOpt("form", v)));
-    if(o.form === "grid"){
-      box.appendChild(optChoice("いちばん上の数字（1〜10 ＋ − ＝）", [{id:"none", name:"なし"}, {id:"on", name:"あり"}, {id:"trace", name:"なぞり書き（点線）"}], o.nums, v => { o.nums = v; update(); }));
-      box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}, {key:"five", name:"5マスごとに太い線"}]));
-    }
+    box.appendChild(optChoice("用紙の向き", [{id:"p", name:"たて向き"}, {id:"l", name:"よこ向き"}], o.orient, setOrient));
+    box.appendChild(optChoice("形", [{id:"grid", name:"方眼"}, {id:"yoko", name:"横罫線"}, {id:"nidan", name:"左右2段の罫線"}], o.form, setForm));
+    if(o.form !== "yoko") box.appendChild(optChoice("いちばん上の数字（1〜10 ＋ − ＝）", [{id:"none", name:"なし"}, {id:"on", name:"あり"}, {id:"trace", name:"なぞり書き（点線）"}], o.nums, v => {
+      const was = numsOn(); o.nums = v;
+      if(o.form === "nidan" && was !== numsOn()) state.a = Math.max(2, state.a + (was ? 1 : -1));
+      update();
+    }));
+    const ck = o.form === "grid" ? [{key:"cross", name:"十字の点線"}, {key:"five", name:"5マスごとに太い線"}] : [];
+    box.appendChild(optChecks("線", ck.concat([{key:"double", name:"わくを二重にする"}])));
   }else if(n === "rika" || n === "shakai"){
-    box.appendChild(optChoice("形", [{id:"grid", name:"方眼"}, {id:"yoko", name:"横罫線"}, {id:"half", name:"上が白紙＋下が罫線"}], o.form, v => setOpt("form", v)));
+    box.appendChild(optChoice("形", [{id:"grid", name:"方眼"}, {id:"yoko", name:"横罫線"}, {id:"half", name:"上が白紙＋下が罫線"}], o.form, setForm));
     if(o.form === "grid") box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}, {key:"five", name:"5マスごとに太い線"}]));
   }else if(n === "kanji"){
-    box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}, {key:"ruby", name:"ふりがな列", refit:true}]));
+    box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}, {key:"ruby", name:"ふりがな列"}]));
   }else if(n === "nikki"){
     box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}]));
   }else{
@@ -619,10 +726,11 @@ function renderCounts(){
     inp.addEventListener("change", () => set(+inp.value));
     st.append(minus, inp, plus); row.append(lab, st); box.appendChild(row);
   }
+  $("resetCounts").textContent = hasFormats() ? "えらんだ見本の数にもどす" : "ページいっぱいの数にもどす";
 }
 function renderStatic(){
-  choiceRow($("noteChoices"), NOTES, state.note, v => { state.note = v; fitCounts(); update(); }, "note-btn");
-  choiceRow($("gradeChoices"), [1,2,3,4,5,6].map(g => ({id:g, name:g + "年"})), state.grade, v => { state.grade = v; presetOptions(); fitCounts(); update(); }, "grade-btn");
+  choiceRow($("noteChoices"), NOTES, state.note, v => { state.note = v; if(hasFormats()) applyFormat(state.fmt[v]); else fitCounts(); update(); }, "note-btn");
+  choiceRow($("dateChoices"), [{id:true, name:"がつ・にち・ようび"}, {id:false, name:"月・日・曜日"}], state.hira, v => { state.hira = v; update(); });
   choiceRow($("colorChoices"), COLORS.map((c, i) => ({id:i, name:c.name})), state.color, v => { state.color = v; update(); });
   choiceRow($("paperChoices"), PAPERS, state.paper, v => { state.paper = v; update(); });
   $("frameOpt").hidden = !hasFrames();
@@ -632,7 +740,7 @@ function renderStatic(){
   $("cName").checked = state.name; $("cDate").checked = state.date; $("cPage").checked = state.page;
   $("printHow").textContent = "印刷するときは、用紙を「" + paperLabel() + "」、大きさを「実際のサイズ（100%）」にしてください。";
 }
-function update(){ renderStatic(); renderOptions(); renderCounts(); draw(); save(); }
+function update(){ renderStatic(); renderFormats(); renderOptions(); renderCounts(); draw(); save(); }
 
 let drawTimer = 0;
 function draw(){
@@ -644,29 +752,29 @@ function draw(){
     const dpr = Math.min(3, window.devicePixelRatio || 1);
     drawSheet(c, cssW * dpr / SW);
     c.style.width = cssW + "px"; c.style.height = (cssW * SH / SW) + "px";
-    const nm = NOTES.find(x => x.id === state.note).name;
-    $("pvTitle").textContent = state.grade + "年　" + nm + "ノート";
+    $("pvTitle").textContent = NOTES.find(x => x.id === state.note).name + "ノート";
     const sp = countSpec().map(s => state[s.key]).join("×");
     $("pvMeta").textContent = paperLabel() + "・" + sp;
   }, 20);
 }
 window.addEventListener("resize", draw);
 
-$("cMeate").addEventListener("change", e => { state.meate = e.target.checked; fitCounts(); update(); });
-$("cMatome").addEventListener("change", e => { state.matome = e.target.checked; fitCounts(); update(); });
-$("cName").addEventListener("change", e => { state.name = e.target.checked; fitCounts(); update(); });
-$("cDate").addEventListener("change", e => { state.date = e.target.checked; fitCounts(); update(); });
-$("cPage").addEventListener("change", e => { state.page = e.target.checked; fitCounts(); update(); });
-$("resetCounts").addEventListener("click", () => { fitCounts(); update(); });
+$("cMeate").addEventListener("change", e => { state.meate = e.target.checked; if(!hasFormats()) fitCounts(); update(); });
+$("cMatome").addEventListener("change", e => { state.matome = e.target.checked; if(!hasFormats()) fitCounts(); update(); });
+$("cName").addEventListener("change", e => { state.name = e.target.checked; update(); });
+$("cDate").addEventListener("change", e => { state.date = e.target.checked; update(); });
+$("cPage").addEventListener("change", e => { state.page = e.target.checked; update(); });
+$("resetCounts").addEventListener("click", () => { resetShape(); update(); });
 
 /* この端末に、さいごの設定をおぼえておく */
-const KEY = "note-maker-v1";
+const KEY = "note-maker-v2";
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
 function load(){
   try{
     const s = JSON.parse(localStorage.getItem(KEY) || "null");
     if(s && NOTES.some(n => n.id === s.note)){
-      for(const k of ["note","grade","color","paper","name","date","page","meate","matome","a","b"]) if(k in s) state[k] = s[k];
+      for(const k of ["note","color","paper","hira","name","date","page","meate","matome","a","b"]) if(k in s) state[k] = s[k];
+      if(s.fmt) Object.assign(state.fmt, s.fmt);
       for(const n of Object.keys(state.o)) if(s.o && s.o[n]) Object.assign(state.o[n], s.o[n]);
       return true;
     }
@@ -703,7 +811,7 @@ function status(msg, kind){ const el = $("saveStatus"); el.textContent = msg; el
 function baseName(){
   const d = new Date(), pad = n => String(n).padStart(2, "0");
   const nm = NOTES.find(x => x.id === state.note).name;
-  return "ノート_" + state.grade + "年_" + nm + "_" + (state.paper === "b5" ? "B5" : "B4") + "_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+  return "ノート_" + nm + "_" + (state.paper === "b5" ? "B5" : "B4") + "_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
 }
 const PRINT_PX = 250 / 25.4;
 function canvasBlob(c, type, q){ return new Promise(res => c.toBlob(res, type, q)); }
@@ -810,7 +918,7 @@ const fontsReady = (async () => {
 fontsReady.then(draw);
 if(document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", draw);
 
-if(!load()){ presetOptions(); fitCounts(); }
+if(!load()) applyFormat(0);
 update();
 getDl();
 </script>
