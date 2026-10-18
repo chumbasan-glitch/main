@@ -15,6 +15,7 @@ for g in grades:
         h = int(u['hours'])
         assert h == len(u['short']) == len(u['lessons']), (g, u['name'], h, len(u['short']), len(u['lessons']))
         nm = re.sub(r'^[0-9０-９]+[.．]\s*', '', re.sub(r'[\s　]+', ' ', u['name']).strip())   # 「1. ものの燃え方と空気」の番号を外す（「2-1 …」は残す）
+        nm = re.sub(r'^いかす[：:]\s*(.*)$', lambda mm: re.sub(r'（[^（）]*）$', '', mm.group(1)) + '（単元全体のいかす）', nm)   # 名前の付け方を学年でそろえる
         if nm in seen:   # 同じ名前の単元は、2回目から月（なければ番号）を付けて区別する
             seen[nm] += 1; nm = f"{nm}（{u['month']}月）" if u.get('month') else f"{nm}（{seen[nm]}）"
         else: seen[nm] = 1
