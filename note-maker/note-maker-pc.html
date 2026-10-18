@@ -106,7 +106,7 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
   <header class="top">
     <h1>ノートメーカー</h1>
     <span class="sub">国語・算数・理科・社会・漢字練習・連絡帳・日記の白紙ノートをB5で作れます</span>
-    <span class="ver">ver 1.2 PC版</span>
+    <span class="ver">ver 1.3 PC版</span>
   </header>
 
   <div class="layout">
@@ -417,29 +417,30 @@ function vtext(ctx, s, cx, cy, size, pitch){
   ch.forEach((c, i) => text(ctx, c, cx, top + p * i, size));
 }
 
-function drawHeader(ctx, W, H){
-  const sz = 3.3, y = 12;
-  if(state.note !== "renraku"){
-    if(state.name){
-      text(ctx, hira() ? "なまえ" : "名前", M, y - 0.6, 2.8, "left", "alphabetic");
-      const x0 = M + (hira() ? 10 : 8);
-      line(ctx, x0, y, x0 + 52, y, W_THIN);
-    }
-    if(state.date){
-      const parts = hira() ? ["がつ", "にち", "ようび（", "）"] : ["月", "日", "曜日（", "）"];
-      let x = W - M;
-      text(ctx, parts[3], x, y - 0.6, sz, "right", "alphabetic");
-      x -= 16;
-      text(ctx, parts[2], x, y - 0.6, sz, "right", "alphabetic");
-      x -= textW(ctx, parts[2], sz) + 9;
-      text(ctx, parts[1], x, y - 0.6, sz, "right", "alphabetic");
-      x -= textW(ctx, parts[1], sz) + 9;
-      text(ctx, parts[0], x, y - 0.6, sz, "right", "alphabetic");
-    }
+/* 名前・日付はわくのすぐ上、ページ番号はわくのすぐ下に置く */
+function drawHeader(ctx, B){
+  const sz = 3.3, y = B.y - 5, L = B.x, R = B.x + B.w;
+  let dateL = R;
+  if(state.note !== "renraku" && state.date){
+    const parts = hira() ? ["がつ", "にち", "ようび（", "）"] : ["月", "日", "曜日（", "）"];
+    let x = R;
+    text(ctx, parts[3], x, y - 0.6, sz, "right", "alphabetic");
+    x -= 16;
+    text(ctx, parts[2], x, y - 0.6, sz, "right", "alphabetic");
+    x -= textW(ctx, parts[2], sz) + 9;
+    text(ctx, parts[1], x, y - 0.6, sz, "right", "alphabetic");
+    x -= textW(ctx, parts[1], sz) + 9;
+    text(ctx, parts[0], x, y - 0.6, sz, "right", "alphabetic");
+    dateL = x - textW(ctx, parts[0], sz);
+  }
+  if(state.note !== "renraku" && state.name){
+    text(ctx, hira() ? "なまえ" : "名前", L, y - 0.6, 2.8, "left", "alphabetic");
+    const x0 = L + (hira() ? 10 : 8);
+    line(ctx, x0, y, x0 + Math.max(20, Math.min(52, dateL - x0 - 8)), y, W_THIN);
   }
   if(state.page){
-    text(ctx, "（", W - M - 15, H - 6, sz, "left", "middle");
-    text(ctx, "）", W - M, H - 6, sz, "right", "middle");
+    text(ctx, "（", R - 15, B.y + B.h + 6, sz, "left", "middle");
+    text(ctx, "）", R, B.y + B.h + 6, sz, "right", "middle");
   }
 }
 
@@ -455,16 +456,25 @@ function drawBand(ctx, x, y, w, h, label, vertical){
     text(ctx, label, x + lw / 2, y + h / 2, 3.6);
   }
 }
-function drawFrames(ctx){
+function drawFrames(ctx, B){
   if(!hasFrames()) return;
-  const c = contentBox();
   if(isVertical()){
-    if(state.meate) drawBand(ctx, c.x + c.w - BAND, c.y, BAND, c.h, "めあて", true);
-    if(state.matome) drawBand(ctx, c.x, c.y, BAND, c.h, "まとめ", true);
+    if(state.meate) drawBand(ctx, B.x + B.w - BAND, B.y, BAND, B.h, "めあて", true);
+    if(state.matome) drawBand(ctx, B.x, B.y, BAND, B.h, "まとめ", true);
   }else{
-    if(state.meate) drawBand(ctx, c.x, c.y, c.w, BAND, "めあて", false);
-    if(state.matome) drawBand(ctx, c.x, c.y + c.h - BAND, c.w, BAND, "まとめ", false);
+    if(state.meate) drawBand(ctx, B.x, B.y, B.w, BAND, "めあて", false);
+    if(state.matome) drawBand(ctx, B.x, B.y + B.h - BAND, B.w, BAND, "まとめ", false);
   }
+}
+/* わく（マス＋めあて・まとめ）の位置：正方形のマスで入るいちばん大きな大きさにして、ページのまん中に置く */
+function layout(){
+  const c = contentBox(), m = mainBox(), k = kind();
+  if(k !== "vmasu" && k !== "grid") return {grid:m, block:c};
+  const u = k === "vmasu" ? 1 + rubyRatio() : 1;
+  const s = Math.min(m.w / (state.a * u), m.h / state.b), gw = state.a * u * s, gh = state.b * s;
+  const fw = c.w - m.w, fh = c.h - m.h, bw = gw + fw, bh = gh + fh;
+  const bx = c.x + (c.w - bw) / 2, by = c.y + (c.h - bh) / 2;
+  return {grid:{x:bx + (m.x - c.x), y:by + (m.y - c.y), w:gw, h:gh}, block:{x:bx, y:by, w:bw, h:bh}};
 }
 
 /* たて書きのマス（国語・漢字・日記）：各列の右に、ふりがな列 */
@@ -583,9 +593,9 @@ function drawPage(ctx, ox, oy){
   ctx.save();
   ctx.translate(ox, oy);
   ctx.strokeStyle = INK; ctx.fillStyle = INK; ctx.lineCap = "butt";
-  drawHeader(ctx, W, H);
-  drawFrames(ctx);
-  const k = kind(), m = mainBox();
+  const k = kind(), L = layout(), m = L.grid;
+  drawHeader(ctx, L.block);
+  drawFrames(ctx, L.block);
   if(k === "renraku") drawRenraku(ctx, m);
   else if(k === "vmasu") drawVMasu(ctx, m);
   else if(k === "vline") drawVLine(ctx, m);
