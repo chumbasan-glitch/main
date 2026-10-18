@@ -720,8 +720,8 @@ function renderBanners() {
   if (!D.cls.grade && curTab !== "set") {
     h += `<div class="banner"><b>はじめに</b>学年・組・担任名を入れてください。
       <select id="bnGrade"><option value="">学年</option>${[1,2,3,4,5,6].map(g => `<option value="${g}">${g}年</option>`).join("")}</select>
-      <input type="text" id="bnKumi" placeholder="組（例：1）" style="width:90px">
-      <input type="text" id="bnTeacher" placeholder="担任名" style="width:140px">
+      <span class="row" style="gap:4px"><input type="text" id="bnKumi" placeholder="例：1" style="width:70px">組</span>
+      <input type="text" id="bnTeacher" placeholder="担任名" style="width:160px">
       <button class="btn primary" id="bnGo">決定</button></div>`;
   } else if (D.cls.grade && !D.timetable[1].some(Boolean) && curTab === "week") {
     h += `<div class="banner"><b>次に</b>「時間割」のタブで、ふだんの時間割を入れてください。毎週の週案に自動で入ります。<button class="btn" data-go="tt">時間割を入れる</button></div>`;
@@ -733,7 +733,7 @@ function renderBanners() {
   if (go) go.onclick = () => {
     const g = +$("#bnGrade").value;
     if (!g) { toast("学年を選んでください"); return; }
-    D.cls.grade = g; D.cls.kumi = $("#bnKumi").value.trim(); D.cls.teacher = $("#bnTeacher").value.trim();
+    D.cls.grade = g; D.cls.kumi = kumiOf($("#bnKumi").value); D.cls.teacher = $("#bnTeacher").value.trim();
     changed();
   };
   $$("[data-go]").forEach(b => b.onclick = () => switchTab(b.dataset.go));
@@ -742,6 +742,8 @@ function renderBanners() {
     $("#drNo").onclick = () => { draftInfo = null; try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} render(); };
   }
 }
+// 「1組」と打っても「組」が重ならないように、最後の「組」をとる
+const kumiOf = v => String(v || "").trim().replace(/\s*組$/, "").trim();
 function switchTab(t) {
   curTab = t;
   $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
@@ -1418,7 +1420,7 @@ function renderSet() {
   const el = $("#tab-set"); const s = D.school; const c = D.cls;
   let h = `<h2>クラスの設定</h2><div class="setgrid">
     <label class="f">学年<select id="sGrade"><option value="">選ぶ</option>${[1,2,3,4,5,6].map(g => `<option value="${g}"${c.grade === g ? " selected" : ""}>${g}年</option>`).join("")}</select></label>
-    <label class="f">組<input type="text" id="sKumi" value="${esc(c.kumi)}" placeholder="例：1"></label>
+    <label class="f">組<span class="row" style="gap:4px"><input type="text" id="sKumi" value="${esc(c.kumi)}" placeholder="例：1" style="width:80px">組</span></label>
     <label class="f">担任名<input type="text" id="sTeacher" value="${esc(c.teacher)}"></label>
     <label class="f">この週案ツクールを使い始める日<input type="date" id="sStart" value="${esc(c.startDate)}"></label>
   </div>
@@ -1466,7 +1468,7 @@ function renderSet() {
   el.innerHTML = h;
   const upd = (fn, rr = true) => e => { fn(e.target.value, e.target); changed(rr); };
   $("#sGrade").onchange = upd(v => c.grade = +v || 0);
-  $("#sKumi").oninput = upd(v => c.kumi = v.trim(), false); $("#sKumi").onchange = () => render();
+  $("#sKumi").oninput = upd(v => c.kumi = kumiOf(v), false); $("#sKumi").onchange = () => render();
   $("#sTeacher").oninput = upd(v => c.teacher = v.trim(), false); $("#sTeacher").onchange = () => render();
   $("#sStart").onchange = upd(v => c.startDate = v);
   $$(".sInit", el).forEach(i => i.onchange = () => { const t = parseHours(i.value); if (t) c.init[i.dataset.s] = t; else delete c.init[i.dataset.s]; changed(); });
