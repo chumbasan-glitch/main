@@ -233,6 +233,7 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 #print .st.x{border-bottom:0.2mm solid var(--pl);height:3.6mm}
 #print .st.x .sj,#print .st.x .hr{line-height:3.6mm}
 #print td.spc .cb,#print td.hol .cb{line-height:1.2}
+#print .cb.sq{padding:0.3mm 0.5mm;overflow:hidden}
 #print table.sub{width:100%;border-collapse:collapse;table-layout:fixed;margin:-0.2mm 0 0}
 #print table.sub td{border:0.2mm solid var(--pl);border-left:none;border-right:none}
 #print table.sub td.hr{border-left:0.2mm solid var(--pl)}
@@ -297,7 +298,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v7";
+const VERSION = "v8";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1022,11 +1023,12 @@ function renderPrint() {
   const colw = (128 - 8) / days.length;              // 1日の幅
   // 内容の文字：1コマに9行入る大きさ。入りきらないときだけさらに小さくする
   const LH = 1.2;
+  const SX = 0.83;   // 文字の横幅（Excelの週案のように1行12〜13字入れるため横に詰める）
   const BASE = Math.round((cont - 0.8) / 9 / (0.3528 * LH) * 10) / 10;
   const fit = (text, hmm) => {
-    const w = colw - 1.6;
+    const w = colw - 1.2;
     for (let fs = BASE; fs > 4; fs -= 0.3) {
-      const ch = fs * 0.3528, cpl = Math.max(1, Math.floor(w / ch)), lines = Math.floor(hmm / (ch * LH));
+      const ch = fs * 0.3528, cpl = Math.max(1, Math.floor(w / (ch * SX))), lines = Math.floor(hmm / (ch * LH));
       const need = String(text).split("\n").reduce((a, l) => a + Math.max(1, Math.ceil(Array.from(l).length / cpl)), 0);
       if (need <= lines) return fs;
     }
@@ -1061,7 +1063,7 @@ function renderPrint() {
     const rest = ch - ST * (parts.length - 1);
     const items = i === 0 ? [{lab: "", txt: x.t || ""}] : parts.map(pt => textOf(d, i, all.indexOf(pt), pt));
     const fs = fit(bodyText(items), rest - 0.8);
-    return [`<td colspan="2" class="stc">${strip(parts[0])}</td>`, `<td colspan="2" class="spc">${extra}<div class="cb" style="font-size:${fs}pt;max-height:${(rest - 0.3).toFixed(1)}mm">${bodyHtml(items)}</div></td>`];
+    return [`<td colspan="2" class="stc">${strip(parts[0])}</td>`, `<td colspan="2" class="spc">${extra}<div class="cb sq" style="font-size:${fs}pt;max-height:${(rest - 0.3).toFixed(1)}mm"><div style="width:${(100 / SX).toFixed(1)}%;transform:scaleX(${SX});transform-origin:left top">${bodyHtml(items)}</div></div></td>`];
   };
   let h = `<div class="ph"><b>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</b><span>担任：${esc(c.teacher)}</span><span class="wt" style="margin-left:auto">${esc(weekTitle(mon))}</span></div>
   <div class="pbody"><table class="pw"><colgroup><col style="width:8mm">${days.map(() => `<col><col style="width:${days.length > 5 ? 4.5 : 6}mm">`).join("")}</colgroup>
@@ -1095,10 +1097,13 @@ function renderPrint() {
   const line = (r, k) => `<tr class="r${k % 2 ? 2 : 1}"><td class="n" style="${nmFs(r.name)}">${esc(r.name)}</td><td>${r.vals[0] ? fr(r.vals[0]) : ""}</td><td>${fr(r.vals[1])}</td><td class="rt">${rateCell(r)}</td></tr>`;
   const s1 = sum(g1), s2 = sum(g2);
   let t = `<table class="pt2"><colgroup><col style="width:10mm"><col style="width:8.5mm"><col style="width:12mm"><col></colgroup><tr><th>教科</th><th>今週</th><th>累計</th><th>${D.cls.rateMode === "rest" ? "残り" : "達成率"}</th></tr>`;
+  const blank = k => `<tr class="r${k % 2 ? 2 : 1}"><td class="n"></td><td></td><td></td><td class="rt"></td></tr>`;
   g1.forEach((r, k) => t += line(r, k));
+  t += blank(g1.length) + blank(g1.length + 1);
   t += `<tr class="sub"><td>小計</td><td>${fr(s1[0])}</td><td>${fr(s1[1])}</td><td></td></tr><tr class="gap"><td colspan="4"></td></tr>`;
   if (g2.length) {
     g2.forEach((r, k) => t += line(r, k));
+    t += blank(g2.length) + blank(g2.length + 1);
     t += `<tr class="sub"><td>小計</td><td>${fr(s2[0])}</td><td>${fr(s2[1])}</td><td></td></tr>`;
   }
   t += `<tr class="tot"><td>合計</td><td>${fr(s1[0] + s2[0])}</td><td>${fr(s1[1] + s2[1])}</td><td></td></tr></table>`;
