@@ -17,7 +17,7 @@ for g in [1, 2, 3, 4, 5, 6]:
         else: seen[nm] = 1
         nob = lambda t: re.sub(r'(^|\n)●\s*', r'\1', t)   # 行の頭の●を外す
         units.append({'name': nm, 'month': u['month'], 'total': u['hours'], 'aim': u['aim'], 'title': '', 'lessons': [nob(x) for x in u['lessons']], 'short': [nob(x) for x in u['short']]})
-    pre[f'sansu-{g}'] = {'label': f'算数　{g}年（年間指導計画　2023年8月版）', 'grade': g, 'subject': '算数', 'units': units}
+    pre[f'sansu-{g}'] = {'label': f'学校図書　{g}年　算数（年間指導計画）', 'grade': g, 'subject': '算数', 'units': units}
 js = json.dumps(pre, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
 s = s[:m.start(1)] + js + s[m.end(1):]
 open(html, 'w').write(s)
