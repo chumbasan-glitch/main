@@ -1,0 +1,816 @@
+<title>ノートメーカー</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+/* 左に設定、右にノートの見本。せまい画面では上下にならべる */
+:root{
+  --bg:#EAF1EC;
+  --surface:#FFFFFF;
+  --surface-2:#DDE9E1;
+  --ink:#1C2B24;
+  --ink-soft:#56685F;
+  --line:#C3D5CA;
+  --accent:#1F7F5C;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#DCEFE5;
+  --err:#A8323F;
+  --paper-shadow:0 1px 2px rgba(20,50,35,.12),0 6px 20px rgba(20,50,35,.10);
+  --f-display:"Klee One","Hiragino Mincho ProN",serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121A16; --surface:#1B2620; --surface-2:#24332B; --ink:#E4EEE8; --ink-soft:#A3B6AB;
+    --line:#34473D; --accent:#5CC49A; --accent-ink:#0D1F17; --accent-soft:#1F3A2E; --err:#F08A94;
+    --paper-shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121A16; --surface:#1B2620; --surface-2:#24332B; --ink:#E4EEE8; --ink-soft:#A3B6AB;
+  --line:#34473D; --accent:#5CC49A; --accent-ink:#0D1F17; --accent-soft:#1F3A2E; --err:#F08A94;
+  --paper-shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+header.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding-bottom:14px}
+header.top h1{margin:0;font-family:var(--f-display);font-weight:600;font-size:28px;letter-spacing:.08em}
+header.top .sub{color:var(--ink-soft);font-size:14px}
+header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
+.layout{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}}
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.step-h{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.step-h .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:13px;font-weight:700;flex:none}
+.hint{margin:0;color:var(--ink-soft);font-size:13px}
+.choices{display:flex;flex-wrap:wrap;gap:8px}
+.choices.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.choices.grid6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+.choice{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:9px;padding:9px 12px;font:inherit;font-weight:500;cursor:pointer;min-height:44px;line-height:1.3;text-align:center}
+.choice:hover{border-color:var(--accent)}
+.choice[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.choice:focus-visible,.btn:focus-visible,.stepper button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.note-btn{font-family:var(--f-display);font-weight:600;font-size:17px;padding:8px 4px}
+.grade-btn{font-family:var(--f-display);font-weight:600;font-size:17px;padding:8px 0}
+.opt{display:flex;flex-direction:column;gap:6px}
+.opt-label{font-size:13px;font-weight:700;color:var(--ink-soft)}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.check{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:9px;padding:8px 12px;cursor:pointer;min-height:44px;background:var(--surface)}
+.check input{width:20px;height:20px;accent-color:var(--accent);margin:0}
+.check:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.counts{display:flex;flex-direction:column;gap:10px}
+.count-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.count-row label{font-weight:500}
+.stepper{display:inline-flex;align-items:center;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+.stepper button{appearance:none;border:0;background:var(--surface-2);color:var(--ink);width:44px;height:44px;font-size:22px;cursor:pointer;font-family:inherit}
+.stepper input{width:58px;height:44px;border:0;text-align:center;font:inherit;font-size:18px;font-weight:700;background:var(--surface);color:var(--ink);font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.btn{appearance:none;border:1.5px solid var(--accent);background:var(--surface);color:var(--accent);border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;min-height:46px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn-row{display:flex;flex-wrap:wrap;gap:10px}
+.status{font-size:13px;color:var(--ink-soft);margin:0}
+.status.ok{color:var(--accent);font-weight:700}
+.status.err{color:var(--err);font-weight:700}
+.preview{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:10px;min-width:0}
+@media (max-width:860px){.preview{position:static}}
+.pv-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.pv-head strong{font-family:var(--f-display);font-size:18px}
+.pv-meta{color:var(--ink-soft);font-size:13px}
+.paper{background:var(--surface-2);border-radius:12px;padding:16px;display:flex;justify-content:center}
+.paper canvas{display:block;background:#fff;box-shadow:var(--paper-shadow);max-width:100%}
+.overlay{position:fixed;inset:0;background:rgba(10,20,15,.55);z-index:20;display:flex;justify-content:center;align-items:flex-start;overflow:auto;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+.overlay .box{background:var(--surface);color:var(--ink);border-radius:14px;padding:18px;max-width:720px;width:100%;display:flex;flex-direction:column;gap:12px}
+.overlay img{width:100%;height:auto;display:block;border:1px solid var(--line);background:#fff}
+[hidden]{display:none!important}
+#printArea{display:none}
+@media print{
+  body{background:#fff}
+  .wrap,.overlay{display:none!important}
+  #printArea{display:block}
+  #printArea img{display:block;width:100%;height:auto}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>ノートメーカー</h1>
+    <span class="sub">小学1〜6年の、各教科の白紙ノートをB5で作れます</span>
+    <span class="ver">ver 1.0</span>
+  </header>
+
+  <div class="layout">
+    <div class="panel">
+      <section class="step">
+        <div class="step-h"><span class="n">1</span>ノートの種類</div>
+        <div class="choices grid4" id="noteChoices"></div>
+      </section>
+
+      <section class="step">
+        <div class="step-h"><span class="n">2</span>学年</div>
+        <div class="choices grid6" id="gradeChoices"></div>
+        <p class="hint">学年をえらぶと、マスの大きさや形が学年に合わせて変わります。</p>
+      </section>
+
+      <section class="step">
+        <div class="step-h"><span class="n">3</span>ノートの形</div>
+        <div id="optArea" class="panel"></div>
+      </section>
+
+      <section class="step">
+        <div class="step-h"><span class="n">4</span>マス・行の数</div>
+        <div class="counts" id="countArea"></div>
+        <div class="btn-row"><button class="btn" type="button" id="resetCounts">学年に合わせる</button></div>
+        <p class="hint">形や枠を変えると、マスの数は学年に合わせた数にもどります。</p>
+      </section>
+
+      <section class="step" id="extraStep">
+        <div class="step-h"><span class="n">5</span>めあて・まとめ・見出し</div>
+        <div class="opt" id="frameOpt">
+          <span class="opt-label">枠</span>
+          <div class="checks">
+            <label class="check"><input type="checkbox" id="cMeate">めあて</label>
+            <label class="check"><input type="checkbox" id="cMatome">まとめ</label>
+          </div>
+        </div>
+        <div class="opt">
+          <span class="opt-label">見出し</span>
+          <div class="checks">
+            <label class="check"><input type="checkbox" id="cName">名前</label>
+            <label class="check"><input type="checkbox" id="cDate">日付</label>
+            <label class="check"><input type="checkbox" id="cPage">ページ番号</label>
+          </div>
+          <p class="hint" id="renrakuHeadNote" hidden>連絡帳には、日付の欄が中にあるので、上の名前・日付は入りません。</p>
+        </div>
+      </section>
+
+      <section class="step">
+        <div class="step-h"><span class="n">6</span>線の濃さ・用紙</div>
+        <div class="opt">
+          <span class="opt-label">線の濃さ（輪転機ではうすい線が消えやすいので「濃い」がおすすめ）</span>
+          <div class="choices" id="colorChoices"></div>
+        </div>
+        <div class="opt">
+          <span class="opt-label">用紙</span>
+          <div class="choices" id="paperChoices"></div>
+        </div>
+      </section>
+
+      <section class="step">
+        <div class="step-h"><span class="n">7</span>保存・印刷</div>
+        <div class="btn-row">
+          <button class="btn primary" type="button" id="printBtn" hidden>印刷する</button>
+          <button class="btn primary" type="button" id="savePdf">PDFで保存</button>
+          <button class="btn" type="button" id="saveImg">画像で保存</button>
+        </div>
+        <p class="status" id="saveStatus">保存したPDFを開いて、ふだん使っている方法で印刷してください。</p>
+        <p class="hint" id="printHow"></p>
+      </section>
+    </div>
+
+    <div class="preview">
+      <div class="pv-head"><strong id="pvTitle">見本</strong><span class="pv-meta" id="pvMeta"></span></div>
+      <div class="paper" id="paperBox"><canvas id="pv" aria-label="ノートの見本"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="imgOverlay" hidden>
+  <div class="box">
+    <strong>画像の上を、指を動かさずに1秒ほど長押しして「写真に保存」をえらんでください</strong>
+    <p class="hint" id="imgHow"></p>
+    <div class="btn-row"><button class="btn primary" type="button" id="imgClose">閉じる</button></div>
+    <div id="imgList"></div>
+  </div>
+</div>
+<div id="printArea"></div>
+<style id="pageStyle"></style>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const FONT = '"UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","UD デジタル 教科書体 NP-R","UD Digi Kyokasho NP-R","Klee One","Hiragino Mincho ProN",serif';
+
+/* ---------- ノートの種類と、学年ごとの決まり ---------- */
+const NOTES = [
+  {id:"kokugo", name:"国語"},
+  {id:"sansu", name:"算数"},
+  {id:"rika", name:"理科"},
+  {id:"shakai", name:"社会"},
+  {id:"kanji", name:"漢字練習"},
+  {id:"renraku", name:"連絡帳"},
+  {id:"nikki", name:"日記"}
+];
+/* マスの大きさ（mm）：1年〜6年 */
+const SIZE = {
+  kokugo:[22,18,15,13,11,10],
+  kanji:[24,20,18,16,14,13],
+  nikki:[18,15,13,12,10,9],
+  grid:[15,13,12,10,8,7],      /* 算数・理科・社会の方眼 */
+  line:[14,12,11,10,9,8]       /* 横罫線の行の間かく */
+};
+const RUBY = 0.38;             /* ふりがな列の幅（マスに対する割合） */
+const COLORS = [
+  {name:"ふつう", c:"#3E9A78"},
+  {name:"濃い（おすすめ）", c:"#1F7F5C"},
+  {name:"とても濃い", c:"#0E5E42"}
+];
+const PAPERS = [
+  {id:"b5", name:"B5に1ページ"},
+  {id:"b4", name:"B4に2ページ（同じノート）"}
+];
+
+const state = {
+  note:"kokugo", grade:1, color:1, paper:"b5",
+  name:true, date:true, page:true, meate:false, matome:false,
+  o:{
+    kokugo:{form:"masu", cross:true, ruby:false},
+    sansu:{form:"grid", orient:"p", nums:"trace", cross:true, five:false},
+    rika:{form:"grid", cross:true, five:false},
+    shakai:{form:"grid", cross:true, five:false},
+    kanji:{cross:true, ruby:true},
+    nikki:{cross:true},
+    renraku:{}
+  },
+  a:6, b:8
+};
+
+function presetOptions(){
+  const g = state.grade, o = state.o;
+  o.kokugo = {form:"masu", cross:g <= 2, ruby:g >= 3};
+  o.sansu = {form:"grid", orient:o.sansu.orient || "p", nums:g === 1 ? "trace" : g === 2 ? "on" : "none", cross:g <= 3, five:g >= 5};
+  o.rika = {form:o.rika.form || "grid", cross:g <= 2, five:g >= 5};
+  o.shakai = {form:o.shakai.form || "grid", cross:g <= 2, five:g >= 5};
+  o.kanji = {cross:true, ruby:true};
+  o.nikki = {cross:g <= 2};
+}
+const hira = () => state.grade <= 2;
+const opt = () => state.o[state.note];
+const hasFrames = () => ["kokugo","sansu","rika","shakai"].includes(state.note);
+const isVertical = () => ["kokugo","kanji","nikki"].includes(state.note);
+
+/* 線か方眼か、など、いまのノートの形 */
+function kind(){
+  const n = state.note, o = opt();
+  if(n === "renraku") return "renraku";
+  if(n === "kanji" || n === "nikki") return "vmasu";
+  if(n === "kokugo") return o.form === "tate" ? "vline" : "vmasu";
+  return o.form;   /* grid / yoko / nidan / half */
+}
+function rubyOn(){
+  const n = state.note;
+  if(n === "kanji" || n === "kokugo") return !!opt().ruby;
+  return false;
+}
+function cellSize(){
+  const g = state.grade - 1, n = state.note, k = kind();
+  if(k === "grid") return SIZE.grid[g];
+  if(k === "yoko" || k === "nidan" || k === "half") return SIZE.line[g];
+  if(n === "kokugo") return SIZE.kokugo[g];
+  return SIZE[n][g];
+}
+
+/* ---------- 用紙の大きさ ---------- */
+function pageSize(){
+  const land = state.note === "sansu" && state.o.sansu.orient === "l";
+  return land ? [257, 182] : [182, 257];
+}
+function sheetSize(){
+  const [w, h] = pageSize();
+  if(state.paper === "b5") return [w, h];
+  return w < h ? [w * 2, h] : [w, h * 2];
+}
+function paperLabel(){
+  const [w, h] = sheetSize();
+  return (state.paper === "b5" ? "B5" : "B4") + (w < h ? "（たて）" : "（よこ）");
+}
+
+/* ---------- ページの中の配置 ---------- */
+const M = 12;
+function contentBox(){
+  const [W, H] = pageSize();
+  const head = state.note !== "renraku" && (state.name || state.date);
+  const top = head ? 17 : 12;
+  const bottom = H - (state.page ? 12 : 10);
+  return {x:M, y:top, w:W - M * 2, h:bottom - top};
+}
+const BAND = 18, GAP = 3;
+function mainBox(){
+  const c = contentBox();
+  if(!hasFrames()) return c;
+  const m = {...c};
+  if(isVertical()){
+    if(state.meate){ m.w -= BAND + GAP; }
+    if(state.matome){ m.x += BAND + GAP; m.w -= BAND + GAP; }
+  }else{
+    if(state.meate){ m.y += BAND + GAP; m.h -= BAND + GAP; }
+    if(state.matome){ m.h -= BAND + GAP; }
+  }
+  return m;
+}
+
+/* マス・行の数の入力欄 */
+function countSpec(){
+  const k = kind();
+  if(k === "renraku") return [{key:"a", label:"日数（列の数）", min:3, max:20}];
+  if(k === "vmasu") return [{key:"a", label:"列の数（たて書きの行）", min:2, max:40}, {key:"b", label:"1列のマスの数", min:2, max:40}];
+  if(k === "vline") return [{key:"a", label:"行の数（たての線）", min:2, max:40}];
+  if(k === "grid") return [{key:"a", label:"よこのマスの数", min:2, max:50}, {key:"b", label:"たてのマスの数", min:2, max:60}];
+  if(k === "half") return [{key:"a", label:"下の罫線の行数", min:2, max:40}];
+  return [{key:"a", label:"行の数", min:2, max:50}];
+}
+function fitCounts(){
+  const k = kind();
+  if(k === "renraku"){ state.a = 10; return; }
+  const m = mainBox(), s = cellSize(), u = s * (rubyOn() ? 1 + RUBY : 1);
+  if(k === "vmasu"){ state.a = Math.max(2, Math.floor(m.w / u + 0.01)); state.b = Math.max(2, Math.floor(m.h / s + 0.01)); return; }
+  if(k === "vline"){ state.a = Math.max(2, Math.floor(m.w / u + 0.01)); return; }
+  if(k === "grid"){ state.a = Math.max(2, Math.floor(m.w / s + 0.01)); state.b = Math.max(2, Math.floor(m.h / s + 0.01)); return; }
+  if(k === "half"){ state.a = Math.max(2, Math.floor(m.h * 0.55 / s + 0.01)); return; }
+  state.a = Math.max(2, Math.floor(m.h / s + 0.01));
+}
+
+/* ---------- 描く ---------- */
+const W_FRAME = 0.6, W_THIN = 0.25, W_MID = 0.45, W_DOT = 0.25;
+let INK = COLORS[1].c;
+
+function line(ctx, x1, y1, x2, y2, w, dash){
+  ctx.beginPath();
+  ctx.lineWidth = w;
+  ctx.setLineDash(dash ? [0.8, 0.8] : []);
+  ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+}
+function rect(ctx, x, y, w, h, lw){ ctx.setLineDash([]); ctx.lineWidth = lw; ctx.strokeRect(x, y, w, h); }
+/* 文字：mm単位のまま小さな文字を描くと、ブラウザによって大きさがくるうので、10倍にして描く */
+function text(ctx, s, x, y, size, align, base, trace){
+  ctx.save();
+  ctx.translate(x, y); ctx.scale(0.1, 0.1);
+  ctx.font = (size * 10) + "px " + FONT;
+  ctx.textAlign = align || "center"; ctx.textBaseline = base || "middle";
+  if(trace){ ctx.lineWidth = 2.5; ctx.setLineDash([7, 5]); ctx.strokeText(s, 0, 0); }
+  else ctx.fillText(s, 0, 0);
+  ctx.restore();
+}
+function textW(ctx, s, size){
+  ctx.save(); ctx.font = (size * 10) + "px " + FONT; const w = ctx.measureText(s).width / 10; ctx.restore(); return w;
+}
+function vtext(ctx, s, cx, cy, size, pitch){
+  const ch = [...s], p = pitch || size * 1.1, top = cy - p * (ch.length - 1) / 2;
+  ch.forEach((c, i) => text(ctx, c, cx, top + p * i, size));
+}
+
+function drawHeader(ctx, W, H){
+  const sz = 3.3, y = 12;
+  if(state.note !== "renraku"){
+    if(state.name){
+      text(ctx, hira() ? "なまえ" : "名前", M, y - 0.6, 2.8, "left", "alphabetic");
+      const x0 = M + (hira() ? 10 : 8);
+      line(ctx, x0, y, x0 + 52, y, W_THIN);
+    }
+    if(state.date){
+      const parts = hira() ? ["がつ", "にち", "ようび（", "）"] : ["月", "日", "曜日（", "）"];
+      let x = W - M;
+      text(ctx, parts[3], x, y - 0.6, sz, "right", "alphabetic");
+      x -= 16;
+      text(ctx, parts[2], x, y - 0.6, sz, "right", "alphabetic");
+      x -= textW(ctx, parts[2], sz) + 9;
+      text(ctx, parts[1], x, y - 0.6, sz, "right", "alphabetic");
+      x -= textW(ctx, parts[1], sz) + 9;
+      text(ctx, parts[0], x, y - 0.6, sz, "right", "alphabetic");
+    }
+  }
+  if(state.page){
+    text(ctx, "（", W - M - 15, H - 6, sz, "left", "middle");
+    text(ctx, "）", W - M, H - 6, sz, "right", "middle");
+  }
+}
+
+function drawBand(ctx, x, y, w, h, label, vertical){
+  rect(ctx, x, y, w, h, W_FRAME);
+  if(vertical){
+    const lh = 24;
+    line(ctx, x, y + lh, x + w, y + lh, W_THIN);
+    vtext(ctx, label, x + w / 2, y + lh / 2, 4, 5.2);
+  }else{
+    const lw = 15;
+    line(ctx, x + lw, y, x + lw, y + h, W_THIN);
+    text(ctx, label, x + lw / 2, y + h / 2, 3.6);
+  }
+}
+function drawFrames(ctx){
+  if(!hasFrames()) return;
+  const c = contentBox(), v = isVertical();
+  const L = hira() ? ["めあて", "まとめ"] : ["めあて", "まとめ"];
+  if(v){
+    if(state.meate) drawBand(ctx, c.x + c.w - BAND, c.y, BAND, c.h, L[0], true);
+    if(state.matome) drawBand(ctx, c.x, c.y, BAND, c.h, L[1], true);
+  }else{
+    if(state.meate) drawBand(ctx, c.x, c.y, c.w, BAND, L[0], false);
+    if(state.matome) drawBand(ctx, c.x, c.y + c.h - BAND, c.w, BAND, L[1], false);
+  }
+}
+
+/* たて書きのマス（国語・漢字・日記） */
+function drawVMasu(ctx, m){
+  const cols = state.a, rows = state.b, r = rubyOn() ? RUBY : 0, cross = !!opt().cross;
+  const s = Math.min(m.w / (cols * (1 + r)), m.h / rows), u = s * (1 + r);
+  const gw = cols * u, gh = rows * s, x0 = m.x + (m.w - gw) / 2, y0 = m.y + (m.h - gh) / 2;
+  for(let i = 0; i < cols; i++){
+    const cx = x0 + i * u;
+    if(i > 0) line(ctx, cx, y0, cx, y0 + gh, W_THIN);
+    if(r) line(ctx, cx + s, y0, cx + s, y0 + gh, W_THIN);
+    if(cross){
+      line(ctx, cx + s / 2, y0, cx + s / 2, y0 + gh, W_DOT, true);
+      for(let j = 0; j < rows; j++) line(ctx, cx, y0 + (j + 0.5) * s, cx + s, y0 + (j + 0.5) * s, W_DOT, true);
+    }
+  }
+  for(let j = 1; j < rows; j++) line(ctx, x0, y0 + j * s, x0 + gw, y0 + j * s, W_THIN);
+  rect(ctx, x0, y0, gw, gh, W_FRAME);
+}
+/* たての罫線（国語） */
+function drawVLine(ctx, m){
+  const cols = state.a, r = rubyOn() ? RUBY : 0;
+  const u = m.w / cols, s = u / (1 + r);
+  for(let i = 0; i < cols; i++){
+    const cx = m.x + i * u;
+    if(i > 0) line(ctx, cx, m.y, cx, m.y + m.h, W_THIN);
+    if(r) line(ctx, cx + s, m.y, cx + s, m.y + m.h, W_DOT, true);
+  }
+  rect(ctx, m.x, m.y, m.w, m.h, W_FRAME);
+}
+/* 方眼（算数・理科・社会） */
+function numLabels(n){
+  const base = ["1","2","3","4","5","6","7","8","9","10"];
+  const ops = ["＋","−","＝"];
+  if(n <= 10) return base.slice(0, n);
+  return base.concat(ops.slice(0, Math.min(3, n - 10)));
+}
+function drawGrid(ctx, m){
+  const cols = state.a, rows = state.b, o = opt();
+  const s = Math.min(m.w / cols, m.h / rows), gw = cols * s, gh = rows * s;
+  const x0 = m.x + (m.w - gw) / 2, y0 = m.y + (m.h - gh) / 2;
+  const nums = state.note === "sansu" ? o.nums : "none";
+  if(o.cross){
+    for(let i = 0; i < cols; i++) line(ctx, x0 + (i + 0.5) * s, y0 + (nums !== "none" ? s : 0), x0 + (i + 0.5) * s, y0 + gh, W_DOT, true);
+    for(let j = nums !== "none" ? 1 : 0; j < rows; j++) line(ctx, x0, y0 + (j + 0.5) * s, x0 + gw, y0 + (j + 0.5) * s, W_DOT, true);
+  }
+  for(let i = 1; i < cols; i++) line(ctx, x0 + i * s, y0, x0 + i * s, y0 + gh, o.five && i % 5 === 0 ? W_MID : W_THIN);
+  const off = nums !== "none" ? 1 : 0;
+  for(let j = 1; j < rows; j++) line(ctx, x0, y0 + j * s, x0 + gw, y0 + j * s, o.five && (j - off) % 5 === 0 && j > off ? W_MID : (j === 1 && off ? W_MID : W_THIN));
+  if(nums !== "none"){
+    numLabels(cols).forEach((t, i) => {
+      const sz = s * (t.length > 1 ? 0.62 : 0.72);
+      text(ctx, t, x0 + (i + 0.5) * s, y0 + s * 0.53, sz, "center", "middle", nums === "trace");
+    });
+  }
+  rect(ctx, x0, y0, gw, gh, W_FRAME);
+}
+/* 横罫線・左右2段・上が白紙 */
+function drawRuled(ctx, m, k){
+  const n = state.a;
+  let top = m.y, h = m.h;
+  if(k === "half"){
+    const bh = m.h * 0.45;
+    top = m.y + bh; h = m.h - bh;
+    line(ctx, m.x, top, m.x + m.w, top, W_FRAME);
+  }
+  const p = h / n;
+  for(let j = 1; j < n; j++) line(ctx, m.x, top + j * p, m.x + m.w, top + j * p, W_THIN);
+  if(k === "nidan") line(ctx, m.x + m.w / 2, m.y, m.x + m.w / 2, m.y + m.h, W_THIN);
+  rect(ctx, m.x, m.y, m.w, m.h, W_FRAME);
+}
+/* 連絡帳（右はしに見出しの列） */
+function drawRenraku(ctx, m){
+  const n = state.a, hw = 15, dw = (m.w - hw) / n, rh = 9, ih = 10;
+  const x0 = m.x, y0 = m.y, hx = m.x + m.w - hw, yb = m.y + m.h;
+  for(let i = 1; i <= n; i++) line(ctx, x0 + i * dw, y0, x0 + i * dw, yb, W_THIN);
+  for(let j = 1; j <= 3; j++) line(ctx, x0, y0 + j * rh, x0 + m.w, y0 + j * rh, W_THIN);
+  line(ctx, x0, yb - ih * 2, x0 + m.w, yb - ih * 2, W_THIN);
+  line(ctx, x0, yb - ih, hx, yb - ih, W_THIN);
+  rect(ctx, m.x, m.y, m.w, m.h, W_FRAME);
+  const cx = hx + hw / 2;
+  if(hira()){
+    text(ctx, "月", cx - 1.4, y0 + rh * 0.5, 4.6);
+    vtext(ctx, "がつ", cx + 3.6, y0 + rh * 0.5, 1.9, 2.1);
+    text(ctx, "日", cx - 1.4, y0 + rh * 1.5, 4.6);
+    vtext(ctx, "にち", cx + 3.6, y0 + rh * 1.5, 1.9, 2.1);
+    vtext(ctx, "ようび", cx, y0 + rh * 2.5, 2.5, 2.6);
+  }else{
+    text(ctx, "月", cx, y0 + rh * 0.5, 4.6);
+    text(ctx, "日", cx, y0 + rh * 1.5, 4.6);
+    vtext(ctx, "曜日", cx, y0 + rh * 2.5, 3.2, 3.6);
+  }
+  const mt = y0 + rh * 3, mb = yb - ih * 2;
+  if(state.grade <= 3) vtext(ctx, "れんらくすること", cx, (mt + mb) / 2, 5, 9);
+  else vtext(ctx, "連絡", cx, (mt + mb) / 2, 5.5, 14);
+  text(ctx, "印", cx, yb - ih, 5);
+}
+
+function drawPage(ctx, ox, oy){
+  const [W, H] = pageSize();
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.strokeStyle = INK; ctx.fillStyle = INK; ctx.lineCap = "butt";
+  drawHeader(ctx, W, H);
+  drawFrames(ctx);
+  const k = kind(), m = mainBox();
+  if(k === "renraku") drawRenraku(ctx, m);
+  else if(k === "vmasu") drawVMasu(ctx, m);
+  else if(k === "vline") drawVLine(ctx, m);
+  else if(k === "grid") drawGrid(ctx, m);
+  else drawRuled(ctx, m, k);
+  ctx.restore();
+}
+/* 用紙1枚分（B4のときは同じノートを2ページ、まん中に切り取りの目じるし） */
+function drawSheet(canvas, px){
+  INK = COLORS[state.color].c;
+  const [SW, SH] = sheetSize(), [W, H] = pageSize();
+  canvas.width = Math.round(SW * px); canvas.height = Math.round(SH * px);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(px, 0, 0, px, 0, 0);
+  if(state.paper === "b5"){ drawPage(ctx, 0, 0); return; }
+  const side = W < H;
+  drawPage(ctx, 0, 0);
+  drawPage(ctx, side ? W : 0, side ? 0 : H);
+  ctx.strokeStyle = "#8A9A92"; ctx.setLineDash([]); ctx.lineWidth = 0.25;
+  if(side){ line(ctx, W, 0, W, 5, 0.25); line(ctx, W, SH - 5, W, SH, 0.25); }
+  else{ line(ctx, 0, H, 5, H, 0.25); line(ctx, SW - 5, H, SW, H, 0.25); }
+}
+
+/* ---------- 画面 ---------- */
+function pressed(btn, on){ btn.setAttribute("aria-pressed", on ? "true" : "false"); }
+function choiceRow(box, items, cur, onPick, cls){
+  box.innerHTML = "";
+  for(const it of items){
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "choice" + (cls ? " " + cls : ""); b.textContent = it.name;
+    pressed(b, it.id === cur);
+    b.addEventListener("click", () => onPick(it.id));
+    box.appendChild(b);
+  }
+}
+function optChoice(label, items, cur, onPick){
+  const d = document.createElement("div"); d.className = "opt";
+  const l = document.createElement("span"); l.className = "opt-label"; l.textContent = label;
+  const c = document.createElement("div"); c.className = "choices";
+  choiceRow(c, items, cur, onPick);
+  d.append(l, c); return d;
+}
+function optChecks(label, items){
+  const d = document.createElement("div"); d.className = "opt";
+  const l = document.createElement("span"); l.className = "opt-label"; l.textContent = label;
+  const c = document.createElement("div"); c.className = "checks";
+  for(const it of items){
+    const lab = document.createElement("label"); lab.className = "check";
+    const i = document.createElement("input"); i.type = "checkbox"; i.id = "o_" + it.key; i.checked = !!opt()[it.key];
+    i.addEventListener("change", () => { opt()[it.key] = i.checked; if(it.refit) fitCounts(); update(); });
+    lab.append(i, document.createTextNode(it.name)); c.appendChild(lab);
+  }
+  d.append(l, c); return d;
+}
+function setOpt(key, val){ opt()[key] = val; fitCounts(); update(); }
+
+function renderOptions(){
+  const box = $("optArea"); box.innerHTML = "";
+  const n = state.note, o = opt();
+  if(n === "kokugo"){
+    box.appendChild(optChoice("形", [{id:"masu", name:"マス"}, {id:"tate", name:"たての罫線（マスなし）"}], o.form, v => setOpt("form", v)));
+    box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}, {key:"ruby", name:"ふりがな列", refit:true}]));
+  }else if(n === "sansu"){
+    box.appendChild(optChoice("用紙の向き", [{id:"p", name:"たて向き"}, {id:"l", name:"よこ向き"}], o.orient, v => setOpt("orient", v)));
+    box.appendChild(optChoice("形", [{id:"grid", name:"方眼"}, {id:"yoko", name:"横罫線"}, {id:"nidan", name:"左右2段の罫線"}], o.form, v => setOpt("form", v)));
+    if(o.form === "grid"){
+      box.appendChild(optChoice("いちばん上の数字（1〜10 ＋ − ＝）", [{id:"none", name:"なし"}, {id:"on", name:"あり"}, {id:"trace", name:"なぞり書き（点線）"}], o.nums, v => { o.nums = v; update(); }));
+      box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}, {key:"five", name:"5マスごとに太い線"}]));
+    }
+  }else if(n === "rika" || n === "shakai"){
+    box.appendChild(optChoice("形", [{id:"grid", name:"方眼"}, {id:"yoko", name:"横罫線"}, {id:"half", name:"上が白紙＋下が罫線"}], o.form, v => setOpt("form", v)));
+    if(o.form === "grid") box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}, {key:"five", name:"5マスごとに太い線"}]));
+  }else if(n === "kanji"){
+    box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}, {key:"ruby", name:"ふりがな列", refit:true}]));
+  }else if(n === "nikki"){
+    box.appendChild(optChecks("マスの中", [{key:"cross", name:"十字の点線"}]));
+  }else{
+    const p = document.createElement("p"); p.className = "hint";
+    p.textContent = "右はしに「月・日・ようび／れんらくすること／印」の見出しの列があり、1列に1日分を書きます。下の2段は、おうちの人と先生の印の欄です。";
+    box.appendChild(p);
+  }
+}
+function renderCounts(){
+  const box = $("countArea"); box.innerHTML = "";
+  for(const sp of countSpec()){
+    const row = document.createElement("div"); row.className = "count-row";
+    const lab = document.createElement("label"); lab.textContent = sp.label; lab.htmlFor = "cnt_" + sp.key;
+    const st = document.createElement("div"); st.className = "stepper";
+    const minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.setAttribute("aria-label", sp.label + "をへらす");
+    const plus = document.createElement("button"); plus.type = "button"; plus.textContent = "＋"; plus.setAttribute("aria-label", sp.label + "をふやす");
+    const inp = document.createElement("input"); inp.type = "number"; inp.inputMode = "numeric"; inp.id = "cnt_" + sp.key; inp.min = sp.min; inp.max = sp.max; inp.value = state[sp.key];
+    const set = v => { v = Math.max(sp.min, Math.min(sp.max, Math.round(v) || sp.min)); state[sp.key] = v; inp.value = v; draw(); save(); };
+    minus.addEventListener("click", () => set(state[sp.key] - 1));
+    plus.addEventListener("click", () => set(state[sp.key] + 1));
+    inp.addEventListener("change", () => set(+inp.value));
+    st.append(minus, inp, plus); row.append(lab, st); box.appendChild(row);
+  }
+}
+function renderStatic(){
+  choiceRow($("noteChoices"), NOTES, state.note, v => { state.note = v; fitCounts(); update(); }, "note-btn");
+  choiceRow($("gradeChoices"), [1,2,3,4,5,6].map(g => ({id:g, name:g + "年"})), state.grade, v => { state.grade = v; presetOptions(); fitCounts(); update(); }, "grade-btn");
+  choiceRow($("colorChoices"), COLORS.map((c, i) => ({id:i, name:c.name})), state.color, v => { state.color = v; update(); });
+  choiceRow($("paperChoices"), PAPERS, state.paper, v => { state.paper = v; update(); });
+  $("frameOpt").hidden = !hasFrames();
+  $("renrakuHeadNote").hidden = state.note !== "renraku";
+  $("cName").disabled = $("cDate").disabled = state.note === "renraku";
+  $("cMeate").checked = state.meate; $("cMatome").checked = state.matome;
+  $("cName").checked = state.name; $("cDate").checked = state.date; $("cPage").checked = state.page;
+  $("printHow").textContent = "印刷するときは、用紙を「" + paperLabel() + "」、大きさを「実際のサイズ（100%）」にしてください。";
+}
+function update(){ renderStatic(); renderOptions(); renderCounts(); draw(); save(); }
+
+let drawTimer = 0;
+function draw(){
+  clearTimeout(drawTimer);
+  drawTimer = setTimeout(() => {
+    const box = $("paperBox"), c = $("pv"), [SW, SH] = sheetSize();
+    const availW = box.clientWidth - 32, availH = Math.max(420, window.innerHeight - 140);
+    const cssW = Math.max(200, Math.min(availW, availH * SW / SH));
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    drawSheet(c, cssW * dpr / SW);
+    c.style.width = cssW + "px"; c.style.height = (cssW * SH / SW) + "px";
+    const nm = NOTES.find(x => x.id === state.note).name;
+    $("pvTitle").textContent = state.grade + "年　" + nm + "ノート";
+    const sp = countSpec().map(s => state[s.key]).join("×");
+    $("pvMeta").textContent = paperLabel() + "・" + sp;
+  }, 20);
+}
+window.addEventListener("resize", draw);
+
+$("cMeate").addEventListener("change", e => { state.meate = e.target.checked; fitCounts(); update(); });
+$("cMatome").addEventListener("change", e => { state.matome = e.target.checked; fitCounts(); update(); });
+$("cName").addEventListener("change", e => { state.name = e.target.checked; fitCounts(); update(); });
+$("cDate").addEventListener("change", e => { state.date = e.target.checked; fitCounts(); update(); });
+$("cPage").addEventListener("change", e => { state.page = e.target.checked; fitCounts(); update(); });
+$("resetCounts").addEventListener("click", () => { fitCounts(); update(); });
+
+/* この端末に、さいごの設定をおぼえておく */
+const KEY = "note-maker-v1";
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+function load(){
+  try{
+    const s = JSON.parse(localStorage.getItem(KEY) || "null");
+    if(s && NOTES.some(n => n.id === s.note)){
+      for(const k of ["note","grade","color","paper","name","date","page","meate","matome","a","b"]) if(k in s) state[k] = s[k];
+      for(const n of Object.keys(state.o)) if(s.o && s.o[n]) Object.assign(state.o[n], s.o[n]);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+/* ---------- 保存（PDF・画像） ---------- */
+let dl = null, dlChecked = false;
+/* PCに保存したファイルで開いたとき：そのままファイルとして保存し、印刷もできる */
+const LOCAL = location.protocol === "file:";
+const LOCAL_DL = LOCAL ? {save: async ({filename, data}) => {
+  const blob = data instanceof Blob ? data : new Blob([data]);
+  const u = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = u; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 10000);
+  return {status:"saved"};
+}} : null;
+async function getDl(){
+  if(dl) return dl;
+  if(LOCAL_DL){ dl = LOCAL_DL; dlChecked = true; setSaveMode(); return dl; }
+  try{ if(window.claude && typeof window.claude.use === "function") dl = await window.claude.use("downloads"); }catch(e){ dl = null; }
+  const first = !dlChecked; dlChecked = true; setSaveMode(first);
+  return dl;
+}
+function setSaveMode(announce){
+  const can = !!dl || !dlChecked;
+  $("savePdf").textContent = can ? "PDFで保存" : "印刷用の画像を出す";
+  $("saveImg").hidden = !can;
+  $("printBtn").hidden = !LOCAL;
+  if(!can && announce) status("「印刷用の画像を出す」をおして、出てきた画像を長押しで「写真に保存」してください。写真として " + paperLabel() + " に印刷します。");
+}
+function status(msg, kind){ const el = $("saveStatus"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); }
+function baseName(){
+  const d = new Date(), pad = n => String(n).padStart(2, "0");
+  const nm = NOTES.find(x => x.id === state.note).name;
+  return "ノート_" + state.grade + "年_" + nm + "_" + (state.paper === "b5" ? "B5" : "B4") + "_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+}
+const PRINT_PX = 250 / 25.4;
+function canvasBlob(c, type, q){ return new Promise(res => c.toBlob(res, type, q)); }
+/* 線がくっきり出るように、画像をそのまま（圧縮だけして）PDFに入れる */
+async function imageStream(c){
+  if(typeof CompressionStream === "function"){
+    try{
+      const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, n = c.width * c.height, rgb = new Uint8Array(n * 3);
+      for(let i = 0, j = 0; i < n; i++, j += 3){ rgb[j] = d[i * 4]; rgb[j + 1] = d[i * 4 + 1]; rgb[j + 2] = d[i * 4 + 2]; }
+      const cs = new Blob([rgb]).stream().pipeThrough(new CompressionStream("deflate"));
+      return {bytes:new Uint8Array(await new Response(cs).arrayBuffer()), filter:"/FlateDecode"};
+    }catch(e){}
+  }
+  const b = await canvasBlob(c, "image/jpeg", 0.95);
+  return {bytes:new Uint8Array(await b.arrayBuffer()), filter:"/DCTDecode"};
+}
+async function makePdf(){
+  const c = document.createElement("canvas");
+  drawSheet(c, PRINT_PX);
+  const img = await imageStream(c);
+  const [W, H] = sheetSize(), wPt = (W * 72 / 25.4).toFixed(2), hPt = (H * 72 / 25.4).toFixed(2);
+  const enc = new TextEncoder(), chunks = [], offs = []; let len = 0;
+  const push = x => { const b = typeof x === "string" ? enc.encode(x) : x; chunks.push(b); len += b.length; };
+  const obj = (id, parts) => { offs[id] = len; push(id + " 0 obj\n"); parts.forEach(push); push("\nendobj\n"); };
+  push("%PDF-1.4\n"); push(new Uint8Array([37, 226, 227, 207, 211, 10]));
+  const cs = "q " + wPt + " 0 0 " + hPt + " 0 0 cm /Im0 Do Q";
+  obj(1, ["<< /Type /Catalog /Pages 2 0 R >>"]);
+  obj(2, ["<< /Type /Pages /Kids [3 0 R] /Count 1 >>"]);
+  obj(3, ["<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + wPt + " " + hPt + "] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>"]);
+  obj(4, ["<< /Length " + cs.length + " >>\nstream\n" + cs + "\nendstream"]);
+  obj(5, ["<< /Type /XObject /Subtype /Image /Width " + c.width + " /Height " + c.height + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter " + img.filter + " /Length " + img.bytes.length + " >>\nstream\n", img.bytes, "\nendstream"]);
+  const xref = len;
+  let x = "xref\n0 6\n0000000000 65535 f \n";
+  for(let i = 1; i < 6; i++) x += String(offs[i]).padStart(10, "0") + " 00000 n \n";
+  push(x); push("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF\n");
+  return new Blob(chunks, {type:"application/pdf"});
+}
+async function offer(filename, data){
+  if(!dl) return "none";
+  try{ await dl.save({filename, data}); return "saved"; }
+  catch(err){ return (err && err.code) || "error"; }
+}
+function explain(code){
+  if(code === "declined") return ["保存をやめました。", ""];
+  if(code === "rate_limited") return ["保存の確認画面がすでに開いています。少し待ってからもう一度おしてください。", "err"];
+  return ["この画面では保存できませんでした。", "err"];
+}
+async function withBusy(btn, fn){ const t = btn.textContent; btn.disabled = true; btn.textContent = "作成中…"; try{ await fn(); } finally { btn.disabled = false; btn.textContent = t; setSaveMode(false); } }
+async function showImage(c){
+  const box = $("imgList"); box.innerHTML = "";
+  $("imgHow").textContent = "印刷するときは、用紙を「" + paperLabel() + "」、印刷の大きさを「用紙に合わせる」（ふちなしにしない）にしてください。";
+  const img = document.createElement("img"); img.alt = "ノートの印刷用の画像"; img.src = c.toDataURL("image/png");
+  try{ await img.decode(); }catch(e){}
+  box.appendChild(img);
+  $("imgOverlay").hidden = false;
+}
+$("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () => {
+  await fontsReady;
+  if(!(await getDl())){
+    const c = document.createElement("canvas"); drawSheet(c, PRINT_PX);
+    await showImage(c);
+    status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
+    return;
+  }
+  status("PDFを作っています…");
+  let blob;
+  try{ blob = await makePdf(); }catch(err){ status("PDFを作れませんでした。「画像で保存」をためしてください。", "err"); return; }
+  const r = await offer(baseName() + ".pdf", blob);
+  if(r === "saved") status("PDFを保存しました。開いて印刷してください。用紙は " + paperLabel() + "、大きさは「実際のサイズ（100%）」です。", "ok");
+  else status(...explain(r));
+}));
+$("saveImg").addEventListener("click", e => withBusy(e.currentTarget, async () => {
+  await fontsReady;
+  const c = document.createElement("canvas"); drawSheet(c, PRINT_PX);
+  await getDl();
+  const r = await offer(baseName() + ".png", await canvasBlob(c, "image/png"));
+  if(r === "saved"){ status("画像を保存しました。写真として " + paperLabel() + " に印刷してください。", "ok"); return; }
+  if(r === "declined"){ status(...explain(r)); return; }
+  await showImage(c);
+  status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
+}));
+/* PC版だけ：そのまま印刷（用紙の大きさをブラウザに伝える） */
+$("printBtn").addEventListener("click", async () => {
+  await fontsReady;
+  const c = document.createElement("canvas"); drawSheet(c, PRINT_PX);
+  const [W, H] = sheetSize();
+  $("pageStyle").textContent = "@page{size:" + W + "mm " + H + "mm;margin:0}@media print{#printArea img{width:" + W + "mm;height:" + H + "mm}}";
+  const img = document.createElement("img"); img.alt = ""; img.src = c.toDataURL("image/png");
+  try{ await img.decode(); }catch(e){}
+  $("printArea").innerHTML = ""; $("printArea").appendChild(img);
+  window.print();
+});
+$("imgClose").addEventListener("click", () => { $("imgOverlay").hidden = true; });
+
+const fontsReady = (async () => {
+  if(!document.fonts || !document.fonts.load) return;
+  try{
+    await Promise.race([
+      document.fonts.load('400 20px "Klee One"', "がつにちようび月日曜名前めあてまとめれんらくすること連絡印"),
+      new Promise(r => setTimeout(r, 3000))
+    ]);
+  }catch(e){}
+})();
+fontsReady.then(draw);
+if(document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", draw);
+
+if(!load()){ presetOptions(); fitCounts(); }
+update();
+getDl();
+</script>
