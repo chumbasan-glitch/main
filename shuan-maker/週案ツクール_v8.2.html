@@ -210,6 +210,7 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 /* 印刷（B5縦） */
 #print{display:none}
 @page{size:182mm 257mm;margin:7mm}
+@page{size:JIS-B5 portrait;margin:7mm}
 @media print{
   body{background:#fff}
   .app,#toast{display:none!important}
@@ -310,7 +311,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v8.1";
+const VERSION = "v8.2";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -817,6 +818,7 @@ function renderWeek() {
     <span class="sp" style="flex:1"></span>
     <label class="row" style="gap:4px"><input type="checkbox" id="wSat"${wr.sat ? " checked" : ""}> 土曜授業がある</label>
     <button class="btn" id="wPrint">🖨 印刷（B5縦）</button>
+    <button class="btn" id="wPdf" title="印刷の画面で「PDFとして保存」を選ぶと、このファイル名で保存されます">📄 PDFで保存</button>
   </div>
   <div class="weeklayout"><div>
   ${Object.keys(D.units).map(k => `<datalist id="ul-${esc(k)}">${(D.units[k] || []).map(u => `<option value="${esc(u.name)}">`).join("")}</datalist>`).join("")}
@@ -920,6 +922,7 @@ function bindWeek(el, mon) {
   $("#wToday").onclick = () => { const t = mondayOf(today()); if (weeks.includes(t)) { curWeek = t; render(); } else toast("今週はこの年度にありません"); };
   $("#wSat").onchange = e => { ensureWeek(mon).sat = e.target.checked; changed(); };
   $("#wPrint").onclick = doPrint;
+  $("#wPdf").onclick = savePdf;
   $("#wMemo").oninput = e => { ensureWeek(mon).memo = e.target.value; changed(false); };
   $("#wRec").oninput = e => { ensureWeek(mon).rec = e.target.value; changed(false); };
   $$("textarea.ev", el).forEach(t => t.oninput = () => { ensureDay(t.dataset.d).event = t.value; changed(false); });
@@ -1129,6 +1132,18 @@ function renderPrint() {
   pe.style.cssText = themeVars(D.cls.theme) + `;--hw:${days.length > 5 ? 4.5 : 6}mm`;
   pe.innerHTML = h;
 }
+// PDFのファイル名：「6年梅組週案2026.10.19～」（週のはじめの日）
+function pdfName() {
+  const c = D.cls; const t = parse(curWeek);
+  return (c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "") + "週案" + t.getFullYear() + "." + (t.getMonth() + 1) + "." + t.getDate() + "～";
+}
+const APP_TITLE = document.title;
+function savePdf() {
+  document.title = pdfName();   // 印刷の画面で「PDFとして保存」を選ぶと、この名前が付く
+  toast("印刷の画面の「プリンター」で「PDFとして保存」を選んで、「保存」を押してください", 6000);
+  setTimeout(() => { renderPrint(); window.print(); }, 50);
+}
+window.addEventListener("afterprint", () => { document.title = APP_TITLE; });
 function doPrint() { renderPrint(); window.print(); }
 window.addEventListener("beforeprint", renderPrint);
 
