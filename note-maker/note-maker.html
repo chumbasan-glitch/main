@@ -111,7 +111,7 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
   <header class="top">
     <h1>ノートツクール</h1>
     <span class="sub">国語・算数・理科・社会・漢字練習・連絡帳・日記の白紙ノートをB5で作れます</span>
-    <span class="ver">ver 1.5</span>
+    <span class="ver">ver 1.6</span>
   </header>
 
   <div class="layout">
@@ -168,6 +168,8 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
           <span class="opt-label">文字の色</span>
           <div class="choices" id="textColorChoices"></div>
         </div>
+        <p class="hint">なぞり①〜⑧は、数字が大きいほど濃くなります。どれが印刷でちょうどよいか、下の「ためし刷り」で8種類を1枚にならべてたしかめられます。</p>
+        <div class="btn-row"><button class="btn" type="button" id="testPdf">なぞり書きの濃さ ためし刷り（PDF）</button></div>
       </section>
 
       <section class="step">
@@ -634,11 +636,14 @@ function drawPage(ctx, ox, oy){
   ctx.restore();
 }
 /* ---------- ノートに入れる文字 ---------- */
+/* なぞり書き用の灰色は、ためし刷りで1つにしぼるまで ①〜⑧ を用意しておく（数字が大きいほど濃い） */
+const TRACE_GRAYS = ["#E0E0E0","#D0D0D0","#C0C0C0","#B0B0B0","#A0A0A0","#909090","#808080","#6E6E6E"];
+const MARU = "①②③④⑤⑥⑦⑧";
+const grayPct = c => Math.round((1 - parseInt(c.slice(1, 3), 16) / 255) * 100);
 const TEXT_COLORS = [
   {name:"黒", c:"#1E1E1E"},
-  {name:"線と同じ色", c:null},
-  {name:"うすい灰色（なぞり書き用）", c:"#9C9C9C"}
-];
+  {name:"線と同じ色", c:null}
+].concat(TRACE_GRAYS.map((c, i) => ({name:"なぞり" + MARU[i], c})));
 const ROTATE = "ー－―〜～…‥（）「」『』【】〈〉《》()[]〔〕";
 /* たて書きの1文字（のばす棒やかっこは回し、句読点は右上に寄せる） */
 function vchar(ctx, c, x, y, size){
@@ -719,6 +724,39 @@ function drawUserText(ctx, m, k){
 }
 
 /* 用紙1枚分（B4のときは同じノートを2ページ、まん中に切り取りの目じるし） */
+/* ---------- なぞり書きの濃さ ためし刷り ---------- */
+let TEST = false;
+function drawTestPage(ctx, ox, oy){
+  const W = 182, chars = ["あ", "ぞ", "り", "字", "学", "１", "＋", "3"], cs = 15, x0 = M + 36, top = 32, rh = 26;
+  ctx.save(); ctx.translate(ox, oy);
+  ctx.fillStyle = "#1E1E1E"; ctx.strokeStyle = INK;
+  text(ctx, "なぞり書きの濃さ ためし刷り", W / 2, 15, 5);
+  text(ctx, "いちばんなぞりやすい番号を、ひとつえらんでください。（右はしの「3」は点線のなぞり文字）", W / 2, 23, 2.8);
+  TRACE_GRAYS.forEach((g, r) => {
+    const y = top + r * rh;
+    ctx.fillStyle = "#1E1E1E";
+    text(ctx, "なぞり" + MARU[r], M, y + cs / 2 - 2.2, 4, "left");
+    text(ctx, "灰色 " + grayPct(g) + "%", M + 1, y + cs / 2 + 3.8, 2.8, "left");
+    ctx.strokeStyle = INK;
+    for(let i = 0; i < chars.length; i++){
+      const cx = x0 + i * cs;
+      line(ctx, cx + cs / 2, y, cx + cs / 2, y + cs, W_DOT, true);
+      line(ctx, cx, y + cs / 2, cx + cs, y + cs / 2, W_DOT, true);
+      if(i) line(ctx, cx, y, cx, y + cs, W_THIN);
+    }
+    rect(ctx, x0, y, chars.length * cs, cs, W_FRAME);
+    ctx.fillStyle = g; ctx.strokeStyle = g;
+    chars.forEach((c, i) => {
+      const cx = x0 + (i + 0.5) * cs, cy = y + cs / 2;
+      if(i === chars.length - 1) text(ctx, c, cx, cy + cs * 0.03, cs * 0.72, "center", "middle", true);
+      else hchar(ctx, c, cx, cy, cs * 0.72);
+    });
+  });
+  ctx.fillStyle = "#1E1E1E";
+  text(ctx, "線の色：" + COLORS[state.color].name + "　／　ノートツクール", W / 2, top + TRACE_GRAYS.length * rh + 2, 2.8);
+  ctx.restore();
+}
+
 function drawSheet(canvas, px, single){
   INK = COLORS[state.color].c;
   const [W, H] = pageSize(), [SW, SH] = single ? [W, H] : sheetSize();
@@ -727,7 +765,8 @@ function drawSheet(canvas, px, single){
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(px, 0, 0, px, 0, 0);
-  if(single || state.paper === "b5"){ drawPage(ctx, 0, 0); return; }
+  const drawOne = TEST ? drawTestPage : drawPage;
+  if(single || state.paper === "b5"){ drawOne(ctx, 0, 0); return; }
   const side = W < H;
   drawPage(ctx, 0, 0);
   drawPage(ctx, side ? W : 0, side ? 0 : H);
@@ -1057,6 +1096,28 @@ $("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () =
   const r = await offer(baseName() + ".pdf", blob);
   if(r === "saved") status("PDFを保存しました。開いて印刷してください。用紙は " + paperLabel() + "、大きさは「実際のサイズ（100%）」です。", "ok");
   else status(...explain(r));
+}));
+/* ためし刷り：B5たて（B4をえらんでいるときはB4に2ページ）で、①〜⑧をならべる */
+$("testPdf").addEventListener("click", e => withBusy(e.currentTarget, async () => {
+  await fontsReady;
+  const keep = JSON.stringify(state);
+  state.note = "kokugo"; TEST = true;
+  try{
+    if(!(await getDl())){
+      const c = document.createElement("canvas"); drawSheet(c, PRINT_PX);
+      await showImage(c);
+      status("画像を表示しました。長押しして「写真に保存」をえらんでください。", "ok");
+      return;
+    }
+    status("ためし刷りのPDFを作っています…");
+    let blob;
+    try{ blob = await makePdf(); }catch(err){ status("PDFを作れませんでした。", "err"); return; }
+    const r = await offer("ノートツクール_なぞり濃さためし刷り.pdf", blob);
+    if(r === "saved") status("ためし刷りのPDFを保存しました。用紙は " + paperLabel() + "、大きさは「実際のサイズ（100%）」で印刷してください。", "ok");
+    else status(...explain(r));
+  }finally{
+    TEST = false; Object.assign(state, JSON.parse(keep));
+  }
 }));
 $("saveImg").addEventListener("click", e => withBusy(e.currentTarget, async () => {
   await fontsReady;
