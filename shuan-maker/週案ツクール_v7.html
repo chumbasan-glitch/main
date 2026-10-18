@@ -227,11 +227,12 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 #print thead th.hk{font-size:7.5pt}
 #print td.spc{padding:0}
 #print td.stc{padding:0;vertical-align:top}
-#print .st{display:flex;height:4.6mm}
-#print .st .sj{flex:1;min-width:0;font-weight:700;padding:0 0.8mm;white-space:nowrap;overflow:hidden;line-height:4.6mm}
-#print .st .hr{width:var(--hw);flex:none;border-left:0.2mm solid var(--pl);font-size:8pt;text-align:center;line-height:4.6mm;white-space:nowrap}
-#print .st.x{border-bottom:0.2mm solid var(--pl);height:4.8mm}
-#print .st.x .sj,#print .st.x .hr{line-height:4.8mm}
+#print .st{display:flex;height:3.4mm}
+#print .st .sj{flex:1;min-width:0;font-weight:700;padding:0 0.8mm;white-space:nowrap;overflow:hidden;line-height:3.4mm}
+#print .st .hr{width:var(--hw);flex:none;border-left:0.2mm solid var(--pl);font-size:6pt;text-align:center;line-height:3.4mm;white-space:nowrap}
+#print .st.x{border-bottom:0.2mm solid var(--pl);height:3.6mm}
+#print .st.x .sj,#print .st.x .hr{line-height:3.6mm}
+#print td.spc .cb,#print td.hol .cb{line-height:1.2}
 #print table.sub{width:100%;border-collapse:collapse;table-layout:fixed;margin:-0.2mm 0 0}
 #print table.sub td{border:0.2mm solid var(--pl);border-left:none;border-right:none}
 #print table.sub td.hr{border-left:0.2mm solid var(--pl)}
@@ -296,7 +297,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v6";
+const VERSION = "v7";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1013,26 +1014,29 @@ function renderPrint() {
   // 高さ（mm）：本体 = 243 - 見出し6 - 記録欄27 - すきま
   const H = 243 - 6 - 1.5 - 25 - 5;
   const BH = 6.4;   // 中休み・昼休みの帯の高さ（2行分）
-  const ST = 4.8;   // 教科の欄の高さ（11ポイント）
+  const ST = 3.6;   // 教科の欄の高さ（7ポイント）
   const fixed = 8 + 7 + ST + 5 + BH * 2 + 9;
   const per = (H - fixed) / P();   // 1コマ（教科の欄＋内容）
   const cont = per - ST;
   const HW = days.length > 5 ? 4.5 : 6;              // 時数の欄の幅
   const colw = (128 - 8) / days.length;              // 1日の幅
-  // 内容が入るいちばん大きい文字（9ポイントから小さくする）
+  // 内容の文字：1コマに9行入る大きさ。入りきらないときだけさらに小さくする
+  const LH = 1.2;
+  const BASE = Math.round((cont - 0.8) / 9 / (0.3528 * LH) * 10) / 10;
   const fit = (text, hmm) => {
     const w = colw - 1.6;
-    for (let fs = 9; fs > 5; fs -= 0.5) {
-      const ch = fs * 0.3528, cpl = Math.max(1, Math.floor(w / ch)), lines = Math.floor(hmm / (ch * 1.28));
+    for (let fs = BASE; fs > 4; fs -= 0.3) {
+      const ch = fs * 0.3528, cpl = Math.max(1, Math.floor(w / ch)), lines = Math.floor(hmm / (ch * LH));
       const need = String(text).split("\n").reduce((a, l) => a + Math.max(1, Math.ceil(Array.from(l).length / cpl)), 0);
       if (need <= lines) return fs;
     }
-    return 5;
+    return 4;
   };
-  // 教科の欄（11ポイント。長い名前は欄に入る大きさまで小さくする）
+  // 教科の欄（内容より少し大きい文字。長い名前は欄に入る大きさまで小さくする）
+  const SF = Math.min(7.5, BASE + 1.2);
   const strip = (pt, cls = "") => {
     const nm = pt && pt.s ? pt.s : "";
-    const fs = nm ? Math.min(11, (colw - HW - 1.8) / (Array.from(nm).length * 0.3528)) : 11;
+    const fs = nm ? Math.min(SF, (colw - HW - 1.8) / (Array.from(nm).length * 0.3528)) : SF;
     return `<div class="st${cls}"><div class="sj" style="font-size:${fs.toFixed(1)}pt;${nm ? "background:" + colorOf(nm) : ""}">${esc(nm)}</div><div class="hr">${pt && pt.s && pt.h ? esc(pt.h) : ""}</div></div>`;
   };
   const textOf = (d, i, k, pt) => {
