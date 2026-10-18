@@ -203,6 +203,8 @@ table.subj th,table.subj td{border:1px solid var(--line);padding:3px 4px;text-al
 table.subj th{background:var(--surface-2)}
 table.subj input.nm{width:80px}
 table.subj input.h{width:46px;text-align:center}
+table.subj input.xf{width:220px}
+table.subj .fxon{font-size:11px;color:#2E7D5B;background:#E3F2EA;border-radius:8px;padding:1px 7px}
 table.subj input[type=color]{width:34px;height:24px;padding:0;border:1px solid var(--line)}
 table.brk td,table.brk th{padding:3px 4px}
 table.brk{border-collapse:collapse}
@@ -314,7 +316,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v8.3";
+const VERSION = "v8.4";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -509,13 +511,14 @@ function computeYear() {
   const st = startDate();
   // コマに入れた【単元】【時】から、印刷用の「やまなし②③」と学習内容（最初の時のもの）を決める
   function step(x, key, d) {
-    if (!x.unit) return;
+    const fx = fixedText(x.s);   // 専科など、いつも同じ文言を入れる教科
+    if (!x.unit) { if (fx) info[key] = {label: "", auto: fx}; return; }
     const nums = parseNos(x.no);
     const units = D.units[x.s] || [];
     const ui = units.findIndex(u => u.name === x.unit);
     const un = units[ui];
     const crs = courseOf(x);
-    info[key] = {unit: x.unit, nums, crs, label: x.unit + nums.map(circ).join("") + (crs ? " " + crs : ""), auto: un && nums.length ? lessonText(un, nums[0]) : ""};
+    info[key] = {unit: x.unit, nums, crs, label: x.unit + nums.map(circ).join("") + (crs ? " " + crs : ""), auto: fx || (un && nums.length ? lessonText(un, nums[0]) : "")};
     if (un) {
       const sc = (sched[x.s] = sched[x.s] || []);
       const e = (sc[ui] = sc[ui] || {first: d, last: d, done: new Set()});
@@ -561,6 +564,7 @@ function addShorts(d) {
   }
 }
 // 週案に入る学習内容：短い文（ねらいの形）があればそれ、なければもとの文
+const fixedText = n => { const s = n && subjByName(n); return s && s.fixed ? String(s.fixed).trim() : ""; };
 const lessonText = (un, n) => ((un.short || [])[n - 1] || "").trim() || (un.lessons || [])[n - 1] || "";
 // 時の欄：「2」「2-3」「2・3」「2,4」などを番号の並びにする
 function parseNos(v) {
@@ -1441,7 +1445,7 @@ function setColorFor(setKey, name, i) {
   const c = COLOR_SETS[setKey].c; const k = DEF_ORDER.indexOf(name);
   return c[(k >= 0 ? k : i) % c.length];
 }
-let colorEdit = -1;
+let colorEdit = -1, fixOpen = false;
 function renderSet() {
   const el = $("#tab-set"); const s = D.school; const c = D.cls;
   let h = `<h2>クラスの設定</h2><div class="setgrid">
@@ -1474,12 +1478,12 @@ function renderSet() {
   </table><button class="btn small" id="sAddBrk" style="margin-top:6px">＋ 休業日を追加（開校記念日・振替休業日など）</button>
   <p class="hint">祝日は自動で入ります。1日だけの休みや授業日の変更は、週案の日付の横の「休みにする／授業日にする」でもできます。</p>
   <h3>教科一覧と学校の時数</h3>
-  <p class="hint">学年の欄：数字＝学校の時数、○＝時数を決めずに使う、空欄＝その学年では使わない。「まとめる先」に国語と入れた教科（図書・書写など）は、国語の時数にふくめます。「行事等」に印をつけた教科は、印刷の時数表で下の段に入ります。</p>
+  <p class="hint">学年の欄：数字＝学校の時数、○＝時数を決めずに使う、空欄＝その学年では使わない。「まとめる先」に国語と入れた教科（図書・書写など）は、国語の時数にふくめます。「行事等」に印をつけた教科は、印刷の時数表で下の段に入ります。いちばん右の「固定の文言」を開いて文言を入れた教科は、週案の学習内容にいつもその文言が入ります（例：専科の「〇〇先生のご指導による」）。</p>
   <h3>教科の色</h3>
   <div class="csets">${Object.entries(COLOR_SETS).map(([k, cs]) => `<button class="cset" data-cset="${k}"><span class="cstrip">${cs.c.slice(0, 9).map(x => `<i style="background:${x}"></i>`).join("")}</span><b>${cs.name}</b></button>`).join("")}</div>
   <p class="hint">色合いを押すと、すべての教科の色がその色合いになります。教科ごとに変えるときは、下の表の色をクリックします。</p>
-  <table class="subj"><tr><th>色</th><th>教科名</th><th>まとめる先</th><th title="時数表で下の段（行事・クラブ・委員会など）に入れる">行事等</th>${[1,2,3,4,5,6].map(g => `<th>${g}年</th>`).join("")}<th></th></tr>
-  ${s.subjects.map((x, i) => `<tr data-x="${i}"><td><button class="xc" style="background:${esc(x.color)}" title="色を選ぶ"></button></td><td><input type="text" class="nm" value="${esc(x.name)}"></td><td><input type="text" class="xp" value="${esc(x.parent)}" style="width:60px"></td><td><input type="checkbox" class="xs"${isSpecial(x) ? " checked" : ""}></td>${x.hours.map((v, g) => `<td><input type="text" class="h" data-g="${g}" value="${esc(v)}"></td>`).join("")}<td><button class="btn small" data-xm="-1">↑</button><button class="btn small" data-xm="1">↓</button><button class="btn small danger xd">削除</button></td></tr>${colorEdit === i ? `<tr class="cpick"><td colspan="11"><div class="cpanel">
+  <table class="subj"><tr><th>色</th><th>教科名</th><th>まとめる先</th><th title="時数表で下の段（行事・クラブ・委員会など）に入れる">行事等</th>${[1,2,3,4,5,6].map(g => `<th>${g}年</th>`).join("")}<th></th><th class="fxh"><button class="btn small" id="sFixTg" title="専科などで、学習内容のかわりにいつも同じ文言を入れるとき">${fixOpen ? "固定の文言 ◂" : "固定の文言 ▸"}</button></th></tr>
+  ${s.subjects.map((x, i) => `<tr data-x="${i}"><td><button class="xc" style="background:${esc(x.color)}" title="色を選ぶ"></button></td><td><input type="text" class="nm" value="${esc(x.name)}"></td><td><input type="text" class="xp" value="${esc(x.parent)}" style="width:60px"></td><td><input type="checkbox" class="xs"${isSpecial(x) ? " checked" : ""}></td>${x.hours.map((v, g) => `<td><input type="text" class="h" data-g="${g}" value="${esc(v)}"></td>`).join("")}<td><button class="btn small" data-xm="-1">↑</button><button class="btn small" data-xm="1">↓</button><button class="btn small danger xd">削除</button></td><td class="fx">${fixOpen ? `<input type="text" class="xf" value="${esc(x.fixed || "")}" placeholder="例：〇〇先生のご指導による">` : (x.fixed ? `<span class="fxon" title="${esc(x.fixed)}">あり</span>` : "")}</td></tr>${colorEdit === i ? `<tr class="cpick"><td colspan="12"><div class="cpanel">
     ${Object.entries(COLOR_SETS).map(([k, cs]) => `<div class="crow"><span>${cs.name}</span>${[...new Set(cs.c)].map(cc => `<button class="sw${cc.toLowerCase() === String(x.color).toLowerCase() ? " on" : ""}" data-col="${cc}" style="background:${cc}" title="${cc}"></button>`).join("")}</div>`).join("")}
     <details${!Object.values(COLOR_SETS).some(cs => cs.c.map(v => v.toLowerCase()).includes(String(x.color).toLowerCase())) ? " open" : ""}><summary>細かく選ぶ（詳細設定）</summary><label class="row" style="gap:6px;margin-top:4px">色<input type="color" class="xcd" value="${esc(x.color)}"><span class="hint">好きな色を自由に選べます</span></label></details>
     <button class="btn small" id="cpClose">閉じる</button></div></td></tr>` : ""}`).join("")}
@@ -1540,6 +1544,7 @@ function renderSet() {
     };
     $(".xp", tr).onchange = upd(v => x.parent = v.trim());
     $(".xs", tr).onchange = e => { x.sp = e.target.checked; changed(); };
+    if ($(".xf", tr)) $(".xf", tr).onchange = e => { const v = e.target.value.trim(); if (v) x.fixed = v; else delete x.fixed; changed(); };
     $$(".h", tr).forEach(inp => inp.onchange = upd(v => x.hours[+inp.dataset.g] = v.trim().replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))));
     $$("[data-xm]", tr).forEach(b => b.onclick = () => { const j = i + +b.dataset.xm; if (j < 0 || j >= s.subjects.length) return; [s.subjects[i], s.subjects[j]] = [s.subjects[j], s.subjects[i]]; changed(); });
     $(".xd", tr).onclick = () => { if (confirm("「" + x.name + "」を教科一覧から削除しますか？（週案に入っている分はそのまま残ります）")) { s.subjects.splice(i, 1); changed(); } };
@@ -1549,6 +1554,7 @@ function renderSet() {
     if (!confirm("すべての教科の色を「" + COLOR_SETS[k].name + "」にします。よろしいですか？")) return;
     s.subjects.forEach((x, i) => x.color = setColorFor(k, x.name, i)); colorEdit = -1; changed();
   });
+  $("#sFixTg").onclick = () => { fixOpen = !fixOpen; render(); };
   $("#sAddSubj").onclick = () => { let n = "新しい教科", k = 2; while (subjByName(n)) n = "新しい教科" + k++; s.subjects.push({name: n, kana: "", color: "#DDDDDD", parent: "", hours: ["○","○","○","○","○","○"]}); changed(); };
   $("#sDist").onclick = () => {
     const withU = $("#sDistUnits").checked;
