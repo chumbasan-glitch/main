@@ -33,7 +33,7 @@ function defaultMeate(){
 }
 function titleText(){
   const us = selUnits();
-  return us.map(u => u.name).join("・") || "算数プリント";
+  return us.map(u => u.name).join("・") || "算プリツクール";
 }
 
 /* ---------- 描画（左の設定） ---------- */
@@ -216,7 +216,7 @@ function baseName(){
   const us = selUnits();
   const unit = us.length ? us[0].name.replace(/[（）()\s]/g, "") + (us.length > 1 ? "ほか" : "") : "";
   const d = new Date(), pad = n => String(n).padStart(2, "0");
-  return "算数プリント_" + state.grade + "年_" + unit + "_" + groups.reduce((s, g) => s + g.n, 0) + "問_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+  return "算プリツクール_" + state.grade + "年_" + unit + "_" + groups.reduce((s, g) => s + g.n, 0) + "問_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
 }
 function showImages(list){
   const box = $("imgList"); box.innerHTML = "";

@@ -1,4 +1,4 @@
-<title>算数プリントメーカー</title>
+<title>算プリツクール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
@@ -116,9 +116,9 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
 
 <div class="wrap" lang="ja">
   <header class="top">
-    <h1>算数プリントメーカー</h1>
+    <h1>算プリツクール</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 3.3</span>
+    <span class="ver">ver. 3.4</span>
   </header>
 
   <div class="layout">
@@ -5587,7 +5587,7 @@ function defaultMeate(){
 }
 function titleText(){
   const us = selUnits();
-  return us.map(u => u.name).join("・") || "算数プリント";
+  return us.map(u => u.name).join("・") || "算プリツクール";
 }
 
 /* ---------- 描画（左の設定） ---------- */
@@ -5770,7 +5770,7 @@ function baseName(){
   const us = selUnits();
   const unit = us.length ? us[0].name.replace(/[（）()\s]/g, "") + (us.length > 1 ? "ほか" : "") : "";
   const d = new Date(), pad = n => String(n).padStart(2, "0");
-  return "算数プリント_" + state.grade + "年_" + unit + "_" + groups.reduce((s, g) => s + g.n, 0) + "問_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+  return "算プリツクール_" + state.grade + "年_" + unit + "_" + groups.reduce((s, g) => s + g.n, 0) + "問_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
 }
 function showImages(list){
   const box = $("imgList"); box.innerHTML = "";
