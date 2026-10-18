@@ -823,7 +823,7 @@ function renderWeek() {
     <button class="btn" id="wPdf" title="印刷の画面で「PDFとして保存」を選ぶと、このファイル名で保存されます">📄 PDFで保存</button>
   </div>
   <div class="weeklayout"><div>
-  ${Object.keys(D.units).map(k => `<datalist id="ul-${esc(k)}">${(D.units[k] || []).map(u => `<option value="${esc(u.name)}">`).join("")}</datalist>`).join("")}
+  ${Object.keys(D.units).map(k => `<datalist id="ul-${esc(k)}">${(D.units[k] || []).map(u => `<option value="${esc(u.name)}">`).join("")}<option value="なし"></datalist>`).join("")}
   <datalist id="asaList">${gradeSubjects().map(x => `<option value="${esc(x.name)}">`).join("")}${(D.school.asaEvents || []).map(n => `<option value="${esc(n)}">`).join("")}<option value="なし"></datalist>
   <datalist id="subjList">${gradeSubjects().map(x => `<option value="${esc(x.name)}">`).join("")}<option value="なし"></datalist>
   <div class="gridwrap"><table class="wk"><colgroup><col style="width:44px">${days.map(() => "<col>").join("")}</colgroup><thead><tr><th class="lab"></th>`;
@@ -863,7 +863,7 @@ function renderWeek() {
   h += `</tr></tbody></table></div>
   <div class="memo" style="margin-top:8px"><b>メモ</b>（印刷では時数表の下）<textarea id="wMemo" placeholder="連絡・持ち物など">${esc(wr.memo || "")}</textarea></div>
   <div class="memo" style="margin-top:8px"><b>記録欄</b>（印刷ではいちばん下）<textarea id="wRec" placeholder="週の振り返り・記録">${esc(wr.rec || "")}</textarea></div>
-  <p class="hint">・教科の欄は、クリックすると一覧が出ます。打ち込んでもかまいません。消すときは「なし」を選びます。<br>・教科の下に【単元】【時】を入れると、単元計画からその時間の学習内容が入ります。2時間分を1時間でやるときは、時に「2-3」と入れます（内容は第2時のもの、印刷は「やまなし②③」）。単元を選ぶと、時には前の続きの番号が入ります。<br>・コマの左の「⋮⋮」をドラッグすると、別のコマと入れかえられます（授業変更）。<br>・学習内容を書きかえると、その文が優先されます。「↺」で単元計画の内容にもどせます。</p>
+  <p class="hint">・教科の欄は、クリックすると一覧が出ます。打ち込んでもかまいません。消すときは「なし」を選びます。<br>・教科の下に【単元】【時】を入れると、単元計画からその時間の学習内容が入ります。2時間分を1時間でやるときは、時に「2-3」と入れます（内容は第2時のもの、印刷は「やまなし②③」）。単元を選ぶと、時には前の続きの番号が入ります。単元の欄はクリックするといつでも全部の単元が出るので、まちがえたときは選び直せます（消すときは「なし」）。<br>・コマの左の「⋮⋮」をドラッグすると、別のコマと入れかえられます（授業変更）。<br>・学習内容を書きかえると、その文が優先されます。「↺」で単元計画の内容にもどせます。</p>
   </div>
   <div class="side">${weekTotalsHtml(mon)}</div></div>`;
   el.innerHTML = h;
@@ -958,9 +958,16 @@ function bindWeek(el, mon) {
       });
       const un = $("input.un", uf), no = $("input.no", uf);
       if (!un) return;
+      // 単元の欄：クリックすると一覧に全部の単元が出る（入っている名前で絞りこまれないように、いったん空にする）
+      const orig = un.value;
+      un.addEventListener("focus", () => { un.placeholder = un.value || "単元"; un.value = ""; });
+      un.addEventListener("blur", () => { if (un.value === "") un.value = orig; });
+      un.addEventListener("keydown", e => { if (e.key === "Enter") un.blur(); });
       un.onchange = () => {
         const x = get(); const v = un.value.trim();
-        if (v) { x.unit = v; if (!x.no) x.no = String(nextNo(x.s, v, d, i)); } else { delete x.unit; delete x.no; }
+        if (v === "" || v === orig) return;
+        if (v === "なし") { delete x.unit; delete x.no; delete x.t; changed(); return; }
+        if (v !== x.unit) { x.unit = v; x.no = String(nextNo(x.s, v, d, i)); }
         delete x.t; changed();
       };
       no.onchange = () => {
