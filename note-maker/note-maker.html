@@ -111,7 +111,7 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
   <header class="top">
     <h1>ノートツクール</h1>
     <span class="sub">国語・算数・理科・社会・漢字練習・連絡帳・日記の白紙ノートをB5で作れます</span>
-    <span class="ver">ver 1.4</span>
+    <span class="ver">ver 1.5</span>
   </header>
 
   <div class="layout">
@@ -163,7 +163,7 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
       <section class="step">
         <div class="step-h"><span class="n">6</span>ノートに文字を入れる</div>
         <textarea id="userText" rows="4" placeholder="例：はるが きた。&#10;（ここに書いた文字が、1マスに1文字ずつ入ります）"></textarea>
-        <p class="hint">1マスに1文字ずつ、国語・漢字・日記・連絡帳はたて書きで右の列から、算数・理科・社会は左上から入ります。改行すると、次の列（行）から書きはじめます。入りきらない文字は出ません。</p>
+        <p class="hint">1マスに1文字ずつ、国語・漢字・日記・連絡帳はたて書きで右の列から、算数・理科・社会は左上から入ります。改行すると、次の列（行）から書きはじめます。入りきらない文字は出ません。<br>数字は、全角なら1マスに1文字、半角なら1マスに2けたまで（3・4けたは2マス）。記号（＋ − × ÷ ＞ ＜ ＝）は半角・全角どちらでも1マスです。</p>
         <div class="opt">
           <span class="opt-label">文字の色</span>
           <div class="choices" id="textColorChoices"></div>
@@ -536,7 +536,7 @@ function numLabels(n){
 }
 /* 数字は文字で、＋ − ＝ は線で描いて、マスのまん中にそろえる */
 function numCell(ctx, t, cx, cy, s, trace){
-  if(!"＋−＝".includes(t)){ text(ctx, t, cx, cy + s * 0.03, s * (t.length > 1 ? 0.62 : 0.72), "center", "middle", trace); return; }
+  if(!"＋−＝×÷＞＜".includes(t)){ text(ctx, t, cx, cy + s * 0.03, s * (t.length > 1 ? 0.62 : 0.72), "center", "middle", trace); return; }
   const h = s * 0.27, lw = s * 0.055;
   const bar = (x1, y1, x2, y2) => {
     ctx.beginPath(); ctx.lineWidth = lw; ctx.lineCap = trace ? "butt" : "round";
@@ -545,6 +545,9 @@ function numCell(ctx, t, cx, cy, s, trace){
     ctx.lineCap = "butt"; ctx.setLineDash([]);
   };
   if(t === "＝"){ bar(cx - h, cy - s * 0.09, cx + h, cy - s * 0.09); bar(cx - h, cy + s * 0.09, cx + h, cy + s * 0.09); return; }
+  if(t === "×"){ const d = h * 0.8; bar(cx - d, cy - d, cx + d, cy + d); bar(cx - d, cy + d, cx + d, cy - d); return; }
+  if(t === "÷"){ bar(cx - h, cy, cx + h, cy); ctx.beginPath(); ctx.arc(cx, cy - s * 0.15, lw * 0.9, 0, Math.PI * 2); ctx.arc(cx, cy + s * 0.15, lw * 0.9, 0, Math.PI * 2); ctx.fill(); return; }
+  if(t === "＞" || t === "＜"){ const d = t === "＞" ? 1 : -1, w = h * 0.85; bar(cx - d * w, cy - h, cx + d * w, cy); bar(cx + d * w, cy, cx - d * w, cy + h); return; }
   bar(cx - h, cy, cx + h, cy);
   if(t === "＋") bar(cx, cy - h, cx, cy + h);
 }
@@ -639,13 +642,23 @@ const TEXT_COLORS = [
 const ROTATE = "ー－―〜～…‥（）「」『』【】〈〉《》()[]〔〕";
 /* たて書きの1文字（のばす棒やかっこは回し、句読点は右上に寄せる） */
 function vchar(ctx, c, x, y, size){
+  if(special(ctx, c, x, y, size)) return;
   if(ROTATE.includes(c)){ ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 2); text(ctx, c, 0, 0, size); ctx.restore(); return; }
   if("、。，．".includes(c)){ text(ctx, c, x + size * 0.6, y - size * 0.55, size); return; }
   if("ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ".includes(c)){ text(ctx, c, x + size * 0.1, y - size * 0.1, size); return; }
   text(ctx, c, x, y, size);
 }
 /* 文字を1つずつ、マス（または行）に入れていく。改行すると次の列・行から */
-function lines(){ return state.text.replace(/\r/g, "").split("\n").map(l => [...l]); }
+/* 1マスに入れる文字のまとまり：半角の数字は2けたずつ（3・4けたは2マス）、ほかは1文字ずつ */
+function tokens(l){
+  const out = [];
+  for(const t of l.match(/[0-9]+|./gu) || []){
+    if(/^[0-9]+$/.test(t)) for(let i = 0; i < t.length; i += 2) out.push(t.slice(i, i + 2));
+    else out.push(t);
+  }
+  return out;
+}
+function lines(){ return state.text.replace(/\r/g, "").split("\n").map(tokens); }
 function flow(cap, nSlots){
   const out = []; let slot = 0, pos = 0;
   for(const ln of lines()){
@@ -661,10 +674,20 @@ function flow(cap, nSlots){
   return out;
 }
 /* 横書きの ＋ − ＝ は、半角で入力しても、マスのまん中に線で描く */
-const OPS = {"+":"＋", "＋":"＋", "-":"−", "－":"−", "−":"−", "=":"＝", "＝":"＝"};
+/* 記号は半角・全角どちらでも1マスのまん中に線で描く。半角の数字2けたは1マスにならべる */
+const OPS = {"+":"＋", "＋":"＋", "-":"−", "－":"−", "−":"−", "=":"＝", "＝":"＝", "×":"×", "✕":"×", "÷":"÷", ">":"＞", "＞":"＞", "<":"＜", "＜":"＜"};
+function special(ctx, c, x, y, size){
+  const cell = size / 0.72;
+  if(OPS[c]){ numCell(ctx, OPS[c], x, y, cell, false); return true; }
+  if(/^[0-9]{2}$/.test(c)){
+    text(ctx, c[0], x - cell * 0.19, y, cell * 0.6);
+    text(ctx, c[1], x + cell * 0.19, y, cell * 0.6);
+    return true;
+  }
+  return false;
+}
 function hchar(ctx, c, x, y, size){
-  if(OPS[c]) numCell(ctx, OPS[c], x, y, size / 0.72, false);
-  else text(ctx, c, x, y, size);
+  if(!special(ctx, c, x, y, size)) text(ctx, c, x, y, size);
 }
 function drawUserText(ctx, m, k){
   if(!state.text.trim()) return;
