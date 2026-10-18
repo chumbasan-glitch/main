@@ -304,6 +304,22 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 <div id="toast" hidden></div>
 <script id="shuan-data" type="application/json">null</script>
 <script>
+// 動かないときに理由を画面に出す（古いしくみのブラウザでも動くように、ここだけ古い書き方にしている）
+var BOOT_OK = false;
+function bootMsg(why) {
+  if (BOOT_OK || document.getElementById("bootErr")) return;
+  var el = document.createElement("div"); el.id = "bootErr";
+  el.style.cssText = "margin:24px auto;max-width:720px;padding:16px 20px;background:#FFF4E5;border:2px solid #E0A040;border-radius:8px;font-size:15px;line-height:1.8;color:#3A2A10";
+  el.innerHTML = "<b>週案ツクールを動かせませんでした。</b><br>" + why +
+    "<br><br>考えられること：<br>・ファイルが途中までしかコピーされていない（ファイルの大きさが約1.3MBあるか確かめてください）<br>・Edge の「Internet Explorer モード」で開いている（アドレスバーの左に IE のマークがあるとき）<br>・学校の設定で、パソコンの中のファイルの JavaScript が止められている" +
+    "<br><br><small style=\"color:#7A6A50\">くわしい理由：" + String(bootMsg.err || "（なし）").replace(/[<>&]/g, "") + "</small>";
+  (document.body || document.documentElement).insertBefore(el, (document.body || document.documentElement).firstChild);
+}
+var IE_MSG = "Internet Explorer モードで開かれています。ふつうの Edge で開いてください。";
+window.onerror = function (msg, src, line) { bootMsg.err = msg + "（" + line + "行目）"; bootMsg(document.documentMode ? IE_MSG : "とちゅうでエラーが出ました。"); };
+setTimeout(function () { if (!BOOT_OK) bootMsg(document.documentMode ? IE_MSG : "読み込みが終わりませんでした。"); }, 4000);
+</script>
+<script>
 "use strict";
 // 保存のとき、このファイルの形をそのまま書き出すため、画面を作る前の状態をとっておく
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
@@ -316,7 +332,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v8.5";
+const VERSION = "v8.6";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1613,6 +1629,7 @@ $("#btnSave").onclick = save;
 document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); } });
 window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
 render();
+BOOT_OK = true;
 </script>
 </body>
 </html>
