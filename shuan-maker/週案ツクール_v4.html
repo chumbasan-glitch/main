@@ -68,6 +68,9 @@ table.wk thead .dd{display:flex;justify-content:center;align-items:center;gap:6p
 td.off{background:var(--off)}
 td.off .slot,td.off .asa{opacity:.45}
 .offlab{font-size:11px;color:var(--red);font-weight:700}
+tr.brk td,tr.brk th{background:#FFF6DD}
+tr.brk td.off{background:var(--off)}
+textarea.br{width:100%;min-height:34px;resize:vertical;font-size:12px;padding:3px 4px;background:#FFFDF5}
 textarea.ev,textarea.note{width:100%;min-height:38px;resize:vertical;font-size:12px;padding:3px 4px}
 .slot{display:flex;flex-direction:column;gap:3px;border-left:6px solid var(--c,#ddd);padding-left:4px;min-height:84px}
 .slot.drag-over{outline:2px dashed var(--accent)}
@@ -752,6 +755,7 @@ function slotHtml(d, i, x, off) {
     ${ph}${!off && parts.length < 2 ? `<button class="btn small psplit" title="1時間の中に行事などがあるとき、コマを分けます（3つまで）">＋分ける</button>` : ""}
   </div>`;
 }
+const BREAKS = [[2, "naka", "中"], [4, "hiru", "昼"]];
 function renderWeek() {
   const el = $("#tab-week");
   const weeks = weeksOfYear();
@@ -798,6 +802,12 @@ function renderWeek() {
     h += `<tr><th class="lab">${i}</th>`;
     for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}">${slotHtml(d, i, slotsOf(d)[i], !isSchoolDay(d))}</td>`;
     h += "</tr>";
+    // 中休み（2時間目のあと）・昼休み（4時間目のあと）
+    for (const [after, key, lab] of BREAKS) if (i === Math.min(after, P())) {
+      h += `<tr class="brk"><th class="lab">${lab}</th>`;
+      for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="br" data-d="${d}" data-k="${key}" placeholder="${lab}休みの予定">${esc(dayRec(d)[key] || "")}</textarea></td>`;
+      h += "</tr>";
+    }
   }
   h += `<tr><th class="lab">備考</th>`;
   for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="note" data-d="${d}" placeholder="記録・振り返り">${esc(dayRec(d).note || "")}</textarea></td>`;
@@ -859,6 +869,7 @@ function bindWeek(el, mon) {
   $("#wRec").oninput = e => { ensureWeek(mon).rec = e.target.value; changed(false); };
   $$("textarea.ev", el).forEach(t => t.oninput = () => { ensureDay(t.dataset.d).event = t.value; changed(false); });
   $$("textarea.note", el).forEach(t => t.oninput = () => { ensureDay(t.dataset.d).note = t.value; changed(false); });
+  $$("textarea.br", el).forEach(t => t.oninput = () => { ensureDay(t.dataset.d)[t.dataset.k] = t.value; changed(false); });
   $$("[data-offd]", el).forEach(b => b.onclick = () => {
     const d = b.dataset.offd; const r = ensureDay(d);
     if (offReason(d)) { delete r.off; changed(); return; }
@@ -954,7 +965,8 @@ function renderPrint() {
   const info = cy().info;
   // 高さ（mm）：本体 = 243 - 見出し6 - 記録欄27 - すきま
   const H = 243 - 6 - 1.5 - 25 - 5;
-  const fixed = 8 + 7 + 3.4 + 5 + 3.6 * 2 + 9;
+  const BH = 6.4;   // 中休み・昼休みの帯の高さ（2行分）
+  const fixed = 8 + 7 + 3.4 + 5 + BH * 2 + 9;
   const per = (H - fixed) / P();   // 1コマ（上の細い欄＋内容）
   const cont = per - 3.4;
   // 休みの日は、名前を1コマに1字ずつ大きく書く
@@ -1018,14 +1030,12 @@ function renderPrint() {
     const cs = days.map(d => cell(d, i));
     return `<tr style="height:3.4mm"><th class="l${big ? " big" : ""}" rowspan="2">${lab}</th>${cs.map(x => x[0]).join("")}</tr><tr style="height:${(i === 0 ? 5 : cont).toFixed(1)}mm">${cs.map(x => x[1]).join("")}</tr>`;
   };
-  const band = () => `<tr class="band" style="height:3.6mm"><th class="l"></th>${days.map(d => `<td colspan="2"${isSchoolDay(d) ? "" : ' class="hol"'}></td>`).join("")}</tr>`;
+  const band = (key, lab) => `<tr class="band" style="height:${BH}mm"><th class="l">${lab}</th>${days.map(d => isSchoolDay(d) ? `<td colspan="2"><div class="cb" style="max-height:${BH - 0.3}mm">${esc(dayRec(d)[key] || "")}</div></td>` : `<td colspan="2" class="hol"></td>`).join("")}</tr>`;
   h += two(0, "モジュ<br>ール", false);
   for (let i = 1; i <= P(); i++) {
     h += two(i, i, true);
-    if ((i === 2 || i === 4) && i < P()) h += band();
+    for (const [after, key, lab] of BREAKS) if (i === Math.min(after, P())) h += band(key, lab);
   }
-  if (P() < 4) h += band();
-  if (P() < 2) h += band();
   h += `<tr style="height:9mm"><th class="l">備考</th>`;
   for (const d of days) h += `<td colspan="2" class="${isSchoolDay(d) ? "" : "hol"}"><div class="cb" style="max-height:8.6mm">${esc(dayRec(d).note || "")}</div></td>`;
   h += `</tr></tbody></table>`;
