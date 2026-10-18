@@ -182,6 +182,18 @@ table.yr tr.sum td{font-weight:700;background:var(--surface-2)}
 .tpb{background:linear-gradient(to bottom,#fff 0 40%,var(--pb) 40% 55%,#fff 55%);border-right:1px solid var(--pl)}
 .tps{display:flex;flex-direction:column}
 .tps i{flex:1;border-bottom:1px solid var(--pl)}
+.csets{display:flex;gap:8px;flex-wrap:wrap}
+.cset{border:1.5px solid var(--line);border-radius:8px;background:var(--surface);padding:6px 8px;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.cset:hover{border-color:var(--accent)}
+.cstrip{display:flex}
+.cstrip i{width:12px;height:16px;display:block}
+table.subj button.xc{width:34px;height:24px;border:1px solid rgba(0,0,0,.25);border-radius:4px;padding:0}
+tr.cpick td{background:var(--surface-2);text-align:left}
+.cpanel{display:flex;flex-direction:column;gap:5px;padding:6px}
+.crow{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
+.crow span{width:76px;font-size:12px;color:var(--ink-soft)}
+.sw{width:22px;height:22px;border:1px solid rgba(0,0,0,.2);border-radius:4px;padding:0}
+.sw.on{outline:2.5px solid var(--accent);outline-offset:1px}
 .setgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;max-width:900px}
 table.subj{border-collapse:collapse;font-size:13px}
 table.subj th,table.subj td{border:1px solid var(--line);padding:3px 4px;text-align:center}
@@ -298,7 +310,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v8";
+const VERSION = "v8.1";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -866,7 +878,7 @@ function weekTotalsHtml(mon) {
     h += `<tr class="${r.child ? "child" : ""}"><td class="n"><span class="chip" style="background:${r.color}"></span>${esc(r.name)}</td><td>${fr(r.vals[0])}</td><td>${fr(r.vals[1])}</td><td>${r.std ?? ""}</td><td class="${rest != null && rest < 0 ? "neg" : ""}">${rateCell(r)}</td></tr>`;
   }
   h += `<tr class="sum"><td class="n">合計</td><td>${fr(s0)}</td><td>${fr(s1)}</td><td></td><td></td></tr></table>
-  <p class="hint">累計は年度のはじめからこの週の終わりまで（予定）です。${D.cls.startDate ? "使い始める前の時数もふくみます。" : ""}右の小さい欄に「1/2」などを入れたコマはその時数、空欄は1時間（朝は${esc(D.school.asaHours || "1/3")}時間）で数えます。</p>`;
+  <p class="hint">累計は年度のはじめからこの週の終わりまで（予定）です。${D.cls.startDate ? "この週案ツクールを使い始める前の時数（設定で入れた分）もふくみます。" : ""}右の小さい欄に「1/2」などを入れたコマはその時数、空欄は1時間（朝は${esc(D.school.asaHours || "1/3")}時間）で数えます。</p>`;
   return h;
 }
 // 教科の欄：一覧から選ぶことも、打ち込むこともできる
@@ -1001,6 +1013,10 @@ const THEMES = {
   sakura:   {name: "さくら",     pl: "#B5577A", ph: "#FBDDE8", pb: "#FFF3D6", s1: "#FFF3F7", s2: "#FBDDE8", sub: "#F5B8CE", tot: "#EE9DBA"},
   himawari: {name: "ひまわり",   pl: "#B97412", ph: "#FFE7B0", pb: "#E3F2D3", s1: "#FFF9DE", s2: "#FFE7B0", sub: "#FFD27A", tot: "#FFC04D"},
   lavender: {name: "ラベンダー", pl: "#6E5BA8", ph: "#E6DEF7", pb: "#FFF0D6", s1: "#F6F2FD", s2: "#E6DEF7", sub: "#CBBDF0", tot: "#B5A2E8"},
+  mikan:    {name: "みかん",     pl: "#D2691E", ph: "#FFDDC2", pb: "#E8F4D9", s1: "#FFF4EA", s2: "#FFDDC2", sub: "#FFBE8A", tot: "#FFA25C"},
+  mint:     {name: "ミント",     pl: "#1E8C7E", ph: "#CFF2EC", pb: "#FFF2D2", s1: "#EFFBF8", s2: "#CFF2EC", sub: "#9FE3D7", tot: "#74D3C3"},
+  ai:       {name: "あい",       pl: "#2B3F80", ph: "#D9DFF3", pb: "#FFF0D2", s1: "#F2F4FB", s2: "#D9DFF3", sub: "#B3BFE7", tot: "#8FA0DB"},
+  kuri:     {name: "くり",       pl: "#7A5230", ph: "#EFDFCB", pb: "#E6F0DA", s1: "#FAF4EC", s2: "#EFDFCB", sub: "#DDC2A0", tot: "#CDA77B"},
   mono:     {name: "モノクロ",   pl: "#444444", ph: "#E4E4E4", pb: "#F0F0F0", s1: "#FFFFFF", s2: "#EEEEEE", sub: "#D4D4D4", tot: "#BDBDBD"},
 };
 const themeVars = k => { const t = THEMES[k] || THEMES.midori; return `--pl:${t.pl};--ph:${t.ph};--pb:${t.pb};--s1:${t.s1};--s2:${t.s2};--sub:${t.sub};--tot:${t.tot}`; };
@@ -1353,7 +1369,7 @@ function renderHours() {
   const maps = [...(hasInit ? [init] : []), ...cols.slice(0, 6), zen, ...cols.slice(6), kou, cum, all];
   const rows = totalsRows(maps);
   let h = `<h2>${y}年度　時数の集計</h2><p class="hint">週案に入れた予定で数えています。まだ開いていない週は、ふだんの時間割で数えています（見込み）。</p>
-  <div class="yrwrap"><table class="yr"><tr><th>教科</th>${hasInit ? "<th>使い始める前</th>" : ""}${months.slice(0, 6).map(m => `<th>${m}月</th>`).join("")}<th class="term">前期</th>${months.slice(6).map(m => `<th>${m}月</th>`).join("")}<th class="term">後期</th><th class="term">${md(lastWeek)}まで</th><th class="term">年間（見込み）</th><th>学校の時数</th><th>過不足</th></tr>`;
+  <div class="yrwrap"><table class="yr"><tr><th>教科</th>${hasInit ? "<th>使い始める前（設定）</th>" : ""}${months.slice(0, 6).map(m => `<th>${m}月</th>`).join("")}<th class="term">前期</th>${months.slice(6).map(m => `<th>${m}月</th>`).join("")}<th class="term">後期</th><th class="term">${md(lastWeek)}まで</th><th class="term">年間（見込み）</th><th>学校の時数</th><th>過不足</th></tr>`;
   const sums = maps.map(() => 0);
   for (const r of rows) {
     if (!r.child) r.vals.forEach((v, i) => sums[i] += v);
@@ -1367,20 +1383,36 @@ function renderHours() {
 }
 
 /* 設定タブ */
+// 教科の色の見本（色合いごと。並びは教科一覧のはじめの18教科の順）
+const COLOR_SETS = {
+  usui:   {name: "薄い色",     c: ["#F4C7C7","#F6DCCB","#EBD0D6","#F6E0A8","#BCD6F2","#C6E5C1","#DCEDB5","#F0C4DE","#FAD1AE","#EADCC0","#B8E2E6","#DED0F0","#CFD6F7","#E3DBC2","#E2E2E2","#FFEE9E","#D3ECEE","#E7DCF4"]},
+  koi:    {name: "濃い色",     c: ["#FF7C80","#F4A460","#E6A0A0","#92D050","#00B0F0","#FFFF00","#C4D79B","#FF99CC","#FFC000","#D9B38C","#00CC66","#B4A7D6","#8DB4E2","#C9A66B","#BFBFBF","#FFD966","#66CCCC","#CC99FF"]},
+  pastel: {name: "パステル",   c: ["#FFD1DC","#FFE0CC","#F8D7E3","#FFF1B5","#CDE7FF","#D5F5D5","#E8F7C8","#FBD3F0","#FFE2C2","#F3E7D3","#C9F1F1","#E6DBFA","#D8E1FF","#EFE6CF","#EDEDED","#FFF7C2","#D6F3F0","#EFE0FA"]},
+  neon:   {name: "ネオン",     c: ["#FF4D88","#FF8C42","#FF6EC7","#C6FF00","#00E5FF","#FFEA00","#76FF03","#FF40FF","#FF9100","#FFC46B","#1DE9B6","#B388FF","#40C4FF","#EEFF41","#CFD8DC","#FFFF00","#64FFDA","#EA80FC"]},
+  wa:     {name: "和の色",     c: ["#E8A5A5","#EBB471","#D7A9A9","#D9C77E","#89C3EB","#A8C97F","#C5D58A","#E7C2D8","#F0B27A","#D6C6AF","#83CCD2","#B8A6D9","#A2B4D8","#C8B88A","#C9C9C4","#F6D365","#A6D1C9","#C9B3D9"]},
+  mono:   {name: "モノトーン", c: ["#D9D9D9","#EFEFEF","#E6E6E6","#CFCFCF","#BFBFBF","#E0E0E0","#F2F2F2","#D4D4D4","#C8C8C8","#EBEBEB","#B8B8B8","#DDDDDD","#C4C4C4","#E8E8E8","#F5F5F5","#CCCCCC","#E3E3E3","#D0D0D0"]},
+};
+const DEF_ORDER = SUBJ_DEF.map(x => x[0]);
+// その色合いで、この教科に使う色（はじめからある教科は決まった色、足した教科は順番に）
+function setColorFor(setKey, name, i) {
+  const c = COLOR_SETS[setKey].c; const k = DEF_ORDER.indexOf(name);
+  return c[(k >= 0 ? k : i) % c.length];
+}
+let colorEdit = -1;
 function renderSet() {
   const el = $("#tab-set"); const s = D.school; const c = D.cls;
   let h = `<h2>クラスの設定</h2><div class="setgrid">
     <label class="f">学年<select id="sGrade"><option value="">選ぶ</option>${[1,2,3,4,5,6].map(g => `<option value="${g}"${c.grade === g ? " selected" : ""}>${g}年</option>`).join("")}</select></label>
     <label class="f">組<input type="text" id="sKumi" value="${esc(c.kumi)}" placeholder="例：1"></label>
     <label class="f">担任名<input type="text" id="sTeacher" value="${esc(c.teacher)}"></label>
-    <label class="f">週案を使い始める日<input type="date" id="sStart" value="${esc(c.startDate)}"></label>
+    <label class="f">この週案ツクールを使い始める日<input type="date" id="sStart" value="${esc(c.startDate)}"></label>
   </div>
   <h3>印刷の色</h3>
   <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${c.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
     <span class="tp"><span class="tph"></span><span class="tpb"></span><span class="tps"><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s1)"></i><i style="background:var(--sub)"></i><i style="background:var(--tot)"></i></span></span><b>${t.name}</b></button>`).join("")}</div>
   <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(c.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${c.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${c.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label></div>
   <details class="box" style="margin-top:10px"${Object.values(c.init).some(Boolean) ? " open" : ""}><summary>年度のとちゅうから使うとき：それまでの時数</summary>
-    <p class="hint">「週案を使い始める日」より前の時数を教科ごとに入れてください。累計にたされます。半端な時数は「12 1/3」のように入れられます。</p>
+    <p class="hint">「この週案ツクールを使い始める日」の1週前までの累計時数を教科ごとに入れてください。使い始める日より前の分は、時間割から数えた時数のかわりにここの時数が使われ、使い始める日からは週案の時数がたされていきます。半端な時数は「12 1/3」のように入れられます。</p>
     <div class="row">${gradeSubjects().map(x => `<label class="f">${esc(x.name)}<input type="text" class="sInit" data-s="${esc(x.name)}" value="${c.init[x.name] ? fr(c.init[x.name]) : ""}" style="width:70px"></label>`).join("")}</div>
   </details>
   <h2 style="margin-top:20px">学校の設定</h2>
@@ -1400,8 +1432,14 @@ function renderSet() {
   <p class="hint">祝日は自動で入ります。1日だけの休みや授業日の変更は、週案の日付の横の「休みにする／授業日にする」でもできます。</p>
   <h3>教科一覧と学校の時数</h3>
   <p class="hint">学年の欄：数字＝学校の時数、○＝時数を決めずに使う、空欄＝その学年では使わない。「まとめる先」に国語と入れた教科（図書・書写など）は、国語の時数にふくめます。「行事等」に印をつけた教科は、印刷の時数表で下の段に入ります。</p>
+  <h3>教科の色</h3>
+  <div class="csets">${Object.entries(COLOR_SETS).map(([k, cs]) => `<button class="cset" data-cset="${k}"><span class="cstrip">${cs.c.slice(0, 9).map(x => `<i style="background:${x}"></i>`).join("")}</span><b>${cs.name}</b></button>`).join("")}</div>
+  <p class="hint">色合いを押すと、すべての教科の色がその色合いになります。教科ごとに変えるときは、下の表の色をクリックします。</p>
   <table class="subj"><tr><th>色</th><th>教科名</th><th>まとめる先</th><th title="時数表で下の段（行事・クラブ・委員会など）に入れる">行事等</th>${[1,2,3,4,5,6].map(g => `<th>${g}年</th>`).join("")}<th></th></tr>
-  ${s.subjects.map((x, i) => `<tr data-x="${i}"><td><input type="color" class="xc" value="${esc(x.color)}"></td><td><input type="text" class="nm" value="${esc(x.name)}"></td><td><input type="text" class="xp" value="${esc(x.parent)}" style="width:60px"></td><td><input type="checkbox" class="xs"${isSpecial(x) ? " checked" : ""}></td>${x.hours.map((v, g) => `<td><input type="text" class="h" data-g="${g}" value="${esc(v)}"></td>`).join("")}<td><button class="btn small" data-xm="-1">↑</button><button class="btn small" data-xm="1">↓</button><button class="btn small danger xd">削除</button></td></tr>`).join("")}
+  ${s.subjects.map((x, i) => `<tr data-x="${i}"><td><button class="xc" style="background:${esc(x.color)}" title="色を選ぶ"></button></td><td><input type="text" class="nm" value="${esc(x.name)}"></td><td><input type="text" class="xp" value="${esc(x.parent)}" style="width:60px"></td><td><input type="checkbox" class="xs"${isSpecial(x) ? " checked" : ""}></td>${x.hours.map((v, g) => `<td><input type="text" class="h" data-g="${g}" value="${esc(v)}"></td>`).join("")}<td><button class="btn small" data-xm="-1">↑</button><button class="btn small" data-xm="1">↓</button><button class="btn small danger xd">削除</button></td></tr>${colorEdit === i ? `<tr class="cpick"><td colspan="11"><div class="cpanel">
+    ${Object.entries(COLOR_SETS).map(([k, cs]) => `<div class="crow"><span>${cs.name}</span>${[...new Set(cs.c)].map(cc => `<button class="sw${cc.toLowerCase() === String(x.color).toLowerCase() ? " on" : ""}" data-col="${cc}" style="background:${cc}" title="${cc}"></button>`).join("")}</div>`).join("")}
+    <details${!Object.values(COLOR_SETS).some(cs => cs.c.map(v => v.toLowerCase()).includes(String(x.color).toLowerCase())) ? " open" : ""}><summary>細かく選ぶ（詳細設定）</summary><label class="row" style="gap:6px;margin-top:4px">色<input type="color" class="xcd" value="${esc(x.color)}"><span class="hint">好きな色を自由に選べます</span></label></details>
+    <button class="btn small" id="cpClose">閉じる</button></div></td></tr>` : ""}`).join("")}
   </table><button class="btn small" id="sAddSubj" style="margin-top:6px">＋ 教科を追加</button>
 
   <h2 style="margin-top:24px">配る・移す</h2>
@@ -1444,7 +1482,13 @@ function renderSet() {
   $("#sAddBrk").onclick = () => { s.breaks.push({name: "", from: "", to: ""}); changed(); };
   $$("tr[data-x]", el).forEach(tr => {
     const i = +tr.dataset.x; const x = s.subjects[i];
-    $(".xc", tr).onchange = upd(v => x.color = v);
+    $(".xc", tr).onclick = () => { colorEdit = colorEdit === i ? -1 : i; render(); };
+    const pk = tr.nextElementSibling && tr.nextElementSibling.classList.contains("cpick") ? tr.nextElementSibling : null;
+    if (pk) {
+      $$(".sw", pk).forEach(b => b.onclick = () => { x.color = b.dataset.col; changed(); });
+      $(".xcd", pk).onchange = e => { x.color = e.target.value; changed(); };
+      $("#cpClose", pk).onclick = () => { colorEdit = -1; render(); };
+    }
     $(".nm", tr).onchange = e => {
       const nv = e.target.value.trim(); const ov = x.name;
       if (!nv || nv === ov) return render();
@@ -1456,6 +1500,11 @@ function renderSet() {
     $$(".h", tr).forEach(inp => inp.onchange = upd(v => x.hours[+inp.dataset.g] = v.trim().replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))));
     $$("[data-xm]", tr).forEach(b => b.onclick = () => { const j = i + +b.dataset.xm; if (j < 0 || j >= s.subjects.length) return; [s.subjects[i], s.subjects[j]] = [s.subjects[j], s.subjects[i]]; changed(); });
     $(".xd", tr).onclick = () => { if (confirm("「" + x.name + "」を教科一覧から削除しますか？（週案に入っている分はそのまま残ります）")) { s.subjects.splice(i, 1); changed(); } };
+  });
+  $$("[data-cset]", el).forEach(b => b.onclick = () => {
+    const k = b.dataset.cset;
+    if (!confirm("すべての教科の色を「" + COLOR_SETS[k].name + "」にします。よろしいですか？")) return;
+    s.subjects.forEach((x, i) => x.color = setColorFor(k, x.name, i)); colorEdit = -1; changed();
   });
   $("#sAddSubj").onclick = () => { let n = "新しい教科", k = 2; while (subjByName(n)) n = "新しい教科" + k++; s.subjects.push({name: n, kana: "", color: "#DDDDDD", parent: "", hours: ["○","○","○","○","○","○"]}); changed(); };
   $("#sDist").onclick = () => {
