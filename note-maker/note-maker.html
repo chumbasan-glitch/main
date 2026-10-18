@@ -70,7 +70,9 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
 .check:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
 .counts{display:flex;flex-direction:column;gap:10px}
 .count-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.count-row label{font-weight:500}
+.count-row label{font-weight:500;display:flex;flex-direction:column;line-height:1.35}
+.count-row .range{font-size:12px;font-weight:400;color:var(--ink-soft)}
+.count-msg{margin:0;min-height:1.4em;font-size:13px;font-weight:700;color:var(--err)}
 .stepper{display:inline-flex;align-items:center;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
 .stepper button{appearance:none;border:0;background:var(--surface-2);color:var(--ink);width:44px;height:44px;font-size:22px;cursor:pointer;font-family:inherit}
 .stepper input{width:58px;height:44px;border:0;text-align:center;font:inherit;font-size:18px;font-weight:700;background:var(--surface);color:var(--ink);font-variant-numeric:tabular-nums;-moz-appearance:textfield}
@@ -107,7 +109,7 @@ header.top .ver{color:var(--ink-soft);font-size:12px;margin-left:auto}
   <header class="top">
     <h1>ノートメーカー</h1>
     <span class="sub">国語・算数・理科・社会・漢字練習・連絡帳・日記の白紙ノートをB5で作れます</span>
-    <span class="ver">ver 1.1</span>
+    <span class="ver">ver 1.2</span>
   </header>
 
   <div class="layout">
@@ -711,21 +713,69 @@ function renderOptions(){
     box.appendChild(p);
   }
 }
+/* マスの数：マスは正方形のまま、わくがいつも紙いっぱいになる組み合わせだけ選べる
+   （たて・よこどちらの余白も、マス1つ分より小さくなるとき） */
+const is2D = () => kind() === "vmasu" || kind() === "grid";
+function fits(a, b){
+  const m = mainBox(), u = kind() === "vmasu" ? 1 + rubyRatio() : 1;
+  const s = Math.min(m.w / (a * u), m.h / b);
+  return m.w - a * u * s < u * s - 1e-6 && m.h - b * s < s - 1e-6;
+}
+function okRange(sp){
+  const other = sp.key === "a" ? "b" : "a", vals = [];
+  for(let v = sp.min; v <= sp.max; v++){
+    const a = sp.key === "a" ? v : state.a, b = sp.key === "b" ? v : state.b;
+    if(fits(a, b)) vals.push(v);
+  }
+  return vals.length ? [vals[0], vals[vals.length - 1]] : null;
+}
+/* わくの大きさが変わったときなどに、いまの数が余白の大きい組み合わせになっていたら直す */
+function normalize(){
+  if(!is2D() || fits(state.a, state.b)) return;
+  const near = (key, cur) => {
+    const sp = countSpec().find(s => s.key === key), r = okRange(sp);
+    return r ? Math.max(r[0], Math.min(r[1], cur)) : null;
+  };
+  const b = near("b", state.b);
+  if(b !== null){ state.b = b; return; }
+  const a = near("a", state.a);
+  if(a !== null){ state.a = a; return; }
+  fitCounts();
+}
 function renderCounts(){
   const box = $("countArea"); box.innerHTML = "";
+  const msg = document.createElement("p"); msg.className = "count-msg"; msg.id = "cntMsg"; msg.setAttribute("role", "status");
+  const say = s => { msg.textContent = s; };
   for(const sp of countSpec()){
     const row = document.createElement("div"); row.className = "count-row";
-    const lab = document.createElement("label"); lab.textContent = sp.label; lab.htmlFor = "cnt_" + sp.key;
+    const lab = document.createElement("label"); lab.htmlFor = "cnt_" + sp.key;
+    const name = document.createElement("span"); name.textContent = sp.label;
+    const range = document.createElement("span"); range.className = "range";
+    lab.append(name, range);
     const st = document.createElement("div"); st.className = "stepper";
     const minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.setAttribute("aria-label", sp.label + "をへらす");
     const plus = document.createElement("button"); plus.type = "button"; plus.textContent = "＋"; plus.setAttribute("aria-label", sp.label + "をふやす");
     const inp = document.createElement("input"); inp.type = "number"; inp.inputMode = "numeric"; inp.id = "cnt_" + sp.key; inp.min = sp.min; inp.max = sp.max; inp.value = state[sp.key];
-    const set = v => { v = Math.max(sp.min, Math.min(sp.max, Math.round(v) || sp.min)); state[sp.key] = v; inp.value = v; draw(); save(); };
-    minus.addEventListener("click", () => set(state[sp.key] - 1));
-    plus.addEventListener("click", () => set(state[sp.key] + 1));
-    inp.addEventListener("change", () => set(+inp.value));
+    const lim = () => (is2D() && okRange(sp)) || [sp.min, sp.max];
+    const showRange = () => { const [lo, hi] = lim(); range.textContent = "えらべる数：" + (lo === hi ? lo : lo + "〜" + hi); };
+    const set = (v, dir) => {
+      const [lo, hi] = lim();
+      v = Math.round(v) || lo;
+      if(v > hi){ say(dir ? "これ以上大きく出来ません（紙に大きな余白ができてしまいます）。" : "えらべる数は " + lo + "〜" + hi + " です。" + hi + " にしました。"); v = hi; }
+      else if(v < lo){ say(dir ? "これ以上小さく出来ません（紙に大きな余白ができてしまいます）。" : "えらべる数は " + lo + "〜" + hi + " です。" + lo + " にしました。"); v = lo; }
+      else say("");
+      state[sp.key] = v; inp.value = v;
+      box.querySelectorAll(".count-row").forEach(r => r._showRange && r._showRange());
+      draw(); save();
+    };
+    row._showRange = showRange;
+    minus.addEventListener("click", () => set(state[sp.key] - 1, -1));
+    plus.addEventListener("click", () => set(state[sp.key] + 1, 1));
+    inp.addEventListener("change", () => set(+inp.value, 0));
     st.append(minus, inp, plus); row.append(lab, st); box.appendChild(row);
+    showRange();
   }
+  box.appendChild(msg);
   $("resetCounts").textContent = hasFormats() ? "えらんだ見本の数にもどす" : "ページいっぱいの数にもどす";
 }
 function renderStatic(){
@@ -740,7 +790,7 @@ function renderStatic(){
   $("cName").checked = state.name; $("cDate").checked = state.date; $("cPage").checked = state.page;
   $("printHow").textContent = "印刷するときは、用紙を「" + paperLabel() + "」、大きさを「実際のサイズ（100%）」にしてください。";
 }
-function update(){ renderStatic(); renderFormats(); renderOptions(); renderCounts(); draw(); save(); }
+function update(){ normalize(); renderStatic(); renderFormats(); renderOptions(); renderCounts(); draw(); save(); }
 
 let drawTimer = 0;
 function draw(){
