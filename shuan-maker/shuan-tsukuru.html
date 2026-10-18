@@ -115,6 +115,9 @@ table.tt select{width:110px;font-weight:700}
 .unitcard .uh input.un{flex:1;min-width:180px;font-weight:700}
 .unitcard .uh input.utot{width:60px}
 .unitcard textarea{width:100%;min-height:90px;margin-top:6px;font-size:13px;line-height:1.6}
+.unitcard.skipped{opacity:.55}
+.unitcard .aim{display:block;font-size:12px;color:var(--ink-soft);margin-top:4px}
+.unitcard .aim textarea{min-height:40px;font-size:12px}
 .unitcard .sched{font-size:12px;color:var(--accent);font-weight:700}
 .paste textarea{width:100%;min-height:120px;font-size:12px;font-family:"BIZ UDGothic","MS Gothic",monospace}
 .msg{white-space:pre-wrap;font-size:13px;padding:8px 10px;border-radius:6px;background:var(--accent-soft);margin-top:6px}
@@ -198,7 +201,7 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 <body>
 <div class="app">
   <header class="top">
-    <h1>週案ツクール</h1>
+    <h1>週案ツクール <small id="hdrVer" style="font-size:12px;opacity:.85"></small></h1>
     <span class="cls" id="hdrCls"></span>
     <span class="sp"></span>
     <div class="savebox">
@@ -230,6 +233,7 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 // 保存のとき、このファイルの形をそのまま書き出すため、画面を作る前の状態をとっておく
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 const APP_VER = 2;
+const VERSION = "v3";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -323,6 +327,7 @@ function newData() {
     timetable: {1: [], 2: [], 3: [], 4: [], 5: []},
     units: {},
     unitStart: {},
+    unitFrom: {},
     weeks: {},
     days: {},
   };
@@ -422,7 +427,7 @@ function computeYear() {
       if (!units.length) return;
       if (D.unitStart[x.s] && d < D.unitStart[x.s]) { info[d + "|" + i] = {before: true}; return; }
       if (x.skip) { info[d + "|" + i] = {skip: true}; return; }
-      let p = ptr[x.s] || {u: 0, n: 0};
+      let p = ptr[x.s] || {u: D.unitFrom[x.s] || 0, n: 0};
       let pinned = false;
       if (x.pin) { const [pu, pn] = x.pin.split(":").map(Number); if (units[pu]) { p = {u: pu, n: pn}; pinned = true; } }
       if (p.u >= units.length) { info[d + "|" + i] = {done: true, pinned}; ptr[x.s] = p; return; }
@@ -512,7 +517,7 @@ function buildHtml(data) {
 }
 function fileBaseName() {
   const c = D.cls;
-  return "週案ツクール" + (c.grade ? "_" + c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "");
+  return "週案ツクール_" + VERSION + (c.grade ? "_" + c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "");
 }
 function currentFileName() {
   try { const p = decodeURIComponent(location.pathname); return p.slice(p.lastIndexOf("/") + 1); } catch (e) { return ""; }
@@ -840,7 +845,9 @@ function renderPrint() {
       const txt = (x.t !== undefined && x.t !== null) ? x.t : (inf.auto || "");
       body = (inf.label ? `<span class="pu">${esc(inf.label)}</span>${txt ? "\n" : ""}` : "") + esc(txt);
     }
-    return [`<td class="sj">${esc(x.s)}</td><td class="hr">${hh}</td>`, `<td colspan="2"><div class="cb" style="max-height:${((i === 0 ? 5 : cont) - 0.3).toFixed(1)}mm">${body}</div></td>`];
+    const len = body.length * (days.length > 5 ? 1.2 : 1);
+    const fs = i === 0 ? 7 : len > 110 ? 5.5 : len > 70 ? 6.2 : 7;
+    return [`<td class="sj">${esc(x.s)}</td><td class="hr">${hh}</td>`, `<td colspan="2"><div class="cb" style="font-size:${fs}pt;max-height:${((i === 0 ? 5 : cont) - 0.3).toFixed(1)}mm">${body}</div></td>`];
   };
   let h = `<div class="ph"><b>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</b><span>担任：${esc(c.teacher)}</span><span style="margin-left:auto">${esc(weekTitle(mon))}</span></div>
   <div class="pbody"><table class="pw"><colgroup><col style="width:8mm">${days.map(() => `<col><col style="width:${days.length > 5 ? 4.5 : 6}mm">`).join("")}</colgroup>
@@ -910,6 +917,8 @@ function renderTT() {
 }
 
 /* 単元計画タブ */
+// 教科書会社の年間指導計画から読み取った単元計画（単元名・時数・各時間の主な学習活動・ねらい）
+const PRESETS = {"mitsumura-6-kokugo":{"label":"光村図書　6年　国語（年間指導計画例）","grade":6,"subject":"国語","units":[{"name":"つないで、つないで、一つのお話","month":4,"total":1,"aim":"自分が聞こうとする意図に応じて、話の内容を捉え、自分の考えをまとめることができる。（思・判・表A(1)エ）","title":"","lessons":["扉の詩、目次、P9「国語の学びを見わたそう」を見て、学習の進め方を確かめたり、見通しをもったりする。P17を読み、６年生の国語学習の目標を書く。「つないで、つないで、一つのお話」の活動の目的と流れを確かめる。最初と最後の１文を決め、グループで２周する間にお話が完結するように１文ずつ話をつなぐ。時間に余裕があれば、「もっと楽しもう」に挑戦する。できたお話を発表して感想を伝え合ったり、友達とお話を作ってどう感じたかを振り返ったりする。"]},{"name":"準備","month":4,"total":1,"aim":"詩を音読することができる。（知・技(1)ケ）","title":"","lessons":["詩の内容や情景を思い浮かべながら音読する。音読を聞き合い、互いに感じたことを伝え合う。学習のまとめをする。"]},{"name":"伝わるかな、好きな食べ物・続けてみよう","month":4,"total":1,"aim":"比喩や反復などの表現の工夫に気づくことができる。（知・技(1)ク）文章全体の構成や展開が明確になっているかなど、文章に対する感想や意見を伝え合い、自分の文章のよいところを見つけることができる。（思・判・表B(1)カ）","title":"","lessons":["「伝わるかな、好きな食べ物」の活動の目的と流れを確かめる。紹介する食べ物を決め、見た目や食感などの特徴を想起し、書く内容を考える。比喩を用いるなど表現を工夫しながら、おいしさが伝わるように文章を書く。文章を読み合い、何の食べ物かを当て合う。時間に余裕があれば、「もっと楽しもう」に挑戦する。自分が書いた文章のよさや、友達が書いた文章で印象に残った表現について振り返る。P24「続けてみよう」を読み、年間を通した継続的な活動に取り組む意欲をもち、ノートの書き方について学ぶ。"]},{"name":"帰り道","month":4,"total":5,"aim":"文章の構成や展開、文章の種類とその特徴について理解することができる。（知・技(1)カ）登場人物の相互関係や心情などについて、描写を基に捉えることができる。（思・判・表Ｃ(1)イ）","title":"視点や作品の構成に着目して読み、印象に残ったことを伝え合おう","lessons":["学習の見通しをもつ。","「律」と「周也」の心情や関係の変化を考える。","「律」と「周也」の人物像を考え、交流する。","特に印象に残ったことについて考えをまとめる。","考えたことを伝え合う。学習を振り返る。"]},{"name":"公共図書館を活用しよう","month":4,"total":1,"aim":"日常的に読書に親しみ、読書が、自分の考えを広げることに役立つことに気づくことができる。（知・技(3)オ）","title":"","lessons":["公共図書館を利用した経験を想起する。公共図書館で利用できる資料やサービスを確かめ、利用してみたいものを出し合う。P42「図書館以外の施設も活用しよう」を読み、図書館以外の施設にどんなものがあるかを知る。P43の記録カードの例を参考に、読んだ本や調べたことの記録のしかたを知る。"]},{"name":"漢字の形と音・意味","month":4,"total":2,"aim":"漢字の由来、特質などについて理解することができる。（知・技(3)ウ）","title":"","lessons":["同じ部分をもつ漢字には、音も共通する場合があることを理解する。","同じ部分をもつ漢字には、意味のうえでつながりがある場合があることを理解する。学習のまとめをする。"]},{"name":"春のいぶき","month":4,"total":1,"aim":"語句と語句との関係について理解し、語彙を豊かにするとともに、語感や言葉の使い方に対する感覚を意識して、語や語句を使うことができる。（知・技(1)オ）","title":"","lessons":["春のイメージを広げる。自分の地域の今の「春」を、俳句や短歌に表す。書いた作品をグループで読み合う。"]},{"name":"聞いて、考えを深めよう","month":5,"total":6,"aim":"語感や言葉の使い方に対する感覚を意識して、語や語句を使うことができる。（知・技(1)オ）話し手の目的や自分が聞こうとする意図に応じて、話の内容を捉え、話し手の考えと比較しながら、自分の考えをまとめることができる。（思・判・表A(1)エ）","title":"インタビューをして、自分の考えと比べながら聞こう","lessons":["学習の見通しをもつ。","インタビューの相手を決め、知りたいことを明らかにする。","インタビューをする。（1/2）","インタビューをする。（2/2）","話を聞いて考えたことを、伝え合う。","学習を振り返る。"]},{"name":"漢字の広場①","month":5,"total":1,"aim":"第５学年までに配当されている漢字を書き、文や文章の中で使うことができる。（知・技(1)エ）","title":"","lessons":["教科書の絵を見て、町のあちこちで起こっている出来事を想像する。提示された言葉を使い、５年生までに習った漢字を正しく用いて、それぞれの出来事を町の人に伝える記事を書く。"]},{"name":"笑うから楽しい・時計の時間と心の時間","month":5,"total":7,"aim":"原因と結果など情報と情報との関係について理解することができる。（知・技(2)ア）事実と感想、意見などとの関係を叙述を基に押さえ、文章全体の構成を捉えて要旨を把握することができる。（思・判・表C(1)ア）","title":"主張と事例の関係をとらえ、自分の考えを伝え合おう","lessons":["学習の見通しをもつ。「笑うから楽しい」を、筆者の考えと事例の関係に着目しながら読む。（1/2）","学習の見通しをもつ。「笑うから楽しい」を、筆者の考えと事例の関係に着目しながら読む。（2/2）","「時計の時間と心の時間」を読む。","文章全体の構成を捉える。","筆者が複数の事例を挙げた意図を話し合う。","筆者の主張に対する自分の考えをまとめる。","考えをグループで伝え合う。学習を振り返る。"]},{"name":"文の組み立て","month":6,"total":2,"aim":"文の中での語句の係り方や語順について理解することができる。（知・技(1)カ）","title":"","lessons":["言葉の順序について理解する。主語と述語の関係について理解する。","P67の設問１２に取り組む。学習のまとめをする。"]},{"name":"たのしみは","month":6,"total":3,"aim":"短歌に対する感想や意見を伝え合い、自分の作品のよいところを見つけることができる。（思・判・表B(1)カ）","title":"表現を工夫して短歌を作り、読み合おう","lessons":["学習の見通しをもつ。短歌に表したい場面を決める。","短歌を作る。","短歌を読み合い、感想を伝え合う。学習を振り返る。"]},{"name":"天地の文","month":6,"total":1,"aim":"近代以降の文語調の文章を音読するなどして、言葉の響きやリズムに親しむことができる。（知・技(3)ア）","title":"","lessons":["教材文を音読する。大意を参考に内容を捉え、繰り返し音読する。学習のまとめをする。"]},{"name":"情報と情報をつなげて伝えるとき","month":6,"total":2,"aim":"情報と情報との関係づけのしかた、図などによる語句と語句との関係の表し方を理解し使うことができる。（知・技(2)イ）","title":"","lessons":["情報を整理して伝える必要性を理解する。","P75の設問（▼）に取り組む。学習を振り返る。"]},{"name":"デジタル機器と私たち","month":6,"total":8,"aim":"原因と結果など情報と情報との関係について理解することができる。（知・技(2)ア）筋道の通った文章となるように、文章全体の構成や展開を考えることができる。（思・判・表B(1)イ）","title":"構成を考えて、提案する文章を書こう","lessons":["学習の見通しをもつ。グループでテーマを決める。","情報を集めて、提案内容を考える。（1/2）","情報を集めて、提案内容を考える。（2/2）","提案する文章の構成を考える。（1/2）","提案する文章の構成を考える。（2/2）","提案する文章を書く。（1/2）","提案する文章を書く。（2/2）","読み合って、感想を伝え合う。学習を振り返る。"]},{"name":"夏のさかり","month":7,"total":1,"aim":"語句と語句との関係について理解し、語彙を豊かにするとともに、語感や言葉の使い方に対する感覚を意識して、語や語句を使うことができる。（知・技(1)オ）","title":"","lessons":["夏のイメージを広げる。自分の地域の今の「夏」を、手紙に書く。書いた手紙をグループで読み合う。"]},{"name":"本は友達","month":7,"total":5,"aim":"日常的に読書に親しみ、読書が、自分の考えを広げることに役立つことに気づくことができる。（知・技(3)オ）","title":"本は友達","lessons":["学習の見通しをもつ。本を読むことをきっかけに、どのように知識や考えを広げたり深めたりしているかを話し合う。","印象深い本について、友達と話す。","テーマに着目して、複数の本を読む。","「星空を届けたい」を読み、ブックトークの手順を確かめる。","ブックトークをする。学習を振り返る。"]},{"name":"せんねん　まんねん・名づけられた葉","month":9,"total":2,"aim":"比喩や反復などの表現の工夫に気づくことができる。（知・技(1)ク）詩を読んで理解したことに基づいて、自分の考えをまとめることができる。（思・判・表C(1)オ）","title":"","lessons":["二つの詩を音読する。表現の工夫に着目して、詩の内容を捉える。","二つの詩の題名が表していることや、描かれている思いについて、話し合う。"]},{"name":"いちばん大事なものは","month":9,"total":2,"aim":"原因と結果など情報と情報との関係について理解することができる。（知・技(2)ア）互いの立場や意図を明確にしながら計画的に話し合い、考えを広げたりまとめたりすることができる。（思・判・表A(1)オ）","title":"","lessons":["これからの生活で、どのようなものや考え方を大事にしていきたいか、自分の考えをノートに書く。人一組のグループをつくり、考えを伝え合う。","最終的な考えをまとめ、交流する。"]},{"name":"インターネットでニュースを読もう","month":9,"total":3,"aim":"目的に応じて、文章と図表などを結び付けるなどして必要な情報を見つけることができる。（思・判・表C(1)ウ）","title":"","lessons":["ニュースサイトの読み方や活用のしかたについて学習することを理解する。ニュースサイトのトップページの特徴を知る。","ニュースサイトと新聞の記事を比べる。","実際にニュースサイトにアクセスし、興味のあるニュースを読んだり、さらに知りたいことを検索したりする。学習を振り返る。"]},{"name":"文章を推敲しよう","month":9,"total":2,"aim":"文章全体の構成や書き表し方などに着目して、文や文章を整えることができる。（思・判・表B(1)オ）","title":"","lessons":["P108とP308を読み、「推敲」について知る。P108の設問（▼）に取り組む。","P109の設問（▼）に取り組む。学習を振り返る。"]},{"name":"漢字の広場②","month":9,"total":1,"aim":"第５学年までに配当されている漢字を書き、文や文章の中で使うことができる。（知・技(1)エ）","title":"","lessons":["教科書の絵を見て、遊園地での人々の行動を想像する。提示された言葉を使い、５年生までに習った漢字を正しく用いて、遊園地での人々の行動を、文章に書く。"]},{"name":"やまなし","month":9,"total":8,"aim":"比喩や反復などの表現の工夫に気づくことができる。（知・技(1)ク）物語の全体像を具体的に想像したり、表現の効果を考えたりすることができる。（思・判・表C(1)エ）","title":"作品の世界を想像しながら読み、考えたことを伝え合おう","lessons":["学習の見通しをもつ。","「やまなし」の作品世界を捉える。（1/2）","「やまなし」の作品世界を捉える。（2/2）","「やまなし」の作品世界を読み深める。（1/2）","「やまなし」の作品世界を読み深める。（2/2）","作者が作品に込めた思いを考える。","書いた文章を読み合い、感想を伝え合う。","学習を振り返る。"]},{"name":"漢字の広場③","month":10,"total":1,"aim":"第５学年までに配当されている漢字を書き、文や文章の中で使うことができる。（知・技(1)エ）","title":"","lessons":["教科書の絵を見て、絵の中の魔法使いを主人公にした冒険物語のストーリーを考える。提示された言葉を使い、５年生までに習った漢字を正しく用いて、魔法使いが冒険する物語を書く。"]},{"name":"熟語の成り立ち","month":10,"total":2,"aim":"語句の構成や変化について理解することができる。（知・技(1)オ）","title":"","lessons":["漢字二字の熟語の成り立ちを理解する。漢字三字の熟語の成り立ちを理解する。","漢字四字以上の熟語の成り立ちを理解する。P137の設問２に取り組む。学習のまとめをする。"]},{"name":"秋の深まり","month":10,"total":1,"aim":"語句と語句との関係について理解し、語彙を豊かにするとともに、語感や言葉の使い方に対する感覚を意識して、語や語句を使うことができる。（知・技(1)オ）","title":"","lessons":["秋のイメージを広げる。自分の地域の今の「秋」を、俳句や短歌に表す。書いた作品をグループで読み合う。"]},{"name":"みんなで楽しく過ごすために","month":10,"total":6,"aim":"思考に関わる語句の量を増し、話の中で使うことができる。（知・技(1)オ）互いの立場や意図を明確にしながら計画的に話し合い、考えを広げたりまとめたりすることができる。（思・判・表A(1)オ）","title":"目的や条件に応じて話し合おう","lessons":["学習の見通しをもつ。","議題を確かめる。自分の考えを明確にする。","グループの中で役割を決め、進行計画を立てる。話し合いで気をつけることを考える。","進行計画に沿って、話し合う。（1/2）","進行計画に沿って、話し合う。（2/2）","話し合ったことをクラスで共有し、感想を伝え合う。学習を振り返る。"]},{"name":"話し言葉と書き言葉","month":10,"total":1,"aim":"話し言葉と書き言葉との違いに気づくことができる。（知・技(1)イ）","title":"","lessons":["話し言葉と書き言葉の特徴を理解する。P149の設問１に取り組む。学習のまとめをする。"]},{"name":"古典芸能の世界・狂言「柿山伏」を楽しもう","month":11,"total":2,"aim":"古典について解説した文章を読んだり作品の内容の大体を知ったりすることを通して、昔の人のものの見方や感じ方を知ることができる。（知・技(3)イ）","title":"","lessons":["五つの古典芸能について知る。","「柿山伏」を読んで、狂言に親しむ。学習のまとめをする。"]},{"name":"『鳥獣戯画』を読む・発見、日本文化のみりょく","month":11,"total":10,"aim":"比喩や反復などの表現の工夫に気づくことができる。（知・技(1)ク）目的や意図に応じて簡単に書いたり詳しく書いたりするとともに、事実と感想、意見とを区別して書いたりするなど、自分の考えが伝わるように書き表し方を工夫することができる。（思・判・表B(1)ウ）目的に応じて、文章と図表などを結び付けるなどして必要な情報を見つけたり、論の進め方について考えたりすることができる。（思・判・表C(1)ウ）","title":"筆者の工夫をとらえて読み、それをいかして書こう","lessons":["学習の見通しをもつ。","絵と文章を照らし合わせながら読み、内容を捉える。","筆者のものの見方や、それを伝えるための工夫について気づいたことをまとめる。","筆者の工夫の中で、特に効果的だと思った点を理由とともにまとめ、グループで報告し合う。","学校図書館などで、日本文化について書かれた本を読み、友達と感想を伝え合う。学習を振り返る。","「発見、日本文化のみりょく」の学習の見通しをもつ。","題材を決めて、情報を集める。","文章の構成を考える。日本文化のよさを伝える文章を書く。（1/2）","文章の構成を考える。日本文化のよさを伝える文章を書く。（2/2）","書いた文章を友達と読み合う。学習を振り返る。"]},{"name":"カンジー博士の漢字学習の秘伝","month":11,"total":2,"aim":"文や文章の中で漢字と仮名を適切に使い分けるとともに、送り仮名や仮名遣いに注意して正しく書くことができる。（知・技(1)ウ）","title":"","lessons":["漢字の学習で困っていることや、漢字を練習する際に工夫していることなどを出し合う。漢字学習の三つの秘伝について、教科書に沿って確認する。","P171の設問１２３に取り組む。"]},{"name":"漢字の広場④","month":12,"total":1,"aim":"第５学年までに配当されている漢字を書き、文や文章の中で使うことができる。（知・技(1)エ）","title":"","lessons":["教科書の絵を見て、テレビ局の様子や出来事を想像する。提示された言葉を使い、５年生までに習った漢字を正しく用いて、どこで、どんなことが行われていたかなど、見学したことを家の人に分かりやすく伝える文章を書く。"]},{"name":"ぼくのブック・ウーマン","month":12,"total":4,"aim":"文章を読んで理解したことに基づいて、自分の考えをまとめることができる。（思・判・表C(1)オ）","title":"物語を読んで考えたことを、伝え合おう","lessons":["学習の見通しをもつ。物語の設定を確かめる。","物語全体を通して、「カル」がどのように変化したのかを考える。","物語を読んで考えたことを、自分の生活や読書経験などと結び付けながらノートにまとめる。","まとめたものをグループで読み合い、考えの共通点や相違点を語り合う。学習を振り返る。"]},{"name":"おすすめパンフレットを作ろう","month":12,"total":6,"aim":"引用したり、図表やグラフなどを用いたりして、自分の考えが伝わるように書き表し方を工夫することができる。（思・判・表B(1)エ）","title":"相手や目的を明確にして、すいせんする文章を書こう","lessons":["学習の見通しをもつ。","グループで推薦したいもののテーマを決め、情報を集める。","集めた情報を基に、グループでパンフレットの構成を考える。担当するページの割り付けと、推薦する文章の構成を考える。","推薦する文章を書く。（1/2）","推薦する文章を書く。（2/2）","読み合って、感想を伝え合う。学習を振り返る。"]},{"name":"冬のおとずれ","month":12,"total":1,"aim":"語句と語句との関係について理解し、語彙を豊かにするとともに、語感や言葉の使い方に対する感覚を意識して、語や語句を使うことができる。（知・技(1)オ）","title":"","lessons":["冬のイメージを広げる。自分の地域の今の「冬」を、手紙に書く。書いた手紙をグループで読み合う。"]},{"name":"詩を朗読してしょうかいしよう","month":1,"total":2,"aim":"詩を朗読することができる。（知・技(1)ケ）","title":"","lessons":["三つの詩を朗読する。","お気に入りの詩を朗読する。"]},{"name":"知ってほしい、この名言","month":1,"total":2,"aim":"情報と情報との関係づけのしかた、図などによる語句と語句との関係の表し方を理解し使うことができる。（知・技(2)イ）目的や意図に応じて、感じたことや考えたことなどから書くことを選び、集めた材料を分類したり関係づけたりして、伝えたいことを明確にすることができる。（思・判・表B(1)ア）","title":"","lessons":["名言だと思う言葉を集める。集めた言葉を整理する。","言葉を選んでカードに書き、読み合う。学習を振り返る。"]},{"name":"日本の文字文化","month":1,"total":2,"aim":"文や文章の中で漢字と仮名を適切に使い分けるとともに、送り仮名や仮名遣いに注意して正しく書くことができる。（知・技(1)ウ）語句の由来などに関心をもち、仮名及び漢字の由来、特質などについて理解することができる。（知・技(3)ウ）","title":"","lessons":["「問いをもとう」を基に、身の回りで使われている文字や、その特徴について考える。P200-201「日本語の表記」を読む。P201の設問１に取り組む。","P201-202「仮名の由来」を読む。学習のまとめをする。"]},{"name":"漢字の広場⑤","month":1,"total":1,"aim":"第５学年までに配当されている漢字を書き、文や文章の中で使うことができる。（知・技(1)エ）","title":"","lessons":["教科書の絵を見て、商店街の通りやお店の中の様子、人々の会話を想像する。提示された言葉を使い、５年生までに習った漢字を正しく用いて、商店街の様子を表す文章を書く。"]},{"name":"「考える」とは","month":1,"total":6,"aim":"文章の構成や展開、文章の種類とその特徴について理解することができる。（知・技(1)カ）文章を読んで理解したことに基づいて、自分の考えをまとめることができる。（思・判・表C(1)オ）文章を読んでまとめた意見や感想を共有し、自分の考えを広げることができる。（思・判・表C(1)カ）","title":"筆者の考えを読み取り、テーマについて考えを述べ合おう","lessons":["学習の見通しをもつ。","それぞれの文章で筆者が最も伝えたいことを考える。","筆者がどのように自分の考えを伝えようとしているか、文章の特徴を明らかにする。（1/2）","筆者がどのように自分の考えを伝えようとしているか、文章の特徴を明らかにする。（2/2）","三つの文章を読んで考えたことをまとめる。","グループで考えを伝え合い、自分の考えを広げたり深めたりする。学習を振り返る。"]},{"name":"使える言葉にするために","month":1,"total":1,"aim":"第６学年までに配当されている漢字を読み、漸次書き、文や文章の中で使うことができる。（知・技(1)エ）","title":"","lessons":["言葉を使う場面や、使い方を理解するために、どのようなことをすればよいか、友達と話し合う。P216の設問（▼）に示されている言葉について、読み方や意味が分からないものがあれば、辞書で調べる。"]},{"name":"日本語の特徴","month":1,"total":3,"aim":"語句と語句との関係、語句の構成や変化について理解し、語彙を豊かにするとともに、語感や言葉の使い方に対する感覚を意識して、語や語句を使うことができる。（知・技(1)オ）文の中での語句の係り方や語順について理解することができる。（知・技(1)カ）目的や意図に応じて簡単に書いたり詳しく書いたりするとともに、事実と感想、意見とを区別して書いたりするなど、自分の考えが伝わるように書き表し方を工夫することができる。（思・判・表B(1)ウ）","title":"言葉について考えよう","lessons":["学習の見通しをもつ。同じ内容について書かれた、日本語と英語の文を比べ、気づいたことを話し合う。","P219の説明や「言語の特徴を考えるときは」を参考に、日本語の特徴をまとめる。","「日本語のここがおもしろい。」と思うところを紹介する文章を書き、友達と読み合う。"]},{"name":"大切にしたい言葉","month":2,"total":6,"aim":"語感や言葉の使い方に対する感覚を意識して、語や語句を使うことができる。（知・技(1)オ）目的や意図に応じて簡単に書いたり詳しく書いたりするとともに、事実と感想、意見とを区別して書いたりするなど、自分の考えが伝わるように書き表し方を工夫することができる。（思・判・表B(1)ウ）","title":"書き表し方を工夫して、経験と考えを伝えよう","lessons":["学習の見通しをもつ。大切にしたい言葉を選び、関連する経験を書き出す。","書く分量を確かめ、文章構成を考える。","下書きをし、友達と読み合って推敲する。","書き表し方を工夫して清書する。（1/2）","書き表し方を工夫して清書する。（2/2）","読み合って、感想を伝え合う。学習を振り返る。"]},{"name":"今、私は、ぼくは","month":2,"total":6,"aim":"話し言葉と書き言葉との違いに気づくことができる。（知・技(1)イ）資料を活用するなどして、自分の考えが伝わるように表現を工夫することができる。（思・判・表A(1)ウ）","title":"資料を使って、みりょく的なスピーチをしよう","lessons":["学習の見通しをもつ。","スピーチの話題と内容を決める。構成を考えて、スピーチメモを作る。","発表に必要な資料を準備する。","スピーチの練習をする。","スピーチの会を開く。","感想を伝え合う。学習を振り返る。"]},{"name":"海の命","month":3,"total":6,"aim":"文章を読んでまとめた意見や感想を共有し、自分の考えを広げることができる。（思・判・表C(1)カ）","title":"登場人物の生き方について、考えたことを話し合おう","lessons":["学習の見通しをもつ。","物語の構成と内容を確かめる。","周囲の人物との関わりが、「太一」の生き方や考え方にどのような影響を与えたのかを読み深める。（1/2）","周囲の人物との関わりが、「太一」の生き方や考え方にどのような影響を与えたのかを読み深める。（2/2）","自分の考えをまとめる。","考えたことをグループで伝え合う。学習を振り返る。"]},{"name":"漢字の広場⑥","month":3,"total":1,"aim":"第５学年までに配当されている漢字を書き、文や文章の中で使うことができる。（知・技(1)エ）","title":"","lessons":["教科書の絵を見て、いつ、どこで、どんなことがあったのか、６年間の学校生活のさまざまな場面の様子を想像する。提示された言葉を使い、５年生までに習った漢字を正しく用いて、いつ、どこで、どんなことがあったのかを伝える文章を書く。"]},{"name":"卒業するみなさんへ","month":3,"total":4,"aim":"比喩や反復などの表現の工夫に気づくことができる。（知・技(1)ク）詩を朗読することができる。（知・技(1)ケ）目的や意図に応じて、感じたことや考えたことなどから書くことを選び、伝えたいことを明確にすることができる。（思・判・表B(1)ア）文章を読んで理解したことに基づいて、自分の考えをまとめることができる。（思・判・表C(1)オ）詩を読んでまとめた意見や感想を共有し、自分の考えを広げることができる。（思・判・表C(1)カ）","title":"卒業するみなさんへ","lessons":["学習の見通しをもつ。年間で身につけた力を振り返る。","「生きる」を読み、感じたことを友達と話し合ったり、朗読したりする。","「人間は他の生物と何がちがうのか」を読み、筆者の考えに対する自分の考えをまとめる。","本単元をまとめる。"]}]}};
 const SAMPLE_TSV = "教科\t単元名\t時間\t学習内容\n国語\tごんぎつね\t1\t題名や挿絵から話の内容を想像し、学習計画を立てる。\n国語\tごんぎつね\t2\t場面ごとに、ごんの行動や気持ちを読み取る。\n算数\tわり算の筆算\t1\t何十・何百のわり算のしかたを考える。\n算数\tわり算の筆算\t2\t2けた÷1けたの筆算のしかたを考える。\n";
 function parseTSV(text) {
   const rows = []; let row = [], cell = "", q = false;
@@ -958,7 +967,7 @@ function importUnits(text, replace) {
   const msgs = [];
   for (const s in got) {
     for (const u of got[s]) u.total = Math.max(u.total, u.lessons.length);
-    if (!D.units[s] || !D.units[s].length || replace) D.unitStart[s] = unitStartDefault();
+    if (!D.units[s] || !D.units[s].length || replace) { D.unitStart[s] = unitStartDefault(); delete D.unitFrom[s]; }
     if (replace || !D.units[s]) D.units[s] = got[s];
     else for (const u of got[s]) { const i = D.units[s].findIndex(x => x.name === u.name); if (i >= 0) D.units[s][i] = u; else D.units[s].push(u); }
     msgs.push(`${s}：${got[s].length}単元（${got[s].reduce((a, u) => a + lessonCount(u), 0)}時間）`);
@@ -981,7 +990,15 @@ function renderUnits() {
   const subs = gradeSubjects().filter(s => !["行事","クラブ","委員会"].includes(s.name));
   if (!curUnitSubj || !subs.find(s => s.name === curUnitSubj)) curUnitSubj = (subs[0] || {}).name || "";
   const sc = cy().sched;
+  const pk = Object.keys(PRESETS).filter(k => !D.cls.grade || PRESETS[k].grade === D.cls.grade);
   let h = `<h2>単元計画</h2>
+  ${pk.length ? `<details class="box"${Object.keys(D.units).length ? "" : " open"}><summary>教科書の年間指導計画から入れる</summary>
+    <div class="row" style="margin:6px 0"><select id="pSel">${pk.map(k => `<option value="${k}">${esc(PRESETS[k].label)}</option>`).join("")}</select>
+    <label class="row" style="gap:4px">始める単元<select id="pFrom"></select></label>
+    <label class="row" style="gap:4px">始める日<input type="date" id="pStart" value="${unitStartDefault()}"></label>
+    <button class="btn primary" id="pGo">入れる</button></div>
+    <p class="hint">年間の単元が順に入ります。「始める単元」より前の単元は、週案には入りません（あとから単元を選び直せます）。各時間の学習内容は、指導計画の「主な学習活動」です。</p>
+  </details>` : ""}
   <details class="box paste"${Object.keys(D.units).length ? "" : " open"}><summary>Excelから貼り付けて登録する</summary>
     <p class="hint">Excelで「教科｜単元名｜時間｜学習内容」の4列の表を作り、表をコピーして下に貼り付けてください。1行が1時間分です。<br>
     「教科｜単元名｜総時数」の3列だけでも登録できます（各時間の内容はあとで書けます）。1行目の見出しはあってもなくてもかまいません。</p>
@@ -996,18 +1013,44 @@ function renderUnits() {
   list.forEach((u, ui) => {
     const s = (sc[curUnitSubj] || [])[ui];
     const n = lessonCount(u);
-    h += `<div class="unitcard" data-u="${ui}">
-      <div class="uh"><b>${ui + 1}</b><input type="text" class="un" value="${esc(u.name)}" placeholder="単元名">
+    const skipped = ui < (D.unitFrom[curUnitSubj] || 0);
+    h += `<div class="unitcard${skipped ? " skipped" : ""}" data-u="${ui}">
+      <div class="uh"><b>${u.month ? u.month + "月" : ui + 1}</b><input type="text" class="un" value="${esc(u.name)}" placeholder="単元名">
       <label class="row" style="gap:4px">時数<input type="number" class="utot" min="0" value="${u.total || n}"></label>
-      <span class="sched">${s ? `予定：${md(s.first)}〜${md(s.last)}（${s.used}/${n}時間）` : "まだ週案に入っていません"}</span>
+      <span class="sched">${skipped ? "（始める単元より前なので入りません）" : s ? `予定：${md(s.first)}〜${md(s.last)}（${s.used}/${n}時間）` : "まだ週案に入っていません"}</span>
+      ${skipped || ui === (D.unitFrom[curUnitSubj] || 0) ? "" : `<button class="btn small" data-from title="この単元から週案に入れる">ここから始める</button>`}
       <button class="btn small" data-mv="-1" title="上へ">↑</button><button class="btn small" data-mv="1" title="下へ">↓</button><button class="btn small danger" data-del>削除</button></div>
       <textarea class="ul" placeholder="1行に1時間分の学習内容を書きます（1行目＝1時間目）">${esc((u.lessons || []).join("\n"))}</textarea>
+      <label class="aim">ねらい<textarea class="ua" placeholder="単元のねらい（指導目標）">${esc(u.aim || "")}</textarea></label>
     </div>`;
   });
   h += `<button class="btn" id="uNew">＋ ${esc(curUnitSubj)}の単元を追加</button>
   <p class="hint">単元は上から順に週案に入ります。時数より学習内容の行が少ないときは、残りの時間は「単元名⑤」だけが入ります。</p>`;
   el.innerHTML = h;
   $$(".subjchips button", el).forEach(b => b.onclick = () => { curUnitSubj = b.dataset.s; render(); });
+  if ($("#pSel")) {
+    const fillFrom = () => {
+      const pr = PRESETS[$("#pSel").value];
+      const t = parse($("#pStart").value || today()); const mo = t.getMonth() + 1;
+      const ord = m => (m + 8) % 12;   // 4月を0として並べる
+      let def = pr.units.findIndex(u => ord(u.month) >= ord(mo)); if (def < 0) def = 0;
+      $("#pFrom").innerHTML = pr.units.map((u, i) => `<option value="${i}"${i === def ? " selected" : ""}>${u.month}月　${esc(u.name)}（${u.total}時間）</option>`).join("");
+    };
+    fillFrom();
+    $("#pSel").onchange = fillFrom; $("#pStart").onchange = fillFrom;
+    $("#pGo").onclick = () => {
+      const pr = PRESETS[$("#pSel").value]; const sname = pr.subject;
+      if (!subjByName(sname)) { toast("教科一覧に「" + sname + "」がありません"); return; }
+      if ((D.units[sname] || []).length && !confirm(sname + "の単元計画を、" + pr.label + "に置きかえます。よろしいですか？")) return;
+      D.units[sname] = JSON.parse(JSON.stringify(pr.units));
+      D.unitFrom[sname] = +$("#pFrom").value;
+      if ($("#pStart").value) D.unitStart[sname] = $("#pStart").value; else delete D.unitStart[sname];
+      for (const d in D.days) for (const x of D.days[d].slots || []) if (x.s === sname) delete x.pin;
+      curUnitSubj = sname;
+      unitMsg = {err: false, text: `${sname}：${pr.units.length}単元（${pr.units.reduce((a, u) => a + u.total, 0)}時間）を入れました。「${pr.units[D.unitFrom[sname]].name}」から週案に入ります。`};
+      changed();
+    };
+  }
   $("#uSample").onclick = () => copyText(SAMPLE_TSV, "記入例をコピーしました。Excelに貼り付けてください");
   $("#uExport").onclick = () => copyText(unitsToTSV(), "単元計画をコピーしました。Excelに貼り付けられます");
   $("#uCsv").onclick = () => download("単元計画_記入用.csv", "﻿" + SAMPLE_TSV.replace(/\t/g, ","), "text/csv");
@@ -1030,12 +1073,17 @@ function renderUnits() {
     $(".utot", card).onchange = e => { u.total = Math.max(0, parseInt(e.target.value) || 0); changed(); };
     $(".ul", card).oninput = e => { u.lessons = e.target.value.split("\n"); while (u.lessons.length && u.lessons[u.lessons.length - 1] === "") u.lessons.pop(); changed(false); };
     $(".ul", card).onchange = () => render();
+    $(".ua", card).oninput = e => { u.aim = e.target.value; changed(false); };
+    const fb = $("[data-from]", card);
+    if (fb) fb.onclick = () => { D.unitFrom[curUnitSubj] = ui; changed(); };
     $$("[data-mv]", card).forEach(b => b.onclick = () => { const j = ui + +b.dataset.mv; if (j < 0 || j >= list.length) return; [list[ui], list[j]] = [list[j], list[ui]]; fixPins(curUnitSubj, ui, j); changed(); });
     $("[data-del]", card).onclick = () => { if (!confirm("「" + u.name + "」を削除しますか？")) return; list.splice(ui, 1); fixPins(curUnitSubj, ui, -1); changed(); };
   });
 }
 // 単元を並べかえ・削除したとき、週案で指定した単元がずれないようにする
 function fixPins(subj, a, b) {
+  const f = D.unitFrom[subj];
+  if (f !== undefined) { if (b === -1) { if (a < f) D.unitFrom[subj] = f - 1; } else if (f === a) D.unitFrom[subj] = b; else if (f === b) D.unitFrom[subj] = a; }
   for (const d in D.days) for (const x of D.days[d].slots || []) {
     if (x.s !== subj || !x.pin) continue;
     const [u, n] = x.pin.split(":").map(Number);
@@ -1174,8 +1222,8 @@ function renderSet() {
     const withU = $("#sDistUnits").checked;
     const nd = newData();
     nd.school = JSON.parse(JSON.stringify(D.school));
-    if (withU) { nd.cls.grade = D.cls.grade; nd.units = JSON.parse(JSON.stringify(D.units)); nd.unitStart = {...D.unitStart}; }
-    download("週案ツクール_配布用" + (withU && D.cls.grade ? "_" + D.cls.grade + "年" : "") + ".html", buildHtml(nd));
+    if (withU) { nd.cls.grade = D.cls.grade; nd.units = JSON.parse(JSON.stringify(D.units)); nd.unitStart = {...D.unitStart}; nd.unitFrom = {...D.unitFrom}; }
+    download("週案ツクール_" + VERSION + "_配布用" + (withU && D.cls.grade ? "_" + D.cls.grade + "年" : "") + ".html", buildHtml(nd));
     toast("配布用のファイルをダウンロードしました");
   };
   $("#sExport").onclick = () => download(fileBaseName() + "_バックアップ_" + today() + ".json", JSON.stringify(D, null, 1), "application/json");
@@ -1203,6 +1251,7 @@ function renameSubject(ov, nv) {
   for (const w in D.timetable) D.timetable[w] = D.timetable[w].map(v => v === ov ? nv : v);
   if (D.units[ov]) { D.units[nv] = D.units[ov]; delete D.units[ov]; }
   if (D.unitStart[ov]) { D.unitStart[nv] = D.unitStart[ov]; delete D.unitStart[ov]; }
+  if (D.unitFrom[ov] !== undefined) { D.unitFrom[nv] = D.unitFrom[ov]; delete D.unitFrom[ov]; }
   if (D.cls.init[ov]) { D.cls.init[nv] = D.cls.init[ov]; delete D.cls.init[ov]; }
   for (const d in D.days) for (const x of D.days[d].slots || []) if (x.s === ov) x.s = nv;
 }
@@ -1215,6 +1264,7 @@ try {
   else if (dr) localStorage.removeItem(DRAFT_KEY);
 } catch (e) {}
 $$("#tabs button").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+$("#hdrVer").textContent = VERSION;
 $("#btnSave").onclick = save;
 document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); } });
 window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
