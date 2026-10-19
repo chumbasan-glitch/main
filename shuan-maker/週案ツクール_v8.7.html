@@ -332,7 +332,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v8.6";
+const VERSION = "v8.7";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -643,6 +643,8 @@ function slotUnits(x, i) {
   return i === 0 ? (parseHours(D.school.asaHours) || 4) : U;
 }
 const isAsaEvent = n => !!n && !subjByName(n) && (D.school.asaEvents || []).includes(n);
+// 朝の欄に出す時数：教科や行事を入れたら設定の時数（1/3）、朝会は時数に数えないので出さない
+const asaShown = x => !x.s || isAsaEvent(x.s) ? "" : (x.h || D.school.asaHours || "1/3");
 const isSpecial = s => s.sp !== undefined ? !!s.sp : ["行事","クラブ","委員会"].includes(s.name);
 // 教科ごとの表（図書・書写などは国語にまとめる）
 function totalsRows(maps) {
@@ -775,7 +777,9 @@ function renderBanners() {
     const g = +$("#bnGrade").value;
     if (!g) { toast("学年を選んでください"); return; }
     D.cls.grade = g; D.cls.kumi = kumiOf($("#bnKumi").value); D.cls.teacher = $("#bnTeacher").value.trim();
+    const n = loadGradePresets(g, false);
     changed();
+    if (n.length) toast(g + "年の単元計画（" + n.join("・") + "）を入れました");
   };
   $$("[data-go]").forEach(b => b.onclick = () => switchTab(b.dataset.go));
   if ($("#drYes")) {
@@ -885,7 +889,7 @@ function renderWeek() {
   h += `</tr><tr><th class="lab">朝</th>`;
   for (const d of days) {
     const x = slotsOf(d)[0]; const col = x.s ? colorOf(x.s) : "#E5E5E5";
-    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><div class="asa" data-d="${d}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}"><div class="sh"><input type="text" class="subj" list="asaList" value="${esc(x.s || "")}" placeholder="―"><input type="text" class="hr" value="${esc(x.h || "")}" placeholder="${isAsaEvent(x.s) ? "" : esc(D.school.asaHours || "1/3")}" title="朝の時間の時数。空欄は設定の時数"></div><input type="text" class="ct" value="${esc(x.t || "")}" placeholder="内容"></div></td>`;
+    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><div class="asa" data-d="${d}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}"><div class="sh"><input type="text" class="subj" list="asaList" value="${esc(x.s || "")}" placeholder="―">${isAsaEvent(x.s) ? `<input type="text" class="hr" value="" placeholder="―" readonly title="朝会は時数に数えません">` : `<input type="text" class="hr" value="${esc(asaShown(x))}" placeholder="${esc(D.school.asaHours || "1/3")}" title="朝の時間の時数。空欄は設定の時数">`}</div><input type="text" class="ct" value="${esc(x.t || "")}" placeholder="内容"></div></td>`;
   }
   h += "</tr>";
   for (let i = 1; i <= P(); i++) {
@@ -1132,7 +1136,7 @@ function renderPrint() {
     const rest = ch - ST * (parts.length - 1);
     const items = i === 0 ? [{lab: "", txt: x.t || ""}] : parts.map(pt => textOf(d, i, all.indexOf(pt), pt));
     const fs = fit(bodyText(items), rest - 0.8);
-    return [`<td colspan="2" class="stc">${strip(parts[0])}</td>`, `<td colspan="2" class="spc">${extra}<div class="cb sq" style="font-size:${fs}pt;max-height:${(rest - 0.3).toFixed(1)}mm"><div style="width:${(100 / SX).toFixed(1)}%;transform:scaleX(${SX});transform-origin:left top">${bodyHtml(items)}</div></div></td>`];
+    return [`<td colspan="2" class="stc">${strip(i === 0 ? {s: x.s, h: asaShown(x)} : parts[0])}</td>`, `<td colspan="2" class="spc">${extra}<div class="cb sq" style="font-size:${fs}pt;max-height:${(rest - 0.3).toFixed(1)}mm"><div style="width:${(100 / SX).toFixed(1)}%;transform:scaleX(${SX});transform-origin:left top">${bodyHtml(items)}</div></div></td>`];
   };
   let h = `<div class="ph"><b>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</b><span>担任：${esc(c.teacher)}</span><span class="wt" style="margin-left:auto">${esc(weekTitle(mon))}</span></div>
   <div class="pbody"><table class="pw"><colgroup><col style="width:8mm">${days.map(() => `<col><col style="width:${days.length > 5 ? 4.5 : 6}mm">`).join("")}</colgroup>
@@ -1315,6 +1319,18 @@ function unitsToTSV() {
   return t;
 }
 let unitMsg = null;
+// 学年を選んだとき、その学年の教科書の年間指導計画をまとめて入れる（replace でなければ、まだ入っていない教科だけ）
+const presetsOf = g => Object.keys(PRESETS).filter(k => PRESETS[k].grade === g);
+function loadGradePresets(g, replace) {
+  const done = [];
+  for (const k of presetsOf(g)) {
+    const pr = PRESETS[k];
+    if (!subjByName(pr.subject) || ((D.units[pr.subject] || []).length && !replace)) continue;
+    D.units[pr.subject] = JSON.parse(JSON.stringify(pr.units));
+    done.push(pr.subject);
+  }
+  return done;
+}
 // 単元計画を入れ始める日のきまり：週案タブで開いている週の月曜日
 function unitStartDefault() { const m = curWeek || mondayOf(today()); return m < yearStart() ? yearStart() : m; }
 function renderUnits() {
@@ -1518,7 +1534,14 @@ function renderSet() {
   <div class="row" style="margin-top:16px"><button class="btn danger" id="sClear">この年度の週案をすべて消す</button></div>`;
   el.innerHTML = h;
   const upd = (fn, rr = true) => e => { fn(e.target.value, e.target); changed(rr); };
-  $("#sGrade").onchange = upd(v => c.grade = +v || 0);
+  $("#sGrade").onchange = e => {
+    const g = +e.target.value || 0; c.grade = g;
+    // 前の学年の計画が入っている教科は、たずねてから入れかえる
+    const has = g && presetsOf(g).some(k => (D.units[PRESETS[k].subject] || []).length);
+    const n = g ? loadGradePresets(g, has && confirm(g + "年の教科書の単元計画に入れかえますか？（自分で直した単元計画も入れかわります。「キャンセル」なら、まだ入っていない教科だけ入れます）")) : [];
+    changed();
+    if (n.length) toast(g + "年の単元計画（" + n.join("・") + "）を入れました");
+  };
   $("#sKumi").oninput = upd(v => c.kumi = kumiOf(v), false); $("#sKumi").onchange = () => render();
   $("#sTeacher").oninput = upd(v => c.teacher = v.trim(), false); $("#sTeacher").onchange = () => render();
   $("#sStart").onchange = upd(v => c.startDate = v);
