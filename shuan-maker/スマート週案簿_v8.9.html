@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>週案ツクール</title>
+<title>スマート週案簿</title>
 <style>
 :root{
   --bg:#EEF2EC;
@@ -57,6 +57,8 @@ label.f>*{font-size:14px;color:var(--ink)}
 .weekbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .weekbar select{font-weight:700}
 .contbar{margin-top:-4px}
+.weekbar .papernote{width:100%;text-align:right;font-size:12.5px;color:#7A5200;margin-top:-4px}
+.weekbar .papernote b{background:#FFF0C2;padding:0 4px;border-radius:3px}
 .contbar .caution{font-size:12.5px;color:#B23A1E;font-weight:700}
 .weeklayout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start}
 @media (max-width:1100px){.weeklayout{grid-template-columns:minmax(0,1fr)}}
@@ -282,7 +284,7 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 <body>
 <div class="app">
   <header class="top">
-    <h1>週案ツクール <small id="hdrVer" style="font-size:12px;opacity:.85"></small></h1>
+    <h1>スマート週案簿 <small id="hdrVer" style="font-size:12px;opacity:.85"></small></h1>
     <span class="cls" id="hdrCls"></span>
     <span class="sp"></span>
     <div class="savebox">
@@ -316,7 +318,7 @@ function bootMsg(why) {
   if (BOOT_OK || document.getElementById("bootErr")) return;
   var el = document.createElement("div"); el.id = "bootErr";
   el.style.cssText = "margin:24px auto;max-width:720px;padding:16px 20px;background:#FFF4E5;border:2px solid #E0A040;border-radius:8px;font-size:15px;line-height:1.8;color:#3A2A10";
-  el.innerHTML = "<b>週案ツクールを動かせませんでした。</b><br>" + why +
+  el.innerHTML = "<b>スマート週案簿を動かせませんでした。</b><br>" + why +
     "<br><br>考えられること：<br>・ファイルが途中までしかコピーされていない（ファイルの大きさが約1.3MBあるか確かめてください）<br>・Edge の「Internet Explorer モード」で開いている（アドレスバーの左に IE のマークがあるとき）<br>・学校の設定で、パソコンの中のファイルの JavaScript が止められている" +
     "<br><br><small style=\"color:#7A6A50\">くわしい理由：" + String(bootMsg.err || "（なし）").replace(/[<>&]/g, "") + "</small>";
   (document.body || document.documentElement).insertBefore(el, (document.body || document.documentElement).firstChild);
@@ -721,7 +723,7 @@ function buildHtml(data) {
 }
 function fileBaseName() {
   const c = D.cls;
-  return "週案ツクール_" + VERSION + (c.grade ? "_" + c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "");
+  return "スマート週案簿_" + VERSION + (c.grade ? "_" + c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "");
 }
 function currentFileName() {
   try { const p = decodeURIComponent(location.pathname); return p.slice(p.lastIndexOf("/") + 1); } catch (e) { return ""; }
@@ -780,11 +782,11 @@ async function save() {
     }
     if (!ok) {
       toast("いま開いているこのファイルを選んで「保存」→「はい（置きかえる）」を押してください", 6000);
-      h = await window.showSaveFilePicker({suggestedName: currentFileName() || fileBaseName() + ".html", types: [{description: "週案ツクール（HTML）", accept: {"text/html": [".html"]}}]});
+      h = await window.showSaveFilePicker({suggestedName: currentFileName() || fileBaseName() + ".html", types: [{description: "スマート週案簿（HTML）", accept: {"text/html": [".html"]}}]});
     }
     if (!(await safeToOverwrite(h))) {
       toast("保存するファイルを選んでください（新しい名前にすると、別のファイルとして保存されます）", 6000);
-      h = await window.showSaveFilePicker({suggestedName: currentFileName() || fileBaseName() + ".html", types: [{description: "週案ツクール（HTML）", accept: {"text/html": [".html"]}}]});
+      h = await window.showSaveFilePicker({suggestedName: currentFileName() || fileBaseName() + ".html", types: [{description: "スマート週案簿（HTML）", accept: {"text/html": [".html"]}}]});
       if (!(await safeToOverwrite(h))) { D.savedAt = prevSaved; toast("保存をやめました"); return; }
     }
     const w = await h.createWritable(); await w.write(html); await w.close();
@@ -924,6 +926,7 @@ function renderWeek() {
     <label class="row" style="gap:4px"><input type="checkbox" id="wSat"${wr.sat ? " checked" : ""}> 土曜授業がある</label>
     <button class="btn" id="wPrint">🖨 印刷（B5縦）</button>
     <button class="btn" id="wPdf" title="印刷の画面で「PDFとして保存」を選ぶと、このファイル名で保存されます">📄 PDFで保存</button>
+    <span class="papernote" title="パソコンによっては、印刷の画面がA4になっていることがあります">印刷の画面で、用紙サイズを<b>「B5」</b>にするのを忘れずに！</span>
   </div>
   <div class="weekbar contbar">
     <button class="btn primary" id="wCont" title="教科ごとに、前の週までに入れた最後の単元・時の次から、この週のコマに入れます">⏩ 前週の単元の続きを入れる</button>
@@ -989,7 +992,7 @@ function weekTotalsHtml(mon) {
     h += `<tr class="${r.child ? "child" : ""}"><td class="n"><span class="chip" style="background:${r.color}"></span>${esc(r.name)}</td><td>${fr(r.vals[0])}</td><td>${fr(r.vals[1])}</td><td>${r.std ?? ""}</td><td class="${rest != null && rest < 0 ? "neg" : ""}">${rateCell(r)}</td></tr>`;
   }
   h += `<tr class="sum"><td class="n">合計</td><td>${fr(s0)}</td><td>${fr(s1)}</td><td></td><td></td></tr></table>
-  <p class="hint">累計は年度のはじめからこの週の終わりまで（予定）です。${D.cls.startDate ? "この週案ツクールを使い始める前の時数（設定で入れた分）もふくみます。" : ""}右の小さい欄に「1/2」などを入れたコマはその時数、空欄は1時間（朝は${esc(D.school.asaHours || "1/3")}時間）で数えます。</p>`;
+  <p class="hint">累計は年度のはじめからこの週の終わりまで（予定）です。${D.cls.startDate ? "このスマート週案簿を使い始める前の時数（設定で入れた分）もふくみます。" : ""}右の小さい欄に「1/2」などを入れたコマはその時数、空欄は1時間（朝は${esc(D.school.asaHours || "1/3")}時間）で数えます。</p>`;
   return h;
 }
 // 教科の欄：一覧から選ぶことも、打ち込むこともできる
@@ -1557,14 +1560,14 @@ function renderSet() {
     <label class="f">学年<select id="sGrade"><option value="">選ぶ</option>${[1,2,3,4,5,6].map(g => `<option value="${g}"${c.grade === g ? " selected" : ""}>${g}年</option>`).join("")}</select></label>
     <label class="f">組<span class="row" style="gap:4px"><input type="text" id="sKumi" value="${esc(c.kumi)}" placeholder="例：1" style="width:80px">組</span></label>
     <label class="f">担任名<input type="text" id="sTeacher" value="${esc(c.teacher)}"></label>
-    <label class="f">この週案ツクールを使い始める日<input type="date" id="sStart" value="${esc(c.startDate)}"></label>
+    <label class="f">このスマート週案簿を使い始める日<input type="date" id="sStart" value="${esc(c.startDate)}"></label>
   </div>
   <h3>印刷の色</h3>
   <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${c.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
     <span class="tp"><span class="tph"></span><span class="tpb"></span><span class="tps"><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s1)"></i><i style="background:var(--sub)"></i><i style="background:var(--tot)"></i></span></span><b>${t.name}</b></button>`).join("")}</div>
   <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(c.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${c.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${c.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label></div>
   <details class="box" style="margin-top:10px"${Object.values(c.init).some(Boolean) ? " open" : ""}><summary>年度のとちゅうから使うとき：それまでの時数</summary>
-    <p class="hint">「この週案ツクールを使い始める日」の1週前までの累計時数を教科ごとに入れてください。使い始める日より前の分は、時間割から数えた時数のかわりにここの時数が使われ、使い始める日からは週案の時数がたされていきます。半端な時数は「12 1/3」のように入れられます。</p>
+    <p class="hint">「このスマート週案簿を使い始める日」の1週前までの累計時数を教科ごとに入れてください。使い始める日より前の分は、時間割から数えた時数のかわりにここの時数が使われ、使い始める日からは週案の時数がたされていきます。半端な時数は「12 1/3」のように入れられます。</p>
     <div class="row">${gradeSubjects().map(x => `<label class="f">${esc(x.name)}<input type="text" class="sInit" data-s="${esc(x.name)}" value="${c.init[x.name] ? fr(c.init[x.name]) : ""}" style="width:70px"></label>`).join("")}</div>
   </details>
   <h2 style="margin-top:20px">学校の設定</h2>
@@ -1598,7 +1601,7 @@ function renderSet() {
   <div class="row"><button class="btn" id="sDist">配布用のファイルを作る</button><label class="row" style="gap:4px"><input type="checkbox" id="sDistUnits"> 学年と単元計画も入れる（同じ学年の先生に配るとき）</label></div>
   <p class="hint">配布用のファイルには、学校の設定（年度・後期・休業日・教科と時数）だけが入ります。組・担任名・時間割・週案は入りません。</p>
   <div class="row" style="margin-top:10px"><button class="btn" id="sExport">データを書き出す（バックアップ）</button><button class="btn" id="sImport">データを読み込む</button><input type="file" id="sFile" accept=".html,.htm,.json" hidden></div>
-  <p class="hint">新しい版の週案ツクールに入れかえるときは、新しいファイルを開いて「データを読み込む」で、今まで使っていたファイルを選んでください。</p>
+  <p class="hint">新しい版のスマート週案簿に入れかえるときは、新しいファイルを開いて「データを読み込む」で、今まで使っていたファイルを選んでください。</p>
   <div class="row" style="margin-top:16px"><button class="btn danger" id="sClear">この年度の週案をすべて消す</button></div>`;
   el.innerHTML = h;
   const upd = (fn, rr = true) => e => { fn(e.target.value, e.target); changed(rr); };
@@ -1673,7 +1676,7 @@ function renderSet() {
     const nd = newData();
     nd.school = JSON.parse(JSON.stringify(D.school));
     if (withU) { nd.cls.grade = D.cls.grade; nd.units = JSON.parse(JSON.stringify(D.units)); nd.unitStart = {...D.unitStart}; nd.unitFrom = {...D.unitFrom}; }
-    download("週案ツクール_" + VERSION + "_配布用" + (withU && D.cls.grade ? "_" + D.cls.grade + "年" : "") + ".html", buildHtml(nd));
+    download("スマート週案簿_" + VERSION + "_配布用" + (withU && D.cls.grade ? "_" + D.cls.grade + "年" : "") + ".html", buildHtml(nd));
     toast("配布用のファイルをダウンロードしました");
   };
   $("#sExport").onclick = () => download(fileBaseName() + "_バックアップ_" + today() + ".json", JSON.stringify(D, null, 1), "application/json");
@@ -1686,7 +1689,7 @@ function renderSet() {
       else { const m = t.match(/<script id="shuan-data" type="application\/json">([\s\S]*?)<\/script>/); if (m) nd = JSON.parse(m[1]); }
     } catch (err) { nd = null; }
     e.target.value = "";
-    if (!nd || nd.app !== "shuan-tsukuru") { toast("週案ツクールのデータが見つかりませんでした"); return; }
+    if (!nd || nd.app !== "shuan-tsukuru") { toast("スマート週案簿のデータが見つかりませんでした"); return; }
     if (!confirm("「" + f.name + "」のデータを読み込みます。いまのデータは置きかわります。よろしいですか？")) return;
     const fid = D.fileId; D = normalize(nd); D.fileId = fid; curWeek = ""; changed(); toast("読み込みました。「保存」を押してください");
   };
