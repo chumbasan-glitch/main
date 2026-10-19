@@ -56,6 +56,8 @@ label.f>*{font-size:14px;color:var(--ink)}
 /* 週案 */
 .weekbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .weekbar select{font-weight:700}
+.contbar{margin-top:-4px}
+.contbar .caution{font-size:12.5px;color:#B23A1E;font-weight:700}
 .weeklayout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start}
 @media (max-width:1100px){.weeklayout{grid-template-columns:minmax(0,1fr)}}
 .gridwrap{overflow-x:auto}
@@ -334,7 +336,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v8.8";
+const VERSION = "v8.9";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -606,6 +608,39 @@ const COURSES = ["ホップ", "ステップ", "ジャンプ"];
 const hasCourse = subj => D.cls.grade >= 3 && subj === "算数";
 const courseOf = x => hasCourse(x.s) && x.unit ? ((D.cls.courses[x.s] || {})[x.unit] || "") : "";
 // その単元で、この日より前に入れた最後の時の次の番号
+// 「前週の単元の続きを入れる」：教科ごとに、この週より前で最後に入れた単元・時の次から、この週のコマに順に入れる
+// （単元や内容がもう入っているコマはそのまま。単元の最後まで行ったら、単元計画の次の単元の1時間目にする）
+function fillContinue(mon) {
+  const last = {};   // 教科 -> {unit, n}
+  for (const dd of Object.keys(D.days).sort()) {
+    if (dd >= mon) break;
+    if (!isSchoolDay(dd)) continue;
+    (D.days[dd].slots || []).forEach((x, i) => {
+      if (i === 0) return;
+      [x, ...(x.parts || [])].forEach(pt => { if (pt.s && pt.unit && parseNos(pt.no).length) last[pt.s] = {unit: pt.unit, n: Math.max(...parseNos(pt.no))}; });
+    });
+  }
+  let filled = 0;
+  for (const d of weekDays(mon)) {
+    if (!isSchoolDay(d)) continue;
+    const sl = ensureSlots(d);
+    for (let i = 1; i <= P(); i++) {
+      const x = sl[i]; if (!x) continue;
+      for (const pt of [x, ...(x.parts || [])]) {
+        const st = pt.s && last[pt.s];
+        if (!st || pt.unit || (pt.t !== undefined && pt.t !== null)) continue;
+        const units = D.units[pt.s] || [];
+        let ui = units.findIndex(u => u.name === st.unit), unit = st.unit, n = st.n + 1;
+        if (ui >= 0 && n > lessonCount(units[ui])) {
+          if (ui + 1 >= units.length) continue;   // 単元計画の最後まで終わっている
+          unit = units[ui + 1].name; n = 1;
+        }
+        pt.unit = unit; pt.no = String(n); last[pt.s] = {unit, n}; filled++;
+      }
+    }
+  }
+  return filled;
+}
 function nextNo(subj, unit, d, i) {
   let last = 0;
   for (const dd of Object.keys(D.days).sort()) {
@@ -888,6 +923,10 @@ function renderWeek() {
     <button class="btn" id="wPrint">🖨 印刷（B5縦）</button>
     <button class="btn" id="wPdf" title="印刷の画面で「PDFとして保存」を選ぶと、このファイル名で保存されます">📄 PDFで保存</button>
   </div>
+  <div class="weekbar contbar">
+    <button class="btn primary" id="wCont" title="教科ごとに、前の週までに入れた最後の単元・時の次から、この週のコマに入れます">⏩ 前週の単元の続きを入れる</button>
+    <span class="caution">⚠ 自動で入れた内容です。必ず先生ご自身で確認してから印刷してください。</span>
+  </div>
   <div class="weeklayout"><div>
   ${Object.keys(D.units).map(k => `<datalist id="ul-${esc(k)}">${(D.units[k] || []).map(u => `<option value="${esc(u.name)}">`).join("")}<option value="なし"></datalist>`).join("")}
   <datalist id="asaList">${gradeSubjects().map(x => `<option value="${esc(x.name)}">`).join("")}${(D.school.asaEvents || []).map(n => `<option value="${esc(n)}">`).join("")}<option value="なし"></datalist>
@@ -991,6 +1030,11 @@ function bindWeek(el, mon) {
   $("#wSat").onchange = e => { ensureWeek(mon).sat = e.target.checked; changed(); };
   $("#wPrint").onclick = doPrint;
   $("#wPdf").onclick = savePdf;
+  $("#wCont").onclick = () => {
+    const n = fillContinue(curWeek);
+    if (!n) { toast("入れられるコマがありませんでした（前の週までに単元と時を入れた教科のコマに入ります）", 5000); return; }
+    changed(); toast(n + "コマに単元の続きを入れました。必ず確認してから印刷してください", 5000);
+  };
   $("#wMemo").oninput = e => { ensureWeek(mon).memo = e.target.value; changed(false); };
   $("#wRec").oninput = e => { ensureWeek(mon).rec = e.target.value; changed(false); };
   $$("textarea.ev", el).forEach(t => t.oninput = () => { ensureDay(t.dataset.d).event = t.value; changed(false); });
