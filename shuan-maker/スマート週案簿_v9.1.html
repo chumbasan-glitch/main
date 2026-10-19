@@ -57,6 +57,7 @@ label.f>*{font-size:14px;color:var(--ink)}
 .weekbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .weekbar select{font-weight:700}
 .contbar{margin-top:-4px}
+.ttver{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
 .weekbar .papernote{width:100%;text-align:right;font-size:12.5px;color:#7A5200;margin-top:-4px}
 .weekbar .papernote b{background:#FFF0C2;padding:0 4px;border-radius:3px}
 .contbar .caution{font-size:12.5px;color:#B23A1E;font-weight:700}
@@ -276,7 +277,7 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 #print table.pt2 tr.sub td{background:var(--sub)}
 #print table.pt2 tr.tot td{background:var(--tot);font-weight:700}
 #print table.pt2 tr.gap td{height:0.8mm;background:var(--pl)}
-#print .memo{flex:1;padding:0.6mm 1mm;font-size:7.5pt;white-space:pre-wrap;overflow:hidden;border-top:0.35mm solid var(--pl)}
+#print .memo{flex:1 1 0;min-height:0;padding:0.6mm 1mm;font-size:7.5pt;white-space:pre-wrap;overflow:hidden;border-top:0.35mm solid var(--pl)}
 #print .rec{border:0.35mm solid var(--pl);border-top:none;height:25mm;padding:0.6mm 1mm;font-size:7.5pt;white-space:pre-wrap;overflow:hidden}
 #print .k{font-weight:700}
 </style>
@@ -340,7 +341,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v9.0";
+const VERSION = "v9.1";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -468,12 +469,16 @@ function normalize(d) {
   if (!d.cls.theme) d.cls.theme = "midori";
   if (!d.cls.font) d.cls.font = "msui";
   if (!d.cls.courses) d.cls.courses = {};
-  if (!d.cls.noAim) d.cls.noAim = {};   // 単元計画の文を週案に入れない教科
+  if (!d.cls.noAim) d.cls.noAim = {};
+  if (!Array.isArray(d.ttChanges)) d.ttChanges = [];   // 年度のとちゅうからの時間割 [{from, tt}]   // 単元計画の文を週案に入れない教科
   if (!Array.isArray(d.school.asaEvents)) d.school.asaEvents = ["全校朝会", "児童集会", "音楽朝会"];
   if (!d.cls.rateMode) d.cls.rateMode = "rate";
   return d;
 }
 D = normalize(loadEmbedded() || newData());
+// 一度も保存していないファイル（新しいファイル・配布用）は、開くたびに別のファイルとして扱う（配った先どうしで同じ印にならないように）
+if (!D.savedAt) D.fileId = Math.random().toString(36).slice(2, 10);
+let baseSaved = D.savedAt || "";   // このファイルを開いたとき（または最後に保存したとき）の保存日時
 
 const P = () => D.school.periods;
 const subjByName = n => D.school.subjects.find(s => s.name === n);
@@ -510,22 +515,29 @@ function isSchoolDay(s) {
   if (r.off === false) return true;
   return !offReason(s);
 }
+// 年度のとちゅうで時間割が変わるとき：その日に使う時間割（変わる日より前は前の時間割）
+function ttOf(date) {
+  let t = D.timetable;
+  for (const c of [...(D.ttChanges || [])].sort((a, b) => a.from < b.from ? -1 : 1)) if (c.from && c.from > yearStart() && c.from <= date) t = c.tt;
+  return t;
+}
 function defaultSlots(s) {
   const w = wday(s); const arr = [];
-  const tt = (w >= 1 && w <= 5) ? D.timetable[w] : [];
+  const tt = (w >= 1 && w <= 5) ? ttOf(s)[w] || [] : [];
   for (let i = 0; i <= P(); i++) arr.push({s: tt[i] || ""});
   return arr;
 }
 function slotsOf(s) {
   const r = D.days[s];
-  if (r && r.slots) { const a = r.slots.slice(0, P() + 1); while (a.length < P() + 1) a.push({s: ""}); return a; }
+  if (r && r.slots) { const a = r.slots.slice(0, P() + 1); const def = defaultSlots(s); while (a.length < P() + 1) a.push({...def[a.length]}); return a; }
   return defaultSlots(s);
 }
 function ensureDay(s) { return D.days[s] || (D.days[s] = {}); }
 function ensureSlots(s) {
   const r = ensureDay(s);
   if (!r.slots) r.slots = defaultSlots(s).map(x => ({...x}));
-  while (r.slots.length < P() + 1) r.slots.push({s: ""});
+  const def = defaultSlots(s);
+  while (r.slots.length < P() + 1) r.slots.push({...def[r.slots.length]});
   return r.slots;
 }
 function ensureWeek(mon) { return D.weeks[mon] || (D.weeks[mon] = {}); }
@@ -590,7 +602,11 @@ function addShorts(d) {
   let presets; try { presets = PRESETS; } catch (e) { return; }
   for (const k of Object.keys(presets)) {
     const pr = presets[k]; const mine = (d.units || {})[pr.subject] || [];
-    for (const u of mine) { const src = pr.units.find(x => x.name === u.name); if (src && src.short && !u.short) u.short = src.short.slice(); }
+    for (const u of mine) {
+      if (u.short) continue;
+      const src = pr.units.find(x => x.name === u.name && JSON.stringify(x.lessons || []) === JSON.stringify(u.lessons || []));
+      if (src && src.short) u.short = src.short.slice();
+    }
   }
 }
 // 週案に入る学習内容：短い文（ねらいの形）があればそれ、なければもとの文
@@ -617,31 +633,33 @@ const courseOf = x => hasCourse(x.s) && x.unit ? ((D.cls.courses[x.s] || {})[x.u
 // （単元や内容がもう入っているコマはそのまま。単元の最後まで行ったら、単元計画の次の単元の1時間目にする）
 function fillContinue(mon) {
   const last = {};   // 教科 -> {unit, n}
+  const note = pt => { if (pt.s && pt.unit && parseNos(pt.no).length) last[pt.s] = {unit: pt.unit, n: Math.max(...parseNos(pt.no))}; };
+  // この年度の、この週より前に入れた単元・時（前の年度の分は見ない）
   for (const dd of Object.keys(D.days).sort()) {
+    if (dd < yearStart()) continue;
     if (dd >= mon) break;
     if (!isSchoolDay(dd)) continue;
-    (D.days[dd].slots || []).forEach((x, i) => {
-      if (i === 0) return;
-      [x, ...(x.parts || [])].forEach(pt => { if (pt.s && pt.unit && parseNos(pt.no).length) last[pt.s] = {unit: pt.unit, n: Math.max(...parseNos(pt.no))}; });
-    });
+    (D.days[dd].slots || []).slice(1, P() + 1).forEach(x => [x, ...(x.parts || [])].forEach(note));
   }
   let filled = 0;
   for (const d of weekDays(mon)) {
     if (!isSchoolDay(d)) continue;
-    const sl = ensureSlots(d);
     for (let i = 1; i <= P(); i++) {
-      const x = sl[i]; if (!x) continue;
-      for (const pt of [x, ...(x.parts || [])]) {
-        const st = pt.s && last[pt.s];
-        if (!st || pt.unit || (pt.t !== undefined && pt.t !== null)) continue;
-        const units = D.units[pt.s] || [];
-        let ui = units.findIndex(u => u.name === st.unit), unit = st.unit, n = st.n + 1;
+      const x0 = slotsOf(d)[i]; if (!x0) continue;
+      [x0, ...(x0.parts || [])].forEach((p0, k) => {
+        if (p0.unit) { note(p0); return; }   // この週に自分で入れた単元は、そのあとの番号の基にする
+        const st = p0.s && last[p0.s];
+        if (!st || (p0.t !== undefined && p0.t !== null)) return;
+        const units = D.units[p0.s] || [];
+        const ui = units.findIndex(u => u.name === st.unit);
+        let unit = st.unit, n = st.n + 1;
         if (ui >= 0 && n > lessonCount(units[ui])) {
-          if (ui + 1 >= units.length) continue;   // 単元計画の最後まで終わっている
+          if (ui + 1 >= units.length) return;   // 単元計画の最後まで終わっている
           unit = units[ui + 1].name; n = 1;
         }
-        pt.unit = unit; pt.no = String(n); last[pt.s] = {unit, n}; filled++;
-      }
+        const x = ensureSlots(d)[i]; const pt = k ? x.parts[k - 1] : x;   // 書きこむコマだけ、週案に記録する
+        pt.unit = unit; pt.no = String(n); last[p0.s] = {unit, n}; filled++;
+      });
     }
   }
   return filled;
@@ -649,6 +667,7 @@ function fillContinue(mon) {
 function nextNo(subj, unit, d, i) {
   let last = 0;
   for (const dd of Object.keys(D.days).sort()) {
+    if (dd < yearStart()) continue;   // 前の年度の分は数えない
     if (dd > d) break;
     (D.days[dd].slots || []).forEach((x, ii) => {
       if (dd === d && ii >= i) return;
@@ -659,7 +678,7 @@ function nextNo(subj, unit, d, i) {
 }
 // 時数は1/12時間単位で数える（1/2・1/3・1/4を正しくたせるように）
 const U = 12;
-const FRAC = {2: "1/6", 3: "1/4", 4: "1/3", 6: "1/2", 8: "2/3", 9: "3/4", 10: "5/6"};
+const FRAC = {1: "1/12", 2: "1/6", 3: "1/4", 4: "1/3", 5: "5/12", 6: "1/2", 7: "7/12", 8: "2/3", 9: "3/4", 10: "5/6", 11: "11/12"};
 function fr(t) {
   t = Math.round(t || 0);
   if (!t) return "0";
@@ -706,7 +725,31 @@ function changed(rerender = true) {
   D.rev++; dirty = true; CY = null;
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify({rev: D.rev, at: new Date().toISOString(), data: D})); } catch (e) {}
   showSaveState();
-  if (rerender) render();
+  if (rerender) renderAfterInput();
+}
+// 欄から出たとき（change）にすぐ描き直すと、次にクリックした欄が消えて入力が失われる。
+// そのときだけ、クリックした先に移ってから描き直す（描き直したあと、同じ欄にカーソルを戻す）
+function renderAfterInput() {
+  const ev = window.event;
+  if (ev && ["change", "blur", "focusout"].includes(ev.type)) { clearTimeout(renderAfterInput.t); renderAfterInput.t = setTimeout(render, 0); }
+  else render();
+}
+// 画面の中の場所（idのある要素から何番目の子をたどるか）で、入力欄をおぼえる
+function focusKey() {
+  const a = document.activeElement;
+  if (!a || a === document.body || !/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(a.tagName)) return null;
+  const path = []; let e = a;
+  while (e && !e.id) { const p = e.parentElement; if (!p) return null; path.unshift(Array.prototype.indexOf.call(p.children, e)); e = p; }
+  if (!e) return null;
+  return {id: e.id, path, tag: a.tagName, cls: a.className, s: a.selectionStart, e: a.selectionEnd};
+}
+function restoreFocus(k) {
+  if (!k) return;
+  let e = document.getElementById(k.id);
+  for (const i of k.path) { if (!e) return; e = e.children[i]; }
+  if (!e || e.tagName !== k.tag || e.className.replace(/ ?auto/, "") !== String(k.cls).replace(/ ?auto/, "") || e === document.activeElement) return;
+  e.focus({preventScroll: true});
+  try { if (k.s !== null && k.s !== undefined && e.setSelectionRange && e.type !== "date") e.setSelectionRange(Math.min(k.s, e.value.length), Math.min(k.e, e.value.length)); } catch (x) {}
 }
 function showSaveState() {
   $("#saveState").textContent = dirty ? "保存していない変更があります" : (D.savedAt ? "保存済み " + D.savedAt.slice(5, 16).replace("T", " ").replace("-", "/") : "");
@@ -755,19 +798,30 @@ async function safeToOverwrite(h) {
     if (m) v = JSON.parse(m[1]);
   } catch (e) { return true; }
   if (!v || v.app !== "shuan-tsukuru") return true;
-  if (v.fileId === D.fileId && (v.rev || 0) <= D.rev) return true;
+  if (!v.savedAt) return true;   // まだ一度も保存されていないファイル（新しいファイル・配布用）
+  if (v.fileId === D.fileId && v.savedAt <= baseSaved) return true;   // このファイル自身（開いたあと、ほかで保存されていない）
   const who = (v.cls && v.cls.grade ? v.cls.grade + "年" + (v.cls.kumi ? v.cls.kumi + "組" : "") + " " : "") + (v.savedAt ? v.savedAt.replace("T", " ") + "に保存" : "");
   return confirm("保存先の「" + h.name + "」には、いま開いている週案とは別の（または新しい）データが入っています。" + (who ? "（" + who + "）" : "") +
     "\n上書きすると、そのデータは消えます。\n\n上書きするときは「OK」、別のファイルに保存するときは「キャンセル」を押してください。");
 }
 async function save() {
+  if (save.busy) return;   // 2回続けて押したとき
+  // 入力中の欄の内容を先に確定させる（欄から出たときに入る欄があるため）
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  save.busy = true;
+  try { await saveInner(); } finally { save.busy = false; }
+}
+async function saveInner() {
+  const rev0 = D.rev;
+  // 保存しているあいだに入力があったら、「保存していない変更」として残す
+  const done = () => { baseSaved = D.savedAt; if (D.rev === rev0) { dirty = false; try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} } showSaveState(); };
   const prevSaved = D.savedAt;
   const now = new Date();
   D.savedAt = fmt(now) + "T" + pad(now.getHours()) + ":" + pad(now.getMinutes());
   const html = buildHtml(D);
   if (!window.showSaveFilePicker) {
     download(currentFileName() || fileBaseName() + ".html", html);
-    dirty = false; showSaveState();
+    done();
     toast("ダウンロードしました。前のファイルと置きかえてください");
     return;
   }
@@ -792,8 +846,7 @@ async function save() {
     }
     const w = await h.createWritable(); await w.write(html); await w.close();
     handle = h; await idbSet("h:" + location.href, h);
-    dirty = false; showSaveState();
-    try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+    done();
     const cur = currentFileName();
     if (cur && h.name !== cur) toast("「" + h.name + "」に保存しました。次からはそのファイルを開いてください", 7000);
     else toast("保存しました");
@@ -813,11 +866,14 @@ function subjOptions(sel, withBlank = true) {
   return h;
 }
 function render() {
+  clearTimeout(renderAfterInput.t);
+  const fk = focusKey();
   applyFont();
   $("#hdrCls").textContent = D.cls.grade ? `${D.school.year}年度　${D.cls.grade}年${D.cls.kumi ? D.cls.kumi + "組" : ""}　${D.cls.teacher}` : "";
   renderBanners();
   ({week: renderWeek, tt: renderTT, units: renderUnits, hours: renderHours, set: renderSet})[curTab]();
   showSaveState();
+  restoreFocus(fk);
 }
 function renderBanners() {
   let h = "";
@@ -898,13 +954,15 @@ function slotHtml(d, i, x, off) {
     ph += `<div class="part" data-k="${k}" style="--c:${pcol};--cbg:${pt.s ? pcol + "55" : "#fff"}">
       <div class="sh"><input type="text" class="psubj" list="subjList" value="${esc(pt.s || "")}" placeholder="教科"><input type="text" class="phr${hrWarn(pt)}" value="${esc(pt.h || "")}" placeholder="" title="この部分の時数"><button class="pdel" title="分けるのをやめる">×</button></div>
       ${pt.s ? unitFields(pt, " p") : ""}
-      <textarea class="pct${pm ? "" : " auto"}" placeholder="内容（例：避難訓練）">${esc(pm ? pt.t : (inf2.auto || ""))}</textarea>
+      <textarea class="pct${pm ? "" : " auto"}" placeholder="内容（例：避難訓練）">
+${esc(pm ? pt.t : (inf2.auto || ""))}</textarea>
     </div>`;
   });
   return `<div class="slot${split ? " split" : ""}" draggable="true" data-d="${d}" data-i="${i}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}">
     <div class="sh"><span class="grip" title="ドラッグして別のコマと入れかえ">⋮⋮</span><input type="text" class="subj" list="subjList" value="${esc(x.s || "")}" placeholder="―"><input type="text" class="hr${hrWarn(x)}" value="${esc(x.h || "")}" placeholder="${split ? "" : "1"}" title="このコマの時数（1/2・1/3など）。${split ? "分けたときは必ず入れます" : "空欄は1時間"}"></div>
     ${x.s ? unitFields(x, "") : ""}
-    <div class="tw"><textarea class="ct${manual ? "" : " auto"}" placeholder="学習内容・めあて">${esc(val)}</textarea>${manual && inf.auto ? '<button class="rv" title="単元計画の内容にもどす">↺</button>' : ""}</div>
+    <div class="tw"><textarea class="ct${manual ? "" : " auto"}" placeholder="学習内容・めあて">
+${esc(val)}</textarea>${manual && inf.auto ? '<button class="rv" title="単元計画の内容にもどす">↺</button>' : ""}</div>
     ${ph}${!off && parts.length < 2 ? `<button class="btn small psplit" title="1時間の中に行事などがあるとき、コマを分けます（3つまで）">＋分ける</button>` : ""}
   </div>`;
 }
@@ -950,7 +1008,8 @@ function renderWeek() {
   h += `</tr></thead><tbody><tr><th class="lab">行事</th>`;
   for (const d of days) {
     const hol = holiday(d) || breakOf(d);
-    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="ev" data-d="${d}" placeholder="${esc(hol || "")}">${esc(dayRec(d).event || "")}</textarea></td>`;
+    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="ev" data-d="${d}" placeholder="${esc(hol || "")}">
+${esc(dayRec(d).event || "")}</textarea></td>`;
   }
   h += `</tr><tr><th class="lab">朝</th>`;
   for (const d of days) {
@@ -965,15 +1024,19 @@ function renderWeek() {
     // 中休み（2時間目のあと）・昼休み（4時間目のあと）
     for (const [after, key, lab] of BREAKS) if (i === Math.min(after, P())) {
       h += `<tr class="brk"><th class="lab">${lab}</th>`;
-      for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="br" data-d="${d}" data-k="${key}" placeholder="${lab}休みの予定">${esc(dayRec(d)[key] || "")}</textarea></td>`;
+      for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="br" data-d="${d}" data-k="${key}" placeholder="${lab}休みの予定">
+${esc(dayRec(d)[key] || "")}</textarea></td>`;
       h += "</tr>";
     }
   }
   h += `<tr><th class="lab">備考</th>`;
-  for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="note" data-d="${d}" placeholder="記録・振り返り">${esc(dayRec(d).note || "")}</textarea></td>`;
+  for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="note" data-d="${d}" placeholder="記録・振り返り">
+${esc(dayRec(d).note || "")}</textarea></td>`;
   h += `</tr></tbody></table></div>
-  <div class="memo" style="margin-top:8px"><b>メモ</b>（印刷では時数表の下）<textarea id="wMemo" placeholder="連絡・持ち物など">${esc(wr.memo || "")}</textarea></div>
-  <div class="memo" style="margin-top:8px"><b>記録欄</b>（印刷ではいちばん下）<textarea id="wRec" placeholder="週の振り返り・記録">${esc(wr.rec || "")}</textarea></div>
+  <div class="memo" style="margin-top:8px"><b>メモ</b>（印刷では時数表の下）<textarea id="wMemo" placeholder="連絡・持ち物など">
+${esc(wr.memo || "")}</textarea></div>
+  <div class="memo" style="margin-top:8px"><b>記録欄</b>（印刷ではいちばん下）<textarea id="wRec" placeholder="週の振り返り・記録">
+${esc(wr.rec || "")}</textarea></div>
   <p class="hint">・教科の欄は、クリックすると一覧が出ます。打ち込んでもかまいません。消すときは「なし」を選びます。<br>・教科の下に【単元】【時】を入れると、単元計画からその時間の学習内容が入ります。2時間分を1時間でやるときは、時に「2-3」と入れます（内容は第2時のもの、印刷は「やまなし②③」）。単元を選ぶと、時には前の続きの番号が入ります。単元の欄はクリックするといつでも全部の単元が出るので、まちがえたときは選び直せます（消すときは「なし」）。<br>・コマの左の「⋮⋮」をドラッグすると、別のコマと入れかえられます（授業変更）。<br>・学習内容を書きかえると、その文が優先されます。「↺」で単元計画の内容にもどせます。</p>
   </div>
   <div class="side">${weekTotalsHtml(mon)}</div></div>`;
@@ -1001,7 +1064,7 @@ function bindSubj(inp, apply) {
   const orig = inp.value;
   inp.addEventListener("focus", () => { inp.placeholder = inp.value || "―"; inp.value = ""; });   // 一覧を全部出すため
   inp.addEventListener("blur", () => { if (inp.value === "") inp.value = orig; });
-  inp.addEventListener("keydown", e => { if (e.key === "Enter") inp.blur(); if (e.key === "Delete" && inp.value === "") { inp.dataset.clear = "1"; inp.blur(); } });
+  inp.addEventListener("keydown", e => { if (e.isComposing || e.keyCode === 229) return; if (e.key === "Enter") inp.blur(); if (e.key === "Delete" && inp.value === "") { inp.dataset.clear = "1"; inp.blur(); } });
   inp.addEventListener("change", () => {
     const v = inp.value.trim();
     if (v === "" || v === orig) return;
@@ -1012,6 +1075,7 @@ function bindSubj(inp, apply) {
   inp.addEventListener("blur", () => { if (inp.dataset.clear) { delete inp.dataset.clear; apply(""); changed(); } });
 }
 // 分けたコマで1つの時数を入れたら、残りの1つに「1時間 − 入れた分」を自動で入れる
+const SLOT_MIME = "application/x-shuan-slot";
 function fillRest(x, edited) {
   const all = [x, ...(x.parts || [])];
   if (all.length < 2) return;
@@ -1062,7 +1126,7 @@ function bindWeek(el, mon) {
   });
   $$(".slot", el).forEach(sl => {
     const d = sl.dataset.d, i = +sl.dataset.i;
-    bindSubj($("input.subj", sl), v => { const s = ensureSlots(d); s[i] = {s: v, ...(s[i].parts ? {parts: s[i].parts} : {})}; });
+    bindSubj($("input.subj", sl), v => { const s = ensureSlots(d); const o = s[i]; s[i] = {s: v, ...(o.parts ? {parts: o.parts, ...(o.h ? {h: o.h} : {}), ...(o.hAuto ? {hAuto: true} : {})} : {})}; });
     const bindUnit = (box, get) => {
       if (!box) return;
       const uf = box.querySelector(":scope > .uf"); if (!uf) return;
@@ -1078,7 +1142,7 @@ function bindWeek(el, mon) {
       const orig = un.value;
       un.addEventListener("focus", () => { un.placeholder = un.value || "単元"; un.value = ""; });
       un.addEventListener("blur", () => { if (un.value === "") un.value = orig; });
-      un.addEventListener("keydown", e => { if (e.key === "Enter") un.blur(); });
+      un.addEventListener("keydown", e => { if (e.isComposing || e.keyCode === 229) return; if (e.key === "Enter") un.blur(); });
       un.onchange = () => {
         const x = get(); const v = un.value.trim();
         if (v === "" || v === orig) return;
@@ -1096,33 +1160,50 @@ function bindWeek(el, mon) {
     bindUnit(sl, () => ensureSlots(d)[i]);
     $("input.hr", sl).onchange = e => { const x = ensureSlots(d)[i]; setHours(x, e.target); delete x.hAuto; fillRest(x, x); changed(); };
     const ps = $(".psplit", sl);
-    if (ps) ps.onclick = () => { const x = ensureSlots(d)[i]; (x.parts = x.parts || []).push({s: "行事"}); changed(); };
+    if (ps) ps.onclick = () => {
+      const x = ensureSlots(d)[i]; const nw = {s: "行事"};
+      (x.parts = x.parts || []).push(nw);
+      // 分けたらすぐ時数が0にならないように、2つなら1/2ずつ、3つなら残りを自動で入れる
+      if (x.parts.length === 1) { if (!(parseHours(x.h) > 0) || x.hAuto) { x.h = "1/2"; x.hAuto = true; } fillRest(x, x); }
+      else fillRest(x, null);
+      changed();
+    };
     $$(".part", sl).forEach(pe => {
       const k = +pe.dataset.k;
       const pt = () => ensureSlots(d)[i].parts[k];
       bindSubj($("input.psubj", pe), v => { ensureSlots(d)[i].parts[k] = {s: v, h: pt().h}; });
       $("input.phr", pe).onchange = e => { const x = ensureSlots(d)[i]; setHours(pt(), e.target); delete pt().hAuto; fillRest(x, pt()); changed(); };
-      $("button.pdel", pe).onclick = () => { const x = ensureSlots(d)[i]; x.parts.splice(k, 1); if (!x.parts.length) { delete x.parts; delete x.adv; } changed(); };
+      $("button.pdel", pe).onclick = () => {
+        const x = ensureSlots(d)[i]; x.parts.splice(k, 1);
+        // 自動で入れた時数は入れ直す（分けるのをやめたら、もとの1時間にもどす）
+        for (const p of [x, ...x.parts]) if (p.hAuto) { delete p.h; delete p.hAuto; }
+        if (!x.parts.length) { delete x.parts; delete x.adv; }
+        else if (![x, ...x.parts].some(p => parseHours(p.h) > 0)) { x.h = fr(Math.round(U / (x.parts.length + 1))); x.hAuto = true; fillRest(x, x); }
+        else fillRest(x, null);
+        changed();
+      };
       bindUnit(pe, pt);
       const ta = $("textarea.pct", pe);
       ta.oninput = () => { pt().t = ta.value; ta.classList.remove("auto"); changed(false); };
     });
     const ta = $("textarea.ct", sl);
     ta.oninput = () => { const s = ensureSlots(d)[i]; s.t = ta.value; ta.classList.remove("auto"); changed(false); };
-    ta.onchange = () => render();
+    ta.onchange = () => renderAfterInput();
     const rv = $(".rv", sl);
     if (rv) rv.onclick = () => { delete ensureSlots(d)[i].t; changed(); };
     // 授業変更（コマの入れかえ）
     sl.addEventListener("dragstart", e => {
       if (!e.target.classList || !e.target.classList.contains("slot")) return;
-      e.dataTransfer.setData("text/plain", d + "|" + i); e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData(SLOT_MIME, d + "|" + i); e.dataTransfer.effectAllowed = "move";
     });
-    sl.addEventListener("dragover", e => { e.preventDefault(); sl.classList.add("drag-over"); });
+    sl.addEventListener("dragover", e => { if (!Array.from(e.dataTransfer.types).includes(SLOT_MIME)) return; e.preventDefault(); sl.classList.add("drag-over"); });
     sl.addEventListener("dragleave", () => sl.classList.remove("drag-over"));
     sl.addEventListener("drop", e => {
-      e.preventDefault(); sl.classList.remove("drag-over");
-      const src = e.dataTransfer.getData("text/plain"); if (!src || src.indexOf("|") < 0) return;
+      sl.classList.remove("drag-over");
+      const src = e.dataTransfer.getData(SLOT_MIME); if (!src) return;
+      e.preventDefault();
       const [d2, i2s] = src.split("|"); const i2 = +i2s;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d2) || !(i2 >= 1 && i2 <= P() && Number.isInteger(i2))) return;
       if (d2 === d && i2 === i) return;
       const a = ensureSlots(d), b = ensureSlots(d2);
       const tmp = a[i]; a[i] = b[i2]; b[i2] = tmp;
@@ -1179,6 +1260,17 @@ function renderPrint() {
     }
     return 4;
   };
+  // 行事・中休み・昼休み・備考：入りきらないときは文字を小さくする（切れないように）
+  const fitBox = (text, hmm, base = 7) => {
+    const w = colw - 1.4;
+    for (let fs = base; fs > 4; fs -= 0.3) {
+      const ch = fs * 0.3528, cpl = Math.max(1, Math.floor(w / ch)), lines = Math.floor((hmm - 0.8) / (ch * 1.28));
+      const need = String(text).split("\n").reduce((a, l) => a + Math.max(1, Math.ceil(Array.from(l).length / cpl)), 0);
+      if (need <= lines) return fs;
+    }
+    return 4;
+  };
+  const boxStyle = (text, hmm) => `max-height:${(hmm - 0.4).toFixed(1)}mm;font-size:${fitBox(text || "", hmm).toFixed(1)}pt`;
   // 教科の欄（内容より少し大きい文字。長い名前は欄に入る大きさまで小さくする）
   const SF = Math.min(7.5, BASE + 1.2);
   const strip = (pt, cls = "") => {
@@ -1217,21 +1309,21 @@ function renderPrint() {
   h += `</tr></thead><tbody><tr style="height:7mm"><th class="l">行事</th>`;
   for (const d of days) {
     const off = !isSchoolDay(d); const r = offReason(d);
-    h += `<td colspan="2" class="${off ? "hol" : ""}"><div class="cb" style="max-height:6.6mm">${esc(dayRec(d).event || "")}</div></td>`;
+    h += `<td colspan="2" class="${off ? "hol" : ""}"><div class="cb" style="${boxStyle(dayRec(d).event, 7)}">${esc(dayRec(d).event || "")}</div></td>`;
   }
   h += "</tr>";
   const two = (i, lab, big) => {
     const cs = days.map(d => cell(d, i));
     return `<tr style="height:${ST}mm"><th class="l${big ? " big" : ""}" rowspan="2">${lab}</th>${cs.map(x => x[0]).join("")}</tr><tr style="height:${(i === 0 ? 5 : cont).toFixed(1)}mm">${cs.map(x => x[1]).join("")}</tr>`;
   };
-  const band = (key, lab) => `<tr class="band" style="height:${BH}mm"><th class="l">${lab}</th>${days.map(d => isSchoolDay(d) ? `<td colspan="2"><div class="cb" style="max-height:${BH - 0.3}mm">${esc(dayRec(d)[key] || "")}</div></td>` : `<td colspan="2" class="hol"></td>`).join("")}</tr>`;
+  const band = (key, lab) => `<tr class="band" style="height:${BH}mm"><th class="l">${lab}</th>${days.map(d => isSchoolDay(d) ? `<td colspan="2"><div class="cb" style="${boxStyle(dayRec(d)[key], BH)}">${esc(dayRec(d)[key] || "")}</div></td>` : `<td colspan="2" class="hol"></td>`).join("")}</tr>`;
   h += two(0, `<span class="mj">モジュ<br>ール</span>`, false);
   for (let i = 1; i <= P(); i++) {
     h += two(i, i, true);
     for (const [after, key, lab] of BREAKS) if (i === Math.min(after, P())) h += band(key, lab);
   }
   h += `<tr style="height:9mm"><th class="l">備考</th>`;
-  for (const d of days) h += `<td colspan="2" class="${isSchoolDay(d) ? "" : "hol"}"><div class="cb" style="max-height:8.6mm">${esc(dayRec(d).note || "")}</div></td>`;
+  for (const d of days) h += `<td colspan="2" class="${isSchoolDay(d) ? "" : "hol"}"><div class="cb" style="${boxStyle(dayRec(d).note, 9)}">${esc(dayRec(d).note || "")}</div></td>`;
   h += `</tr></tbody></table>`;
   // 時数表
   const last = addDays(mon, 6);
@@ -1274,19 +1366,29 @@ function doPrint() { document.title = pdfName(); renderPrint(); window.print(); 
 window.addEventListener("beforeprint", () => { if (curWeek) document.title = pdfName(); renderPrint(); });
 
 /* 時間割タブ */
-let ttPick = "";
+let ttPick = "", ttSel = -1;   // ttSel：-1＝年度はじめの時間割、0〜＝とちゅうから変わる時間割
+const curTT = () => ttSel >= 0 && D.ttChanges[ttSel] ? D.ttChanges[ttSel].tt : D.timetable;
 function renderTT() {
   const el = $("#tab-tt");
   const subs = gradeSubjects();
   if (ttPick && !subs.find(x => x.name === ttPick) && !isAsaEvent(ttPick)) ttPick = "";
   const c = D.cls;
-  let h = `<div class="ttwrap"><div>
-    <div class="tthead"><b>ふだんの時間割</b><span>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</span></div>
+  if (ttSel >= D.ttChanges.length) ttSel = -1;
+  D.ttChanges.sort((a, b) => a.from < b.from ? -1 : 1);
+  const T = curTT();
+  let h = `<div class="ttver">
+    <button class="btn small${ttSel < 0 ? " primary" : ""}" data-tv="-1">年度はじめから</button>
+    ${D.ttChanges.map((t, k) => `<button class="btn small${ttSel === k ? " primary" : ""}" data-tv="${k}">${t.from ? md(t.from) : "?"}から</button>`).join("")}
+    <span class="row" style="gap:4px;margin-left:8px"><input type="date" id="ttNewDate"><button class="btn small" id="ttNew">この日から時間割を変える</button></span>
+    ${ttSel >= 0 ? `<span class="row" style="gap:4px;margin-left:auto">変わる日<input type="date" id="ttFrom" value="${esc(D.ttChanges[ttSel].from)}"><button class="btn small danger" id="ttDel">この時間割を消す</button></span>` : ""}
+  </div>
+  <div class="ttwrap"><div>
+    <div class="tthead"><b>${ttSel < 0 ? "ふだんの時間割" : md(D.ttChanges[ttSel].from) + "からの時間割"}</b><span>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</span></div>
     <table class="tt2"><tr><th></th>${[1,2,3,4,5].map(w => `<th>${WD[w]}</th>`).join("")}</tr>`;
   for (let i = 0; i <= P(); i++) {
     h += `<tr><th>${i === 0 ? `朝<small>${esc(D.school.asaHours || "1/3")}時間</small>` : i}</th>`;
     for (const w of [1,2,3,4,5]) {
-      const v = D.timetable[w][i] || "";
+      const v = (T[w] || [])[i] || "";
       h += `<td data-w="${w}" data-i="${i}" style="${v ? "background:" + colorOf(v) + ";border-color:" + colorOf(v) : ""}">${esc(v)}</td>`;
     }
     h += "</tr>";
@@ -1298,8 +1400,21 @@ function renderTT() {
     <div class="ttbtns ttasa">${(D.school.asaEvents || []).map(n => `<button data-s="${esc(n)}" data-asa="1" class="${ttPick === n ? "on" : ""}" style="--sc:#E9E9E9">${esc(n)}</button>`).join("")}</div>
     <p class="hint">・同じ教科のマスをもう一度クリックすると消えます。<br>・押したままなぞると、まとめて入れられます。</p>
   </div></div>
-  <p class="hint">ここに入れた時間割が、毎週の週案（月〜金）に自動で入ります。週案で直したところは、そちらが優先されます。祝日と学校の休業日は自動で空欄になります。</p>`;
+  <p class="hint">ここに入れた時間割が、毎週の週案（月〜金）に自動で入ります。週案で直したところは、そちらが優先されます。祝日と学校の休業日は自動で空欄になります。<br>
+  年度のとちゅうで時間割が変わるとき（5時間から6時間になる、など）は、上で日付を選んで「この日から時間割を変える」を押し、新しい時間割を入れます。その日より前の週は、前の時間割のままです。（6時間目がある時間割にするときは、設定の「1日の時間数」を6にしておきます）</p>`;
   el.innerHTML = h;
+  $$("[data-tv]", el).forEach(b => b.onclick = () => { ttSel = +b.dataset.tv; render(); });
+  $("#ttNew").onclick = () => {
+    const d = $("#ttNewDate").value;
+    if (!d) { toast("時間割が変わる日を選んでください"); return; }
+    if (d <= yearStart() || d > yearEnd()) { toast("この年度の中の日を選んでください"); return; }
+    if (D.ttChanges.some(t => t.from === d)) { toast("その日から変わる時間割はもうあります"); return; }
+    const base = ttOf(d); D.ttChanges.push({from: d, tt: JSON.parse(JSON.stringify(base))});
+    D.ttChanges.sort((a, b) => a.from < b.from ? -1 : 1); ttSel = D.ttChanges.findIndex(t => t.from === d);
+    changed(); toast(md(d) + "からの時間割を作りました（今の時間割を写してあります）。変わるところを直してください", 5000);
+  };
+  if ($("#ttFrom")) $("#ttFrom").onchange = e => { const d = e.target.value; if (!d || d <= yearStart() || D.ttChanges.some((t, k) => k !== ttSel && t.from === d)) { toast("その日にはできません"); return render(); } D.ttChanges[ttSel].from = d; changed(); };
+  if ($("#ttDel")) $("#ttDel").onclick = () => { if (!confirm(md(D.ttChanges[ttSel].from) + "からの時間割を消しますか？（その日からも前の時間割になります）")) return; D.ttChanges.splice(ttSel, 1); ttSel = -1; changed(); };
   $$(".ttbtns button", el).forEach(b => b.onclick = () => { ttPick = ttPick === b.dataset.s ? "" : b.dataset.s; render(); });
   // クリック1回で入れる。同じ教科ならけす。なぞってまとめて入れる
   let painting = null;
@@ -1307,7 +1422,7 @@ function renderTT() {
     if (isAsaEvent(ttPick) && +td.dataset.i !== 0) return;
     const w = td.dataset.w, i = +td.dataset.i;
     const v = painting === "" ? "" : ttPick;
-    D.timetable[w][i] = v;
+    (T[w] = T[w] || [])[i] = v;
     td.textContent = v; td.style.background = v ? colorOf(v) : ""; td.style.borderColor = v ? colorOf(v) : "";
   };
   $$("td[data-w]", el).forEach(td => {
@@ -1315,7 +1430,7 @@ function renderTT() {
       e.preventDefault();
       if (!ttPick) { toast("先に右の教科ボタンを選んでください"); return; }
       if (isAsaEvent(ttPick) && +td.dataset.i !== 0) { toast("朝会は朝の欄にだけ入れられます"); return; }
-      painting = (D.timetable[td.dataset.w][+td.dataset.i] || "") === ttPick ? "" : ttPick;
+      painting = ((T[td.dataset.w] || [])[+td.dataset.i] || "") === ttPick ? "" : ttPick;
       paint(td);
     };
     td.onmouseenter = () => { if (painting !== null) paint(td); };
@@ -1361,12 +1476,14 @@ function importUnits(text, replace) {
     if (!unit) { errs.push(`${li + 1}行目：単元名がありません`); return; }
     const list = (got[sname] = got[sname] || []);
     let u = list.find(x => x.name === unit);
-    if (!u) { u = {name: unit, total: 0, lessons: []}; list.push(u); }
-    const third = r[2] || "", fourth = r.slice(3).filter(Boolean).join(" ");
-    if (r.length >= 4 && (fourth || third)) {
-      const n = parseLessonNo(third);
-      if (isFinite(n) && n >= 1 && n <= 300) { while (u.lessons.length < n - 1) u.lessons.push(""); u.lessons[n - 1] = fourth; }
-      else u.lessons.push(fourth);
+    if (!u) { u = {name: unit, total: 0, lessons: [], short: []}; list.push(u); }
+    const third = r[2] || "", fourth = r[3] || "", fifth = r[4] || "";
+    if (r.length >= 4 && (fourth || fifth || third)) {
+      let n = parseLessonNo(third);
+      if (!(isFinite(n) && n >= 1 && n <= 300)) n = u.lessons.length + 1;
+      while (u.lessons.length < n) u.lessons.push("");
+      u.lessons[n - 1] = fourth;
+      if (fifth) { while (u.short.length < n) u.short.push(""); u.short[n - 1] = fifth; }
     } else if (third) {
       const n = parseLessonNo(third);
       if (isFinite(n)) u.total = n; else u.lessons.push(third);
@@ -1374,19 +1491,24 @@ function importUnits(text, replace) {
   });
   const msgs = [];
   for (const s in got) {
-    for (const u of got[s]) u.total = Math.max(u.total, u.lessons.length);
+    for (const u of got[s]) { u.total = Math.max(u.total, u.lessons.length); if (!u.short.some(Boolean)) delete u.short; }
     if (!D.units[s] || !D.units[s].length || replace) { D.unitStart[s] = unitStartDefault(); delete D.unitFrom[s]; }
-    if (replace || !D.units[s]) D.units[s] = got[s];
-    else for (const u of got[s]) { const i = D.units[s].findIndex(x => x.name === u.name); if (i >= 0) D.units[s][i] = u; else D.units[s].push(u); }
+    const old = D.units[s] || [];
+    // 貼り付けには入っていない「ねらい」「月」などは、同じ名前の単元から引きつぐ
+    const keep = u => { const o = old.find(x => x.name === u.name); return o ? {...o, name: u.name, total: u.total, lessons: u.lessons, short: u.short} : u; };
+    if (replace || !D.units[s]) D.units[s] = got[s].map(keep);
+    else for (const u of got[s]) { const i = old.findIndex(x => x.name === u.name); if (i >= 0) D.units[s][i] = keep(u); else D.units[s].push(u); }
     msgs.push(`${s}：${got[s].length}単元（${got[s].reduce((a, u) => a + lessonCount(u), 0)}時間）`);
   }
   return {msgs, errs};
 }
+// 改行やタブを含む欄は "…" でかこむ（Excelに貼ると1つのセルに入り、貼りもどしても同じになる）
+const tsvCell = v => { v = String(v); return /[\t\n"]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
 function unitsToTSV() {
   let t = "教科\t単元名\t時間\t学習内容\t週案に入る文\n";
   for (const s of D.school.subjects) for (const u of D.units[s.name] || []) {
     const n = lessonCount(u);
-    for (let i = 0; i < n; i++) t += [s.name, u.name, i + 1, String((u.lessons || [])[i] || "").replace(/[\t\n]/g, " "), String((u.short || [])[i] || "").replace(/[\t\n]/g, " ")].join("\t") + "\n";
+    for (let i = 0; i < n; i++) t += [s.name, u.name, i + 1, (u.lessons || [])[i] || "", (u.short || [])[i] || ""].map(tsvCell).join("\t") + "\n";
   }
   return t;
 }
@@ -1435,9 +1557,12 @@ function renderUnits() {
       <label class="row" style="gap:4px">時数<input type="number" class="utot" min="0" value="${u.total || n}"></label>
       <span class="sched">${s ? `週案：${md(s.first)}〜${md(s.last)}（${s.done.size}/${n}時間）` : "まだ週案に入っていません"}</span>
       <button class="btn small" data-mv="-1" title="上へ">↑</button><button class="btn small" data-mv="1" title="下へ">↓</button><button class="btn small danger" data-del>削除</button></div>
-      <div class="ucols"><label class="ulab">週案に入る文（ねらいの形）<textarea class="us" placeholder="1行に1時間分（1行目＝1時間目）。空欄の時間は右のもとの文が入ります">${esc((u.short || []).join("\n"))}</textarea></label>
-      <label class="ulab">もとの文（指導計画の主な学習活動）<textarea class="ul" placeholder="1行に1時間分の学習内容を書きます（1行目＝1時間目）">${esc((u.lessons || []).join("\n"))}</textarea></label></div>
-      <label class="aim">ねらい<textarea class="ua" placeholder="単元のねらい（指導目標）">${esc(u.aim || "")}</textarea></label>
+      <div class="ucols"><label class="ulab">週案に入る文（ねらいの形）<textarea class="us" placeholder="1行に1時間分（1行目＝1時間目）。空欄の時間は右のもとの文が入ります">
+${esc((u.short || []).join("\n"))}</textarea></label>
+      <label class="ulab">もとの文（指導計画の主な学習活動）<textarea class="ul" placeholder="1行に1時間分の学習内容を書きます（1行目＝1時間目）">
+${esc((u.lessons || []).join("\n"))}</textarea></label></div>
+      <label class="aim">ねらい<textarea class="ua" placeholder="単元のねらい（指導目標）">
+${esc(u.aim || "")}</textarea></label>
     </div>`;
   });
   h += `<button class="btn" id="uNew">＋ ${esc(curUnitSubj)}の単元を追加</button>
@@ -1475,7 +1600,10 @@ function renderUnits() {
     // 単元名を変えたら、週案に入れた単元名も合わせる
     const oldName = u.name;
     $(".un", card).onchange = () => {
+      if (list.some(x => x !== u && x.name === u.name)) { u.name = oldName; toast("同じ名前の単元がすでにあります"); changed(); return; }
       for (const d in D.days) for (const x of D.days[d].slots || []) for (const pt of [x, ...(x.parts || [])]) if (pt.s === curUnitSubj && pt.unit === oldName) pt.unit = u.name;
+      const cm = D.cls.courses[curUnitSubj];
+      if (cm && cm[oldName] !== undefined) { if (cm[u.name] === undefined) cm[u.name] = cm[oldName]; delete cm[oldName]; }
       changed();
     };
     $(".utot", card).onchange = e => { u.total = Math.max(0, parseInt(e.target.value) || 0); changed(); };
@@ -1627,8 +1755,15 @@ function renderSet() {
     const ny = parseInt(e.target.value); if (!(ny >= 2000 && ny <= 2099)) return render();
     const dy = ny - s.year; if (!dy) return;
     if (!confirm(`年度を${ny}年度にします。後期の始まりと休業日の日付も${dy > 0 ? dy + "年後" : -dy + "年前"}にずらします。`)) return render();
-    s.year = ny; s.kokiStart = addYears(s.kokiStart, dy); s.week1 = mondayOf(ymd(ny, 4, 1));
+    // 第1週と後期の始まりは、新しく作ったときと同じきまりで決め直す（日付だけずらすと曜日がずれる）
+    const nd = defaultSchool(ny);
+    s.year = ny; s.kokiStart = nd.kokiStart; s.week1 = nd.week1; s.confirmed = false;
     s.breaks.forEach(b => { b.from = addYears(b.from, dy); b.to = addYears(b.to, dy); });
+    // 前の年度だけのもの（使い始める日・それまでの時数・とちゅうからの時間割・3展開のコース）は消す
+    if (confirm("前の年度の「使い始める日」「それまでの時数」「とちゅうから変わる時間割」「算数のコース」を消します。よろしいですか？（「キャンセル」なら残します）")) {
+      c.startDate = ""; c.init = {}; c.courses = {}; D.ttChanges = []; ttSel = -1;
+    }
+    toast("後期の始まりと休業日の日付を確かめてください", 5000);
     curWeek = ""; changed();
   };
   $("#sKoki").onchange = upd(v => s.kokiStart = v);
@@ -1699,7 +1834,7 @@ function renderSet() {
     e.target.value = "";
     if (!nd || nd.app !== "shuan-tsukuru") { toast("スマート週案簿のデータが見つかりませんでした"); return; }
     if (!confirm("「" + f.name + "」のデータを読み込みます。いまのデータは置きかわります。よろしいですか？")) return;
-    const fid = D.fileId; D = normalize(nd); D.fileId = fid; curWeek = ""; changed(); toast("読み込みました。「保存」を押してください");
+    const fid = D.fileId, r0 = D.rev; D = normalize(nd); D.fileId = fid; D.rev = Math.max(r0, D.rev || 0); curWeek = ""; changed(); toast("読み込みました。「保存」を押してください");
   };
   $("#sClear").onclick = () => {
     if (!confirm("この年度の週案（行事・学習内容・メモなど）をすべて消します。時間割・単元計画・設定は残ります。よろしいですか？")) return;
@@ -1709,19 +1844,23 @@ function renderSet() {
 function renameSubject(ov, nv) {
   const s = subjByName(ov); s.name = nv;
   for (const x of D.school.subjects) if (x.parent === ov) x.parent = nv;
-  for (const w in D.timetable) D.timetable[w] = D.timetable[w].map(v => v === ov ? nv : v);
+  for (const t of [D.timetable, ...(D.ttChanges || []).map(c => c.tt)]) for (const w in t) t[w] = t[w].map(v => v === ov ? nv : v);
   if (D.units[ov]) { D.units[nv] = D.units[ov]; delete D.units[ov]; }
   if (D.unitStart[ov]) { D.unitStart[nv] = D.unitStart[ov]; delete D.unitStart[ov]; }
   if (D.unitFrom[ov] !== undefined) { D.unitFrom[nv] = D.unitFrom[ov]; delete D.unitFrom[ov]; }
   if (D.cls.init[ov]) { D.cls.init[nv] = D.cls.init[ov]; delete D.cls.init[ov]; }
-  for (const d in D.days) for (const x of D.days[d].slots || []) if (x.s === ov) x.s = nv;
+  for (const d in D.days) for (const x of D.days[d].slots || []) for (const pt of [x, ...(x.parts || [])]) if (pt.s === ov) pt.s = nv;
+  for (const k of ["courses", "noAim"]) if (D.cls[k] && D.cls[k][ov] !== undefined) { D.cls[k][nv] = D.cls[k][ov]; delete D.cls[k][ov]; }
+  if (curUnitSubj === ov) curUnitSubj = nv;
 }
 
 /* ---------- はじまり ---------- */
 let draftInfo = null;
 try {
   const dr = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
-  if (dr && dr.data && dr.data.fileId === D.fileId && dr.rev > D.rev) draftInfo = {at: new Date(dr.at).toLocaleString("ja-JP"), data: dr.data};
+  // 一度も保存していないファイルでも、保存しないで閉じた入力を復元できるようにする
+  const sameFile = dr && dr.data && (dr.data.fileId === D.fileId || (!baseSaved && !dr.data.savedAt));
+  if (sameFile && dr.rev > D.rev) draftInfo = {at: new Date(dr.at).toLocaleString("ja-JP"), data: dr.data};
   else if (dr) localStorage.removeItem(DRAFT_KEY);
 } catch (e) {}
 addShorts(D);
