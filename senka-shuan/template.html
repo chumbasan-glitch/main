@@ -270,7 +270,7 @@ function bootMsg(why) {
   var el = document.createElement("div"); el.id = "bootErr";
   el.style.cssText = "margin:24px auto;max-width:720px;padding:16px 20px;background:#FFF4E5;border:2px solid #E0A040;border-radius:8px;font-size:15px;line-height:1.8;color:#3A2A10";
   el.innerHTML = "<b>専科週案ツクールを動かせませんでした。</b><br>" + why +
-    "<br><br>考えられること：<br>・ファイルが途中までしかコピーされていない（ファイルの大きさが約1.3MBあるか確かめてください）<br>・Edge の「Internet Explorer モード」で開いている（アドレスバーの左に IE のマークがあるとき）<br>・学校の設定で、パソコンの中のファイルの JavaScript が止められている" +
+    "<br><br>考えられること：<br>・ファイルが途中までしかコピーされていない（ファイルの大きさが約0.6MBあるか確かめてください）<br>・Edge の「Internet Explorer モード」で開いている（アドレスバーの左に IE のマークがあるとき）<br>・学校の設定で、パソコンの中のファイルの JavaScript が止められている" +
     "<br><br><small style=\"color:#7A6A50\">くわしい理由：" + String(bootMsg.err || "（なし）").replace(/[<>&]/g, "") + "</small>";
   (document.body || document.documentElement).insertBefore(el, (document.body || document.documentElement).firstChild);
 }
@@ -283,7 +283,7 @@ setTimeout(function () { if (!BOOT_OK) bootMsg(document.documentMode ? IE_MSG : 
 // 保存のとき、このファイルの形をそのまま書き出すため、画面を作る前の状態をとっておく
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 const APP_ID = "senka-tsukuru";
-const APP_VER = 1;
+const APP_VER = 2;
 // 設定で選べるフォント（週案の画面と印刷の両方に使う）
 const FONTS = {
   msui:   {name: "MS UI Gothic",               css: '"MS UI Gothic"'},
@@ -292,7 +292,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.me.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v1.0";
+const VERSION = "v1.1";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -342,20 +342,10 @@ const holiday = s => holidaysOf(+s.slice(0, 4)).get(s) || "";
 /* ---------- 初期データ ---------- */
 // 教科と学年ごとの標準時数（空欄＝その学年にない、○＝時数を決めない）
 const SUBJ_DEF = [
-  ["国語",   [306,315,245,245,175,175]],
-  ["書写",   ["○","○","○","○","○","○"]],
-  ["社会",   ["","",70,90,100,105]],
   ["算数",   [136,175,175,175,175,175]],
-  ["理科",   ["","",90,105,105,105]],
-  ["生活",   [102,105,"","","",""]],
-  ["音楽",   [68,70,60,60,50,50]],
   ["図工",   [68,70,60,60,50,50]],
+  ["音楽",   [68,70,60,60,50,50]],
   ["家庭",   ["","","","",60,55]],
-  ["体育",   [102,105,105,105,90,90]],
-  ["保健",   ["","","○","○","○","○"]],
-  ["外国語", ["","",35,35,70,70]],
-  ["道徳",   [34,35,35,35,35,35]],
-  ["総合",   ["","",70,70,70,70]],
 ];
 // クラスの色（学年ごと）
 const GRADE_COLORS = ["#F4C7C7","#F6E0A8","#C6E5C1","#BCD6F2","#DED0F0","#FAD1AE"];
@@ -381,10 +371,10 @@ function newData() {
   return {
     app: APP_ID, ver: APP_VER, fileId: Math.random().toString(36).slice(2, 10), rev: 0, savedAt: "",
     school: defaultSchool(fiscalYearOf(today())),
-    me: {teacher: "", subject: "", startDate: "", init: {}, theme: "sora", font: "msui", rateMode: "rate", others: ["空き", "会議", "打合せ", "補教"]},
+    me: {teacher: "", subject: "", startDate: "", init: {}, theme: "sora", font: "msui", rateMode: "rate", others: ["空き", "会議", "打合せ", "補教"], kumiNames: []},
     classes: [],            // 担当クラス {id, grade, kumi, subj, color}
     timetable: {1: [], 2: [], 3: [], 4: [], 5: []},   // マスにはクラスのid（@…）か、「会議」などの文字
-    units: {},              // "理科|4" -> 単元計画（同じ学年のクラスで共通）
+    units: {},              // "算数|4" -> 単元計画（同じ学年のクラスで共通）
     weeks: {},
     days: {},
   };
@@ -407,6 +397,8 @@ function normalize(d) {
   for (const k of Object.keys(n.school)) if (d.school[k] === undefined) d.school[k] = n.school[k];
   for (const k of Object.keys(n.me)) if (d.me[k] === undefined) d.me[k] = n.me[k];
   for (const w of [1,2,3,4,5]) if (!Array.isArray(d.timetable[w])) d.timetable[w] = [];
+  // v1.1から教科は算数・図工・音楽・家庭だけ（担当クラスがある教科は残す）
+  if ((d.ver || 1) < 2) d.school.subjects = d.school.subjects.filter(x => SUBJ_DEF.some(([n]) => n === x.name) || d.classes.some(c => c.subj === x.name));
   d.ver = APP_VER;
   return d;
 }
@@ -421,7 +413,7 @@ const startDate = () => (D.me.startDate && D.me.startDate > yearStart()) ? D.me.
 /* ---------- 担当クラス ---------- */
 const clsById = id => id && id[0] === "@" ? D.classes.find(c => c.id === id) : null;
 const multiSubj = () => new Set(D.classes.map(c => c.subj)).size > 1;
-// 画面と印刷に出す短い名前（例：4-1。教科が2つ以上あるときは 4-1理科）
+// 画面と印刷に出す短い名前（例：4-1。教科が2つ以上あるときは 4-1算数）
 const clsLabel = c => (c.kumi ? c.grade + "-" + c.kumi : c.grade + "年") + (multiSubj() ? c.subj : "");
 const clsLong = c => c.grade + "年" + (c.kumi ? c.kumi + "組" : "") + "　" + c.subj;
 const labelOf = v => { const c = clsById(v); return c ? clsLabel(c) : (v || ""); };
@@ -432,7 +424,7 @@ const planOf = c => D.units[planKey(c)] || [];
 const planKeys = () => { const a = []; for (const c of D.classes) if (!a.includes(planKey(c))) a.push(planKey(c)); return a; };
 const planListId = c => "ul-" + planKeys().indexOf(planKey(c));
 function stdHours(c) { const s = subjByName(c.subj); if (!s) return null; const v = parseFloat(half(s.hours[c.grade - 1])); return isFinite(v) ? v : null; }
-// 打ち込んだ名前からクラスをさがす（「4-1」「4年1組」「4-1理科」など）
+// 打ち込んだ名前からクラスをさがす（「4-1」「4年1組」「4-1算数」など）
 function findCls(v) {
   v = half(v).replace(/[－ー‐]/g, "-").replace(/\s+/g, "");
   return D.classes.find(c => [clsLabel(c), clsLong(c).replace(/\s|　/g, ""), c.grade + "-" + c.kumi, c.grade + "年" + c.kumi + "組", c.grade + "-" + c.kumi + c.subj].includes(v)) || null;
@@ -440,8 +432,30 @@ function findCls(v) {
 const newId = () => { let id; do id = "@" + Math.random().toString(36).slice(2, 7); while (clsById(id)); return id; };
 const sortClasses = () => {
   const si = s => { const i = D.school.subjects.findIndex(x => x.name === s); return i < 0 ? 99 : i; };
-  D.classes.sort((a, b) => si(a.subj) - si(b.subj) || a.grade - b.grade || String(a.kumi).localeCompare(String(b.kumi), "ja", {numeric: true}));
+  D.classes.sort((a, b) => si(a.subj) - si(b.subj) || a.grade - b.grade || kumiRank(a.kumi) - kumiRank(b.kumi));
 };
+// 組の順番：設定の「組の名前」の順（松、竹、梅、月 など）。ないときは数字の順。どちらでもない組は後ろ（入れた順のまま）
+const kumiNames = () => (D.me.kumiNames || []).filter(Boolean);
+function kumiRank(k) {
+  const i = kumiNames().indexOf(String(k));
+  if (i >= 0) return i;
+  const n = parseInt(half(k));
+  return isFinite(n) && String(n) === half(k) ? 1000 + n : 9999;
+}
+// k番目（1から）の組の名前
+const kumiAt = k => kumiNames()[k - 1] || String(k);
+const parseKumiNames = v => half(v).split(/[、,，\s]+/).map(x => x.trim().replace(/組$/, "")).filter(Boolean);
+// 全学年の組の名前を、いまの並び順のまま「組の名前」に入れかえる
+function renameAllKumi() {
+  const names = kumiNames(); let short = 0;
+  const groups = {};
+  for (const c of D.classes) (groups[c.subj + "|" + c.grade] = groups[c.subj + "|" + c.grade] || []).push(c);
+  for (const cs of Object.values(groups)) {
+    cs.forEach((c, k) => { if (k < names.length) c.kumi = names[k]; else short++; });
+  }
+  sortClasses();
+  return short;
+}
 // 教科書の年間指導計画があれば、まだ入っていない学年・教科に入れる
 function loadPresetFor(c) {
   const k = planKey(c);
@@ -741,6 +755,7 @@ function renderBanners() {
     h += `<div class="banner"><b>はじめに</b>担当の教科と名前、学年ごとの担当クラスの数を入れてください。
       ${subjSelect("bnSubj", D.me.subject)}
       <input type="text" id="bnTeacher" placeholder="名前" value="${esc(D.me.teacher)}" style="width:140px">
+      <input type="text" id="bnKumi" placeholder="組の名前（例：松、竹、梅、月）" value="${esc(kumiNames().join("、"))}" style="width:220px" title="空欄なら 1組、2組…になります">
       <span class="gcnt">${[1,2,3,4,5,6].map(g => `<label>${g}年<input type="number" class="bnG" data-g="${g}" min="0" max="12" placeholder="0">クラス</label>`).join("")}</span>
       <button class="btn primary" id="bnGo">決定</button></div>`;
   } else if (D.classes.length && !Object.values(D.timetable).some(a => a.some(Boolean)) && curTab === "week") {
@@ -756,7 +771,8 @@ function renderBanners() {
     const cnt = $$(".bnG").map(i => [+i.dataset.g, Math.min(12, parseInt(half(i.value)) || 0)]).filter(x => x[1] > 0);
     if (!cnt.length) { toast("担当するクラスの数を、学年ごとに入れてください"); return; }
     D.me.subject = subj; D.me.teacher = $("#bnTeacher").value.trim();
-    for (const [g, n] of cnt) for (let k = 1; k <= n; k++) addClass(g, k, subj);
+    D.me.kumiNames = parseKumiNames($("#bnKumi").value);
+    for (const [g, n] of cnt) for (let k = 1; k <= n; k++) addClass(g, kumiAt(k), subj);
     const got = [...new Set(D.classes.map(loadPresetFor).filter(Boolean))];
     changed();
     toast(D.classes.length + "クラスを入れました" + (got.length ? "。教科書の単元計画（" + got.join("・") + "）も入れました" : ""), 5000);
@@ -866,7 +882,7 @@ function renderWeek() {
   h += `</tr></tbody></table></div>
   <div class="memo" style="margin-top:8px"><b>メモ</b>（印刷では時数表の下）<textarea id="wMemo" placeholder="連絡・準備物など">${esc(wr.memo || "")}</textarea></div>
   <div class="memo" style="margin-top:8px"><b>記録欄</b>（印刷ではいちばん下）<textarea id="wRec" placeholder="週の振り返り・記録">${esc(wr.rec || "")}</textarea></div>
-  <p class="hint">・コマの上の欄は、クリックすると担当クラスの一覧が出ます。「会議」などの予定も打ち込めます（時数には数えません）。消すときは「なし」を選びます。<br>・クラスを入れると、そのクラスの前の続きの【単元】【時】が自動で入ります。時間割から入ったコマは「📚 この週に単元の続きを入れる」を押すと、まとめて入ります。<br>・単元の最後の時まで進むと、次は単元計画の次の単元の1時間目になります。2時間分を1時間でやるときは、時に「2-3」と入れます（印刷は「てこのはたらき②③」）。<br>・コマの左の「⋮⋮」をドラッグすると、別のコマと入れかえられます（授業変更）。<br>・学習内容を書きかえると、その文が優先されます。「↺」で単元計画の内容にもどせます。</p>
+  <p class="hint">・コマの上の欄は、クリックすると担当クラスの一覧が出ます。「会議」などの予定も打ち込めます（時数には数えません）。消すときは「なし」を選びます。<br>・クラスを入れると、そのクラスの前の続きの【単元】【時】が自動で入ります。時間割から入ったコマは「📚 この週に単元の続きを入れる」を押すと、まとめて入ります。<br>・単元の最後の時まで進むと、次は単元計画の次の単元の1時間目になります。2時間分を1時間でやるときは、時に「2-3」と入れます（印刷は「わり算②③」のように出ます）。<br>・コマの左の「⋮⋮」をドラッグすると、別のコマと入れかえられます（授業変更）。<br>・学習内容を書きかえると、その文が優先されます。「↺」で単元計画の内容にもどせます。</p>
   </div>
   <div class="side">${weekTotalsHtml(mon)}${progressHtml(addDays(mon, 6))}</div></div>`;
   el.innerHTML = h;
@@ -1131,7 +1147,7 @@ function renderPrint() {
   pe.style.cssText = themeVars(D.me.theme) + `;--hw:${HW}mm`;
   pe.innerHTML = h;
 }
-// PDFのファイル名：「理科専科週案2026.10.19～」（週のはじめの日）
+// PDFのファイル名：「音楽専科週案2026.10.19～」（週のはじめの日）
 function pdfName() { const t = parse(curWeek); return meTitle() + "週案" + t.getFullYear() + "." + (t.getMonth() + 1) + "." + t.getDate() + "～"; }
 const APP_TITLE = document.title;
 function savePdf() {
@@ -1197,7 +1213,7 @@ function renderTT() {
 // 教科書会社の年間指導計画から読み取った単元計画（単元名・時数・各時間の主な学習活動・ねらい）
 const PRESETS = /*PRESETS*/{};
 const presetsFor = (subj, g) => Object.keys(PRESETS).filter(k => PRESETS[k].subject === subj && PRESETS[k].grade === g);
-const SAMPLE_TSV = "単元名\t時間\t学習内容\n春の生き物\t1\t身の回りの生き物を観察し、気づいたことを話し合う。\n春の生き物\t2\t生き物の色・形・大きさを調べて記録する。\nてこのはたらき\t1\tてこを使って重い物を持ち上げ、手ごたえを調べる。\n";
+const SAMPLE_TSV = "単元名\t時間\t学習内容\n歌声をひびかせよう\t1\t曲の感じをつかみ、歌い方を考える。\n歌声をひびかせよう\t2\t声の重なりを感じ取りながら合唱する。\nクッキング\t1\t調理の手順を確かめ、計画を立てる。\n";
 function parseTSV(text) {
   const rows = []; let row = [], cell = "", q = false;
   text = text.replace(/\r\n?/g, "\n");
@@ -1398,7 +1414,10 @@ function renderSet() {
     <input type="number" id="sAddN" min="1" max="12" value="1" style="width:60px">クラス
     ${subjSelect("sAddS", me.subject)}
     <button class="btn small" id="sAddCls">＋ まとめて追加</button></div>
-  <p class="hint">組は「1」「梅」などで入れます。週案や印刷には「4-1」のように出ます（教科が2つ以上あるときは「4-1理科」）。教科書の年間指導計画がある学年・教科は、クラスを追加すると単元計画が自動で入ります。</p>
+  <div class="row" style="margin-top:10px"><label class="f">組の名前（順番に「、」で区切る）<input type="text" id="sKumiNames" value="${esc(kumiNames().join("、"))}" placeholder="例：松、竹、梅、月" style="width:260px"></label>
+    <button class="btn small" id="sKumiAll" style="align-self:flex-end">全学年の組名を一括で変える</button></div>
+  <p class="hint">組の名前を入れると、クラスはこの順番で並びます（「月」が先頭に来たりしません）。「全学年の組名を一括で変える」を押すと、どの学年も上から順に「${esc(kumiNames()[0] || "松")}、${esc(kumiNames()[1] || "竹")}…」になります（週案に入れた分もそのまま引きつがれます）。<br>
+  組は1クラスずつ「1」「梅」などで直すこともできます。週案や印刷には「4-1」のように出ます（教科が2つ以上あるときは「4-1算数」）。教科書の年間指導計画がある学年・教科は、クラスを追加すると単元計画が自動で入ります。</p>
   <div class="setgrid" style="margin-top:10px"><label class="f" style="grid-column:span 2">ほかの予定の名前（「、」で区切る・時数に数えない）<input type="text" id="sOthers" value="${esc((me.others || []).join("、"))}"></label></div>
   <h3>印刷の色</h3>
   <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${me.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
@@ -1454,11 +1473,21 @@ function renderSet() {
     if (!n) { toast("クラスの数を入れてください"); return; }
     let k = 1, added = 0;
     for (let j = 0; j < n; j++) {
-      while (D.classes.some(x => x.grade === g && x.subj === subj && x.kumi === String(k))) k++;
-      addClass(g, k, subj); added++;
+      while (D.classes.some(x => x.grade === g && x.subj === subj && x.kumi === kumiAt(k))) k++;
+      addClass(g, kumiAt(k), subj); added++;
     }
     const got = loadPresetFor({grade: g, subj});
     changed(); toast(g + "年に" + added + "クラスを追加しました" + (got ? "（教科書の単元計画も入れました）" : ""));
+  };
+  // ここでは画面を作り直さない（すぐ横の「一括で変える」ボタンが押せるように）
+  $("#sKumiNames").onchange = e => { me.kumiNames = parseKumiNames(e.target.value); sortClasses(); changed(false); };
+  $("#sKumiAll").onclick = () => {
+    const names = parseKumiNames($("#sKumiNames").value);
+    if (!names.length) { toast("先に組の名前を入れてください（例：松、竹、梅、月）"); return; }
+    if (!confirm("全学年の組名を、上から順に「" + names.join("、") + "」に変えます。よろしいですか？")) return;
+    me.kumiNames = names;
+    const short = renameAllKumi();
+    changed(); toast("組名を変えました" + (short ? "（名前が足りない" + short + "クラスはそのままです）" : ""), 4000);
   };
   $("#sOthers").onchange = e => { me.others = e.target.value.split(/[、,，\s]+/).map(x => x.trim()).filter(Boolean); changed(); };
   $$(".sInit", el).forEach(i => i.onchange = () => { const t = parseHours(i.value); if (t) me.init[i.dataset.c] = t; else delete me.init[i.dataset.c]; changed(); });
