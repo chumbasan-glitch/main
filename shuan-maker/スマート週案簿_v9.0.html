@@ -340,7 +340,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v8.9";
+const VERSION = "v9.0";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -468,6 +468,7 @@ function normalize(d) {
   if (!d.cls.theme) d.cls.theme = "midori";
   if (!d.cls.font) d.cls.font = "msui";
   if (!d.cls.courses) d.cls.courses = {};
+  if (!d.cls.noAim) d.cls.noAim = {};   // 単元計画の文を週案に入れない教科
   if (!Array.isArray(d.school.asaEvents)) d.school.asaEvents = ["全校朝会", "児童集会", "音楽朝会"];
   if (!d.cls.rateMode) d.cls.rateMode = "rate";
   return d;
@@ -547,7 +548,7 @@ function computeYear() {
     const ui = units.findIndex(u => u.name === x.unit);
     const un = units[ui];
     const crs = courseOf(x);
-    info[key] = {unit: x.unit, nums, crs, label: x.unit + nums.map(circ).join("") + (crs ? " " + crs : ""), auto: fx || (un && nums.length ? lessonText(un, nums[0]) : "")};
+    info[key] = {unit: x.unit, nums, crs, label: x.unit + nums.map(circ).join("") + (crs ? " " + crs : ""), auto: fx || (un && nums.length && !(D.cls.noAim || {})[x.s] ? lessonText(un, nums[0]) : "")};
     if (un) {
       const sc = (sched[x.s] = sched[x.s] || []);
       const e = (sc[ui] = sc[ui] || {first: d, last: d, done: new Set()});
@@ -1566,6 +1567,10 @@ function renderSet() {
   <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${c.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
     <span class="tp"><span class="tph"></span><span class="tpb"></span><span class="tps"><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s1)"></i><i style="background:var(--sub)"></i><i style="background:var(--tot)"></i></span></span><b>${t.name}</b></button>`).join("")}</div>
   <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(c.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${c.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${c.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label></div>
+  <h3>週案に単元計画のねらいの文を入れる教科</h3>
+  <p class="hint">コマに【単元】【時】を入れたとき、単元計画のその時間のねらいの文を学習内容に入れる教科に印をつけます。印を外した教科は「やまなし②」のように単元名と時だけが入ります（自分で書いた内容はそのまま残ります）。</p>
+  <div class="row aimsel">${gradeSubjects().filter(x => !isSpecial(x)).map(x => `<label class="row" style="gap:3px"><input type="checkbox" class="sAim" data-s="${esc(x.name)}"${(c.noAim || {})[x.name] ? "" : " checked"}>${esc(x.name)}</label>`).join("")}
+    <button class="btn small" id="sAimAll">すべて入れる</button><button class="btn small" id="sAimNone">すべて外す</button></div>
   <details class="box" style="margin-top:10px"${Object.values(c.init).some(Boolean) ? " open" : ""}><summary>年度のとちゅうから使うとき：それまでの時数</summary>
     <p class="hint">「このスマート週案簿を使い始める日」の1週前までの累計時数を教科ごとに入れてください。使い始める日より前の分は、時間割から数えた時数のかわりにここの時数が使われ、使い始める日からは週案の時数がたされていきます。半端な時数は「12 1/3」のように入れられます。</p>
     <div class="row">${gradeSubjects().map(x => `<label class="f">${esc(x.name)}<input type="text" class="sInit" data-s="${esc(x.name)}" value="${c.init[x.name] ? fr(c.init[x.name]) : ""}" style="width:70px"></label>`).join("")}</div>
@@ -1634,6 +1639,9 @@ function renderSet() {
   $("#sFont").onchange = e => { c.font = e.target.value; changed(); };
   $$("[data-theme]", el).forEach(b => b.onclick = () => { c.theme = b.dataset.theme; changed(); });
   $("#sRate").onchange = upd(v => c.rateMode = v);
+  $$(".sAim", el).forEach(i => i.onchange = () => { if (i.checked) delete c.noAim[i.dataset.s]; else c.noAim[i.dataset.s] = true; changed(); });
+  $("#sAimAll").onclick = () => { c.noAim = {}; changed(); };
+  $("#sAimNone").onclick = () => { c.noAim = {}; $$(".sAim", el).forEach(i => c.noAim[i.dataset.s] = true); changed(); };
   $$("tr[data-b]", el).forEach(tr => {
     const b = s.breaks[+tr.dataset.b];
     $(".bn", tr).oninput = upd(v => b.name = v, false);
