@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>専科週案ツクール</title>
+<style>
+:root{
+  --bg:#EEF0F4;
+  --surface:#FFFFFF;
+  --surface-2:#F3F5F9;
+  --ink:#1F2430;
+  --ink-soft:#5E6575;
+  --line:#CDD3DE;
+  --accent:#2F5A8C;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#DCE6F3;
+  --warn:#9A5B00;
+  --warn-soft:#FFF1D6;
+  --red:#A8323F;
+  --off:#E9EAEE;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font,"MS UI Gothic","Meiryo",sans-serif);font-size:14px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 16px;background:var(--accent);color:var(--accent-ink)}
+header.top h1{margin:0;font-size:20px;letter-spacing:.08em;font-weight:700}
+header.top .cls{font-size:14px;opacity:.9}
+header.top .sp{flex:1}
+.savebox{display:flex;align-items:center;gap:10px}
+.savestate{font-size:12px;opacity:.9}
+.btn{border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;line-height:1.3}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+header.top .btn.primary{background:#fff;color:var(--accent);border-color:#fff}
+.btn.small{padding:3px 8px;font-size:12px;border-radius:6px}
+.btn.danger{color:var(--red)}
+nav.tabs{display:flex;gap:4px;padding:8px 16px 0;background:var(--bg);flex-wrap:wrap}
+nav.tabs button{border:none;background:transparent;padding:8px 16px;border-radius:8px 8px 0 0;font-weight:700;color:var(--ink-soft)}
+nav.tabs button.on{background:var(--surface);color:var(--accent)}
+main{background:var(--surface);margin:0 16px 24px;border-radius:0 8px 8px 8px;padding:16px;min-height:60vh}
+.banner{padding:10px 14px;border-radius:8px;background:var(--warn-soft);color:var(--warn);margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner b{color:var(--ink)}
+.banner .gcnt{display:flex;gap:6px;flex-wrap:wrap;color:var(--ink)}
+.banner .gcnt label{display:flex;align-items:center;gap:2px;font-size:13px}
+.banner .gcnt input{width:46px;text-align:center}
+.hint{color:var(--ink-soft);font-size:12px}
+h2{font-size:17px;margin:4px 0 10px}
+h3{font-size:15px;margin:16px 0 8px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input[type=text],input[type=date],input[type=number],select,textarea{border:1.5px solid var(--line);border-radius:6px;background:var(--surface);padding:4px 6px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
+label.f{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--ink-soft)}
+label.f>*{font-size:14px;color:var(--ink)}
+
+/* 週案 */
+.weekbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.weekbar select{font-weight:700}
+.weeklayout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start}
+@media (max-width:1100px){.weeklayout{grid-template-columns:minmax(0,1fr)}}
+.gridwrap{overflow-x:auto}
+table.wk{border-collapse:collapse;width:100%;min-width:760px;table-layout:fixed}
+table.wk th,table.wk td{border:1px solid var(--line);vertical-align:top;padding:4px}
+table.wk th.lab{width:44px;background:var(--surface-2);font-size:12px;vertical-align:middle;text-align:center}
+table.wk thead th{background:var(--surface-2);font-weight:700;text-align:center;padding:4px 2px}
+table.wk thead .dd{display:flex;justify-content:center;align-items:center;gap:6px}
+.wd0{color:var(--red)} .wd6{color:#2856A3}
+td.off{background:var(--off)}
+td.off .slot{opacity:.45}
+.offlab{font-size:11px;color:var(--red);font-weight:700}
+tr.brk td,tr.brk th{background:#FFF6DD}
+tr.brk td.off{background:var(--off)}
+textarea.br{width:100%;min-height:34px;resize:vertical;font-size:12px;padding:3px 4px;background:#FFFDF5}
+textarea.ev,textarea.note,textarea.asa{width:100%;min-height:38px;resize:vertical;font-size:12px;padding:3px 4px}
+.slot{display:flex;flex-direction:column;gap:3px;border-left:6px solid var(--c,#ddd);padding-left:4px;min-height:84px}
+.slot.drag-over{outline:2px dashed var(--accent)}
+.slot .sh{display:flex;gap:3px;align-items:center}
+.slot .grip{cursor:grab;color:var(--ink-soft);font-size:12px;user-select:none;padding:0 2px}
+.slot input.subj{flex:1;min-width:0;font-weight:700;padding:2px 4px;background:var(--cbg,#fff)}
+.uf{display:flex;gap:3px}
+.uf input.un{flex:1;min-width:0;font-size:12px;padding:2px 4px;font-weight:700}
+.uf input.no{width:44px;flex:none;font-size:12px;padding:2px 3px;text-align:center}
+.sh input.hr{width:38px;flex:none;font-size:12px;padding:2px 3px;text-align:center}
+.slot .tw{position:relative}
+.slot textarea.ct{width:100%;min-height:48px;resize:vertical;font-size:12px;padding:3px 4px}
+.slot textarea.ct.auto{color:#4C5462;background:var(--surface-2)}
+.slot .rv{position:absolute;right:2px;bottom:4px;border:none;background:var(--accent-soft);border-radius:4px;font-size:11px;padding:0 4px}
+.slot .done{font-size:11px;color:var(--warn)}
+.memo textarea{width:100%;min-height:54px;resize:vertical}
+.side h3{margin-top:0}
+table.tot{border-collapse:collapse;width:100%;font-size:13px}
+table.tot th,table.tot td{border:1px solid var(--line);padding:2px 6px;text-align:right}
+table.tot th{background:var(--surface-2);text-align:center}
+table.tot td.n{text-align:left;white-space:nowrap}
+table.tot tr.sub td{background:var(--surface-2);font-size:12px}
+table.tot tr.sum td{font-weight:700;background:var(--surface-2)}
+.neg{color:var(--red);font-weight:700}
+.chip{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid rgba(0,0,0,.15)}
+table.prog{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}
+table.prog th,table.prog td{border:1px solid var(--line);padding:2px 5px;text-align:left}
+table.prog th{background:var(--surface-2);text-align:center}
+
+/* 時間割 */
+.ttwrap{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.tthead{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}
+.tthead b{font-size:17px}
+.tthead span{color:var(--ink-soft);font-size:13px}
+table.tt2{border-collapse:separate;border-spacing:4px;user-select:none;margin-left:-4px}
+table.tt2 th{font-weight:700;color:var(--ink-soft);font-size:13px}
+table.tt2 tr:first-child th{height:28px}
+table.tt2 tr th:first-child{width:44px;font-size:18px;color:var(--ink)}
+table.tt2 td{width:92px;height:52px;border:1.5px solid var(--line);border-radius:8px;text-align:center;vertical-align:middle;font-size:15px;font-weight:700;cursor:pointer;background:var(--surface);transition:border-color .1s}
+table.tt2 td:hover{border-color:var(--accent)}
+.ttpal{background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:12px;width:260px;position:sticky;top:12px}
+.ttpt{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--ink)}
+.ttbtns{display:flex;flex-wrap:wrap;gap:6px;align-items:start}
+.ttbtns .gl{width:100%;font-size:11px;color:var(--ink-soft);margin-top:2px}
+.ttbtns button{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:13px;text-align:left}
+.ttbtns button::before{content:"";width:12px;height:12px;border-radius:3px;background:var(--sc);border:1px solid rgba(0,0,0,.15);flex:none}
+.ttbtns button:hover{border-color:var(--accent)}
+.ttbtns button.on{border-color:var(--accent);background:var(--accent-soft);font-weight:700;box-shadow:0 0 0 2px var(--accent-soft)}
+
+/* 単元計画 */
+.subjchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.subjchips button{border:1.5px solid var(--line);border-radius:999px;padding:4px 12px;background:var(--surface)}
+.subjchips button.on{border-color:var(--accent);background:var(--accent-soft);font-weight:700}
+.subjchips button small{color:var(--ink-soft);margin-left:4px}
+.unitcard{border:1.5px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px;background:var(--surface-2)}
+.unitcard .uh{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.unitcard .uh input.un{flex:1;min-width:180px;font-weight:700}
+.unitcard .uh input.utot{width:60px}
+.unitcard textarea{width:100%;min-height:90px;font-size:13px;line-height:1.6}
+.ucols{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.ulab{display:flex;flex-direction:column;font-size:12px;color:var(--ink-soft)}
+.ulab textarea{margin-top:2px}
+.unitcard .aim{display:block;font-size:12px;color:var(--ink-soft);margin-top:4px}
+.unitcard .aim textarea{min-height:40px;font-size:12px}
+.unitcard .sched{font-size:12px;color:var(--accent);font-weight:700}
+.unitcard .sched span{display:inline-block;margin-right:10px}
+.paste textarea{width:100%;min-height:120px;font-size:12px;font-family:"BIZ UDGothic","MS Gothic",monospace}
+.msg{white-space:pre-wrap;font-size:13px;padding:8px 10px;border-radius:6px;background:var(--accent-soft);margin-top:6px}
+.msg.err{background:var(--warn-soft);color:var(--warn)}
+details.box{border:1.5px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:12px}
+details.box summary{font-weight:700;cursor:pointer}
+
+/* 時数 */
+.yrwrap{overflow-x:auto}
+table.yr{border-collapse:collapse;font-size:12px}
+table.yr th,table.yr td{border:1px solid var(--line);padding:3px 5px;text-align:right;white-space:nowrap}
+table.yr th{background:var(--surface-2);text-align:center}
+table.yr td.n{text-align:left}
+table.yr td.term,table.yr th.term{background:var(--accent-soft);font-weight:700}
+table.yr tr.sub td{background:var(--surface-2)}
+table.yr tr.sum td{font-weight:700;background:var(--surface-2)}
+
+/* 設定 */
+.themes{display:flex;gap:10px;flex-wrap:wrap}
+.theme{border:2px solid var(--line);border-radius:8px;background:#fff;padding:6px;display:flex;flex-direction:column;align-items:center;gap:4px;width:104px}
+.theme.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.tp{display:grid;grid-template-columns:1fr 26px;grid-template-rows:10px 1fr;width:90px;height:62px;border:1.5px solid var(--pl);background:#fff}
+.tph{grid-column:1 / 3;background:var(--ph);border-bottom:1px solid var(--pl)}
+.tpb{background:linear-gradient(to bottom,#fff 0 40%,var(--pb) 40% 55%,#fff 55%);border-right:1px solid var(--pl)}
+.tps{display:flex;flex-direction:column}
+.tps i{flex:1;border-bottom:1px solid var(--pl)}
+.setgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;max-width:900px}
+table.subj{border-collapse:collapse;font-size:13px}
+table.subj th,table.subj td{border:1px solid var(--line);padding:3px 4px;text-align:center}
+table.subj th{background:var(--surface-2)}
+table.subj input.nm{width:80px}
+table.subj input.h{width:46px;text-align:center}
+table.subj input.km{width:60px}
+table.subj input[type=color]{width:34px;height:24px;padding:0;border:1px solid var(--line)}
+table.subj td.lb{font-weight:700;min-width:70px}
+table.subj td.pl{font-size:12px;color:var(--ink-soft);text-align:left}
+table.brk td,table.brk th{padding:3px 4px}
+table.brk{border-collapse:collapse}
+table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 16px;border-radius:8px;font-size:14px;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+
+/* 印刷（B5縦） */
+#print{display:none}
+@page{size:182mm 257mm;margin:7mm}
+@page{size:JIS-B5 portrait;margin:7mm}
+@media print{
+  body{background:#fff}
+  .app,#toast{display:none!important}
+  #print{display:block}
+}
+#print{font-family:var(--font,"MS UI Gothic","Meiryo",sans-serif);color:#000;width:168mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;
+  --pl:#2E8B88;--ph:#CCF5CC;--pb:#FFF0C8;--s1:#FFFFA6;--s2:#CCF5CC;--sub:#99EE99;--tot:#66E066}
+#print .ph{height:6mm;font-size:8pt;display:flex;align-items:flex-end;gap:4mm;padding-left:1mm;color:#000}
+#print .ph b{font-size:8.5pt;font-weight:400}
+#print .ph .wt{color:#000;font-size:10pt;font-weight:700}
+#print .pbody{display:flex;margin-top:1.5mm;border:0.35mm solid var(--pl)}
+#print table{border-collapse:collapse;table-layout:fixed}
+#print td,#print th{border:0.2mm solid var(--pl);padding:0;overflow:hidden;vertical-align:top}
+#print table.pw{width:134mm}
+#print table.pw th.l{background:var(--ph);font-weight:400;font-size:6.5pt;text-align:center;vertical-align:middle;line-height:1.1;letter-spacing:-0.05em}
+#print table.pw th.l.big{font-size:14pt;letter-spacing:0}
+#print table.pw thead th{background:var(--ph);font-weight:400;font-size:8pt;text-align:center;vertical-align:middle;line-height:1.05}
+#print tr.band td,#print tr.band th{background:var(--pb)}
+#print .cb{overflow:hidden;font-size:7pt;line-height:1.28;word-break:break-all;padding:0.4mm 0.7mm;white-space:pre-wrap}
+#print .cb .pu{font-weight:700}
+#print td.hol,#print tr.band td.hol{background:#FF9FCF}
+#print td.emp{background:#D9D9D9}
+#print .bigc{display:flex;align-items:center;justify-content:center;font-size:26pt;line-height:1}
+#print thead th.hk{font-size:7.5pt}
+#print td.spc{padding:0}
+#print td.stc{padding:0;vertical-align:top}
+#print .st{display:flex;height:3.4mm}
+#print .st .sj{flex:1;min-width:0;font-weight:700;padding:0 0.8mm;white-space:nowrap;overflow:hidden;line-height:3.4mm}
+#print .st .hr{width:var(--hw);flex:none;border-left:0.2mm solid var(--pl);font-size:6pt;text-align:center;line-height:3.4mm;white-space:nowrap}
+#print td.spc .cb,#print td.hol .cb{line-height:1.2}
+#print .cb.sq{padding:0.3mm 0.5mm;overflow:hidden}
+#print .side{width:34mm;display:flex;flex-direction:column;border-left:0.35mm solid var(--pl)}
+#print table.pt2{width:100%;font-size:6.8pt}
+#print table.pt2 th{background:var(--ph);font-weight:400;height:5mm;vertical-align:middle;font-size:6.5pt;letter-spacing:-0.05em;padding:0}
+#print table.pt2 td{height:3.55mm;text-align:center;vertical-align:middle;white-space:nowrap;line-height:1;padding:0.35mm 0 0;font-size:6.3pt;letter-spacing:-0.02em}   /* MS UI Gothic は字が上に寄って見えるので、少し下げる */
+#print table.pt2 td.rt{font-size:5.3pt}
+#print table.pt2 tr.r1 td{background:var(--s1)}
+#print table.pt2 tr.r2 td{background:var(--s2)}
+#print table.pt2 tr.sub td{background:var(--sub)}
+#print table.pt2 tr.tot td{background:var(--tot);font-weight:700}
+#print table.pt2 tr.gap td{height:0.8mm;background:var(--pl)}
+#print table.pt2 td.gh{background:var(--ph);font-size:6pt;height:3.6mm}
+#print .memo{flex:1;padding:0.6mm 1mm;font-size:7.5pt;white-space:pre-wrap;overflow:hidden;border-top:0.35mm solid var(--pl)}
+#print .rec{border:0.35mm solid var(--pl);border-top:none;height:25mm;padding:0.6mm 1mm;font-size:7.5pt;white-space:pre-wrap;overflow:hidden}
+#print .k{font-weight:700}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>専科週案ツクール <small id="hdrVer" style="font-size:12px;opacity:.85"></small></h1>
+    <span class="cls" id="hdrCls"></span>
+    <span class="sp"></span>
+    <div class="savebox">
+      <span class="savestate" id="saveState"></span>
+      <button class="btn primary" id="btnSave" title="Ctrl+S でも保存できます">保存</button>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs">
+    <button data-tab="week" class="on">週案</button>
+    <button data-tab="tt">時間割</button>
+    <button data-tab="units">単元計画</button>
+    <button data-tab="hours">時数</button>
+    <button data-tab="set">設定</button>
+  </nav>
+  <main>
+    <div id="banners"></div>
+    <section id="tab-week"></section>
+    <section id="tab-tt" hidden></section>
+    <section id="tab-units" hidden></section>
+    <section id="tab-hours" hidden></section>
+    <section id="tab-set" hidden></section>
+  </main>
+</div>
+<div id="print"></div>
+<div id="toast" hidden></div>
+<script id="senka-data" type="application/json">null</script>
+<script>
+// 動かないときに理由を画面に出す（古いしくみのブラウザでも動くように、ここだけ古い書き方にしている）
+var BOOT_OK = false;
+function bootMsg(why) {
+  if (BOOT_OK || document.getElementById("bootErr")) return;
+  var el = document.createElement("div"); el.id = "bootErr";
+  el.style.cssText = "margin:24px auto;max-width:720px;padding:16px 20px;background:#FFF4E5;border:2px solid #E0A040;border-radius:8px;font-size:15px;line-height:1.8;color:#3A2A10";
+  el.innerHTML = "<b>専科週案ツクールを動かせませんでした。</b><br>" + why +
+    "<br><br>考えられること：<br>・ファイルが途中までしかコピーされていない（ファイルの大きさが約1.3MBあるか確かめてください）<br>・Edge の「Internet Explorer モード」で開いている（アドレスバーの左に IE のマークがあるとき）<br>・学校の設定で、パソコンの中のファイルの JavaScript が止められている" +
+    "<br><br><small style=\"color:#7A6A50\">くわしい理由：" + String(bootMsg.err || "（なし）").replace(/[<>&]/g, "") + "</small>";
+  (document.body || document.documentElement).insertBefore(el, (document.body || document.documentElement).firstChild);
+}
+var IE_MSG = "Internet Explorer モードで開かれています。ふつうの Edge で開いてください。";
+window.onerror = function (msg, src, line) { bootMsg.err = msg + "（" + line + "行目）"; bootMsg(document.documentMode ? IE_MSG : "とちゅうでエラーが出ました。"); };
+setTimeout(function () { if (!BOOT_OK) bootMsg(document.documentMode ? IE_MSG : "読み込みが終わりませんでした。"); }, 4000);
+</script>
+<script>
+"use strict";
+// 保存のとき、このファイルの形をそのまま書き出すため、画面を作る前の状態をとっておく
+const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+const APP_ID = "senka-tsukuru";
+const APP_VER = 1;
+// 設定で選べるフォント（週案の画面と印刷の両方に使う）
+const FONTS = {
+  msui:   {name: "MS UI Gothic",               css: '"MS UI Gothic"'},
+  mspmin: {name: "MS P明朝",                   css: '"ＭＳ Ｐ明朝","MS PMincho"'},
+  seikai: {name: "HG正楷書体",                 css: '"HG正楷書体-PRO","HGSeikaishotaiPRO","HG正楷書体","HGSeikaishotai"'},
+  udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
+};
+function applyFont() { const f = FONTS[D.me.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
+const VERSION = "v1.0";
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const WD = ["日","月","火","水","木","金","土"];
+const CIRC = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚㉛㉜㉝㉞㉟㊱㊲㊳㊴㊵㊶㊷㊸㊹㊺㊻㊼㊽㊾㊿";
+const circ = n => n >= 1 && n <= 50 ? CIRC[n - 1] : "(" + n + ")";
+const half = v => String(v ?? "").replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+
+/* ---------- 日付 ---------- */
+const pad = n => String(n).padStart(2, "0");
+const ymd = (y, m, d) => { const t = new Date(y, m - 1, d); return t.getFullYear() + "-" + pad(t.getMonth() + 1) + "-" + pad(t.getDate()); };
+const parse = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const fmt = t => t.getFullYear() + "-" + pad(t.getMonth() + 1) + "-" + pad(t.getDate());
+const addDays = (s, n) => { const t = parse(s); t.setDate(t.getDate() + n); return fmt(t); };
+const wday = s => parse(s).getDay();
+const mondayOf = s => addDays(s, -((wday(s) + 6) % 7));
+const md = s => { const t = parse(s); return (t.getMonth() + 1) + "/" + t.getDate(); };
+const today = () => fmt(new Date());
+const addYears = (s, n) => { if (!s) return s; const [y, m, d] = s.split("-").map(Number); return ymd(y + n, m, d); };
+
+/* ---------- 祝日 ---------- */
+const holCache = {};
+function holidaysOf(y) {
+  if (holCache[y]) return holCache[y];
+  const m = new Map();
+  const nthMon = (mo, n) => { const w = new Date(y, mo - 1, 1).getDay(); return 1 + ((8 - w) % 7) + (n - 1) * 7; };
+  const k = y - 1980;
+  const spring = Math.floor(20.8431 + 0.242194 * k - Math.floor(k / 4));
+  const autumn = Math.floor(23.2488 + 0.242194 * k - Math.floor(k / 4));
+  [[1,1,"元日"],[1,nthMon(1,2),"成人の日"],[2,11,"建国記念の日"],[2,23,"天皇誕生日"],[3,spring,"春分の日"],
+   [4,29,"昭和の日"],[5,3,"憲法記念日"],[5,4,"みどりの日"],[5,5,"こどもの日"],[7,nthMon(7,3),"海の日"],
+   [8,11,"山の日"],[9,nthMon(9,3),"敬老の日"],[9,autumn,"秋分の日"],[10,nthMon(10,2),"スポーツの日"],
+   [11,3,"文化の日"],[11,23,"勤労感謝の日"]].forEach(([mo, d, n]) => m.set(ymd(y, mo, d), n));
+  // 国民の休日（祝日にはさまれた日）
+  for (const d of Array.from(m.keys())) {
+    const n2 = addDays(d, 2), n1 = addDays(d, 1);
+    if (m.has(n2) && !m.has(n1) && wday(n1) !== 0) m.set(n1, "国民の休日");
+  }
+  // 振替休日
+  for (const d of Array.from(m.keys()).sort()) {
+    if (wday(d) === 0) { let x = addDays(d, 1); while (m.has(x)) x = addDays(x, 1); m.set(x, "振替休日"); }
+  }
+  return (holCache[y] = m);
+}
+const holiday = s => holidaysOf(+s.slice(0, 4)).get(s) || "";
+
+/* ---------- 初期データ ---------- */
+// 教科と学年ごとの標準時数（空欄＝その学年にない、○＝時数を決めない）
+const SUBJ_DEF = [
+  ["国語",   [306,315,245,245,175,175]],
+  ["書写",   ["○","○","○","○","○","○"]],
+  ["社会",   ["","",70,90,100,105]],
+  ["算数",   [136,175,175,175,175,175]],
+  ["理科",   ["","",90,105,105,105]],
+  ["生活",   [102,105,"","","",""]],
+  ["音楽",   [68,70,60,60,50,50]],
+  ["図工",   [68,70,60,60,50,50]],
+  ["家庭",   ["","","","",60,55]],
+  ["体育",   [102,105,105,105,90,90]],
+  ["保健",   ["","","○","○","○","○"]],
+  ["外国語", ["","",35,35,70,70]],
+  ["道徳",   [34,35,35,35,35,35]],
+  ["総合",   ["","",70,70,70,70]],
+];
+// クラスの色（学年ごと）
+const GRADE_COLORS = ["#F4C7C7","#F6E0A8","#C6E5C1","#BCD6F2","#DED0F0","#FAD1AE"];
+function fiscalYearOf(s) { const t = parse(s); return t.getMonth() >= 3 ? t.getFullYear() : t.getFullYear() - 1; }
+function defaultSchool(y) {
+  const oct = new Date(y, 9, 1).getDay(); const sports = 1 + ((8 - oct) % 7) + 7;
+  return {
+    year: y,
+    kokiStart: ymd(y, 10, sports + 1),
+    week1: mondayOf(ymd(y, 4, 7)),
+    periods: 6,
+    confirmed: false,
+    breaks: [
+      {name: "春休み", from: ymd(y, 4, 1), to: ymd(y, 4, 6)},
+      {name: "夏休み", from: ymd(y, 7, 21), to: ymd(y, 8, 31)},
+      {name: "冬休み", from: ymd(y, 12, 26), to: ymd(y + 1, 1, 7)},
+      {name: "学年末休み", from: ymd(y + 1, 3, 25), to: ymd(y + 1, 3, 31)},
+    ],
+    subjects: SUBJ_DEF.map(([name, hours]) => ({name, hours: hours.slice()})),
+  };
+}
+function newData() {
+  return {
+    app: APP_ID, ver: APP_VER, fileId: Math.random().toString(36).slice(2, 10), rev: 0, savedAt: "",
+    school: defaultSchool(fiscalYearOf(today())),
+    me: {teacher: "", subject: "", startDate: "", init: {}, theme: "sora", font: "msui", rateMode: "rate", others: ["空き", "会議", "打合せ", "補教"]},
+    classes: [],            // 担当クラス {id, grade, kumi, subj, color}
+    timetable: {1: [], 2: [], 3: [], 4: [], 5: []},   // マスにはクラスのid（@…）か、「会議」などの文字
+    units: {},              // "理科|4" -> 単元計画（同じ学年のクラスで共通）
+    weeks: {},
+    days: {},
+  };
+}
+
+/* ---------- 状態 ---------- */
+let D;
+let dirty = false;
+let curWeek = "";
+let curTab = "week";
+let curPlan = "";
+const DRAFT_KEY = APP_ID + "-draft:" + location.href;
+function loadEmbedded() {
+  try { const v = JSON.parse($("#senka-data").textContent); if (v && v.app === APP_ID) return v; } catch (e) {}
+  return null;
+}
+function normalize(d) {
+  const n = newData();
+  for (const k of Object.keys(n)) if (d[k] === undefined) d[k] = n[k];
+  for (const k of Object.keys(n.school)) if (d.school[k] === undefined) d.school[k] = n.school[k];
+  for (const k of Object.keys(n.me)) if (d.me[k] === undefined) d.me[k] = n.me[k];
+  for (const w of [1,2,3,4,5]) if (!Array.isArray(d.timetable[w])) d.timetable[w] = [];
+  d.ver = APP_VER;
+  return d;
+}
+D = normalize(loadEmbedded() || newData());
+
+const P = () => D.school.periods;
+const subjByName = n => D.school.subjects.find(s => s.name === n);
+const yearStart = () => ymd(D.school.year, 4, 1);
+const yearEnd = () => ymd(D.school.year + 1, 3, 31);
+const startDate = () => (D.me.startDate && D.me.startDate > yearStart()) ? D.me.startDate : yearStart();
+
+/* ---------- 担当クラス ---------- */
+const clsById = id => id && id[0] === "@" ? D.classes.find(c => c.id === id) : null;
+const multiSubj = () => new Set(D.classes.map(c => c.subj)).size > 1;
+// 画面と印刷に出す短い名前（例：4-1。教科が2つ以上あるときは 4-1理科）
+const clsLabel = c => (c.kumi ? c.grade + "-" + c.kumi : c.grade + "年") + (multiSubj() ? c.subj : "");
+const clsLong = c => c.grade + "年" + (c.kumi ? c.kumi + "組" : "") + "　" + c.subj;
+const labelOf = v => { const c = clsById(v); return c ? clsLabel(c) : (v || ""); };
+const colorOf = v => { const c = clsById(v); return c ? c.color : "#E5E5E5"; };
+const planKey = c => c.subj + "|" + c.grade;
+const planName = k => { const [s, g] = k.split("|"); return g + "年 " + s; };
+const planOf = c => D.units[planKey(c)] || [];
+const planKeys = () => { const a = []; for (const c of D.classes) if (!a.includes(planKey(c))) a.push(planKey(c)); return a; };
+const planListId = c => "ul-" + planKeys().indexOf(planKey(c));
+function stdHours(c) { const s = subjByName(c.subj); if (!s) return null; const v = parseFloat(half(s.hours[c.grade - 1])); return isFinite(v) ? v : null; }
+// 打ち込んだ名前からクラスをさがす（「4-1」「4年1組」「4-1理科」など）
+function findCls(v) {
+  v = half(v).replace(/[－ー‐]/g, "-").replace(/\s+/g, "");
+  return D.classes.find(c => [clsLabel(c), clsLong(c).replace(/\s|　/g, ""), c.grade + "-" + c.kumi, c.grade + "年" + c.kumi + "組", c.grade + "-" + c.kumi + c.subj].includes(v)) || null;
+}
+const newId = () => { let id; do id = "@" + Math.random().toString(36).slice(2, 7); while (clsById(id)); return id; };
+const sortClasses = () => {
+  const si = s => { const i = D.school.subjects.findIndex(x => x.name === s); return i < 0 ? 99 : i; };
+  D.classes.sort((a, b) => si(a.subj) - si(b.subj) || a.grade - b.grade || String(a.kumi).localeCompare(String(b.kumi), "ja", {numeric: true}));
+};
+// 教科書の年間指導計画があれば、まだ入っていない学年・教科に入れる
+function loadPresetFor(c) {
+  const k = planKey(c);
+  if ((D.units[k] || []).length) return "";
+  const pk = presetsFor(c.subj, c.grade)[0];
+  if (!pk) return "";
+  D.units[k] = JSON.parse(JSON.stringify(PRESETS[pk].units));
+  return planName(k);
+}
+function addClass(grade, kumi, subj) {
+  const c = {id: newId(), grade, kumi: String(kumi), subj, color: GRADE_COLORS[(grade - 1) % 6]};
+  D.classes.push(c); sortClasses();
+  return c;
+}
+// クラスを消すとき、週案と時間割に入っている分は文字（予定）として残す
+function removeClass(id) {
+  const c = clsById(id); const lab = clsLabel(c);
+  for (const w in D.timetable) D.timetable[w] = D.timetable[w].map(v => v === id ? lab : v);
+  for (const d in D.days) for (const x of D.days[d].slots || []) if (x.s === id) { x.s = lab; delete x.unit; delete x.no; }
+  delete D.me.init[id];
+  D.classes = D.classes.filter(x => x.id !== id);
+}
+
+/* ---------- 日 ---------- */
+function breakOf(s) { for (const b of D.school.breaks) if (b.from && b.to && s >= b.from && s <= b.to) return b.name || "休業日"; return ""; }
+function weekRec(mon) { return D.weeks[mon] || {}; }
+function dayRec(s) { return D.days[s] || {}; }
+function offReason(s) {
+  if (s < yearStart() || s > yearEnd()) return "年度外";
+  const w = wday(s);
+  if (w === 0) return "日曜";
+  if (w === 6 && !weekRec(mondayOf(s)).sat) return "土曜";
+  return holiday(s) || breakOf(s) || "";
+}
+// 休みの日の名前（祝日名・休業日の名前・自分で付けた名前）
+function offName(s) {
+  const r = dayRec(s);
+  if (r.off === true && !offReason(s)) return r.offName || "休み";
+  return offReason(s) || r.offName || "休み";
+}
+function isSchoolDay(s) {
+  if (s < yearStart() || s > yearEnd()) return false;
+  const r = dayRec(s);
+  if (r.off === true) return false;
+  if (r.off === false) return true;
+  return !offReason(s);
+}
+// コマは1〜P（0番は使わない）
+function defaultSlots(s) {
+  const w = wday(s); const arr = [];
+  const tt = (w >= 1 && w <= 5) ? D.timetable[w] : [];
+  for (let i = 0; i <= P(); i++) arr.push({s: i ? tt[i] || "" : ""});
+  return arr;
+}
+function slotsOf(s) {
+  const r = D.days[s];
+  if (r && r.slots) { const a = r.slots.slice(0, P() + 1); while (a.length < P() + 1) a.push({s: ""}); return a; }
+  return defaultSlots(s);
+}
+function ensureDay(s) { return D.days[s] || (D.days[s] = {}); }
+function ensureSlots(s) {
+  const r = ensureDay(s);
+  if (!r.slots) r.slots = defaultSlots(s).map(x => ({...x}));
+  while (r.slots.length < P() + 1) r.slots.push({s: ""});
+  return r.slots;
+}
+function ensureWeek(mon) { return D.weeks[mon] || (D.weeks[mon] = {}); }
+
+/* ---------- 単元の進み方と時数 ---------- */
+const lessonCount = u => Math.max(parseInt(u.total) || 0, (u.lessons || []).length);
+const lessonText = (un, n) => ((un.short || [])[n - 1] || "").trim() || (un.lessons || [])[n - 1] || "";
+// 1年分の授業を日付順に見て、それぞれのコマの学習内容と、クラスごとの時数を決める
+function computeYear() {
+  const info = {};          // "日付|コマ" -> {label, auto}
+  const counts = {};        // 日付 -> {クラスid: 1/12時間単位}
+  const sched = {};         // 計画 -> 単元 -> クラスid -> {first,last,done}
+  const st = startDate();
+  for (let d = yearStart(); d <= yearEnd(); d = addDays(d, 1)) {
+    if (d < st || !isSchoolDay(d)) continue;
+    const c = {};
+    slotsOf(d).forEach((x, i) => {
+      const cl = i > 0 && clsById(x.s);
+      if (!cl) return;
+      c[cl.id] = (c[cl.id] || 0) + slotUnits(x);
+      if (!x.unit) return;
+      const nums = parseNos(x.no);
+      const k = planKey(cl); const units = D.units[k] || [];
+      const ui = units.findIndex(u => u.name === x.unit); const un = units[ui];
+      info[d + "|" + i] = {label: x.unit + nums.map(circ).join(""), auto: un && nums.length ? lessonText(un, nums[0]) : ""};
+      if (un) {
+        const byU = (sched[k] = sched[k] || {}); const sc = (byU[ui] = byU[ui] || {});
+        const e = (sc[cl.id] = sc[cl.id] || {first: d, last: d, done: new Set()});
+        e.last = d; nums.forEach(n => e.done.add(n));
+      }
+    });
+    counts[d] = c;
+  }
+  return {info, counts, sched};
+}
+let CY = null;
+const cy = () => CY || (CY = computeYear());
+function sumCounts(from, to, withInit) {
+  const r = {};
+  const c = cy().counts;
+  for (const d in c) if (d >= from && d <= to) for (const k in c[d]) r[k] = (r[k] || 0) + c[d][k];
+  if (withInit) for (const k in D.me.init) r[k] = (r[k] || 0) + (D.me.init[k] || 0);
+  return r;
+}
+// 時の欄：「2」「2-3」「2・3」「2,4」などを番号の並びにする
+function parseNos(v) {
+  v = half(v).replace(/[－ー〜～]/g, "-").trim();
+  const out = [];
+  for (const part of v.split(/[,、・\s]+/)) {
+    const m = part.match(/^(\d+)(?:-(\d+))?$/);
+    if (!m) continue;
+    const a = +m[1], b = m[2] ? +m[2] : a;
+    for (let n = a; n <= Math.min(b, a + 9); n++) if (n >= 1 && !out.includes(n)) out.push(n);
+  }
+  return out;
+}
+// そのクラスで、このコマより前に入れた最後の単元と時
+function lastOf(id, d, i) {
+  let last = null;
+  for (const dd of Object.keys(D.days).sort()) {
+    if (dd > d) break;
+    (D.days[dd].slots || []).forEach((x, ii) => {
+      if (dd === d && ii >= i) return;
+      if (x.s === id && x.unit) last = {unit: x.unit, no: Math.max(0, ...parseNos(x.no))};
+    });
+  }
+  return last;
+}
+// 続きの単元と時（単元の最後の時まで進んでいたら、次の単元の1時間目）
+function nextOf(id, d, i) {
+  const c = clsById(id); if (!c) return null;
+  const plan = planOf(c); const last = lastOf(id, d, i);
+  if (!last) return plan[0] ? {unit: plan[0].name, no: 1} : null;
+  const ui = plan.findIndex(u => u.name === last.unit);
+  if (ui >= 0 && last.no >= lessonCount(plan[ui])) return plan[ui + 1] ? {unit: plan[ui + 1].name, no: 1} : null;
+  return {unit: last.unit, no: last.no + 1};
+}
+function fillNext(x, d, i) {
+  const n = nextOf(x.s, d, i);
+  delete x.t;
+  if (n) { x.unit = n.unit; x.no = String(n.no); } else { delete x.unit; delete x.no; }
+}
+// 時数は1/12時間単位で数える（1/2・1/3・1/4を正しくたせるように）
+const U = 12;
+const FRAC = {2: "1/6", 3: "1/4", 4: "1/3", 6: "1/2", 8: "2/3", 9: "3/4", 10: "5/6"};
+function fr(t) {
+  t = Math.round(t || 0);
+  if (!t) return "0";
+  const neg = t < 0; t = Math.abs(t);
+  const w = Math.floor(t / U), r = t % U;
+  if (r && !FRAC[r]) return (neg ? "-" : "") + (t / U).toFixed(2);
+  return (neg ? "-" : "") + (w || !r ? w : "") + (w && r ? " " : "") + (r ? FRAC[r] : "");
+}
+function parseHours(v) {
+  v = String(v ?? "").trim().replace(/[０-９．／]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/\s+/g, " ");
+  if (!v) return 0;
+  const uni = {"½": 6, "⅓": 4, "⅔": 8, "¼": 3, "¾": 9, "⅙": 2, "⅚": 10};
+  let m = v.match(/^(\d+)?\s*([½⅓⅔¼¾⅙⅚])$/);
+  if (m) return (parseInt(m[1] || "0") * U) + uni[m[2]];
+  m = v.match(/^(?:(\d+) )?(\d+)\/(\d+)$/);
+  if (m && +m[3]) return Math.round((parseInt(m[1] || "0") + m[2] / m[3]) * U);
+  const f = parseFloat(v); return isFinite(f) ? Math.round(f * U) : 0;
+}
+// コマの時数（右の欄が空なら1時間）
+function slotUnits(x) { const h = parseHours(x.h); return h > 0 ? h : U; }
+// クラスごとの表（教科が2つ以上あるときは教科ごとに分ける）
+function totalsGroups(maps) {
+  const groups = [];
+  for (const c of D.classes) {
+    let g = groups.find(x => x.subj === c.subj);
+    if (!g) groups.push(g = {subj: c.subj, rows: []});
+    g.rows.push({id: c.id, name: clsLabel(c), color: c.color, vals: maps.map(m => m[c.id] || 0), std: stdHours(c)});
+  }
+  for (const g of groups) g.sums = maps.map((m, k) => g.rows.reduce((a, r) => a + r.vals[k], 0));
+  return groups;
+}
+
+/* ---------- 変更と保存 ---------- */
+function changed(rerender = true) {
+  D.rev++; dirty = true; CY = null;
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({rev: D.rev, at: new Date().toISOString(), data: D})); } catch (e) {}
+  showSaveState();
+  if (rerender) render();
+}
+function showSaveState() {
+  $("#saveState").textContent = dirty ? "保存していない変更があります" : (D.savedAt ? "保存済み " + D.savedAt.slice(5, 16).replace("T", " ").replace("-", "/") : "");
+}
+function toast(msg, ms = 2600) {
+  const t = $("#toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, ms);
+}
+function buildHtml(data) {
+  const open = '<script id="senka-data" type="application/json">';
+  const i = PRISTINE.indexOf(open);
+  const j = PRISTINE.indexOf("</" + "script>", i);
+  const json = JSON.stringify(data).replace(/</g, "\\u003c");
+  return PRISTINE.slice(0, i + open.length) + json + PRISTINE.slice(j);
+}
+const meTitle = () => D.me.subject ? D.me.subject + "専科" : "専科";
+function fileBaseName() { return "専科週案ツクール_" + VERSION + (D.me.subject ? "_" + D.me.subject : ""); }
+function currentFileName() {
+  try { const p = decodeURIComponent(location.pathname); return p.slice(p.lastIndexOf("/") + 1); } catch (e) { return ""; }
+}
+// 保存先（ファイルの場所）を覚えておく
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(APP_ID, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("h");
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function idbGet(k) { try { const db = await idb(); return await new Promise(r => { const q = db.transaction("h").objectStore("h").get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null); }); } catch (e) { return null; } }
+async function idbSet(k, v) { try { const db = await idb(); await new Promise(r => { const t = db.transaction("h", "readwrite"); t.objectStore("h").put(v, k); t.oncomplete = r; t.onerror = r; }); } catch (e) {} }
+let handle = null;
+function download(name, text, type = "text/html") {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], {type}));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+const DATA_RE = /<script id="senka-data" type="application\/json">([\s\S]*?)<\/script>/;
+// 保存先のファイルに、いま開いているものとは別の（または新しい）週案が入っていないか確かめる
+async function safeToOverwrite(h) {
+  let v = null;
+  try {
+    const t = await (await h.getFile()).text();
+    const m = t.match(DATA_RE);
+    if (m) v = JSON.parse(m[1]);
+  } catch (e) { return true; }
+  if (!v || v.app !== APP_ID) return true;
+  if (v.fileId === D.fileId && (v.rev || 0) <= D.rev) return true;
+  const who = (v.me && v.me.teacher ? v.me.teacher + " " : "") + (v.savedAt ? v.savedAt.replace("T", " ") + "に保存" : "");
+  return confirm("保存先の「" + h.name + "」には、いま開いている週案とは別の（または新しい）データが入っています。" + (who ? "（" + who + "）" : "") +
+    "\n上書きすると、そのデータは消えます。\n\n上書きするときは「OK」、別のファイルに保存するときは「キャンセル」を押してください。");
+}
+async function save() {
+  const prevSaved = D.savedAt;
+  const now = new Date();
+  D.savedAt = fmt(now) + "T" + pad(now.getHours()) + ":" + pad(now.getMinutes());
+  const html = buildHtml(D);
+  if (!window.showSaveFilePicker) {
+    download(currentFileName() || fileBaseName() + ".html", html);
+    dirty = false; showSaveState();
+    toast("ダウンロードしました。前のファイルと置きかえてください");
+    return;
+  }
+  const pick = () => window.showSaveFilePicker({suggestedName: currentFileName() || fileBaseName() + ".html", types: [{description: "専科週案ツクール（HTML）", accept: {"text/html": [".html"]}}]});
+  try {
+    let h = handle || await idbGet("h:" + location.href);
+    let ok = false;
+    if (h) {
+      try {
+        let p = await h.queryPermission({mode: "readwrite"});
+        if (p !== "granted") p = await h.requestPermission({mode: "readwrite"});
+        ok = p === "granted";
+      } catch (e) { ok = false; }
+    }
+    if (!ok) {
+      toast("いま開いているこのファイルを選んで「保存」→「はい（置きかえる）」を押してください", 6000);
+      h = await pick();
+    }
+    if (!(await safeToOverwrite(h))) {
+      toast("保存するファイルを選んでください（新しい名前にすると、別のファイルとして保存されます）", 6000);
+      h = await pick();
+      if (!(await safeToOverwrite(h))) { D.savedAt = prevSaved; toast("保存をやめました"); return; }
+    }
+    const w = await h.createWritable(); await w.write(html); await w.close();
+    handle = h; await idbSet("h:" + location.href, h);
+    dirty = false; showSaveState();
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+    const cur = currentFileName();
+    if (cur && h.name !== cur) toast("「" + h.name + "」に保存しました。次からはそのファイルを開いてください", 7000);
+    else toast("保存しました");
+  } catch (e) {
+    D.savedAt = prevSaved;
+    if (e && e.name === "AbortError") toast("保存をやめました");
+    else { toast("保存できませんでした。かわりにダウンロードします"); download(fileBaseName() + ".html", buildHtml(D)); }
+  }
+}
+
+/* ---------- 画面 ---------- */
+function render() {
+  applyFont();
+  $("#hdrCls").textContent = D.me.subject || D.me.teacher ? `${D.school.year}年度　${meTitle()}　${D.me.teacher}` : "";
+  renderBanners();
+  ({week: renderWeek, tt: renderTT, units: renderUnits, hours: renderHours, set: renderSet})[curTab]();
+  showSaveState();
+}
+const subjSelect = (id, sel) => `<select id="${id}"><option value="">教科</option>${D.school.subjects.map(s => `<option${s.name === sel ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select>`;
+function renderBanners() {
+  let h = "";
+  if (!D.classes.length && curTab !== "set") {
+    h += `<div class="banner"><b>はじめに</b>担当の教科と名前、学年ごとの担当クラスの数を入れてください。
+      ${subjSelect("bnSubj", D.me.subject)}
+      <input type="text" id="bnTeacher" placeholder="名前" value="${esc(D.me.teacher)}" style="width:140px">
+      <span class="gcnt">${[1,2,3,4,5,6].map(g => `<label>${g}年<input type="number" class="bnG" data-g="${g}" min="0" max="12" placeholder="0">クラス</label>`).join("")}</span>
+      <button class="btn primary" id="bnGo">決定</button></div>`;
+  } else if (D.classes.length && !Object.values(D.timetable).some(a => a.some(Boolean)) && curTab === "week") {
+    h += `<div class="banner"><b>次に</b>「時間割」のタブで、ふだんの時間割（どのコマにどのクラスに行くか）を入れてください。毎週の週案に自動で入ります。<button class="btn" data-go="tt">時間割を入れる</button></div>`;
+  }
+  const dr = draftInfo;
+  if (dr) h += `<div class="banner"><b>保存していない入力が残っています</b>（${esc(dr.at)}）。<button class="btn primary" id="drYes">復元する</button><button class="btn" id="drNo">捨てる</button></div>`;
+  $("#banners").innerHTML = h;
+  const go = $("#bnGo");
+  if (go) go.onclick = () => {
+    const subj = $("#bnSubj").value;
+    if (!subj) { toast("担当の教科を選んでください"); return; }
+    const cnt = $$(".bnG").map(i => [+i.dataset.g, Math.min(12, parseInt(half(i.value)) || 0)]).filter(x => x[1] > 0);
+    if (!cnt.length) { toast("担当するクラスの数を、学年ごとに入れてください"); return; }
+    D.me.subject = subj; D.me.teacher = $("#bnTeacher").value.trim();
+    for (const [g, n] of cnt) for (let k = 1; k <= n; k++) addClass(g, k, subj);
+    const got = [...new Set(D.classes.map(loadPresetFor).filter(Boolean))];
+    changed();
+    toast(D.classes.length + "クラスを入れました" + (got.length ? "。教科書の単元計画（" + got.join("・") + "）も入れました" : ""), 5000);
+  };
+  $$("[data-go]").forEach(b => b.onclick = () => switchTab(b.dataset.go));
+  if ($("#drYes")) {
+    $("#drYes").onclick = () => { D = normalize(draftInfo.data); draftInfo = null; dirty = true; CY = null; render(); toast("復元しました。「保存」を押してください"); };
+    $("#drNo").onclick = () => { draftInfo = null; try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} render(); };
+  }
+}
+function switchTab(t) {
+  curTab = t;
+  $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  for (const k of ["week","tt","units","hours","set"]) $("#tab-" + k).hidden = k !== t;
+  render();
+}
+
+/* 週案タブ */
+function weeksOfYear() {
+  const arr = [];
+  for (let m = mondayOf(yearStart()); m <= yearEnd(); m = addDays(m, 7)) arr.push(m);
+  return arr;
+}
+const weekNo = mon => Math.round((parse(mon) - parse(D.school.week1 || mondayOf(yearStart()))) / 864e5 / 7) + 1;
+function weekDays(mon) {
+  const n = weekRec(mon).sat ? 6 : 5; const a = [];
+  for (let i = 0; i < n; i++) a.push(addDays(mon, i));
+  return a;
+}
+function weekEdited(mon) {
+  if (D.weeks[mon] && (D.weeks[mon].memo || D.weeks[mon].rec)) return true;
+  for (let i = 0; i < 6; i++) if (D.days[addDays(mon, i)]) return true;
+  return false;
+}
+function weekTitle(mon) {
+  const n = weekNo(mon); const days = weekDays(mon);
+  return (n >= 1 ? "第" + n + "週　" : "") + md(days[0]) + "（" + WD[wday(days[0])] + "）〜" + md(days[days.length - 1]) + "（" + WD[wday(days[days.length - 1])] + "）";
+}
+function slotHtml(d, i, x) {
+  const inf = cy().info[d + "|" + i] || {};
+  const cl = clsById(x.s);
+  const col = x.s ? colorOf(x.s) : "#E5E5E5";
+  const manual = x.t !== undefined && x.t !== null;
+  const val = manual ? x.t : (inf.auto || "");
+  const un = cl && x.unit ? planOf(cl).find(u => u.name === x.unit) : null;
+  const over = un && parseNos(x.no).some(n => n > lessonCount(un));
+  return `<div class="slot" draggable="true" data-d="${d}" data-i="${i}" style="--c:${col};--cbg:${cl ? col + "55" : "#fff"}">
+    <div class="sh"><span class="grip" title="ドラッグして別のコマと入れかえ">⋮⋮</span><input type="text" class="subj" list="clsList" value="${esc(labelOf(x.s))}" placeholder="―">${cl ? `<input type="text" class="hr" value="${esc(x.h || "")}" placeholder="1" title="このコマの時数（1/2など）。空欄は1時間">` : ""}</div>
+    ${cl ? `<div class="uf"><input type="text" class="un" list="${planListId(cl)}" value="${esc(x.unit || "")}" placeholder="単元" title="単元名（一覧から選ぶか、打ち込む）"><input type="text" class="no" value="${esc(x.no || "")}" placeholder="時" title="何時間目か（例：2　2時間分なら 2-3）"></div>${over ? `<span class="done">この単元の時数（${lessonCount(un)}時間）をこえています</span>` : ""}` : ""}
+    <div class="tw"><textarea class="ct${manual ? "" : " auto"}" placeholder="${cl ? "学習内容・めあて" : "内容"}">${esc(val)}</textarea>${manual && inf.auto ? '<button class="rv" title="単元計画の内容にもどす">↺</button>' : ""}</div>
+  </div>`;
+}
+const BREAKS = [[2, "naka", "中"], [4, "hiru", "昼"]];
+function renderWeek() {
+  const el = $("#tab-week");
+  const weeks = weeksOfYear();
+  if (!curWeek || !weeks.includes(curWeek)) {
+    const t = mondayOf(today());
+    curWeek = weeks.includes(t) ? t : weeks[0];
+  }
+  const mon = curWeek; const wr = weekRec(mon); const days = weekDays(mon);
+  let wopts = weeks.map(m => `<option value="${m}"${m === mon ? " selected" : ""}>${weekEdited(m) ? "● " : "　"}${esc(weekTitle(m))}</option>`).join("");
+  let h = `<div class="weekbar">
+    <button class="btn" id="wPrev">◀ 前の週</button>
+    <select id="wSel">${wopts}</select>
+    <button class="btn" id="wNext">次の週 ▶</button>
+    <button class="btn" id="wToday">今週</button>
+    <button class="btn primary" id="wFill" title="単元が空いているコマに、クラスごとに前の続きの単元・時を入れます">📚 この週に単元の続きを入れる</button>
+    <span class="sp" style="flex:1"></span>
+    <label class="row" style="gap:4px"><input type="checkbox" id="wSat"${wr.sat ? " checked" : ""}> 土曜授業がある</label>
+    <button class="btn" id="wPrint">🖨 印刷（B5縦）</button>
+    <button class="btn" id="wPdf" title="印刷の画面で「PDFとして保存」を選ぶと、このファイル名で保存されます">📄 PDFで保存</button>
+  </div>
+  <div class="weeklayout"><div>
+  ${planKeys().map((k, n) => `<datalist id="ul-${n}">${(D.units[k] || []).map(u => `<option value="${esc(u.name)}">`).join("")}<option value="なし"></datalist>`).join("")}
+  <datalist id="clsList">${D.classes.map(c => `<option value="${esc(clsLabel(c))}">`).join("")}${(D.me.others || []).map(n => `<option value="${esc(n)}">`).join("")}<option value="なし"></datalist>
+  <div class="gridwrap"><table class="wk"><colgroup><col style="width:44px">${days.map(() => "<col>").join("")}</colgroup><thead><tr><th class="lab"></th>`;
+  for (const d of days) {
+    const w = wday(d); const off = !isSchoolDay(d);
+    let tog = "";
+    if (d >= yearStart() && d <= yearEnd()) {
+      tog = off ? `<button class="btn small" data-on="${d}" title="この日を授業日にする">授業日にする</button>` : `<button class="btn small" data-offd="${d}" title="この日を休みにする">休みにする</button>`;
+    }
+    h += `<th><div class="dd"><span class="wd${w}">${md(d)}（${WD[w]}）</span>${tog}</div>${off ? `<div class="offlab">${esc(offName(d))}</div>` : ""}</th>`;
+  }
+  h += `</tr></thead><tbody><tr><th class="lab">行事</th>`;
+  for (const d of days) {
+    const hol = holiday(d) || breakOf(d);
+    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="ev" data-d="${d}" placeholder="${esc(hol || "")}">${esc(dayRec(d).event || "")}</textarea></td>`;
+  }
+  h += `</tr><tr><th class="lab">朝</th>`;
+  for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="asa" data-d="${d}" placeholder="打合せ・朝会など">${esc(dayRec(d).asa || "")}</textarea></td>`;
+  h += "</tr>";
+  for (let i = 1; i <= P(); i++) {
+    h += `<tr><th class="lab">${i}</th>`;
+    for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}">${slotHtml(d, i, slotsOf(d)[i])}</td>`;
+    h += "</tr>";
+    // 中休み（2時間目のあと）・昼休み（4時間目のあと）
+    for (const [after, key, lab] of BREAKS) if (i === Math.min(after, P())) {
+      h += `<tr class="brk"><th class="lab">${lab}</th>`;
+      for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="br" data-d="${d}" data-k="${key}" placeholder="${lab}休みの予定">${esc(dayRec(d)[key] || "")}</textarea></td>`;
+      h += "</tr>";
+    }
+  }
+  h += `<tr><th class="lab">備考</th>`;
+  for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="note" data-d="${d}" placeholder="記録・振り返り">${esc(dayRec(d).note || "")}</textarea></td>`;
+  h += `</tr></tbody></table></div>
+  <div class="memo" style="margin-top:8px"><b>メモ</b>（印刷では時数表の下）<textarea id="wMemo" placeholder="連絡・準備物など">${esc(wr.memo || "")}</textarea></div>
+  <div class="memo" style="margin-top:8px"><b>記録欄</b>（印刷ではいちばん下）<textarea id="wRec" placeholder="週の振り返り・記録">${esc(wr.rec || "")}</textarea></div>
+  <p class="hint">・コマの上の欄は、クリックすると担当クラスの一覧が出ます。「会議」などの予定も打ち込めます（時数には数えません）。消すときは「なし」を選びます。<br>・クラスを入れると、そのクラスの前の続きの【単元】【時】が自動で入ります。時間割から入ったコマは「📚 この週に単元の続きを入れる」を押すと、まとめて入ります。<br>・単元の最後の時まで進むと、次は単元計画の次の単元の1時間目になります。2時間分を1時間でやるときは、時に「2-3」と入れます（印刷は「てこのはたらき②③」）。<br>・コマの左の「⋮⋮」をドラッグすると、別のコマと入れかえられます（授業変更）。<br>・学習内容を書きかえると、その文が優先されます。「↺」で単元計画の内容にもどせます。</p>
+  </div>
+  <div class="side">${weekTotalsHtml(mon)}${progressHtml(addDays(mon, 6))}</div></div>`;
+  el.innerHTML = h;
+  bindWeek(el, mon);
+}
+function rateCell(r) {
+  if (r.std == null || !r.std) return "";
+  if (D.me.rateMode === "rest") return fr(r.std * U - r.vals[1]);
+  return (r.vals[1] / (r.std * U) * 100).toFixed(1) + "%";
+}
+function weekTotalsHtml(mon) {
+  const last = addDays(mon, 6);
+  const groups = totalsGroups([sumCounts(mon, last, false), sumCounts(yearStart(), last, true)]);
+  const multi = groups.length > 1;
+  let h = `<h3>時数（${md(mon)}の週）</h3><table class="tot"><tr><th>クラス</th><th>今週</th><th>累計</th><th>標準</th><th>${D.me.rateMode === "rest" ? "残り" : "達成率"}</th></tr>`;
+  let s0 = 0;
+  for (const g of groups) {
+    for (const r of g.rows) {
+      const rest = r.std != null ? r.std * U - r.vals[1] : null;
+      h += `<tr><td class="n"><span class="chip" style="background:${r.color}"></span>${esc(r.name)}</td><td>${fr(r.vals[0])}</td><td>${fr(r.vals[1])}</td><td>${r.std ?? ""}</td><td class="${rest != null && rest < 0 ? "neg" : ""}">${rateCell(r)}</td></tr>`;
+    }
+    if (multi) h += `<tr class="sub"><td class="n">${esc(g.subj)} 小計</td><td>${fr(g.sums[0])}</td><td></td><td></td><td></td></tr>`;
+    s0 += g.sums[0];
+  }
+  h += `<tr class="sum"><td class="n">今週の授業</td><td>${fr(s0)}</td><td></td><td></td><td></td></tr></table>
+  <p class="hint">累計は年度のはじめからこの週の終わりまで（予定）です。${D.me.startDate ? "使い始める前の時数（設定で入れた分）もふくみます。" : ""}右の小さい欄に「1/2」などを入れたコマはその時数、空欄は1時間で数えます。</p>`;
+  return h;
+}
+// クラスごとの進み具合（この週の終わりまでで、いちばん新しい単元と時）
+function progressHtml(last) {
+  if (!D.classes.length) return "";
+  let h = `<h3>進み具合（${md(last)}まで）</h3><table class="prog"><tr><th>クラス</th><th>単元</th><th>時</th></tr>`;
+  for (const c of D.classes) {
+    const l = lastOf(c.id, addDays(last, 1), 0);
+    const un = l ? planOf(c).find(u => u.name === l.unit) : null;
+    h += `<tr><td><span class="chip" style="background:${c.color}"></span>${esc(clsLabel(c))}</td><td>${esc(l ? l.unit : "―")}</td><td>${l ? l.no + (un ? "/" + lessonCount(un) : "") : ""}</td></tr>`;
+  }
+  return h + `</table><p class="hint">クラスごとの進みのちがいが見られます。</p>`;
+}
+// コマの上の欄：一覧から選ぶことも、打ち込むこともできる
+function bindSubj(inp, apply) {
+  const orig = inp.value;
+  inp.addEventListener("focus", () => { inp.placeholder = inp.value || "―"; inp.value = ""; });   // 一覧を全部出すため
+  inp.addEventListener("blur", () => { if (inp.value === "") inp.value = orig; });
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") inp.blur(); if (e.key === "Delete" && inp.value === "") { inp.dataset.clear = "1"; inp.blur(); } });
+  inp.addEventListener("change", () => {
+    const v = inp.value.trim();
+    if (v === "" || v === orig) return;
+    if (v === "―" || v === "なし") { apply(""); changed(); return; }
+    const c = findCls(v);
+    if (!c && !(D.me.others || []).includes(v)) toast("「" + v + "」は担当クラスにないので、予定として入れます（時数には数えません）");
+    apply(c ? c.id : v); changed();
+  });
+  inp.addEventListener("blur", () => { if (inp.dataset.clear) { delete inp.dataset.clear; apply(""); changed(); } });
+}
+function setHours(x, inp) {
+  const v = inp.value.trim();
+  if (!v) { delete x.h; return; }
+  if (!(parseHours(v) > 0)) { toast("時数は「1/2」「1/3」「2」のように入れてください"); delete x.h; return; }
+  x.h = v;
+}
+// この週の、単元が空いているクラスのコマに、前の続きを入れる
+function fillWeek(mon) {
+  let n = 0;
+  for (const d of weekDays(mon)) {
+    if (!isSchoolDay(d) || d < startDate()) continue;
+    const sl = slotsOf(d);
+    for (let i = 1; i <= P(); i++) {
+      if (!clsById(sl[i].s) || sl[i].unit) continue;
+      const x = ensureSlots(d)[i];
+      fillNext(x, d, i);
+      if (x.unit) n++;
+    }
+  }
+  return n;
+}
+function bindWeek(el, mon) {
+  const weeks = weeksOfYear();
+  $("#wSel").onchange = e => { curWeek = e.target.value; render(); };
+  $("#wPrev").onclick = () => { const i = weeks.indexOf(mon); if (i > 0) { curWeek = weeks[i - 1]; render(); } };
+  $("#wNext").onclick = () => { const i = weeks.indexOf(mon); if (i < weeks.length - 1) { curWeek = weeks[i + 1]; render(); } };
+  $("#wToday").onclick = () => { const t = mondayOf(today()); if (weeks.includes(t)) { curWeek = t; render(); } else toast("今週はこの年度にありません"); };
+  $("#wFill").onclick = () => {
+    if (!Object.keys(D.units).some(k => (D.units[k] || []).length)) { toast("先に「単元計画」のタブで単元計画を入れてください"); return; }
+    const n = fillWeek(mon);
+    if (n) { changed(); toast(n + "コマに単元の続きを入れました"); } else toast("入れるコマがありませんでした（もう入っているか、単元計画がありません）");
+  };
+  $("#wSat").onchange = e => { ensureWeek(mon).sat = e.target.checked; changed(); };
+  $("#wPrint").onclick = doPrint;
+  $("#wPdf").onclick = savePdf;
+  $("#wMemo").oninput = e => { ensureWeek(mon).memo = e.target.value; changed(false); };
+  $("#wRec").oninput = e => { ensureWeek(mon).rec = e.target.value; changed(false); };
+  $$("textarea.ev", el).forEach(t => t.oninput = () => { ensureDay(t.dataset.d).event = t.value; changed(false); });
+  $$("textarea.asa", el).forEach(t => t.oninput = () => { ensureDay(t.dataset.d).asa = t.value; changed(false); });
+  $$("textarea.note", el).forEach(t => t.oninput = () => { ensureDay(t.dataset.d).note = t.value; changed(false); });
+  $$("textarea.br", el).forEach(t => t.oninput = () => { ensureDay(t.dataset.d)[t.dataset.k] = t.value; changed(false); });
+  $$("[data-offd]", el).forEach(b => b.onclick = () => {
+    const d = b.dataset.offd; const r = ensureDay(d);
+    if (offReason(d)) { delete r.off; changed(); return; }
+    const nm = prompt("休みの名前（印刷で縦に表示されます）", "振替休業日");
+    if (nm === null) return;
+    r.off = true; r.offName = nm.trim() || "休み"; changed();
+  });
+  $$("[data-on]", el).forEach(b => b.onclick = () => { const d = b.dataset.on; const r = ensureDay(d); if (r.off === true && !offReason(d)) delete r.off; else r.off = false; changed(); });
+  $$(".slot", el).forEach(sl => {
+    const d = sl.dataset.d, i = +sl.dataset.i;
+    // クラスを入れたら、そのクラスの前の続きの単元・時を入れる
+    bindSubj($("input.subj", sl), v => { const s = ensureSlots(d); s[i] = {s: v}; if (clsById(v)) fillNext(s[i], d, i); });
+    const un = $("input.un", sl), no = $("input.no", sl);
+    if (un) {
+      // 単元の欄：クリックすると一覧に全部の単元が出る（入っている名前で絞りこまれないように、いったん空にする）
+      const orig = un.value;
+      un.addEventListener("focus", () => { un.placeholder = un.value || "単元"; un.value = ""; });
+      un.addEventListener("blur", () => { if (un.value === "") un.value = orig; });
+      un.addEventListener("keydown", e => { if (e.key === "Enter") un.blur(); });
+      un.onchange = () => {
+        const x = ensureSlots(d)[i]; const v = un.value.trim();
+        if (v === "" || v === orig) return;
+        if (v === "なし") { delete x.unit; delete x.no; delete x.t; changed(); return; }
+        if (v !== x.unit) {
+          // 選んだ単元の、このクラスでの続きの番号
+          const l = lastOf(x.s, d, i);
+          x.unit = v; x.no = String(l && l.unit === v ? l.no + 1 : 1);
+        }
+        delete x.t; changed();
+      };
+      no.onchange = () => {
+        const x = ensureSlots(d)[i]; const v = no.value.trim();
+        if (v && !parseNos(v).length) { toast("時は「2」や「2-3」のように入れてください"); no.value = x.no || ""; return; }
+        if (v) x.no = v; else delete x.no;
+        delete x.t; changed();
+      };
+    }
+    const hr = $("input.hr", sl);
+    if (hr) hr.onchange = e => { setHours(ensureSlots(d)[i], e.target); changed(); };
+    const ta = $("textarea.ct", sl);
+    ta.oninput = () => { const s = ensureSlots(d)[i]; s.t = ta.value; ta.classList.remove("auto"); changed(false); };
+    ta.onchange = () => render();
+    const rv = $(".rv", sl);
+    if (rv) rv.onclick = () => { delete ensureSlots(d)[i].t; changed(); };
+    // 授業変更（コマの入れかえ）
+    sl.addEventListener("dragstart", e => {
+      if (!e.target.classList || !e.target.classList.contains("slot")) return;
+      e.dataTransfer.setData("text/plain", d + "|" + i); e.dataTransfer.effectAllowed = "move";
+    });
+    sl.addEventListener("dragover", e => { e.preventDefault(); sl.classList.add("drag-over"); });
+    sl.addEventListener("dragleave", () => sl.classList.remove("drag-over"));
+    sl.addEventListener("drop", e => {
+      e.preventDefault(); sl.classList.remove("drag-over");
+      const src = e.dataTransfer.getData("text/plain"); if (!src || src.indexOf("|") < 0) return;
+      const [d2, i2s] = src.split("|"); const i2 = +i2s;
+      if (d2 === d && i2 === i) return;
+      const a = ensureSlots(d), b = ensureSlots(d2);
+      const tmp = a[i]; a[i] = b[i2]; b[i2] = tmp;
+      changed();
+    });
+  });
+  // 入力欄の中ではドラッグしない
+  $$(".slot textarea, .slot input, .slot button", el).forEach(x => { x.draggable = false; x.addEventListener("mousedown", () => x.closest(".slot").draggable = false); x.addEventListener("blur", () => x.closest(".slot").draggable = true); });
+}
+
+/* 印刷 */
+// 色の組み合わせ：線・見出し・休み時間の帯・時数表のしま2色・小計・合計
+const THEMES = {
+  midori:   {name: "みどり",     pl: "#2E8B88", ph: "#CCF5CC", pb: "#FFF0C8", s1: "#FFFFA6", s2: "#CCF5CC", sub: "#99EE99", tot: "#66E066"},
+  sora:     {name: "そら",       pl: "#2F6FA8", ph: "#D4E6FA", pb: "#FFF0D0", s1: "#EEF5FD", s2: "#D4E6FA", sub: "#A9CCF2", tot: "#86B6EA"},
+  sakura:   {name: "さくら",     pl: "#B5577A", ph: "#FBDDE8", pb: "#FFF3D6", s1: "#FFF3F7", s2: "#FBDDE8", sub: "#F5B8CE", tot: "#EE9DBA"},
+  himawari: {name: "ひまわり",   pl: "#B97412", ph: "#FFE7B0", pb: "#E3F2D3", s1: "#FFF9DE", s2: "#FFE7B0", sub: "#FFD27A", tot: "#FFC04D"},
+  lavender: {name: "ラベンダー", pl: "#6E5BA8", ph: "#E6DEF7", pb: "#FFF0D6", s1: "#F6F2FD", s2: "#E6DEF7", sub: "#CBBDF0", tot: "#B5A2E8"},
+  mikan:    {name: "みかん",     pl: "#D2691E", ph: "#FFDDC2", pb: "#E8F4D9", s1: "#FFF4EA", s2: "#FFDDC2", sub: "#FFBE8A", tot: "#FFA25C"},
+  mint:     {name: "ミント",     pl: "#1E8C7E", ph: "#CFF2EC", pb: "#FFF2D2", s1: "#EFFBF8", s2: "#CFF2EC", sub: "#9FE3D7", tot: "#74D3C3"},
+  ai:       {name: "あい",       pl: "#2B3F80", ph: "#D9DFF3", pb: "#FFF0D2", s1: "#F2F4FB", s2: "#D9DFF3", sub: "#B3BFE7", tot: "#8FA0DB"},
+  kuri:     {name: "くり",       pl: "#7A5230", ph: "#EFDFCB", pb: "#E6F0DA", s1: "#FAF4EC", s2: "#EFDFCB", sub: "#DDC2A0", tot: "#CDA77B"},
+  mono:     {name: "モノクロ",   pl: "#444444", ph: "#E4E4E4", pb: "#F0F0F0", s1: "#FFFFFF", s2: "#EEEEEE", sub: "#D4D4D4", tot: "#BDBDBD"},
+};
+const themeVars = k => { const t = THEMES[k] || THEMES.sora; return `--pl:${t.pl};--ph:${t.ph};--pb:${t.pb};--s1:${t.s1};--s2:${t.s2};--sub:${t.sub};--tot:${t.tot}`; };
+function renderPrint() {
+  const mon = curWeek; const days = weekDays(mon); const wr = weekRec(mon);
+  const info = cy().info;
+  // 高さ（mm）：本体 = 243 - 見出し6 - 記録欄27 - すきま
+  const H = 243 - 6 - 1.5 - 25 - 5;
+  const BH = 6.4;   // 中休み・昼休みの帯の高さ（2行分）
+  const ST = 3.6;   // クラスの欄の高さ
+  const fixed = 6.5 + 7 + 5 + BH * 2 + 9;
+  const per = (H - fixed) / P();   // 1コマ（クラスの欄＋内容）
+  const cont = per - ST;
+  const PW = 134, LW = 6;                            // 週案の表の幅・左の列の幅（時数表は34mm）
+  const HW = days.length > 5 ? 4.5 : 6;              // 時数の欄の幅
+  const colw = (PW - LW) / days.length;              // 1日の幅
+  // 内容の文字：1コマに8行入る大きさ。入りきらないときだけさらに小さくする
+  const LH = 1.2;
+  const SX = 0.85;   // 文字の横幅（1行12字ほど入れるため横に少し詰める）
+  const BASE = Math.round((cont - 0.8) / 8 / (0.3528 * LH) * 10) / 10;
+  const fit = (text, hmm) => {
+    const w = colw - 1.2;
+    for (let fs = BASE; fs > 4; fs -= 0.3) {
+      const ch = fs * 0.3528, cpl = Math.max(1, Math.floor(w / (ch * SX))), lines = Math.floor(hmm / (ch * LH));
+      const need = String(text).split("\n").reduce((a, l) => a + Math.max(1, Math.ceil(Array.from(l).length / cpl)), 0);
+      if (need <= lines) return fs;
+    }
+    return 4;
+  };
+  // クラスの欄（内容より少し大きい文字。長い名前は欄に入る大きさまで小さくする）
+  const SF = Math.min(7.5, BASE + 1.2);
+  const strip = x => {
+    const nm = x && x.s ? labelOf(x.s) : "";
+    const cl = x && clsById(x.s);
+    const fs = nm ? Math.min(SF, (colw - HW - 1.8) / (Array.from(nm).length * 0.3528)) : SF;
+    return `<div class="st"><div class="sj" style="font-size:${fs.toFixed(1)}pt;${cl ? "background:" + cl.color : ""}">${esc(nm)}</div><div class="hr">${cl && x.h ? esc(x.h) : ""}</div></div>`;
+  };
+  // 休みの日は、名前を1コマに1字ずつ大きく書く
+  const offChars = d => { const nm = Array.from(offName(d)); const per = Math.ceil(nm.length / P()); return i => nm.slice((i - 1) * per, i * per).join(""); };
+  const cell = (d, i) => {
+    const x = slotsOf(d)[i];
+    if (!isSchoolDay(d)) return [`<td colspan="2" class="stc hol">${strip(null)}</td>`, `<td colspan="2" class="hol"><div class="bigc" style="height:${(cont - 0.3).toFixed(1)}mm">${esc(offChars(d)(i))}</div></td>`];
+    if (!x.s) return [`<td colspan="2" class="stc emp">${strip(null)}</td>`, `<td colspan="2" class="emp"></td>`];
+    const inf = info[d + "|" + i] || {};
+    const txt = (x.t !== undefined && x.t !== null) ? x.t : (inf.auto || "");
+    const lab = clsById(x.s) ? inf.label || "" : "";
+    const body = (lab ? `<span class="pu">${esc(lab)}</span>${txt ? "\n" : ""}` : "") + esc(txt);
+    const fs = fit((lab ? lab + (txt ? "\n" : "") : "") + txt, cont - 0.8);
+    return [`<td colspan="2" class="stc">${strip(x)}</td>`, `<td colspan="2" class="spc"><div class="cb sq" style="font-size:${fs}pt;max-height:${(cont - 0.3).toFixed(1)}mm"><div style="width:${(100 / SX).toFixed(1)}%;transform:scaleX(${SX});transform-origin:left top">${body}</div></div></td>`];
+  };
+  let h = `<div class="ph"><b>${esc(meTitle())}</b><span>${D.me.teacher ? "担当：" + esc(D.me.teacher) : ""}</span><span class="wt" style="margin-left:auto">${esc(weekTitle(mon))}</span></div>
+  <div class="pbody"><table class="pw"><colgroup><col style="width:${LW}mm">${days.map(() => `<col><col style="width:${HW}mm">`).join("")}</colgroup>
+  <thead><tr style="height:6.5mm"><th class="l"></th>`;
+  for (const d of days) { const t = parse(d); h += `<th>${t.getMonth() + 1}月${t.getDate()}日<br>${WD[t.getDay()]}</th><th class="hk">${isSchoolDay(d) ? "" : "休"}</th>`; }
+  h += `</tr></thead><tbody><tr style="height:7mm"><th class="l">行事</th>`;
+  for (const d of days) h += `<td colspan="2" class="${isSchoolDay(d) ? "" : "hol"}"><div class="cb" style="max-height:6.6mm">${esc(dayRec(d).event || "")}</div></td>`;
+  h += `</tr><tr style="height:5mm"><th class="l">朝</th>`;
+  for (const d of days) h += `<td colspan="2" class="${isSchoolDay(d) ? "" : "hol"}"><div class="cb" style="max-height:4.7mm;font-size:6pt;line-height:1.15">${esc(dayRec(d).asa || "")}</div></td>`;
+  h += "</tr>";
+  const band = (key, lab) => `<tr class="band" style="height:${BH}mm"><th class="l">${lab}</th>${days.map(d => isSchoolDay(d) ? `<td colspan="2"><div class="cb" style="max-height:${BH - 0.3}mm">${esc(dayRec(d)[key] || "")}</div></td>` : `<td colspan="2" class="hol"></td>`).join("")}</tr>`;
+  for (let i = 1; i <= P(); i++) {
+    const cs = days.map(d => cell(d, i));
+    h += `<tr style="height:${ST}mm"><th class="l big" rowspan="2">${i}</th>${cs.map(x => x[0]).join("")}</tr><tr style="height:${cont.toFixed(1)}mm">${cs.map(x => x[1]).join("")}</tr>`;
+    for (const [after, key, lab] of BREAKS) if (i === Math.min(after, P())) h += band(key, lab);
+  }
+  h += `<tr style="height:9mm"><th class="l">備考</th>`;
+  for (const d of days) h += `<td colspan="2" class="${isSchoolDay(d) ? "" : "hol"}"><div class="cb" style="max-height:8.6mm">${esc(dayRec(d).note || "")}</div></td>`;
+  h += `</tr></tbody></table>`;
+  // 時数表（クラスごと）
+  const last = addDays(mon, 6);
+  const groups = totalsGroups([sumCounts(mon, last, false), sumCounts(yearStart(), last, true)]);
+  const multi = groups.length > 1;
+  const nmFs = n => { const l = Array.from(n).length; return l > 4 ? `font-size:${Math.max(4.2, 6.3 * 4 / l).toFixed(1)}pt;letter-spacing:-0.05em` : ""; };
+  const line = (r, k) => `<tr class="r${k % 2 ? 2 : 1}"><td style="${nmFs(r.name)}">${esc(r.name)}</td><td>${r.vals[0] ? fr(r.vals[0]) : ""}</td><td>${fr(r.vals[1])}</td><td class="rt">${rateCell(r)}</td></tr>`;
+  const blank = k => `<tr class="r${k % 2 ? 2 : 1}"><td></td><td></td><td></td><td class="rt"></td></tr>`;
+  let t = `<table class="pt2"><colgroup><col style="width:9.5mm"><col style="width:7mm"><col style="width:9mm"><col></colgroup><tr><th>クラス</th><th>今週</th><th>累計</th><th>${D.me.rateMode === "rest" ? "残り" : "達成率"}</th></tr>`;
+  let s0 = 0;
+  groups.forEach((g, gi) => {
+    if (multi) t += `<tr><td colspan="4" class="gh">${esc(g.subj)}</td></tr>`;
+    g.rows.forEach((r, k) => t += line(r, k));
+    if (!multi) t += blank(g.rows.length) + blank(g.rows.length + 1);
+    if (multi) t += `<tr class="sub"><td>小計</td><td>${fr(g.sums[0])}</td><td></td><td></td></tr>` + (gi < groups.length - 1 ? `<tr class="gap"><td colspan="4"></td></tr>` : "");
+    s0 += g.sums[0];
+  });
+  t += `<tr class="tot"><td>合計</td><td>${fr(s0)}</td><td></td><td></td></tr></table>`;
+  h += `<div class="side">${t}<div class="memo"><span class="k">メモ</span>\n${esc(wr.memo || "")}</div></div></div>
+  <div class="rec"><span class="k">記録欄</span>\n${esc(wr.rec || "")}</div>`;
+  const pe = $("#print");
+  pe.style.cssText = themeVars(D.me.theme) + `;--hw:${HW}mm`;
+  pe.innerHTML = h;
+}
+// PDFのファイル名：「理科専科週案2026.10.19～」（週のはじめの日）
+function pdfName() { const t = parse(curWeek); return meTitle() + "週案" + t.getFullYear() + "." + (t.getMonth() + 1) + "." + t.getDate() + "～"; }
+const APP_TITLE = document.title;
+function savePdf() {
+  document.title = pdfName();   // 印刷の画面で「PDFとして保存」を選ぶと、この名前が付く
+  toast("印刷の画面の「プリンター」で「PDFとして保存」を選んで、「保存」を押してください", 6000);
+  setTimeout(() => { renderPrint(); window.print(); }, 50);
+}
+window.addEventListener("afterprint", () => { document.title = APP_TITLE; });
+function doPrint() { renderPrint(); window.print(); }
+window.addEventListener("beforeprint", renderPrint);
+
+/* 時間割タブ */
+let ttPick = "";
+function renderTT() {
+  const el = $("#tab-tt");
+  if (ttPick && !clsById(ttPick) && !(D.me.others || []).includes(ttPick)) ttPick = "";
+  let h = `<div class="ttwrap"><div>
+    <div class="tthead"><b>ふだんの時間割</b><span>${esc(meTitle())}　${esc(D.me.teacher)}</span></div>
+    <table class="tt2"><tr><th></th>${[1,2,3,4,5].map(w => `<th>${WD[w]}</th>`).join("")}</tr>`;
+  for (let i = 1; i <= P(); i++) {
+    h += `<tr><th>${i}</th>`;
+    for (const w of [1,2,3,4,5]) {
+      const v = D.timetable[w][i] || "";
+      h += `<td data-w="${w}" data-i="${i}" style="${clsById(v) ? "background:" + colorOf(v) + ";border-color:" + colorOf(v) : ""}">${esc(labelOf(v))}</td>`;
+    }
+    h += "</tr>";
+  }
+  const byGrade = {};
+  for (const c of D.classes) (byGrade[c.subj + " " + c.grade + "年"] = byGrade[c.subj + " " + c.grade + "年"] || []).push(c);
+  h += `</table></div>
+  <div class="ttpal"><div class="ttpt">クラスを選んで、マスをクリック</div>
+    <div class="ttbtns">${Object.entries(byGrade).map(([g, cs]) => `<div class="gl">${esc(multiSubj() ? g : g.split(" ")[1])}</div>${cs.map(c => `<button data-s="${c.id}" class="${ttPick === c.id ? "on" : ""}" style="--sc:${c.color}">${esc(clsLabel(c))}</button>`).join("")}`).join("")}</div>
+    ${D.classes.length ? "" : `<p class="hint">担当クラスがまだありません。「設定」のタブで入れてください。</p>`}
+    <div class="ttpt" style="margin-top:12px">ほかの予定（時数に数えない）</div>
+    <div class="ttbtns">${(D.me.others || []).map(n => `<button data-s="${esc(n)}" class="${ttPick === n ? "on" : ""}" style="--sc:#E9E9E9">${esc(n)}</button>`).join("")}</div>
+    <p class="hint">・同じものをもう一度クリックすると消えます。<br>・押したままなぞると、まとめて入れられます。<br>・ほかの予定の名前は「設定」で変えられます。</p>
+  </div></div>
+  <p class="hint">ここに入れた時間割が、毎週の週案（月〜金）に自動で入ります。週案で直したところは、そちらが優先されます。祝日と学校の休業日は自動で空欄になります。</p>`;
+  el.innerHTML = h;
+  $$(".ttbtns button", el).forEach(b => b.onclick = () => { ttPick = ttPick === b.dataset.s ? "" : b.dataset.s; render(); });
+  // クリック1回で入れる。同じものならけす。なぞってまとめて入れる
+  let painting = null;
+  const paint = td => {
+    const w = td.dataset.w, i = +td.dataset.i;
+    const v = painting === "" ? "" : ttPick;
+    D.timetable[w][i] = v;
+    td.textContent = labelOf(v); td.style.background = clsById(v) ? colorOf(v) : ""; td.style.borderColor = clsById(v) ? colorOf(v) : "";
+  };
+  $$("td[data-w]", el).forEach(td => {
+    td.onmousedown = e => {
+      e.preventDefault();
+      if (!ttPick) { toast("先に右のクラスのボタンを選んでください"); return; }
+      painting = (D.timetable[td.dataset.w][+td.dataset.i] || "") === ttPick ? "" : ttPick;
+      paint(td);
+    };
+    td.onmouseenter = () => { if (painting !== null) paint(td); };
+  });
+  const end = () => { if (painting !== null) { painting = null; changed(false); } };
+  el.onmouseup = end; el.onmouseleave = end;
+}
+
+/* 単元計画タブ */
+// 教科書会社の年間指導計画から読み取った単元計画（単元名・時数・各時間の主な学習活動・ねらい）
+const PRESETS = /*PRESETS*/{};
+const presetsFor = (subj, g) => Object.keys(PRESETS).filter(k => PRESETS[k].subject === subj && PRESETS[k].grade === g);
+const SAMPLE_TSV = "単元名\t時間\t学習内容\n春の生き物\t1\t身の回りの生き物を観察し、気づいたことを話し合う。\n春の生き物\t2\t生き物の色・形・大きさを調べて記録する。\nてこのはたらき\t1\tてこを使って重い物を持ち上げ、手ごたえを調べる。\n";
+function parseTSV(text) {
+  const rows = []; let row = [], cell = "", q = false;
+  text = text.replace(/\r\n?/g, "\n");
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += ch;
+    } else if (ch === '"' && cell === "") q = true;
+    else if (ch === "\t") { row.push(cell); cell = ""; }
+    else if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += ch;
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows.map(r => r.map(c => c.trim()));
+}
+function parseLessonNo(v) {
+  v = String(v || "").trim();
+  const ci = CIRC.indexOf(v[0]); if (ci >= 0) return ci + 1;
+  const m = half(v).match(/\d+/); return m ? parseInt(m[0]) : NaN;
+}
+// 貼り付けた表（単元名｜時間｜学習内容、または 単元名｜総時数）を、選んでいる学年・教科の計画に入れる
+function importUnits(text, key, replace) {
+  const got = [];
+  parseTSV(text).forEach((r, li) => {
+    if (!r.filter(Boolean).length) return;
+    if (li === 0 && /単元/.test(r[0])) return;
+    const unit = r[0]; if (!unit) return;
+    let u = got.find(x => x.name === unit);
+    if (!u) { u = {name: unit, total: 0, lessons: []}; got.push(u); }
+    const second = r[1] || "", rest = r.slice(2).filter(Boolean).join(" ");
+    if (r.length >= 3 && (rest || second)) {
+      const n = parseLessonNo(second);
+      if (isFinite(n) && n >= 1 && n <= 300) { while (u.lessons.length < n - 1) u.lessons.push(""); u.lessons[n - 1] = rest; }
+      else u.lessons.push(rest);
+    } else if (second) {
+      const n = parseLessonNo(second);
+      if (isFinite(n)) u.total = n; else u.lessons.push(second);
+    }
+  });
+  for (const u of got) u.total = Math.max(u.total, u.lessons.length);
+  if (!got.length) return 0;
+  if (replace || !D.units[key]) D.units[key] = got;
+  else for (const u of got) { const i = D.units[key].findIndex(x => x.name === u.name); if (i >= 0) D.units[key][i] = u; else D.units[key].push(u); }
+  return got.length;
+}
+function unitsToTSV(key) {
+  let t = "単元名\t時間\t学習内容\t週案に入る文\n";
+  for (const u of D.units[key] || []) {
+    const n = lessonCount(u);
+    for (let i = 0; i < n; i++) t += [u.name, i + 1, String((u.lessons || [])[i] || "").replace(/[\t\n]/g, " "), String((u.short || [])[i] || "").replace(/[\t\n]/g, " ")].join("\t") + "\n";
+  }
+  return t;
+}
+let unitMsg = null;
+function renderUnits() {
+  const el = $("#tab-units");
+  const keys = planKeys();
+  if (!keys.length) { el.innerHTML = `<h2>単元計画</h2><p class="hint">担当クラスがまだありません。上の「はじめに」か「設定」のタブで、担当クラスを入れてください。</p>`; return; }
+  if (!keys.includes(curPlan)) curPlan = keys[0];
+  const [subj, gs] = curPlan.split("|"); const g = +gs;
+  const mine = D.classes.filter(c => planKey(c) === curPlan);
+  const sc = cy().sched[curPlan] || {};
+  const pk = presetsFor(subj, g);
+  const list = D.units[curPlan] || [];
+  let h = `<h2>単元計画</h2>
+  <div class="subjchips">${keys.map(k => `<button data-k="${esc(k)}" class="${k === curPlan ? "on" : ""}">${esc(planName(k))}<small>${D.classes.filter(c => planKey(c) === k).map(clsLabel).join("・")}</small></button>`).join("")}</div>
+  <p class="hint">同じ学年・同じ教科のクラスは、1つの単元計画を使います。進み方はクラスごとに週案で数えます。</p>
+  ${pk.length ? `<details class="box"${list.length ? "" : " open"}><summary>教科書の年間指導計画から入れる</summary>
+    <div class="row" style="margin:6px 0"><select id="pSel">${pk.map(k => `<option value="${k}">${esc(PRESETS[k].label)}</option>`).join("")}</select>
+    <button class="btn primary" id="pGo">入れる</button></div>
+    <p class="hint">年間の単元名・時数・各時間の学習内容（指導計画の「主な学習活動」）が入ります。</p>
+  </details>` : ""}
+  <details class="box paste"${list.length ? "" : " open"}><summary>Excelから貼り付けて登録する（${esc(planName(curPlan))}）</summary>
+    <p class="hint">Excelで「単元名｜時間｜学習内容」の3列の表を作り、表をコピーして下に貼り付けてください。1行が1時間分です。<br>
+    「単元名｜総時数」の2列だけでも登録できます（各時間の内容はあとで書けます）。1行目の見出しはあってもなくてもかまいません。${pk.length ? "" : "<br>この教科・学年は、教科書の計画が入っていないので、ここから登録してください。"}</p>
+    <div class="row" style="margin-bottom:6px"><button class="btn small" id="uSample">記入例をコピー</button><button class="btn small" id="uCsv">記入用の表をダウンロード（Excelで開けます）</button><button class="btn small" id="uExport">今の単元計画をコピー</button></div>
+    <textarea id="uPaste" placeholder="ここに貼り付け（Ctrl+V）"></textarea>
+    <div class="row" style="margin-top:6px"><button class="btn primary" id="uAdd">追加する</button><button class="btn" id="uRep">置きかえる</button>${keys.length > 1 ? `<button class="btn" id="uCopy">この計画をほかの学年にコピー…</button>` : ""}</div>
+    ${unitMsg ? `<div class="msg${unitMsg.err ? " err" : ""}">${esc(unitMsg.text)}</div>` : ""}
+  </details>`;
+  list.forEach((u, ui) => {
+    const s = sc[ui] || {};
+    const n = lessonCount(u);
+    const prog = mine.map(c => s[c.id] ? `<span>${esc(clsLabel(c))}：${md(s[c.id].first)}〜${md(s[c.id].last)}（${s[c.id].done.size}/${n}）</span>` : "").join("");
+    h += `<div class="unitcard" data-u="${ui}">
+      <div class="uh"><b>${u.month ? u.month + "月" : ui + 1}</b><input type="text" class="un" value="${esc(u.name)}" placeholder="単元名">
+      <label class="row" style="gap:4px">時数<input type="number" class="utot" min="0" value="${u.total || n}"></label>
+      <button class="btn small" data-mv="-1" title="上へ">↑</button><button class="btn small" data-mv="1" title="下へ">↓</button><button class="btn small danger" data-del>削除</button></div>
+      <div class="sched">${prog || "まだ週案に入っていません"}</div>
+      <div class="ucols"><label class="ulab">週案に入る文（ねらいの形）<textarea class="us" placeholder="1行に1時間分（1行目＝1時間目）。空欄の時間は右のもとの文が入ります">${esc((u.short || []).join("\n"))}</textarea></label>
+      <label class="ulab">もとの文（指導計画の主な学習活動）<textarea class="ul" placeholder="1行に1時間分の学習内容を書きます（1行目＝1時間目）">${esc((u.lessons || []).join("\n"))}</textarea></label></div>
+      <label class="aim">ねらい<textarea class="ua" placeholder="単元のねらい（指導目標）">${esc(u.aim || "")}</textarea></label>
+    </div>`;
+  });
+  h += `<button class="btn" id="uNew">＋ ${esc(planName(curPlan))}の単元を追加</button>
+  <p class="hint">週案のコマに【単元】【時】を入れると、ここに書いた学習内容（その時の行）が入ります。単元の順番は、週案で「続き」を入れるときの順番になります。</p>`;
+  el.innerHTML = h;
+  $$(".subjchips button", el).forEach(b => b.onclick = () => { curPlan = b.dataset.k; unitMsg = null; render(); });
+  if ($("#pGo")) $("#pGo").onclick = () => {
+    const pr = PRESETS[$("#pSel").value];
+    if (list.length && !confirm(planName(curPlan) + "の単元計画を、" + pr.label + "に置きかえます。よろしいですか？")) return;
+    D.units[curPlan] = JSON.parse(JSON.stringify(pr.units));
+    unitMsg = {err: false, text: `${planName(curPlan)}：${pr.units.length}単元（${pr.units.reduce((a, u) => a + lessonCount(u), 0)}時間）を入れました。`};
+    changed();
+  };
+  $("#uSample").onclick = () => copyText(SAMPLE_TSV, "記入例をコピーしました。Excelに貼り付けてください");
+  $("#uExport").onclick = () => copyText(unitsToTSV(curPlan), "単元計画をコピーしました。Excelに貼り付けられます");
+  $("#uCsv").onclick = () => download("単元計画_記入用.csv", "﻿" + SAMPLE_TSV.replace(/\t/g, ","), "text/csv");
+  const imp = rep => {
+    const n = importUnits($("#uPaste").value, curPlan, rep);
+    unitMsg = n ? {err: false, text: `${planName(curPlan)}：${n}単元を取り込みました。`} : {err: true, text: "貼り付けた内容が読み取れませんでした。"};
+    changed();
+  };
+  $("#uAdd").onclick = () => imp(false);
+  $("#uRep").onclick = () => { if (confirm(planName(curPlan) + "の単元計画を、貼り付けたものにすべて置きかえます。よろしいですか？")) imp(true); };
+  if ($("#uCopy")) $("#uCopy").onclick = () => {
+    const others = keys.filter(k => k !== curPlan);
+    const ans = prompt("コピー先の番号を入れてください（置きかわります）\n" + others.map((k, i) => (i + 1) + "：" + planName(k)).join("\n"), "1");
+    const k = others[(parseInt(half(ans)) || 0) - 1]; if (!k) return;
+    D.units[k] = JSON.parse(JSON.stringify(list)); toast(planName(k) + "にコピーしました"); changed();
+  };
+  $("#uNew").onclick = () => { (D.units[curPlan] = D.units[curPlan] || []).push({name: "新しい単元", total: 1, lessons: []}); changed(); };
+  $$(".unitcard", el).forEach(card => {
+    const ui = +card.dataset.u; const u = list[ui];
+    $(".un", card).oninput = e => { u.name = e.target.value; changed(false); };
+    // 単元名を変えたら、週案に入れた単元名も合わせる
+    const oldName = u.name;
+    $(".un", card).onchange = () => {
+      for (const d in D.days) for (const x of D.days[d].slots || []) { const c = clsById(x.s); if (c && planKey(c) === curPlan && x.unit === oldName) x.unit = u.name; }
+      changed();
+    };
+    $(".utot", card).onchange = e => { u.total = Math.max(0, parseInt(e.target.value) || 0); changed(); };
+    $(".ul", card).oninput = e => { u.lessons = e.target.value.split("\n"); while (u.lessons.length && u.lessons[u.lessons.length - 1] === "") u.lessons.pop(); changed(false); };
+    $(".ul", card).onchange = () => render();
+    $(".us", card).oninput = e => { u.short = e.target.value.split("\n"); while (u.short.length && u.short[u.short.length - 1] === "") u.short.pop(); changed(false); };
+    $(".us", card).onchange = () => render();
+    $(".ua", card).oninput = e => { u.aim = e.target.value; changed(false); };
+    $$("[data-mv]", card).forEach(b => b.onclick = () => { const j = ui + +b.dataset.mv; if (j < 0 || j >= list.length) return; [list[ui], list[j]] = [list[j], list[ui]]; changed(); });
+    $("[data-del]", card).onclick = () => { if (!confirm("「" + u.name + "」を削除しますか？")) return; list.splice(ui, 1); changed(); };
+  });
+}
+function copyText(t, msg) {
+  const done = () => toast(msg);
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(done, () => fallback());
+  else fallback();
+  function fallback() { const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); done(); } catch (e) { toast("コピーできませんでした"); } ta.remove(); }
+}
+
+/* 時数タブ */
+function renderHours() {
+  const el = $("#tab-hours");
+  const y = D.school.year;
+  const months = [4,5,6,7,8,9,10,11,12,1,2,3];
+  const range = m => { const yy = m >= 4 ? y : y + 1; return [ymd(yy, m, 1), ymd(yy, m + 1, 0)]; };
+  const k = D.school.kokiStart || ymd(y, 10, 1);
+  const init = {...D.me.init};
+  const cols = months.map(m => sumCounts(...range(m), false));
+  const zen = sumCounts(yearStart(), addDays(k, -1), false);
+  const kou = sumCounts(k, yearEnd(), false);
+  const lastWeek = addDays(curWeek || mondayOf(today()), 6);
+  const cum = sumCounts(yearStart(), lastWeek, true);
+  const all = sumCounts(yearStart(), yearEnd(), true);
+  const hasInit = Object.values(init).some(Boolean);
+  const maps = [...(hasInit ? [init] : []), ...cols.slice(0, 6), zen, ...cols.slice(6), kou, cum, all];
+  const term = hasInit ? [7, 14, 15, 16] : [6, 13, 14, 15];
+  const groups = totalsGroups(maps);
+  let h = `<h2>${y}年度　クラスごとの時数</h2><p class="hint">週案に入れた予定で数えています。まだ開いていない週は、ふだんの時間割で数えています（見込み）。</p>
+  <div class="yrwrap"><table class="yr"><tr><th>クラス</th>${hasInit ? "<th>使い始める前（設定）</th>" : ""}${months.slice(0, 6).map(m => `<th>${m}月</th>`).join("")}<th class="term">前期</th>${months.slice(6).map(m => `<th>${m}月</th>`).join("")}<th class="term">後期</th><th class="term">${md(lastWeek)}まで</th><th class="term">年間（見込み）</th><th>標準時数</th><th>過不足</th></tr>`;
+  const sums = maps.map(() => 0);
+  for (const g of groups) {
+    for (const r of g.rows) {
+      const tot = r.vals[r.vals.length - 1];
+      const diff = r.std != null ? tot - r.std * U : null;
+      h += `<tr><td class="n"><span class="chip" style="background:${r.color}"></span>${esc(r.name)}</td>${r.vals.map((v, i) => `<td class="${term.includes(i) ? "term" : ""}">${v ? fr(v) : ""}</td>`).join("")}<td>${r.std ?? ""}</td><td class="${diff != null && diff < 0 ? "neg" : ""}">${diff != null ? (diff > 0 ? "+" : "") + fr(diff) : ""}</td></tr>`;
+    }
+    if (groups.length > 1) h += `<tr class="sub"><td class="n">${esc(g.subj)} 小計</td>${g.sums.map(v => `<td>${fr(v)}</td>`).join("")}<td></td><td></td></tr>`;
+    g.sums.forEach((v, i) => sums[i] += v);
+  }
+  h += `<tr class="sum"><td class="n">合計（持ち時数）</td>${sums.map(v => `<td>${fr(v)}</td>`).join("")}<td></td><td></td></tr></table></div>
+  <p class="hint">「${md(lastWeek)}まで」は、週案タブで開いている週の終わりまでの累計です。後期は${md(k)}からです（設定で変えられます）。標準時数は「設定」の教科一覧の時数です。</p>`;
+  el.innerHTML = h;
+}
+
+/* 設定タブ */
+function renderSet() {
+  const el = $("#tab-set"); const s = D.school; const me = D.me;
+  let h = `<h2>担当の設定</h2><div class="setgrid">
+    <label class="f">担当の教科（見出しに出ます）${subjSelect("sSubj", me.subject)}</label>
+    <label class="f">名前<input type="text" id="sTeacher" value="${esc(me.teacher)}"></label>
+    <label class="f">この週案ツクールを使い始める日<input type="date" id="sStart" value="${esc(me.startDate)}"></label>
+  </div>
+  <h3>担当クラス</h3>
+  <table class="subj"><tr><th>色</th><th>学年</th><th>組</th><th>教科</th><th>表示</th><th>単元計画</th><th></th></tr>
+  ${D.classes.map(c => `<tr data-c="${c.id}"><td><input type="color" class="cc" value="${esc(c.color)}"></td><td><select class="cg">${[1,2,3,4,5,6].map(g => `<option value="${g}"${c.grade === g ? " selected" : ""}>${g}年</option>`).join("")}</select></td><td><input type="text" class="km" value="${esc(c.kumi)}" placeholder="1"></td><td><select class="cs">${D.school.subjects.map(x => `<option${x.name === c.subj ? " selected" : ""}>${esc(x.name)}</option>`).join("")}</select></td><td class="lb">${esc(clsLabel(c))}</td><td class="pl">${(D.units[planKey(c)] || []).length ? (D.units[planKey(c)] || []).length + "単元" : "まだありません"}</td><td><button class="btn small danger cd">削除</button></td></tr>`).join("")}
+  </table>
+  <div class="row" style="margin-top:6px"><select id="sAddG">${[1,2,3,4,5,6].map(g => `<option value="${g}">${g}年</option>`).join("")}</select>に
+    <input type="number" id="sAddN" min="1" max="12" value="1" style="width:60px">クラス
+    ${subjSelect("sAddS", me.subject)}
+    <button class="btn small" id="sAddCls">＋ まとめて追加</button></div>
+  <p class="hint">組は「1」「梅」などで入れます。週案や印刷には「4-1」のように出ます（教科が2つ以上あるときは「4-1理科」）。教科書の年間指導計画がある学年・教科は、クラスを追加すると単元計画が自動で入ります。</p>
+  <div class="setgrid" style="margin-top:10px"><label class="f" style="grid-column:span 2">ほかの予定の名前（「、」で区切る・時数に数えない）<input type="text" id="sOthers" value="${esc((me.others || []).join("、"))}"></label></div>
+  <h3>印刷の色</h3>
+  <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${me.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
+    <span class="tp"><span class="tph"></span><span class="tpb"></span><span class="tps"><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s1)"></i><i style="background:var(--sub)"></i><i style="background:var(--tot)"></i></span></span><b>${t.name}</b></button>`).join("")}</div>
+  <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(me.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${me.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${me.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label></div>
+  <details class="box" style="margin-top:10px"${Object.values(me.init).some(Boolean) ? " open" : ""}><summary>年度のとちゅうから使うとき：それまでの時数</summary>
+    <p class="hint">「この週案ツクールを使い始める日」の前までの累計時数をクラスごとに入れてください。使い始める日からは週案の時数がたされていきます。半端な時数は「12 1/3」のように入れられます。</p>
+    <div class="row">${D.classes.map(c => `<label class="f">${esc(clsLabel(c))}<input type="text" class="sInit" data-c="${c.id}" value="${me.init[c.id] ? fr(me.init[c.id]) : ""}" style="width:70px"></label>`).join("")}</div>
+  </details>
+  <h2 style="margin-top:20px">学校の設定</h2>
+  ${s.confirmed ? "" : `<div class="banner"><b>確認してください</b>後期の始まりと長期休業の日付は、仮の日付が入っています。学校の日程に合わせて直し、<button class="btn small" id="sConfirm">確認した</button>を押してください。</div>`}
+  <div class="setgrid">
+    <label class="f">年度<input type="number" id="sYear" value="${s.year}" min="2000" max="2099"></label>
+    <label class="f">後期の始まり<input type="date" id="sKoki" value="${esc(s.kokiStart)}"></label>
+    <label class="f">第1週の月曜日<input type="date" id="sWeek1" value="${esc(s.week1)}"></label>
+    <label class="f">1日の時間数<select id="sPeriods">${[5,6,7].map(n => `<option${s.periods === n ? " selected" : ""}>${n}</option>`).join("")}</select></label>
+  </div>
+  <h3>学校の休業日（この期間は時間割が入りません）</h3>
+  <table class="brk"><tr><th>名前</th><th>から</th><th>まで</th><th></th></tr>
+  ${s.breaks.map((b, i) => `<tr data-b="${i}"><td><input type="text" class="bn" value="${esc(b.name)}" style="width:130px"></td><td><input type="date" class="bf" value="${esc(b.from)}"></td><td><input type="date" class="bt" value="${esc(b.to)}"></td><td><button class="btn small danger bd">削除</button></td></tr>`).join("")}
+  </table><button class="btn small" id="sAddBrk" style="margin-top:6px">＋ 休業日を追加（開校記念日・振替休業日など）</button>
+  <p class="hint">祝日は自動で入ります。1日だけの休みや授業日の変更は、週案の日付の横の「休みにする／授業日にする」でもできます。</p>
+  <h3>教科一覧と標準時数</h3>
+  <p class="hint">学年の欄：数字＝標準時数（時数表の達成率・過不足に使います）、○や空欄＝時数を決めない。</p>
+  <table class="subj"><tr><th>教科名</th>${[1,2,3,4,5,6].map(g => `<th>${g}年</th>`).join("")}<th></th></tr>
+  ${s.subjects.map((x, i) => `<tr data-x="${i}"><td><input type="text" class="nm" value="${esc(x.name)}"></td>${x.hours.map((v, g) => `<td><input type="text" class="h" data-g="${g}" value="${esc(v)}"></td>`).join("")}<td><button class="btn small" data-xm="-1">↑</button><button class="btn small" data-xm="1">↓</button><button class="btn small danger xd">削除</button></td></tr>`).join("")}
+  </table><button class="btn small" id="sAddSubj" style="margin-top:6px">＋ 教科を追加</button>
+
+  <h2 style="margin-top:24px">配る・移す</h2>
+  <div class="row"><button class="btn" id="sDist">配布用のファイルを作る</button><label class="row" style="gap:4px"><input type="checkbox" id="sDistUnits"> 担当クラスと単元計画も入れる（同じ教科の専科の先生に配るとき）</label></div>
+  <p class="hint">配布用のファイルには、学校の設定（年度・後期・休業日・教科と時数）だけが入ります。名前・時間割・週案は入りません。</p>
+  <div class="row" style="margin-top:10px"><button class="btn" id="sExport">データを書き出す（バックアップ）</button><button class="btn" id="sImport">データを読み込む</button><input type="file" id="sFile" accept=".html,.htm,.json" hidden></div>
+  <p class="hint">新しい版の専科週案ツクールに入れかえるときは、新しいファイルを開いて「データを読み込む」で、今まで使っていたファイルを選んでください。</p>
+  <div class="row" style="margin-top:16px"><button class="btn danger" id="sClear">この年度の週案をすべて消す</button></div>`;
+  el.innerHTML = h;
+  const upd = (fn, rr = true) => e => { fn(e.target.value, e.target); changed(rr); };
+  $("#sSubj").onchange = upd(v => me.subject = v);
+  $("#sTeacher").oninput = upd(v => me.teacher = v.trim(), false); $("#sTeacher").onchange = () => render();
+  $("#sStart").onchange = upd(v => me.startDate = v);
+  // クラスの学年・教科を変えたら、その学年・教科の計画がなければ教科書の計画を入れる
+  const afterPlanChange = c => { const n = loadPresetFor(c); sortClasses(); changed(); if (n) toast(n + "の単元計画（教科書）を入れました"); };
+  $$("tr[data-c]", el).forEach(tr => {
+    const c = clsById(tr.dataset.c);
+    $(".cc", tr).onchange = upd(v => c.color = v);
+    $(".cg", tr).onchange = e => { if (c.color === GRADE_COLORS[c.grade - 1]) c.color = GRADE_COLORS[+e.target.value - 1]; c.grade = +e.target.value; afterPlanChange(c); };
+    $(".km", tr).onchange = e => { const v = e.target.value.trim().replace(/\s*組$/, ""); if (D.classes.some(x => x !== c && x.grade === c.grade && x.subj === c.subj && x.kumi === v)) { toast("同じクラスがあります"); return render(); } c.kumi = v; sortClasses(); changed(); };
+    $(".cs", tr).onchange = e => { c.subj = e.target.value; afterPlanChange(c); };
+    $(".cd", tr).onclick = () => { if (!confirm(clsLong(c) + "を担当クラスから削除しますか？（週案に入っている分は予定の文字として残ります）")) return; removeClass(c.id); changed(); };
+  });
+  $("#sAddCls").onclick = () => {
+    const g = +$("#sAddG").value, n = Math.min(12, parseInt(half($("#sAddN").value)) || 0), subj = $("#sAddS").value || me.subject;
+    if (!subj) { toast("教科を選んでください"); return; }
+    if (!n) { toast("クラスの数を入れてください"); return; }
+    let k = 1, added = 0;
+    for (let j = 0; j < n; j++) {
+      while (D.classes.some(x => x.grade === g && x.subj === subj && x.kumi === String(k))) k++;
+      addClass(g, k, subj); added++;
+    }
+    const got = loadPresetFor({grade: g, subj});
+    changed(); toast(g + "年に" + added + "クラスを追加しました" + (got ? "（教科書の単元計画も入れました）" : ""));
+  };
+  $("#sOthers").onchange = e => { me.others = e.target.value.split(/[、,，\s]+/).map(x => x.trim()).filter(Boolean); changed(); };
+  $$(".sInit", el).forEach(i => i.onchange = () => { const t = parseHours(i.value); if (t) me.init[i.dataset.c] = t; else delete me.init[i.dataset.c]; changed(); });
+  $("#sFont").onchange = e => { me.font = e.target.value; changed(); };
+  $$("[data-theme]", el).forEach(b => b.onclick = () => { me.theme = b.dataset.theme; changed(); });
+  $("#sRate").onchange = upd(v => me.rateMode = v);
+  if ($("#sConfirm")) $("#sConfirm").onclick = () => { s.confirmed = true; changed(); };
+  $("#sYear").onchange = e => {
+    const ny = parseInt(e.target.value); if (!(ny >= 2000 && ny <= 2099)) return render();
+    const dy = ny - s.year; if (!dy) return;
+    if (!confirm(`年度を${ny}年度にします。後期の始まりと休業日の日付も${dy > 0 ? dy + "年後" : -dy + "年前"}にずらします。`)) return render();
+    s.year = ny; s.kokiStart = addYears(s.kokiStart, dy); s.week1 = mondayOf(ymd(ny, 4, 1));
+    s.breaks.forEach(b => { b.from = addYears(b.from, dy); b.to = addYears(b.to, dy); });
+    curWeek = ""; changed();
+  };
+  $("#sKoki").onchange = upd(v => s.kokiStart = v);
+  $("#sWeek1").onchange = upd(v => s.week1 = v ? mondayOf(v) : mondayOf(yearStart()));
+  $("#sPeriods").onchange = upd(v => s.periods = +v);
+  $$("tr[data-b]", el).forEach(tr => {
+    const b = s.breaks[+tr.dataset.b];
+    $(".bn", tr).oninput = upd(v => b.name = v, false);
+    $(".bf", tr).onchange = upd(v => { b.from = v; if (!b.to || b.to < v) b.to = v; });
+    $(".bt", tr).onchange = upd(v => b.to = v);
+    $(".bd", tr).onclick = () => { s.breaks.splice(+tr.dataset.b, 1); changed(); };
+  });
+  $("#sAddBrk").onclick = () => { s.breaks.push({name: "", from: "", to: ""}); changed(); };
+  $$("tr[data-x]", el).forEach(tr => {
+    const i = +tr.dataset.x; const x = s.subjects[i];
+    $(".nm", tr).onchange = e => {
+      const nv = e.target.value.trim(); const ov = x.name;
+      if (!nv || nv === ov) return render();
+      if (subjByName(nv)) { toast("同じ名前の教科があります"); return render(); }
+      renameSubject(ov, nv); changed();
+    };
+    $$(".h", tr).forEach(inp => inp.onchange = upd(v => x.hours[+inp.dataset.g] = half(v.trim())));
+    $$("[data-xm]", tr).forEach(b => b.onclick = () => { const j = i + +b.dataset.xm; if (j < 0 || j >= s.subjects.length) return; [s.subjects[i], s.subjects[j]] = [s.subjects[j], s.subjects[i]]; sortClasses(); changed(); });
+    $(".xd", tr).onclick = () => {
+      if (D.classes.some(c => c.subj === x.name)) { toast("「" + x.name + "」の担当クラスがあるので削除できません"); return; }
+      if (confirm("「" + x.name + "」を教科一覧から削除しますか？")) { s.subjects.splice(i, 1); changed(); }
+    };
+  });
+  $("#sAddSubj").onclick = () => { let n = "新しい教科", k = 2; while (subjByName(n)) n = "新しい教科" + k++; s.subjects.push({name: n, hours: ["", "", "", "", "", ""]}); changed(); };
+  $("#sDist").onclick = () => {
+    const withU = $("#sDistUnits").checked;
+    const nd = newData();
+    nd.school = JSON.parse(JSON.stringify(D.school));
+    if (withU) { nd.me.subject = me.subject; nd.classes = JSON.parse(JSON.stringify(D.classes)); nd.units = JSON.parse(JSON.stringify(D.units)); }
+    download("専科週案ツクール_" + VERSION + "_配布用" + (withU && me.subject ? "_" + me.subject : "") + ".html", buildHtml(nd));
+    toast("配布用のファイルをダウンロードしました");
+  };
+  $("#sExport").onclick = () => download(fileBaseName() + "_バックアップ_" + today() + ".json", JSON.stringify(D, null, 1), "application/json");
+  $("#sImport").onclick = () => $("#sFile").click();
+  $("#sFile").onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    const t = await f.text(); let nd = null;
+    try {
+      if (/\.json$/i.test(f.name)) nd = JSON.parse(t);
+      else { const m = t.match(DATA_RE); if (m) nd = JSON.parse(m[1]); }
+    } catch (err) { nd = null; }
+    e.target.value = "";
+    if (!nd || nd.app !== APP_ID) { toast("専科週案ツクールのデータが見つかりませんでした"); return; }
+    if (!confirm("「" + f.name + "」のデータを読み込みます。いまのデータは置きかわります。よろしいですか？")) return;
+    const fid = D.fileId; D = normalize(nd); D.fileId = fid; curWeek = ""; changed(); toast("読み込みました。「保存」を押してください");
+  };
+  $("#sClear").onclick = () => {
+    if (!confirm("この年度の週案（行事・学習内容・メモなど）をすべて消します。時間割・単元計画・設定は残ります。よろしいですか？")) return;
+    D.weeks = {}; D.days = {}; changed(); toast("週案を消しました");
+  };
+}
+function renameSubject(ov, nv) {
+  subjByName(ov).name = nv;
+  if (D.me.subject === ov) D.me.subject = nv;
+  for (const c of D.classes) if (c.subj === ov) c.subj = nv;
+  for (const k of Object.keys(D.units)) if (k.startsWith(ov + "|")) { D.units[nv + k.slice(ov.length)] = D.units[k]; delete D.units[k]; }
+}
+
+/* ---------- はじまり ---------- */
+let draftInfo = null;
+try {
+  const dr = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+  if (dr && dr.data && dr.data.fileId === D.fileId && dr.rev > D.rev) draftInfo = {at: new Date(dr.at).toLocaleString("ja-JP"), data: dr.data};
+  else if (dr) localStorage.removeItem(DRAFT_KEY);
+} catch (e) {}
+$$("#tabs button").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+$("#hdrVer").textContent = VERSION;
+$("#btnSave").onclick = save;
+document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); } });
+window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+render();
+BOOT_OK = true;
+</script>
+</body>
+</html>
