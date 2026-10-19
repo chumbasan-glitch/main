@@ -294,7 +294,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.me.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v1.5";
+const VERSION = "v1.6";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -373,7 +373,7 @@ function newData() {
   return {
     app: APP_ID, ver: APP_VER, fileId: Math.random().toString(36).slice(2, 10), rev: 0, savedAt: "",
     school: defaultSchool(fiscalYearOf(today())),
-    me: {teacher: "", subject: "", startDate: "", init: {}, theme: "sora", font: "msui", rateMode: "rate", others: ["空き", "会議", "打合せ", "補教"], kumiNames: []},
+    me: {teacher: "", subject: "", startDate: "", init: {}, theme: "sora", font: "msui", rateMode: "rate", others: ["空き", "会議", "打合せ", "補教"], kumiNames: [], lessonMode: "short"},
     classes: [],            // 担当クラス {id, grade, kumi, subj, color}
     timetable: {1: [], 2: [], 3: [], 4: [], 5: []},   // マスにはクラスのid（@…）か、「会議」などの文字
     units: {},              // "算数|4" -> 単元計画（同じ学年のクラスで共通）
@@ -528,7 +528,15 @@ function ensureWeek(mon) { return D.weeks[mon] || (D.weeks[mon] = {}); }
 
 /* ---------- 単元の進み方と時数 ---------- */
 const lessonCount = u => Math.max(parseInt(u.total) || 0, (u.lessons || []).length);
-const lessonText = (un, n) => ((un.short || [])[n - 1] || "").trim() || (un.lessons || [])[n - 1] || "";
+// 週案に入る学習内容（設定で選ぶ）：short＝週案に入る文（ねらいの形）、orig＝もとの文、none＝入れない（単元名と時だけ）
+const LESSON_MODES = [["short", "週案に入る文（ねらいの形）を入れる"], ["orig", "もとの文（指導計画の学習活動）を入れる"], ["none", "入れない（単元名と時だけ）"]];
+function lessonText(un, n) {
+  const sh = ((un.short || [])[n - 1] || "").trim(), org = (un.lessons || [])[n - 1] || "";
+  const m = D.me.lessonMode || "short";
+  return m === "none" ? "" : m === "orig" ? org || sh : sh || org;
+}
+const lessonModeSelect = id => `<select id="${id}">${LESSON_MODES.map(([k, t]) => `<option value="${k}"${(D.me.lessonMode || "short") === k ? " selected" : ""}>${t}</option>`).join("")}</select>`;
+const bindLessonMode = id => { $("#" + id).onchange = e => { D.me.lessonMode = e.target.value; changed(); toast("週案の学習内容を「" + LESSON_MODES.find(x => x[0] === e.target.value)[1].replace(/を入れる$/, "") + "」にしました"); }; };
 // 1年分の授業を日付順に見て、それぞれのコマの学習内容と、クラスごとの時数を決める
 function computeYear() {
   const info = {};          // "日付|コマ" -> {label, auto}
@@ -1291,6 +1299,7 @@ function renderUnits() {
   const pk = presetsFor(subj, g);
   const list = D.units[curPlan] || [];
   let h = `<h2>単元計画</h2>
+  <div class="row" style="margin-bottom:10px"><label class="f">週案のコマに入る学習内容${lessonModeSelect("uMode")}</label></div>
   <div class="subjchips">${keys.map(k => `<button data-k="${esc(k)}" class="${k === curPlan ? "on" : ""}">${esc(planName(k))}<small>${D.classes.filter(c => planKey(c) === k).map(clsLabel).join("・")}</small></button>`).join("")}</div>
   <p class="hint">同じ学年・同じ教科のクラスは、1つの単元計画を使います。進み方はクラスごとに週案で数えます。</p>
   ${pk.length ? `<details class="box"${list.length ? "" : " open"}><summary>教科書の年間指導計画から入れる</summary>
@@ -1324,6 +1333,7 @@ function renderUnits() {
   <p class="hint">週案のコマに【単元】【時】を入れると、ここに書いた学習内容（その時の行）が入ります。単元の順番は、週案で「続き」を入れるときの順番になります。</p>`;
   el.innerHTML = h;
   $$(".subjchips button", el).forEach(b => b.onclick = () => { curPlan = b.dataset.k; unitMsg = null; render(); });
+  bindLessonMode("uMode");
   if ($("#pGo")) $("#pGo").onclick = () => {
     const pr = PRESETS[$("#pSel").value];
     if (list.length && !confirm(planName(curPlan) + "の単元計画を、" + pr.label + "に置きかえます。よろしいですか？")) return;
@@ -1433,7 +1443,8 @@ function renderSet() {
   <h3>印刷の色</h3>
   <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${me.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
     <span class="tp"><span class="tph"></span><span class="tpb"></span><span class="tps"><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s1)"></i><i style="background:var(--sub)"></i><i style="background:var(--tot)"></i></span></span><b>${t.name}</b></button>`).join("")}</div>
-  <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(me.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${me.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${me.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label></div>
+  <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(me.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${me.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${me.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label><label class="f" style="grid-column:span 2">週案のコマに入る学習内容（単元計画から）${lessonModeSelect("sMode")}</label></div>
+  <p class="hint">学習内容を自分で書きかえたコマは、どれを選んでもその文のままです。「入れない」にすると、コマには単元名と時（例：さくら さくら③）だけが出ます。</p>
   <details class="box" style="margin-top:10px"${Object.values(me.init).some(Boolean) ? " open" : ""}><summary>年度のとちゅうから使うとき：それまでの時数</summary>
     <p class="hint">「このファイルを使い始める日」の前までの累計時数をクラスごとに入れてください。使い始める日からは週案の時数がたされていきます。半端な時数は「12 1/3」のように入れられます。</p>
     <div class="row">${D.classes.map(c => `<label class="f">${esc(clsLabel(c))}<input type="text" class="sInit" data-c="${c.id}" value="${me.init[c.id] ? fr(me.init[c.id]) : ""}" style="width:70px"></label>`).join("")}</div>
@@ -1505,6 +1516,7 @@ function renderSet() {
   $("#sFont").onchange = e => { me.font = e.target.value; changed(); };
   $$("[data-theme]", el).forEach(b => b.onclick = () => { me.theme = b.dataset.theme; changed(); });
   $("#sRate").onchange = upd(v => me.rateMode = v);
+  bindLessonMode("sMode");
   if ($("#sConfirm")) $("#sConfirm").onclick = () => { s.confirmed = true; changed(); };
   $("#sYear").onchange = e => {
     const ny = parseInt(e.target.value); if (!(ny >= 2000 && ny <= 2099)) return render();
