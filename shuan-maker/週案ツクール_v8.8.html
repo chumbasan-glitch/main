@@ -223,16 +223,17 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 }
 #print{font-family:var(--font,"MS UI Gothic","Meiryo",sans-serif);color:#000;width:168mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;
   --pl:#2E8B88;--ph:#CCF5CC;--pb:#FFF0C8;--s1:#FFFFA6;--s2:#CCF5CC;--sub:#99EE99;--tot:#66E066}
-#print .ph{height:6mm;font-size:8pt;display:flex;align-items:flex-end;gap:4mm;padding-left:1mm;color:#666}
+#print .ph{height:6mm;font-size:8pt;display:flex;align-items:flex-end;gap:4mm;padding-left:1mm;color:#000}
 #print .ph b{font-size:8.5pt;font-weight:400}
 #print .ph .wt{color:#000;font-size:10pt;font-weight:700}
 #print .pbody{display:flex;margin-top:1.5mm;border:0.35mm solid var(--pl)}
 #print table{border-collapse:collapse;table-layout:fixed}
 #print td,#print th{border:0.2mm solid var(--pl);padding:0;overflow:hidden;vertical-align:top}
-#print table.pw{width:128mm}
-#print table.pw th.l{background:var(--ph);font-weight:400;font-size:7.5pt;text-align:center;vertical-align:middle;line-height:1.1}
-#print table.pw th.l.big{font-size:15pt}
-#print table.pw thead th{background:var(--ph);font-weight:400;font-size:8pt;text-align:center;vertical-align:middle;line-height:1.15}
+#print table.pw{width:134mm}
+#print table.pw th.l{background:var(--ph);font-weight:400;font-size:6.5pt;text-align:center;vertical-align:middle;line-height:1.1;letter-spacing:-0.05em}
+#print table.pw th.l .mj{font-size:5pt;letter-spacing:-0.08em;line-height:1.15}
+#print table.pw th.l.big{font-size:14pt;letter-spacing:0}
+#print table.pw thead th{background:var(--ph);font-weight:400;font-size:8pt;text-align:center;vertical-align:middle;line-height:1.05}
 #print tr.band td,#print tr.band th{background:var(--pb)}
 #print td.sj{font-size:7.5pt;font-weight:700;padding:0 0.8mm;white-space:nowrap;vertical-align:middle;line-height:1}
 #print td.hr{font-size:6.5pt;text-align:center;vertical-align:middle;white-space:nowrap;line-height:1}
@@ -256,10 +257,11 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 #print table.sub td{border:0.2mm solid var(--pl);border-left:none;border-right:none}
 #print table.sub td.hr{border-left:0.2mm solid var(--pl)}
 #print .offn{font-weight:700}
-#print .side{width:40mm;display:flex;flex-direction:column;border-left:0.35mm solid var(--pl)}
+#print .side{width:34mm;display:flex;flex-direction:column;border-left:0.35mm solid var(--pl)}
 #print table.pt2{width:100%;font-size:6.8pt}
-#print table.pt2 th{background:var(--ph);font-weight:400;height:5mm;vertical-align:middle;font-size:7pt}
-#print table.pt2 td{height:3.55mm;text-align:center;vertical-align:middle;white-space:nowrap;line-height:1}
+#print table.pt2 th{background:var(--ph);font-weight:400;height:5mm;vertical-align:middle;font-size:6.5pt;letter-spacing:-0.05em;padding:0}
+#print table.pt2 td:nth-child(3){font-size:5.6pt;letter-spacing:-0.04em;padding-top:0.6mm}
+#print table.pt2 td{height:3.55mm;text-align:center;vertical-align:middle;white-space:nowrap;line-height:1;padding:0.35mm 0 0}   /* MS UI Gothic は字が上に寄って見えるので、少し下げる */
 #print table.pt2 td.n{text-align:center}
 #print table.pt2 td{font-size:6.3pt;letter-spacing:-0.02em}
 #print table.pt2 td.rt{font-size:5.3pt}
@@ -332,7 +334,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v8.7";
+const VERSION = "v8.8";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1089,15 +1091,16 @@ function renderPrint() {
   const H = 243 - 6 - 1.5 - 25 - 5;
   const BH = 6.4;   // 中休み・昼休みの帯の高さ（2行分）
   const ST = 3.6;   // 教科の欄の高さ（7ポイント）
-  const fixed = 8 + 7 + ST + 5 + BH * 2 + 9;
+  const fixed = 6.5 + 7 + ST + 5 + BH * 2 + 9;
   const per = (H - fixed) / P();   // 1コマ（教科の欄＋内容）
   const cont = per - ST;
+  const PW = 134, LW = 6;                            // 週案の表の幅・左の列の幅（時数表は34mm）
   const HW = days.length > 5 ? 4.5 : 6;              // 時数の欄の幅
-  const colw = (128 - 8) / days.length;              // 1日の幅
-  // 内容の文字：1コマに9行入る大きさ。入りきらないときだけさらに小さくする
+  const colw = (PW - LW) / days.length;              // 1日の幅
+  // 内容の文字：1コマに8行入る大きさ。入りきらないときだけさらに小さくする
   const LH = 1.2;
-  const SX = 0.83;   // 文字の横幅（Excelの週案のように1行12〜13字入れるため横に詰める）
-  const BASE = Math.round((cont - 0.8) / 9 / (0.3528 * LH) * 10) / 10;
+  const SX = 0.85;   // 文字の横幅（Excelの週案のように1行12字ほど入れるため横に少し詰める）
+  const BASE = Math.round((cont - 0.8) / 8 / (0.3528 * LH) * 10) / 10;
   const fit = (text, hmm) => {
     const w = colw - 1.2;
     for (let fs = BASE; fs > 4; fs -= 0.3) {
@@ -1139,8 +1142,8 @@ function renderPrint() {
     return [`<td colspan="2" class="stc">${strip(i === 0 ? {s: x.s, h: asaShown(x)} : parts[0])}</td>`, `<td colspan="2" class="spc">${extra}<div class="cb sq" style="font-size:${fs}pt;max-height:${(rest - 0.3).toFixed(1)}mm"><div style="width:${(100 / SX).toFixed(1)}%;transform:scaleX(${SX});transform-origin:left top">${bodyHtml(items)}</div></div></td>`];
   };
   let h = `<div class="ph"><b>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</b><span>担任：${esc(c.teacher)}</span><span class="wt" style="margin-left:auto">${esc(weekTitle(mon))}</span></div>
-  <div class="pbody"><table class="pw"><colgroup><col style="width:8mm">${days.map(() => `<col><col style="width:${days.length > 5 ? 4.5 : 6}mm">`).join("")}</colgroup>
-  <thead><tr style="height:8mm"><th class="l"></th>`;
+  <div class="pbody"><table class="pw"><colgroup><col style="width:${LW}mm">${days.map(() => `<col><col style="width:${days.length > 5 ? 4.5 : 6}mm">`).join("")}</colgroup>
+  <thead><tr style="height:6.5mm"><th class="l"></th>`;
   for (const d of days) { const t = parse(d); h += `<th>${t.getMonth() + 1}月${t.getDate()}日<br>${WD[t.getDay()]}</th><th class="hk">${isSchoolDay(d) ? "" : "休"}</th>`; }
   h += `</tr></thead><tbody><tr style="height:7mm"><th class="l">行事</th>`;
   for (const d of days) {
@@ -1153,7 +1156,7 @@ function renderPrint() {
     return `<tr style="height:${ST}mm"><th class="l${big ? " big" : ""}" rowspan="2">${lab}</th>${cs.map(x => x[0]).join("")}</tr><tr style="height:${(i === 0 ? 5 : cont).toFixed(1)}mm">${cs.map(x => x[1]).join("")}</tr>`;
   };
   const band = (key, lab) => `<tr class="band" style="height:${BH}mm"><th class="l">${lab}</th>${days.map(d => isSchoolDay(d) ? `<td colspan="2"><div class="cb" style="max-height:${BH - 0.3}mm">${esc(dayRec(d)[key] || "")}</div></td>` : `<td colspan="2" class="hol"></td>`).join("")}</tr>`;
-  h += two(0, "モジュ<br>ール", false);
+  h += two(0, `<span class="mj">モジュ<br>ール</span>`, false);
   for (let i = 1; i <= P(); i++) {
     h += two(i, i, true);
     for (const [after, key, lab] of BREAKS) if (i === Math.min(after, P())) h += band(key, lab);
@@ -1169,7 +1172,7 @@ function renderPrint() {
   const nmFs = n => { const l = Array.from(n).length; return l > 3 ? `font-size:${Math.max(4.2, 6.3 * 3.6 / l).toFixed(1)}pt;letter-spacing:-0.05em` : ""; };
   const line = (r, k) => `<tr class="r${k % 2 ? 2 : 1}"><td class="n" style="${nmFs(r.name)}">${esc(r.name)}</td><td>${r.vals[0] ? fr(r.vals[0]) : ""}</td><td>${fr(r.vals[1])}</td><td class="rt">${rateCell(r)}</td></tr>`;
   const s1 = sum(g1), s2 = sum(g2);
-  let t = `<table class="pt2"><colgroup><col style="width:10mm"><col style="width:8.5mm"><col style="width:12mm"><col></colgroup><tr><th>教科</th><th>今週</th><th>累計</th><th>${D.cls.rateMode === "rest" ? "残り" : "達成率"}</th></tr>`;
+  let t = `<table class="pt2"><colgroup><col style="width:9.5mm"><col style="width:7mm"><col style="width:9mm"><col></colgroup><tr><th>教科</th><th>今週</th><th>累計</th><th>${D.cls.rateMode === "rest" ? "残り" : "達成率"}</th></tr>`;
   const blank = k => `<tr class="r${k % 2 ? 2 : 1}"><td class="n"></td><td></td><td></td><td class="rt"></td></tr>`;
   g1.forEach((r, k) => t += line(r, k));
   t += blank(g1.length) + blank(g1.length + 1);
