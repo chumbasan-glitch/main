@@ -270,7 +270,7 @@ function bootMsg(why) {
   var el = document.createElement("div"); el.id = "bootErr";
   el.style.cssText = "margin:24px auto;max-width:720px;padding:16px 20px;background:#FFF4E5;border:2px solid #E0A040;border-radius:8px;font-size:15px;line-height:1.8;color:#3A2A10";
   el.innerHTML = "<b>専科週案ツクールを動かせませんでした。</b><br>" + why +
-    "<br><br>考えられること：<br>・ファイルが途中までしかコピーされていない（ファイルの大きさが約0.6MBあるか確かめてください）<br>・Edge の「Internet Explorer モード」で開いている（アドレスバーの左に IE のマークがあるとき）<br>・学校の設定で、パソコンの中のファイルの JavaScript が止められている" +
+    "<br><br>考えられること：<br>・ファイルが途中までしかコピーされていない（ファイルの大きさが約0.9MBあるか確かめてください）<br>・Edge の「Internet Explorer モード」で開いている（アドレスバーの左に IE のマークがあるとき）<br>・学校の設定で、パソコンの中のファイルの JavaScript が止められている" +
     "<br><br><small style=\"color:#7A6A50\">くわしい理由：" + String(bootMsg.err || "（なし）").replace(/[<>&]/g, "") + "</small>";
   (document.body || document.documentElement).insertBefore(el, (document.body || document.documentElement).firstChild);
 }
@@ -292,7 +292,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.me.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v1.1";
+const VERSION = "v1.2";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1572,6 +1572,8 @@ try {
   else if (dr) localStorage.removeItem(DRAFT_KEY);
 } catch (e) {}
 $$("#tabs button").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+// 単元計画がまだない学年・教科は、教科書の計画を入れる（新しく計画を足した版に入れかえたとき）
+{ const got = [...new Set(D.classes.map(loadPresetFor).filter(Boolean))]; if (got.length) { dirty = true; setTimeout(() => toast("教科書の単元計画（" + got.join("・") + "）を入れました。「保存」を押してください", 6000), 300); } }
 $("#hdrVer").textContent = VERSION;
 $("#btnSave").onclick = save;
 document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); } });
