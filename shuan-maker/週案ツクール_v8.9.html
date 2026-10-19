@@ -216,10 +216,12 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 
 /* 印刷（B5縦） */
 #print{display:none}
-@page{size:182mm 257mm;margin:7mm}
-@page{size:JIS-B5 portrait;margin:7mm}
+/* 用紙の余白を0にすると、ブラウザが上下に入れる日付・時刻・タイトル（ヘッダーとフッター）が出なくなる。余白は #print の内側でとる */
+@page{size:182mm 257mm;margin:0}
+@page{size:JIS-B5 portrait;margin:0}
 @media print{
-  body{background:#fff}
+  html,body{margin:0;padding:0;background:#fff}
+  #print{padding:7mm;box-sizing:content-box}
   .app,#toast{display:none!important}
   #print{display:block}
 }
@@ -1264,8 +1266,8 @@ function savePdf() {
   setTimeout(() => { renderPrint(); window.print(); }, 50);
 }
 window.addEventListener("afterprint", () => { document.title = APP_TITLE; });
-function doPrint() { renderPrint(); window.print(); }
-window.addEventListener("beforeprint", renderPrint);
+function doPrint() { document.title = pdfName(); renderPrint(); window.print(); }
+window.addEventListener("beforeprint", () => { if (curWeek) document.title = pdfName(); renderPrint(); });
 
 /* 時間割タブ */
 let ttPick = "";
