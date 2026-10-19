@@ -706,6 +706,20 @@ function download(name, text, type = "text/html") {
   a.download = name; document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
+// 保存先のファイルに、いま開いているものとは別の（または新しい）週案が入っていないか確かめる
+async function safeToOverwrite(h) {
+  let v = null;
+  try {
+    const t = await (await h.getFile()).text();
+    const m = t.match(/<script id="shuan-data" type="application\/json">([\s\S]*?)<\/script>/);
+    if (m) v = JSON.parse(m[1]);
+  } catch (e) { return true; }
+  if (!v || v.app !== "shuan-tsukuru") return true;
+  if (v.fileId === D.fileId && (v.rev || 0) <= D.rev) return true;
+  const who = (v.cls && v.cls.grade ? v.cls.grade + "年" + (v.cls.kumi ? v.cls.kumi + "組" : "") + " " : "") + (v.savedAt ? v.savedAt.replace("T", " ") + "に保存" : "");
+  return confirm("保存先の「" + h.name + "」には、いま開いている週案とは別の（または新しい）データが入っています。" + (who ? "（" + who + "）" : "") +
+    "\n上書きすると、そのデータは消えます。\n\n上書きするときは「OK」、別のファイルに保存するときは「キャンセル」を押してください。");
+}
 async function save() {
   const prevSaved = D.savedAt;
   const now = new Date();
@@ -730,6 +744,11 @@ async function save() {
     if (!ok) {
       toast("いま開いているこのファイルを選んで「保存」→「はい（置きかえる）」を押してください", 6000);
       h = await window.showSaveFilePicker({suggestedName: currentFileName() || fileBaseName() + ".html", types: [{description: "週案ツクール（HTML）", accept: {"text/html": [".html"]}}]});
+    }
+    if (!(await safeToOverwrite(h))) {
+      toast("保存するファイルを選んでください（新しい名前にすると、別のファイルとして保存されます）", 6000);
+      h = await window.showSaveFilePicker({suggestedName: currentFileName() || fileBaseName() + ".html", types: [{description: "週案ツクール（HTML）", accept: {"text/html": [".html"]}}]});
+      if (!(await safeToOverwrite(h))) { D.savedAt = prevSaved; toast("保存をやめました"); return; }
     }
     const w = await h.createWritable(); await w.write(html); await w.close();
     handle = h; await idbSet("h:" + location.href, h);
