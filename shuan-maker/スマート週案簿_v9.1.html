@@ -57,7 +57,8 @@ label.f>*{font-size:14px;color:var(--ink)}
 .weekbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .weekbar select{font-weight:700}
 .contbar{margin-top:-4px}
-.ttver{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+.ttver{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+.ttnote{font-size:12.5px;line-height:1.7;color:#5A4500;background:#FFF6D8;border:1px solid #F0DC9A;border-radius:6px;padding:6px 10px;margin:0 0 12px}
 .weekbar .papernote{width:100%;text-align:right;font-size:12.5px;color:#7A5200;margin-top:-4px}
 .weekbar .papernote b{background:#FFF0C2;padding:0 4px;border-radius:3px}
 .contbar .caution{font-size:12.5px;color:#B23A1E;font-weight:700}
@@ -1382,6 +1383,8 @@ function renderTT() {
     <span class="row" style="gap:4px;margin-left:8px"><input type="date" id="ttNewDate"><button class="btn small" id="ttNew">この日から時間割を変える</button></span>
     ${ttSel >= 0 ? `<span class="row" style="gap:4px;margin-left:auto">変わる日<input type="date" id="ttFrom" value="${esc(D.ttChanges[ttSel].from)}"><button class="btn small danger" id="ttDel">この時間割を消す</button></span>` : ""}
   </div>
+  <p class="ttnote">📌 <b>年度のとちゅうで時間割が変わるとき</b>（5時間から6時間になる、など）：上で変わる日を選んで「この日から時間割を変える」を押し、新しい時間割を入れます。その日より前の週は、前の時間割のままです。<br>
+  　6時間目がある時間割にするときは、先に設定の「1日の時間数」を <b>6</b> にしておきます（6時間目がない週は、印刷で6時間目が灰色になります）。</p>
   <div class="ttwrap"><div>
     <div class="tthead"><b>${ttSel < 0 ? "ふだんの時間割" : md(D.ttChanges[ttSel].from) + "からの時間割"}</b><span>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</span></div>
     <table class="tt2"><tr><th></th>${[1,2,3,4,5].map(w => `<th>${WD[w]}</th>`).join("")}</tr>`;
@@ -1400,8 +1403,7 @@ function renderTT() {
     <div class="ttbtns ttasa">${(D.school.asaEvents || []).map(n => `<button data-s="${esc(n)}" data-asa="1" class="${ttPick === n ? "on" : ""}" style="--sc:#E9E9E9">${esc(n)}</button>`).join("")}</div>
     <p class="hint">・同じ教科のマスをもう一度クリックすると消えます。<br>・押したままなぞると、まとめて入れられます。</p>
   </div></div>
-  <p class="hint">ここに入れた時間割が、毎週の週案（月〜金）に自動で入ります。週案で直したところは、そちらが優先されます。祝日と学校の休業日は自動で空欄になります。<br>
-  年度のとちゅうで時間割が変わるとき（5時間から6時間になる、など）は、上で日付を選んで「この日から時間割を変える」を押し、新しい時間割を入れます。その日より前の週は、前の時間割のままです。（6時間目がある時間割にするときは、設定の「1日の時間数」を6にしておきます）</p>`;
+  <p class="hint">ここに入れた時間割が、毎週の週案（月〜金）に自動で入ります。週案で直したところは、そちらが優先されます。祝日と学校の休業日は自動で空欄になります。</p>`;
   el.innerHTML = h;
   $$("[data-tv]", el).forEach(b => b.onclick = () => { ttSel = +b.dataset.tv; render(); });
   $("#ttNew").onclick = () => {
