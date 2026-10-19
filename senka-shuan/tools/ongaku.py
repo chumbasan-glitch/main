@@ -56,9 +56,9 @@ def unit_from(top, ex):
         if not mats.get(n) and mats.get(n - 1): mats[n] = mats[n - 1]   # 教材名がない時間は、前の時間の教材の続き
         ms = "・".join(mats.get(n, []))
         a = [re.sub(r"^●\s*", "", x) for x in acts.get(n, [])]
-        lessons.append(("【" + ms + "】\n" if ms else "") + "\n".join("●" + x for x in a))
+        lessons.append((("【" + ms + "】\n" if ms else "") + "\n".join("●" + x for x in a)).strip())
         first = re.sub(r"^<[^>]+>", "", a[0]) if a else ""
-        short.append((ms + "：" if ms else "") + first)
+        short.append((ms + "：" + first) if ms and first else (ms or first))   # 学習内容のない時間は教材名だけ
     return {"name": name, "month": None, "total": total, "aim": "\n".join(aims), "title": "", "lessons": lessons, "short": short}
 
 out = {}

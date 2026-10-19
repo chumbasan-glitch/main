@@ -294,7 +294,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.me.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v1.4";
+const VERSION = "v1.5";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1247,11 +1247,14 @@ function importUnits(text, key, replace) {
     const unit = r[0]; if (!unit) return;
     let u = got.find(x => x.name === unit);
     if (!u) { u = {name: unit, total: 0, lessons: []}; got.push(u); }
-    const second = r[1] || "", rest = r.slice(2).filter(Boolean).join(" ");
-    if (r.length >= 3 && (rest || second)) {
+    const second = r[1] || "", text = r[2] || "", short = r[3] || "";
+    if (r.length >= 3 && (text || short || second)) {
+      // 3列目＝学習内容（もとの文）、4列目＝週案に入る文（「今の単元計画をコピー」で出した表をそのまま戻せる）
       const n = parseLessonNo(second);
-      if (isFinite(n) && n >= 1 && n <= 300) { while (u.lessons.length < n - 1) u.lessons.push(""); u.lessons[n - 1] = rest; }
-      else u.lessons.push(rest);
+      const i = isFinite(n) && n >= 1 && n <= 300 ? n - 1 : u.lessons.length;
+      while (u.lessons.length < i) u.lessons.push("");
+      u.lessons[i] = text;
+      if (short) { u.short = u.short || []; while (u.short.length < i) u.short.push(""); u.short[i] = short; }
     } else if (second) {
       const n = parseLessonNo(second);
       if (isFinite(n)) u.total = n; else u.lessons.push(second);
@@ -1259,15 +1262,20 @@ function importUnits(text, key, replace) {
   });
   for (const u of got) u.total = Math.max(u.total, u.lessons.length);
   if (!got.length) return 0;
+  // 同じ名前の単元のねらい・月は残す
+  const old = D.units[key] || [];
+  for (const u of got) { const o = old.find(x => x.name === u.name); if (o) { if (o.aim) u.aim = o.aim; if (o.month) u.month = o.month; } }
   if (replace || !D.units[key]) D.units[key] = got;
   else for (const u of got) { const i = D.units[key].findIndex(x => x.name === u.name); if (i >= 0) D.units[key][i] = u; else D.units[key].push(u); }
   return got.length;
 }
+// 改行やタブのある文は "…" でくくる（Excelのセルの中の改行のまま貼り付けられ、戻すときもそのまま読める）
+const tsvCell = v => { v = String(v ?? ""); return /[\t\n"]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
 function unitsToTSV(key) {
   let t = "単元名\t時間\t学習内容\t週案に入る文\n";
   for (const u of D.units[key] || []) {
     const n = lessonCount(u);
-    for (let i = 0; i < n; i++) t += [u.name, i + 1, String((u.lessons || [])[i] || "").replace(/[\t\n]/g, " "), String((u.short || [])[i] || "").replace(/[\t\n]/g, " ")].join("\t") + "\n";
+    for (let i = 0; i < n; i++) t += [u.name, i + 1, (u.lessons || [])[i], (u.short || [])[i]].map(tsvCell).join("\t") + "\n";
   }
   return t;
 }

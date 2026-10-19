@@ -12,7 +12,7 @@ out = {}
 for r in ws.iter_rows(min_row=4, values_only=True):
     g = GRADE.get(str(r[2] or "").strip())
     if not g or not r[3]: continue
-    name = re.sub(r"\s*\n\s*", "", str(r[3]).strip())
+    name = "".join(x.strip() for x in str(r[3]).split("\n") if x.strip() and not x.strip().startswith(("＊", "※")))   # 注の行は名前に入れない
     name = re.sub(r"[～〜]([^～〜]+)[～〜]$", r"（\1）", name)   # 副題は（ ）でくくる
     hrs = str(r[5] or "").translate(Z2H).strip()
     nums = [int(x) for x in re.findall(r"\d+", hrs)]
