@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>面談日程ツール</title>
+<style>
+:root{
+  --bg:#EEF2F0;
+  --surface:#FBFCFB;
+  --surface-2:#E3EAE6;
+  --ink:#1F2B26;
+  --ink-soft:#5A6B63;
+  --line:#CCD8D1;
+  --accent:#2C6B55;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#DDEEE6;
+  --ok:#2F8A57;
+  --ok-soft:#D6F0DF;
+  --ng:#B23A3A;
+  --ng-soft:#F6DEDB;
+  --warn:#9A6A00;
+  --warn-soft:#FBEFC9;
+  --sel:#2D5FA8;
+  --sel-soft:#DCE7F7;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141A17;
+    --surface:#1D2420;
+    --surface-2:#27302B;
+    --ink:#E6EEE9;
+    --ink-soft:#A3B4AB;
+    --line:#38443D;
+    --accent:#7CC6A6;
+    --accent-ink:#10201A;
+    --accent-soft:#24392F;
+    --ok:#7DD39E;
+    --ok-soft:#1F3A2A;
+    --ng:#F08A84;
+    --ng-soft:#3D2423;
+    --warn:#E8C065;
+    --warn-soft:#3A3120;
+    --sel:#8DB4F0;
+    --sel-soft:#22314A;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141A17;
+  --surface:#1D2420;
+  --surface-2:#27302B;
+  --ink:#E6EEE9;
+  --ink-soft:#A3B4AB;
+  --line:#38443D;
+  --accent:#7CC6A6;
+  --accent-ink:#10201A;
+  --accent-soft:#24392F;
+  --ok:#7DD39E;
+  --ok-soft:#1F3A2A;
+  --ng:#F08A84;
+  --ng-soft:#3D2423;
+  --warn:#E8C065;
+  --warn-soft:#3A3120;
+  --sel:#8DB4F0;
+  --sel-soft:#22314A;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"BIZ UDPGothic","Meiryo","Hiragino Sans","Yu Gothic",sans-serif;
+  font-size:15px;line-height:1.6;
+}
+.wrap{max-width:1320px;margin:0 auto;padding-inline:16px;padding-block:14px 48px;display:flex;flex-direction:column;gap:14px}
+header.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
+header.top h1{margin:0;font-size:24px;letter-spacing:.05em}
+header.top .sub{color:var(--ink-soft);font-size:13px}
+header.top .saved{margin-left:auto;color:var(--ink-soft);font-size:12px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{flex:1 1 160px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);font:inherit;font-weight:700;font-size:15px;padding:10px 12px;border-radius:10px;cursor:pointer;text-align:left}
+.tabs button .n{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--surface-2);color:var(--ink-soft);align-items:center;justify-content:center;font-size:13px;margin-right:6px}
+.tabs button[aria-selected="true"]{border-color:var(--accent);color:var(--ink);background:var(--accent-soft)}
+.tabs button[aria-selected="true"] .n{background:var(--accent);color:var(--accent-ink)}
+.layout{display:grid;grid-template-columns:minmax(280px,340px) 1fr;gap:14px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel h2{margin:0;font-size:16px}
+.panel h3{margin:0;font-size:14px;color:var(--ink-soft)}
+.hint{font-size:13px;color:var(--ink-soft);margin:0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;font-size:14px;padding:8px 14px;border-radius:9px;cursor:pointer}
+.btn:hover{border-color:var(--ink-soft)}
+.btn:focus-visible,.tabs button:focus-visible,.slist button:focus-visible,td.cell:focus-visible{outline:3px solid var(--sel);outline-offset:1px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--ng);border-color:var(--ng)}
+.btn.small{font-size:13px;padding:5px 10px}
+.btn[aria-pressed="true"]{background:var(--sel-soft);border-color:var(--sel)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+input[type=text],input[type=date],input[type=time],input[type=number],textarea,select{font:inherit;font-size:15px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+textarea{width:100%;min-height:140px;resize:vertical}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);margin:0}
+label.chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.msg{font-size:13px;padding:8px 10px;border-radius:8px;background:var(--surface-2)}
+.msg.ok{background:var(--ok-soft);color:var(--ink)}
+.msg.warn{background:var(--warn-soft);color:var(--ink)}
+.msg:empty{display:none}
+
+/* 児童リスト */
+.slist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;max-height:62vh;overflow-y:auto}
+.slist button{display:grid;grid-template-columns:2.2em 1fr auto;gap:6px;align-items:center;border:none;border-bottom:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14px;padding:7px 10px;text-align:left;cursor:pointer}
+.slist button:last-child{border-bottom:none}
+.slist button .no{color:var(--ink-soft);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.slist button .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slist button.cur{background:var(--sel-soft);box-shadow:inset 4px 0 0 var(--sel)}
+.slist button.can{background:var(--ok-soft)}
+.slist button.dim{opacity:.5}
+.badge{font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:99px;white-space:nowrap;border:1px solid transparent}
+.b-pending{background:var(--surface-2);color:var(--ink-soft)}
+.b-entered{background:var(--accent-soft);color:var(--accent)}
+.b-free{background:var(--ok-soft);color:var(--ok)}
+.b-absent{background:var(--warn-soft);color:var(--warn)}
+.b-slot{background:var(--sel-soft);color:var(--sel)}
+.b-none{background:var(--ng-soft);color:var(--ng)}
+.sib{display:inline-block;font-size:11px;font-weight:700;color:var(--warn);border:1px solid var(--warn);border-radius:4px;padding:0 3px;margin-left:4px;line-height:1.4;vertical-align:1px}
+.pin{font-size:12px;margin-left:3px}
+
+/* 予定表 */
+.gridwrap{overflow-x:auto}
+table.grid{border-collapse:collapse;width:100%;min-width:560px;table-layout:fixed;background:var(--surface)}
+table.grid th,table.grid td{border:1.5px solid var(--ink-soft);text-align:center;padding:0}
+table.grid th{background:var(--surface-2);font-size:14px;padding:8px 4px;font-weight:700}
+table.grid th.tm{width:84px;font-variant-numeric:tabular-nums}
+table.grid th.click{cursor:pointer}
+table.grid th.click:hover{background:var(--line)}
+td.cell{height:52px;cursor:pointer;font-size:14px;position:relative;line-height:1.25;padding:2px 3px}
+td.cell:hover{filter:brightness(.95)}
+td.cell .x{font-size:28px;font-weight:700;color:var(--ng);line-height:1}
+td.cell.isng{background:var(--ng-soft)}
+td.cell .who{font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.cell .sm{font-size:11px;color:var(--ink-soft)}
+td.cell.ok{background:var(--ok-soft)}
+td.cell.swap{background:var(--warn-soft)}
+td.cell.self{background:var(--sel-soft);box-shadow:inset 0 0 0 3px var(--sel)}
+td.cell.selslot{box-shadow:inset 0 0 0 3px var(--sel)}
+td.cell.ngsel{background:var(--ng-soft)}
+td.cell.ngsel .xs{color:var(--ng);font-weight:700;font-size:18px}
+td.cell.rest{background:repeating-linear-gradient(45deg,var(--surface) 0 6px,var(--surface-2) 6px 12px)}
+td.cell.filled{background:var(--surface)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-soft)}
+.legend span::before{content:"";display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:4px;vertical-align:-2px;border:1px solid var(--line)}
+.legend .l-ok::before{background:var(--ok-soft)}
+.legend .l-swap::before{background:var(--warn-soft)}
+.legend .l-ng::before{background:var(--ng-soft)}
+.legend .l-self::before{background:var(--sel-soft);border:2px solid var(--sel)}
+.legend .l-rest::before{background:repeating-linear-gradient(45deg,var(--surface) 0 3px,var(--surface-2) 3px 6px)}
+
+.curhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.curhead .big{font-size:20px;font-weight:700}
+.stats{display:flex;gap:8px;flex-wrap:wrap}
+.stat{background:var(--surface-2);border-radius:8px;padding:6px 10px;font-size:13px}
+.stat b{font-size:18px;margin-left:4px;font-variant-numeric:tabular-nums}
+
+/* 設定 */
+.setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;align-items:start}
+.dates{display:flex;flex-direction:column;gap:6px}
+.dates .d{display:flex;gap:8px;align-items:center}
+.dates .d .wd{min-width:3em;color:var(--ink-soft)}
+.roster{width:100%;border-collapse:collapse;font-size:14px}
+.roster th{text-align:left;color:var(--ink-soft);font-size:12.5px;padding:4px;border-bottom:1.5px solid var(--line)}
+.roster td{padding:3px 4px;border-bottom:1px solid var(--line)}
+.roster input[type=text]{width:100%;padding:4px 6px;font-size:14px}
+.roster input.no{width:4em}
+.roster-wrap{max-height:60vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:4px}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.opt .sub{display:flex;flex-wrap:wrap;gap:6px 12px;padding-left:24px;font-size:14px}
+.warnlist{font-size:13px;margin:0;padding-left:1.2em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>面談日程ツール</h1>
+    <span class="sub">✗のついた予定表から、個人面談の日程を組みます</span>
+    <span class="saved" id="savedLbl"></span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="set" aria-selected="true"><span class="n">1</span>設定・名簿</button>
+    <button role="tab" data-tab="input" aria-selected="false"><span class="n">2</span>✗を入力</button>
+    <button role="tab" data-tab="assign" aria-selected="false"><span class="n">3</span>割り当て</button>
+    <button role="tab" data-tab="out" aria-selected="false"><span class="n">4</span>保存・書き出し</button>
+  </nav>
+
+  <!-- 1 設定 -->
+  <section id="tab-set" class="setgrid">
+    <div class="panel">
+      <h2>日付と時間枠</h2>
+      <div class="dates" id="dateList"></div>
+      <div class="row">
+        <button class="btn small" id="addDate">＋ 日付を追加</button>
+      </div>
+      <div class="row">
+        <label>最初の枠 <input type="time" id="tStart" step="300"></label>
+        <label>最後の枠 <input type="time" id="tLast" step="300"></label>
+      </div>
+      <div class="row">
+        <label>1枠の長さ <input type="number" id="tStep" min="5" max="120" step="5" style="width:5em"> 分</label>
+      </div>
+      <p class="hint" id="slotInfo"></p>
+      <div class="row"><button class="btn primary" id="applySlots">この内容で表を作る</button></div>
+      <div class="msg" id="slotMsg"></div>
+    </div>
+
+    <div class="panel">
+      <h2>名簿の貼り付け</h2>
+      <p class="hint">Excelの名簿で「出席番号」と「名前」の2列を選んでコピーし、下に貼り付けてください。名前だけの列でもかまいません（番号は上から1, 2, 3…になります）。</p>
+      <textarea id="rosterIn" placeholder="1	山田 太郎&#10;2	佐藤 花子&#10;3	鈴木 一郎"></textarea>
+      <div class="row">
+        <button class="btn primary" id="loadRoster">名簿を読み込む</button>
+        <span class="hint">すでに入力した✗は、同じ出席番号の人に引き継がれます。</span>
+      </div>
+      <div class="msg" id="rosterMsg"></div>
+    </div>
+
+    <div class="panel" style="grid-column:1/-1">
+      <h2>名簿の確認・兄弟の設定</h2>
+      <p class="hint">他のクラスに兄弟がいる家庭は「兄弟」にチェックし、メモに兄弟のクラスや名前を書いておくと、書き出したCSVで担任の先生に伝えやすくなります。</p>
+      <div class="roster-wrap">
+        <table class="roster">
+          <thead><tr><th style="width:5em">番号</th><th>名前</th><th style="width:4em">兄弟</th><th>兄弟メモ（例：3年2組 ○○）</th><th style="width:4em"></th></tr></thead>
+          <tbody id="rosterBody"></tbody>
+        </table>
+      </div>
+      <div class="row"><button class="btn small" id="addStudent">＋ 1人追加</button><span class="hint" id="rosterCount"></span></div>
+    </div>
+  </section>
+
+  <!-- 2 ✗入力 -->
+  <section id="tab-input" class="layout" hidden>
+    <div class="panel">
+      <h2>児童を選ぶ</h2>
+      <div class="stats" id="inStats"></div>
+      <div class="slist" id="inList"></div>
+    </div>
+    <div class="panel">
+      <div class="curhead">
+        <span class="big" id="inName">—</span>
+        <span id="inBadge"></span>
+      </div>
+      <div class="row">
+        <button class="btn" id="btnFree">✗なし（どこでもOK）</button>
+        <button class="btn" id="btnAbsent">未提出</button>
+        <button class="btn danger small" id="btnClear">✗をすべて消す</button>
+        <span style="flex:1"></span>
+        <button class="btn" id="btnPrev">◀ 前の人</button>
+        <button class="btn primary" id="btnNext">次の人 ▶</button>
+      </div>
+      <p class="hint">都合のつかない枠をクリックすると ✗ がつきます（もう一度クリックで消えます）。日付や時刻の見出しをクリックすると、その列・行をまとめて ✗ にできます。</p>
+      <div class="gridwrap" id="inGrid"></div>
+    </div>
+  </section>
+
+  <!-- 3 割り当て -->
+  <section id="tab-assign" class="layout" hidden>
+    <div class="panel">
+      <h2>自動で割り当て</h2>
+      <div class="opts">
+        <div class="opt">
+          <label class="chk"><input type="checkbox" id="optEarly"> 各日の最後を空ける（早い時間から詰める）</label>
+        </div>
+        <div class="opt">
+          <label class="chk"><input type="checkbox" id="optOffDaysOn"> 特定の日を空ける</label>
+          <div class="sub" id="optOffDays"></div>
+        </div>
+        <div class="opt">
+          <label class="chk"><input type="checkbox" id="optBreaksOn"> 休憩を入れる（毎日この枠を空ける）</label>
+          <div class="sub" id="optBreaks"></div>
+        </div>
+        <p class="hint">何も選ばなければ「こだわらない」になります。空けたい枠は、どうしても入らない家庭があるときだけ使います。</p>
+      </div>
+      <label class="chk"><input type="checkbox" id="keepPins" checked> 📌固定した人はそのままにする</label>
+      <button class="btn primary" id="runAuto">自動で割り当てる</button>
+      <div class="msg" id="autoMsg"></div>
+
+      <h2>児童一覧</h2>
+      <div class="stats" id="asStats"></div>
+      <div class="slist" id="asList"></div>
+    </div>
+
+    <div class="panel">
+      <div class="curhead">
+        <span class="big" id="asName">手直し</span>
+        <span id="asBadge"></span>
+        <span style="flex:1"></span>
+        <button class="btn small" id="asPin" hidden>📌 固定</button>
+        <button class="btn small danger" id="asRemove" hidden>枠から外す</button>
+        <button class="btn small" id="asDeselect" hidden>選択を解除</button>
+      </div>
+      <p class="hint" id="asHint">児童（一覧または表の名前）をクリックすると、その児童が入れられる枠が緑色になります。緑の枠をクリックすると移動します。空いている枠をクリックすると、その枠に入れられる児童が一覧で緑色になります。</p>
+      <div class="legend">
+        <span class="l-self">選んだ児童の枠</span>
+        <span class="l-ok">入れられる（空き）</span>
+        <span class="l-swap">入れ替えできる</span>
+        <span class="l-ng">✗（都合が悪い）</span>
+        <span class="l-rest">空けたい枠</span>
+      </div>
+      <div class="gridwrap" id="asGrid"></div>
+    </div>
+  </section>
+
+  <!-- 4 保存・書き出し -->
+  <section id="tab-out" class="setgrid" hidden>
+    <div class="panel">
+      <h2>データの保存</h2>
+      <p class="hint">入力した内容は、このパソコンのブラウザに自動で保存されています。念のため、または別のパソコンで続きをするときは「保存ファイル」を書き出してください。</p>
+      <div class="row">
+        <button class="btn primary" id="saveFile">保存ファイルを書き出す</button>
+        <button class="btn" id="loadFileBtn">保存ファイルを読み込む</button>
+        <input type="file" id="loadFile" accept=".json,application/json" hidden>
+      </div>
+      <div class="msg" id="fileMsg"></div>
+    </div>
+    <div class="panel">
+      <h2>Excel（CSV）で書き出す</h2>
+      <p class="hint">書き出したCSVファイルは、ダブルクリックするとExcelで開けます。</p>
+      <div class="row">
+        <button class="btn primary" id="csvList">名簿順の一覧</button>
+        <button class="btn" id="csvGrid">日程表の形</button>
+        <button class="btn" id="csvSib">兄弟ありの家庭だけ</button>
+      </div>
+      <div class="msg" id="csvMsg"></div>
+    </div>
+    <div class="panel">
+      <h2>はじめからやり直す</h2>
+      <p class="hint">名簿・✗・割り当てをすべて消します。消す前に保存ファイルを書き出しておくと安心です。</p>
+      <div class="row"><button class="btn danger" id="resetAll">すべて消去する</button></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+const KEY = "mendan-tool-v1";
+const STATUS = {pending:"未入力", entered:"入力済み", free:"✗なし", absent:"未提出"};
+const WD = ["日","月","火","水","木","金","土"];
+
+function defaultState(){
+  return {
+    ver:1,
+    dates:["2026-11-24","2026-11-25","2026-11-26","2026-11-27","2026-11-30"],
+    start:"13:30", last:"15:30", step:15,
+    students:[],          // {id,no,name,sib,sibMemo,status}
+    ng:{},                // id -> {slotKey:1}
+    assign:{},            // slotKey -> id
+    pins:{},              // id -> true
+    opt:{early:true, offOn:false, offDays:[], brOn:false, breaks:[]},
+    nextId:1
+  };
+}
+
+let S = load();
+let tab = "set";
+let inCur = null;           // ✗入力中の児童id
+let asSel = null;           // 割り当てタブで選んだ児童id
+let asSlot = null;          // 割り当てタブで選んだ空き枠
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){ return Object.assign(defaultState(), JSON.parse(raw)); }
+  }catch(e){}
+  return defaultState();
+}
+function save(){
+  try{
+    localStorage.setItem(KEY, JSON.stringify(S));
+    const d = new Date();
+    $("savedLbl").textContent = "自動保存しました " + d.getHours() + ":" + String(d.getMinutes()).padStart(2,"0");
+  }catch(e){
+    $("savedLbl").textContent = "自動保存できません（保存ファイルを書き出してください）";
+  }
+}
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toMin(t){ const [h,m] = t.split(":").map(Number); return h*60+m; }
+function toTime(m){ return Math.floor(m/60) + ":" + String(m%60).padStart(2,"0"); }
+function parseDate(d){ const [y,m,dd] = d.split("-").map(Number); return new Date(y, m-1, dd); }
+function fmtDate(d){ const x = parseDate(d); return (x.getMonth()+1) + "月" + x.getDate() + "日（" + WD[x.getDay()] + "）"; }
+function fmtDateShort(d){ const x = parseDate(d); return (x.getMonth()+1) + "/" + x.getDate() + "（" + WD[x.getDay()] + "）"; }
+
+function times(){
+  const out = [];
+  const a = toMin(S.start), b = toMin(S.last), st = Math.max(5, Number(S.step)||15);
+  for(let m = a; m <= b && out.length < 60; m += st) out.push(toTime(m));
+  return out;
+}
+function dates(){ return S.dates.filter(Boolean).slice().sort(); }
+function slotKey(d,t){ return d + " " + t; }
+function allSlots(){
+  const out = [];
+  for(const d of dates()) for(const t of times()) out.push(slotKey(d,t));
+  return out;
+}
+function slotLabel(k){ const [d,t] = k.split(" "); return fmtDateShort(d) + " " + t + "〜"; }
+function student(id){ return S.students.find(s => s.id === id); }
+function sorted(){ return S.students.slice().sort((a,b) => a.no - b.no); }
+function isNg(id,k){ return !!(S.ng[id] && S.ng[id][k]); }
+function ngCount(id){
+  const set = new Set(allSlots());
+  return S.ng[id] ? Object.keys(S.ng[id]).filter(k => set.has(k)).length : 0;
+}
+function slotOf(id){
+  const set = new Set(allSlots());
+  for(const k in S.assign) if(S.assign[k] === id && set.has(k)) return k;
+  return null;
+}
+function cleanAssign(){
+  const set = new Set(allSlots());
+  const ids = new Set(S.students.map(s => s.id));
+  let lost = 0;
+  for(const k in S.assign){
+    if(!set.has(k) || !ids.has(S.assign[k])){ delete S.assign[k]; lost++; }
+  }
+  return lost;
+}
+function isRest(k){
+  const [d,t] = k.split(" ");
+  return (S.opt.offOn && S.opt.offDays.includes(d)) || (S.opt.brOn && S.opt.breaks.includes(t));
+}
+function nameHtml(s){
+  return esc(s.name || "（名前なし）") + (s.sib ? '<span class="sib">兄弟</span>' : "") + (S.pins[s.id] ? '<span class="pin">📌</span>' : "");
+}
+function statusBadge(s){
+  return '<span class="badge b-' + s.status + '">' + STATUS[s.status] + (s.status === "entered" ? " ✗" + ngCount(s.id) : "") + "</span>";
+}
+
+/* ---------- タブ ---------- */
+document.querySelectorAll(".tabs button").forEach(b => {
+  b.addEventListener("click", () => { tab = b.dataset.tab; render(); });
+});
+function render(){
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab ? "true" : "false"));
+  for(const t of ["set","input","assign","out"]) $("tab-" + t).hidden = (t !== tab);
+  if(tab === "set") renderSet();
+  if(tab === "input") renderInput();
+  if(tab === "assign") renderAssign();
+}
+
+/* ---------- 1 設定 ---------- */
+let draftDates = null;
+function renderSet(){
+  if(!draftDates) draftDates = S.dates.slice();
+  const dl = $("dateList");
+  dl.innerHTML = "";
+  draftDates.forEach((d,i) => {
+    const row = document.createElement("div");
+    row.className = "d";
+    row.innerHTML = '<span class="hint">' + (i+1) + '日目</span><input type="date" value="' + esc(d) + '"><span class="wd">' + (d ? "（" + WD[parseDate(d).getDay()] + "）" : "") + '</span><button class="btn small danger">削除</button>';
+    row.querySelector("input").addEventListener("change", e => { draftDates[i] = e.target.value; renderSet(); });
+    row.querySelector("button").addEventListener("click", () => { draftDates.splice(i,1); renderSet(); });
+    dl.appendChild(row);
+  });
+  if(document.activeElement !== $("tStart")) $("tStart").value = S.start.padStart(5,"0");
+  if(document.activeElement !== $("tLast")) $("tLast").value = S.last.padStart(5,"0");
+  if(document.activeElement !== $("tStep")) $("tStep").value = S.step;
+  $("slotInfo").textContent = "いまの表：" + dates().length + "日 × " + times().length + "枠 ＝ 全部で " + allSlots().length + "枠";
+  renderRoster();
+}
+$("addDate").addEventListener("click", () => {
+  const last = draftDates.filter(Boolean).sort().pop();
+  let nd = "";
+  if(last){
+    const x = parseDate(last);
+    do{ x.setDate(x.getDate()+1); }while(x.getDay() === 0 || x.getDay() === 6);
+    nd = x.getFullYear() + "-" + String(x.getMonth()+1).padStart(2,"0") + "-" + String(x.getDate()).padStart(2,"0");
+  }
+  draftDates.push(nd);
+  renderSet();
+});
+$("applySlots").addEventListener("click", () => {
+  const st = $("tStart").value, la = $("tLast").value, step = Number($("tStep").value);
+  const ds = [...new Set(draftDates.filter(Boolean))].sort();
+  if(!ds.length){ $("slotMsg").className = "msg warn"; $("slotMsg").textContent = "日付を1つ以上入れてください。"; return; }
+  if(!st || !la || toMin(la) < toMin(st)){ $("slotMsg").className = "msg warn"; $("slotMsg").textContent = "「最後の枠」は「最初の枠」より後の時刻にしてください。"; return; }
+  if(!(step >= 5)){ $("slotMsg").className = "msg warn"; $("slotMsg").textContent = "1枠の長さは5分以上にしてください。"; return; }
+  S.dates = ds; S.start = toTime(toMin(st)); S.last = toTime(toMin(la)); S.step = step;
+  draftDates = ds.slice();
+  const lost = cleanAssign();
+  S.opt.offDays = S.opt.offDays.filter(d => ds.includes(d));
+  S.opt.breaks = S.opt.breaks.filter(t => times().includes(t));
+  save();
+  $("slotMsg").className = "msg ok";
+  $("slotMsg").textContent = "表を作りました（" + allSlots().length + "枠）。" + (lost ? "表にない枠に入っていた " + lost + " 人は、割り当てから外れました。" : "");
+  renderSet();
+});
+
+function normDigits(s){ return s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)); }
+$("loadRoster").addEventListener("click", () => {
+  const lines = $("rosterIn").value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const rows = [];
+  lines.forEach(line => {
+    const l = normDigits(line);
+    let m = l.match(/^(\d+)\s*[\t,，、.．\s]\s*(.+)$/);
+    if(m){ rows.push({no:Number(m[1]), name:m[2].split(/[\t,，]/)[0].trim()}); return; }
+    const parts = l.split(/[\t,，]/).map(p => p.trim()).filter(Boolean);
+    if(!parts.length) return;
+    if(/番号|氏名|名前|なまえ/.test(l) && !/\d/.test(l)) return;   // 見出し行
+    rows.push({no:null, name:parts[0]});
+  });
+  if(!rows.length){ $("rosterMsg").className = "msg warn"; $("rosterMsg").textContent = "名簿が貼り付けられていません。"; return; }
+  let auto = 1;
+  rows.forEach(r => { if(r.no == null){ r.no = auto; } auto = r.no + 1; });
+  const newNos = new Set(rows.map(r => r.no));
+  const removed = S.students.filter(s => !newNos.has(s.no));
+  if(removed.length && !confirm("今の名簿にいて、新しい名簿にいない人が " + removed.length + " 人います（" + removed.slice(0,5).map(s => s.no + "番 " + s.name).join("、") + (removed.length > 5 ? " など" : "") + "）。\nこの人たちの✗や割り当ても消えます。よろしいですか？")) return;
+  const next = [];
+  rows.forEach(r => {
+    const old = S.students.find(s => s.no === r.no);
+    if(old){ old.name = r.name; next.push(old); }
+    else next.push({id:"s" + (S.nextId++), no:r.no, name:r.name, sib:false, sibMemo:"", status:"pending"});
+  });
+  removed.forEach(s => { delete S.ng[s.id]; delete S.pins[s.id]; });
+  S.students = next;
+  cleanAssign();
+  save();
+  $("rosterIn").value = "";
+  $("rosterMsg").className = "msg ok";
+  $("rosterMsg").textContent = next.length + " 人の名簿を読み込みました。下の表で確認してください。";
+  renderSet();
+});
+
+function renderRoster(){
+  const tb = $("rosterBody");
+  tb.innerHTML = "";
+  sorted().forEach(s => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td><input type="text" class="no" inputmode="numeric" value="' + s.no + '"></td>' +
+      '<td><input type="text" class="nm" value="' + esc(s.name) + '"></td>' +
+      '<td><input type="checkbox" class="sb"' + (s.sib ? " checked" : "") + '></td>' +
+      '<td><input type="text" class="memo" value="' + esc(s.sibMemo || "") + '"' + (s.sib ? "" : " disabled") + '></td>' +
+      '<td><button class="btn small danger">削除</button></td>';
+    tr.querySelector(".no").addEventListener("change", e => {
+      const n = Number(normDigits(e.target.value));
+      if(!n || S.students.some(x => x !== s && x.no === n)){ alert("出席番号が空か、ほかの人と同じです。"); e.target.value = s.no; return; }
+      s.no = n; save(); renderRoster();
+    });
+    tr.querySelector(".nm").addEventListener("change", e => { s.name = e.target.value.trim(); save(); });
+    tr.querySelector(".sb").addEventListener("change", e => { s.sib = e.target.checked; save(); renderRoster(); });
+    tr.querySelector(".memo").addEventListener("change", e => { s.sibMemo = e.target.value; save(); });
+    tr.querySelector("button").addEventListener("click", () => {
+      if(!confirm(s.no + "番 " + s.name + " さんを名簿から消しますか？")) return;
+      S.students = S.students.filter(x => x !== s);
+      delete S.ng[s.id]; delete S.pins[s.id];
+      cleanAssign(); save(); renderRoster();
+    });
+    tb.appendChild(tr);
+  });
+  $("rosterCount").textContent = "全部で " + S.students.length + " 人（兄弟あり " + S.students.filter(s => s.sib).length + " 人）";
+}
+$("addStudent").addEventListener("click", () => {
+  const no = S.students.reduce((m,s) => Math.max(m, s.no), 0) + 1;
+  S.students.push({id:"s" + (S.nextId++), no, name:"", sib:false, sibMemo:"", status:"pending"});
+  save(); renderRoster();
+  const inputs = $("rosterBody").querySelectorAll(".nm");
+  inputs[inputs.length-1].focus();
+});
+
+/* ---------- 表（共通） ---------- */
+function buildGrid(container, cellFn, headFn){
+  const ds = dates(), ts = times();
+  let h = '<table class="grid"><thead><tr><th class="tm' + (headFn ? " click" : "") + '" data-all="1"></th>';
+  ds.forEach(d => { h += '<th' + (headFn ? ' class="click"' : "") + ' data-d="' + d + '">' + fmtDate(d) + "</th>"; });
+  h += "</tr></thead><tbody>";
+  ts.forEach(t => {
+    h += '<tr><th class="tm' + (headFn ? " click" : "") + '" data-t="' + t + '">' + t + "〜</th>";
+    ds.forEach(d => {
+      const k = slotKey(d,t);
+      const c = cellFn(k);
+      h += '<td class="cell ' + (c.cls || "") + '" tabindex="0" data-k="' + k + '"' + (c.title ? ' title="' + esc(c.title) + '"' : "") + ">" + (c.html || "") + "</td>";
+    });
+    h += "</tr>";
+  });
+  h += "</tbody></table>";
+  container.innerHTML = h;
+}
+
+/* ---------- 2 ✗入力 ---------- */
+function renderInput(){
+  const list = sorted();
+  if(!inCur || !student(inCur)) inCur = list.length ? list[0].id : null;
+  const c = {pending:0, entered:0, free:0, absent:0};
+  list.forEach(s => c[s.status]++);
+  $("inStats").innerHTML = Object.keys(STATUS).map(k => '<span class="stat">' + STATUS[k] + "<b>" + c[k] + "</b></span>").join("");
+  const L = $("inList");
+  L.innerHTML = "";
+  if(!list.length){ L.innerHTML = '<p class="hint" style="padding:12px">「1 設定・名簿」で名簿を読み込んでください。</p>'; }
+  list.forEach(s => {
+    const b = document.createElement("button");
+    b.className = s.id === inCur ? "cur" : "";
+    b.innerHTML = '<span class="no">' + s.no + '</span><span class="nm">' + nameHtml(s) + "</span>" + statusBadge(s);
+    b.addEventListener("click", () => { inCur = s.id; renderInput(); });
+    L.appendChild(b);
+  });
+  const s = student(inCur);
+  const dis = !s;
+  ["btnFree","btnAbsent","btnClear","btnPrev","btnNext"].forEach(id => $(id).disabled = dis);
+  if(!s){ $("inName").textContent = "—"; $("inBadge").innerHTML = ""; $("inGrid").innerHTML = ""; return; }
+  $("inName").innerHTML = s.no + "番 " + nameHtml(s);
+  $("inBadge").innerHTML = statusBadge(s);
+  $("btnFree").setAttribute("aria-pressed", s.status === "free");
+  $("btnAbsent").setAttribute("aria-pressed", s.status === "absent");
+  buildGrid($("inGrid"), k => isNg(s.id,k) ? {cls:"isng", html:'<span class="x">✗</span>'} : {}, true);
+  const cur = $("inList").querySelector(".cur");
+  if(cur) cur.scrollIntoView({block:"nearest"});
+}
+function setNg(id, keys, on){
+  S.ng[id] = S.ng[id] || {};
+  keys.forEach(k => { if(on) S.ng[id][k] = 1; else delete S.ng[id][k]; });
+  const s = student(id);
+  if(s.status !== "entered") s.status = "entered";
+}
+$("inGrid").addEventListener("click", e => {
+  const s = student(inCur); if(!s) return;
+  const td = e.target.closest("td.cell");
+  if(td){ const k = td.dataset.k; setNg(s.id, [k], !isNg(s.id,k)); save(); renderInput(); return; }
+  const th = e.target.closest("th");
+  if(!th) return;
+  let keys = [];
+  if(th.dataset.d) keys = times().map(t => slotKey(th.dataset.d, t));
+  else if(th.dataset.t) keys = dates().map(d => slotKey(d, th.dataset.t));
+  else keys = allSlots();
+  const allOn = keys.every(k => isNg(s.id,k));
+  setNg(s.id, keys, !allOn); save(); renderInput();
+});
+$("inGrid").addEventListener("keydown", e => {
+  if((e.key === "Enter" || e.key === " ") && e.target.matches("td.cell")){ e.preventDefault(); e.target.click(); }
+});
+$("btnFree").addEventListener("click", () => {
+  const s = student(inCur); if(!s) return;
+  if(ngCount(s.id) && !confirm("入力した✗を消して「✗なし（どこでもOK）」にしますか？")) return;
+  S.ng[s.id] = {}; s.status = "free"; save(); renderInput();
+});
+$("btnAbsent").addEventListener("click", () => {
+  const s = student(inCur); if(!s) return;
+  if(s.status === "absent"){ s.status = ngCount(s.id) ? "entered" : "pending"; }
+  else { s.status = "absent"; }
+  save(); renderInput();
+});
+$("btnClear").addEventListener("click", () => {
+  const s = student(inCur); if(!s) return;
+  if(!ngCount(s.id)) return;
+  if(!confirm("この児童の✗をすべて消しますか？")) return;
+  S.ng[s.id] = {}; save(); renderInput();
+});
+function moveCur(d){
+  const list = sorted(); const i = list.findIndex(s => s.id === inCur);
+  const j = Math.min(list.length-1, Math.max(0, i+d));
+  if(list[j]){ inCur = list[j].id; renderInput(); }
+}
+$("btnPrev").addEventListener("click", () => moveCur(-1));
+$("btnNext").addEventListener("click", () => moveCur(1));
+
+/* ---------- 3 割り当て ---------- */
+function hungarian(a){
+  // a: n×m（n<=m）のコスト表。各行に別々の列を1つずつ、合計が最小になるよう選ぶ
+  const n = a.length, m = a[0].length, INF = 1e18;
+  const u = new Array(n+1).fill(0), v = new Array(m+1).fill(0), p = new Array(m+1).fill(0), way = new Array(m+1).fill(0);
+  for(let i = 1; i <= n; i++){
+    p[0] = i; let j0 = 0;
+    const minv = new Array(m+1).fill(INF), used = new Array(m+1).fill(false);
+    do{
+      used[j0] = true;
+      const i0 = p[j0]; let delta = INF, j1 = 0;
+      for(let j = 1; j <= m; j++) if(!used[j]){
+        const cur = a[i0-1][j-1] - u[i0] - v[j];
+        if(cur < minv[j]){ minv[j] = cur; way[j] = j0; }
+        if(minv[j] < delta){ delta = minv[j]; j1 = j; }
+      }
+      for(let j = 0; j <= m; j++){
+        if(used[j]){ u[p[j]] += delta; v[j] -= delta; } else minv[j] -= delta;
+      }
+      j0 = j1;
+    }while(p[j0] !== 0);
+    do{ const j1 = way[j0]; p[j0] = p[j1]; j0 = j1; }while(j0);
+  }
+  const res = new Array(n).fill(-1);
+  for(let j = 1; j <= m; j++) if(p[j]) res[p[j]-1] = j-1;
+  return res;
+}
+
+function renderOpts(){
+  $("optEarly").checked = !!S.opt.early;
+  $("optOffDaysOn").checked = !!S.opt.offOn;
+  $("optBreaksOn").checked = !!S.opt.brOn;
+  const od = $("optOffDays"); od.innerHTML = "";
+  dates().forEach(d => {
+    const l = document.createElement("label"); l.className = "chk";
+    l.innerHTML = '<input type="checkbox"' + (S.opt.offDays.includes(d) ? " checked" : "") + (S.opt.offOn ? "" : " disabled") + "> " + fmtDateShort(d);
+    l.querySelector("input").addEventListener("change", e => {
+      S.opt.offDays = S.opt.offDays.filter(x => x !== d); if(e.target.checked) S.opt.offDays.push(d);
+      save(); renderAssign();
+    });
+    od.appendChild(l);
+  });
+  const br = $("optBreaks"); br.innerHTML = "";
+  times().forEach(t => {
+    const l = document.createElement("label"); l.className = "chk";
+    l.innerHTML = '<input type="checkbox"' + (S.opt.breaks.includes(t) ? " checked" : "") + (S.opt.brOn ? "" : " disabled") + "> " + t + "〜";
+    l.querySelector("input").addEventListener("change", e => {
+      S.opt.breaks = S.opt.breaks.filter(x => x !== t); if(e.target.checked) S.opt.breaks.push(t);
+      save(); renderAssign();
+    });
+    br.appendChild(l);
+  });
+}
+$("optEarly").addEventListener("change", e => { S.opt.early = e.target.checked; save(); });
+$("optOffDaysOn").addEventListener("change", e => { S.opt.offOn = e.target.checked; save(); renderAssign(); });
+$("optBreaksOn").addEventListener("change", e => { S.opt.brOn = e.target.checked; save(); renderAssign(); });
+
+$("runAuto").addEventListener("click", () => {
+  const keep = $("keepPins").checked;
+  const assigned = Object.keys(S.assign).length;
+  if(assigned && !confirm("今の割り当てを" + (keep ? "（📌固定した人以外）" : "") + "やり直します。よろしいですか？")) return;
+  cleanAssign();
+  const slots = allSlots();
+  const kept = {};
+  if(keep) for(const k in S.assign) if(S.pins[S.assign[k]]) kept[k] = S.assign[k];
+  const keptIds = new Set(Object.values(kept));
+  const targets = sorted().filter(s => !keptIds.has(s.id) && (s.status === "entered" || s.status === "free"));
+  const skipped = sorted().filter(s => !keptIds.has(s.id) && (s.status === "pending" || s.status === "absent"));
+  const open = slots.filter(k => !kept[k]);
+  const ts = times();
+  const BIG = 1e9, NONE = 1e7, REST = 1e5;
+  S.assign = Object.assign({}, kept);
+  const result = {placed:0, none:[], restUsed:0};
+  if(targets.length){
+    const cost = targets.map(s => {
+      const row = open.map(k => {
+        if(isNg(s.id,k)) return BIG;
+        let c = 0;
+        if(isRest(k)) c += REST;
+        if(S.opt.early) c += ts.indexOf(k.split(" ")[1]) * 10;
+        return c;
+      });
+      for(let i = 0; i < targets.length; i++) row.push(NONE);   // 「入らなかった」用
+      return row;
+    });
+    const res = hungarian(cost);
+    res.forEach((j,i) => {
+      const s = targets[i];
+      if(j >= 0 && j < open.length && cost[i][j] < BIG){
+        S.assign[open[j]] = s.id; result.placed++;
+        if(isRest(open[j])) result.restUsed++;
+      } else result.none.push(s);
+    });
+  }
+  asSel = null; asSlot = null;
+  save();
+  let html = "<b>" + result.placed + " 人</b>を割り当てました。";
+  if(Object.keys(kept).length) html += "（📌固定 " + Object.keys(kept).length + " 人はそのまま）";
+  const warns = [];
+  if(result.none.length) warns.push("✗のため入る枠がなかった：" + result.none.map(s => s.no + "番 " + esc(s.name)).join("、"));
+  if(skipped.length) warns.push("未入力・未提出のため外した：" + skipped.map(s => s.no + "番 " + esc(s.name)).join("、"));
+  if(result.restUsed) warns.push("空けたかった枠を " + result.restUsed + " つ使いました（ほかに入る枠がなかったため）。");
+  if(warns.length) html += '<ul class="warnlist">' + warns.map(w => "<li>" + w + "</li>").join("") + "</ul>";
+  $("autoMsg").className = "msg " + (warns.length ? "warn" : "ok");
+  $("autoMsg").innerHTML = html;
+  renderAssign();
+});
+
+function renderAssign(){
+  cleanAssign();
+  renderOpts();
+  const list = sorted();
+  if(asSel && !student(asSel)) asSel = null;
+  const slotSet = new Set(allSlots());
+  if(asSlot && !slotSet.has(asSlot)) asSlot = null;
+  // 集計
+  const target = list.filter(s => s.status === "entered" || s.status === "free");
+  const placed = list.filter(s => slotOf(s.id));
+  const free = allSlots().filter(k => !S.assign[k]).length;
+  $("asStats").innerHTML =
+    '<span class="stat">割り当て済み<b>' + placed.length + "</b> / " + list.length + "人</span>" +
+    '<span class="stat">未割り当て<b>' + (list.length - placed.length) + "</b></span>" +
+    '<span class="stat">空き枠<b>' + free + "</b></span>" +
+    (target.length < list.length ? '<span class="stat">未入力・未提出<b>' + (list.length - target.length) + "</b></span>" : "");
+  // 一覧
+  const L = $("asList"); L.innerHTML = "";
+  if(!list.length) L.innerHTML = '<p class="hint" style="padding:12px">「1 設定・名簿」で名簿を読み込んでください。</p>';
+  list.forEach(s => {
+    const k = slotOf(s.id);
+    const b = document.createElement("button");
+    let cls = s.id === asSel ? "cur" : "";
+    if(asSlot){
+      if(!isNg(s.id, asSlot) && s.status !== "absent" && s.status !== "pending") cls += " can";
+      else cls += " dim";
+    }
+    b.className = cls;
+    let badge;
+    if(k) badge = '<span class="badge b-slot">' + slotLabel(k) + "</span>";
+    else if(s.status === "absent" || s.status === "pending") badge = statusBadge(s);
+    else badge = '<span class="badge b-none">未割り当て</span>';
+    b.innerHTML = '<span class="no">' + s.no + '</span><span class="nm">' + nameHtml(s) + "</span>" + badge;
+    b.addEventListener("click", () => {
+      if(asSlot){ const k2 = asSlot; asSlot = null; place(s.id, k2); return; }
+      asSel = (asSel === s.id) ? null : s.id; renderAssign();
+    });
+    L.appendChild(b);
+  });
+  // ヘッダ
+  const s = student(asSel);
+  $("asPin").hidden = !s || !slotOf(s.id);
+  $("asRemove").hidden = !s || !slotOf(s.id);
+  $("asDeselect").hidden = !s && !asSlot;
+  if(s){
+    $("asName").innerHTML = s.no + "番 " + nameHtml(s);
+    $("asBadge").innerHTML = slotOf(s.id) ? '<span class="badge b-slot">' + slotLabel(slotOf(s.id)) + "</span>" : statusBadge(s);
+    $("asPin").textContent = S.pins[s.id] ? "📌 固定を外す" : "📌 固定";
+    $("asPin").setAttribute("aria-pressed", !!S.pins[s.id]);
+  } else if(asSlot){
+    $("asName").textContent = slotLabel(asSlot) + " に入れる児童を選ぶ";
+    $("asBadge").innerHTML = "";
+  } else {
+    $("asName").textContent = "手直し";
+    $("asBadge").innerHTML = "";
+  }
+  // 表
+  const myKey = s ? slotOf(s.id) : null;
+  buildGrid($("asGrid"), k => {
+    const who = student(S.assign[k]);
+    const out = {cls:"", html:""};
+    if(who) out.html = '<span class="who">' + who.no + " " + nameHtml(who) + "</span>";
+    else if(isRest(k)) out.html = '<span class="sm">空けたい枠</span>';
+    if(isRest(k) && !who) out.cls += " rest";
+    if(s){
+      if(k === myKey) out.cls += " self";
+      else if(isNg(s.id,k)){ out.cls += " ngsel"; if(!who) out.html = '<span class="xs">✗</span>'; }
+      else if(!who) out.cls += " ok";
+      else if(!myKey || !isNg(who.id, myKey)) out.cls += " swap";
+    }
+    if(asSlot === k) out.cls += " selslot";
+    if(who){
+      const ngs = isNg(who.id,k);
+      if(ngs) out.html += '<span class="sm" style="color:var(--ng)">✗の枠です</span>';
+      out.title = who.no + "番 " + who.name + (who.sib ? "（兄弟あり" + (who.sibMemo ? "：" + who.sibMemo : "") + "）" : "");
+    }
+    return out;
+  }, false);
+}
+
+function place(id, k){
+  const s = student(id);
+  const old = slotOf(id);
+  const otherId = S.assign[k];
+  if(otherId === id){ return; }
+  if(isNg(id,k) && !confirm(s.name + " さんは " + slotLabel(k) + " に✗がついています。それでも入れますか？")) { renderAssign(); return; }
+  if(otherId){
+    const o = student(otherId);
+    if(old && !isNg(otherId, old)){
+      if(!confirm(s.name + " さんと " + o.name + " さんを入れ替えますか？\n" + s.name + "：" + slotLabel(k) + "\n" + o.name + "：" + slotLabel(old))) { renderAssign(); return; }
+      S.assign[old] = otherId;
+    } else {
+      if(!confirm(o.name + " さんは枠から外れます（" + (old ? "入れ替え先に✗があるため" : "入れ替える枠がないため") + "）。よろしいですか？")) { renderAssign(); return; }
+      if(old) delete S.assign[old];
+    }
+  } else if(old){
+    delete S.assign[old];
+  }
+  S.assign[k] = id;
+  asSel = id;
+  save(); renderAssign();
+}
+
+$("asGrid").addEventListener("click", e => {
+  const td = e.target.closest("td.cell"); if(!td) return;
+  const k = td.dataset.k;
+  const who = S.assign[k];
+  if(asSel){
+    if(who === asSel){ asSel = null; renderAssign(); return; }
+    place(asSel, k); return;
+  }
+  if(who){ asSel = who; asSlot = null; renderAssign(); return; }
+  asSlot = (asSlot === k) ? null : k; renderAssign();
+});
+$("asGrid").addEventListener("keydown", e => {
+  if((e.key === "Enter" || e.key === " ") && e.target.matches("td.cell")){ e.preventDefault(); e.target.click(); }
+});
+$("asPin").addEventListener("click", () => {
+  if(!asSel) return;
+  if(S.pins[asSel]) delete S.pins[asSel]; else S.pins[asSel] = true;
+  save(); renderAssign();
+});
+$("asRemove").addEventListener("click", () => {
+  const k = slotOf(asSel); if(!k) return;
+  delete S.assign[k]; delete S.pins[asSel];
+  save(); renderAssign();
+});
+$("asDeselect").addEventListener("click", () => { asSel = null; asSlot = null; renderAssign(); });
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape" && tab === "assign"){ asSel = null; asSlot = null; renderAssign(); }
+});
+
+/* ---------- 4 保存・書き出し ---------- */
+function stamp(){
+  const d = new Date();
+  return d.getFullYear() + String(d.getMonth()+1).padStart(2,"0") + String(d.getDate()).padStart(2,"0") + "_" + String(d.getHours()).padStart(2,"0") + String(d.getMinutes()).padStart(2,"0");
+}
+function download(name, text, type){
+  const blob = new Blob([text], {type});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function csv(rows){
+  return "﻿" + rows.map(r => r.map(v => {
+    const s = String(v == null ? "" : v);
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(",")).join("\r\n");
+}
+function slotParts(k){
+  if(!k) return ["","",""];
+  const [d,t] = k.split(" "); const x = parseDate(d);
+  return [(x.getMonth()+1) + "月" + x.getDate() + "日", WD[x.getDay()], t];
+}
+
+$("saveFile").addEventListener("click", () => {
+  download("面談日程_保存_" + stamp() + ".json", JSON.stringify(S, null, 1), "application/json");
+  $("fileMsg").className = "msg ok";
+  $("fileMsg").textContent = "保存ファイルを書き出しました（ダウンロードフォルダを確認してください）。";
+});
+$("loadFileBtn").addEventListener("click", () => $("loadFile").click());
+$("loadFile").addEventListener("change", e => {
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const data = JSON.parse(r.result);
+      if(!data || !Array.isArray(data.students) || !Array.isArray(data.dates)) throw new Error("bad");
+      if(S.students.length && !confirm("今のデータを、読み込んだファイルの内容に置きかえます。よろしいですか？")) return;
+      S = Object.assign(defaultState(), data);
+      draftDates = null; inCur = null; asSel = null; asSlot = null;
+      save();
+      $("fileMsg").className = "msg ok";
+      $("fileMsg").textContent = "読み込みました（" + S.students.length + " 人）。";
+    }catch(err){
+      $("fileMsg").className = "msg warn";
+      $("fileMsg").textContent = "このファイルは読み込めませんでした。このツールで書き出した保存ファイルを選んでください。";
+    }
+    e.target.value = "";
+  };
+  r.readAsText(f, "utf-8");
+});
+
+$("csvList").addEventListener("click", () => {
+  const rows = [["出席番号","名前","日付","曜日","時刻","兄弟","兄弟メモ","予定表","✗の数"]];
+  sorted().forEach(s => {
+    const k = slotOf(s.id);
+    rows.push([s.no, s.name, ...slotParts(k), s.sib ? "あり" : "", s.sibMemo || "", STATUS[s.status], s.status === "entered" ? ngCount(s.id) : ""]);
+  });
+  download("面談日程_名簿順_" + stamp() + ".csv", csv(rows), "text/csv");
+  $("csvMsg").className = "msg ok"; $("csvMsg").textContent = "名簿順の一覧を書き出しました。";
+});
+$("csvGrid").addEventListener("click", () => {
+  const ds = dates();
+  const rows = [["時刻", ...ds.map(fmtDate)]];
+  times().forEach(t => {
+    rows.push([t + "〜", ...ds.map(d => {
+      const s = student(S.assign[slotKey(d,t)]);
+      return s ? s.no + " " + s.name + (s.sib ? "（兄弟）" : "") : "";
+    })]);
+  });
+  download("面談日程_日程表_" + stamp() + ".csv", csv(rows), "text/csv");
+  $("csvMsg").className = "msg ok"; $("csvMsg").textContent = "日程表の形で書き出しました。";
+});
+$("csvSib").addEventListener("click", () => {
+  const list = sorted().filter(s => s.sib);
+  if(!list.length){ $("csvMsg").className = "msg warn"; $("csvMsg").textContent = "兄弟ありの家庭がいません（「1 設定・名簿」でチェックできます）。"; return; }
+  const rows = [["出席番号","名前","兄弟メモ","日付","曜日","時刻"]];
+  list.forEach(s => rows.push([s.no, s.name, s.sibMemo || "", ...slotParts(slotOf(s.id))]));
+  download("面談日程_兄弟あり_" + stamp() + ".csv", csv(rows), "text/csv");
+  $("csvMsg").className = "msg ok"; $("csvMsg").textContent = "兄弟ありの家庭（" + list.length + " 人）を書き出しました。";
+});
+$("resetAll").addEventListener("click", () => {
+  if(!confirm("名簿・✗・割り当てをすべて消します。元に戻せません。よろしいですか？")) return;
+  S = defaultState(); draftDates = null; inCur = null; asSel = null; asSlot = null;
+  save(); tab = "set"; render();
+});
+
+render();
+})();
+</script>
+</body>
+</html>
