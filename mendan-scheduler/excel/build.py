@@ -210,7 +210,7 @@ for k, (t, fo) in enumerate(lines[3:]):
 
 # ---------------------------------------------------------------- 設定
 ws = sheet(SET)
-for col, w in zip("ABCDEFGHI", [22, 10, 4, 10, 18, 4, 10, 12, 10]):
+for col, w in zip("ABCDEFGHI", [25, 10, 4, 10, 18, 4, 10, 12, 10]):
     ws.column_dimensions[col].width = w
 put(ws, "A1", "設定", font=f(size=16, bold=True))
 put(ws, "A2", "面談の日付と時間枠を決めます。黄色のマスを入力してください。")
@@ -671,7 +671,7 @@ MENU = [(HOME, "ホーム"), (SET, "① 設定"), (ROS, "② 名簿"), (INP, "�
 GRID_MENU = ["F1", "G1", "H1", "I1", "J1", "K1"]
 LAYOUT = {
     HOME: ("A1", 13, None),
-    SET: ("A1", 22, ["D1", "E1", "F1:G1", "H1", "I1", "K1"]),
+    SET: ("A1", 22, ["D1", "E1", "F1:G1", "H1", "I1", "K1:L1"]),
     ROS: ("A1", 16, ["E1:F1", "G1", "H1:I1", "J1:K1", "L1:M1", "N1"]),
     INP: ("B1", 12, GRID_MENU),
     AUT: ("B1", 15, GRID_MENU),
