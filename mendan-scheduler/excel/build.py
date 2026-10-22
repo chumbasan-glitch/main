@@ -47,11 +47,14 @@ ROW_PRIO = 110                 # 110:全体の詰め方 111〜114:希望ごと�
 
 f = lambda **k: Font(name=FONT, **k)
 fill = lambda c: PatternFill("solid", start_color=c, end_color=c)
-thin = Side(style="thin", color="888888")
+thin = Side(style="thin", color="AFC2B8")
 box = Border(left=thin, right=thin, top=thin, bottom=thin)
 center = Alignment(horizontal="center", vertical="center", wrap_text=True)
 INPUT = fill("FFF8D6")         # 入力するセル
-HEAD = fill("E3EAE6")
+HEAD = fill("E3EFE8")            # 時刻などの見出し（うすい緑）
+PRIMARY, PRIMARY_D, LIGHT = "2C6B55", "1F4F3F", "DDEEE6"
+HEAD_D = fill(PRIMARY)             # 日付などの見出し（こい緑）
+HOME = "ホーム"
 GRAY = fill("D9D9D9")
 
 wb = Workbook()
@@ -78,10 +81,11 @@ def arr(ws, ref, formula, **style):
     put(ws, ref, ArrayFormula(ref, formula), **style)
 
 
-# ---------------------------------------------------------------- 使い方
-ws = sheet("使い方", first=True)
+# ---------------------------------------------------------------- ホーム
+ws = sheet(HOME, first=True)
 ws.column_dimensions["A"].width = 3
-ws.column_dimensions["B"].width = 110
+for c in range(2, 14):
+    ws.column_dimensions[CL(c)].width = 11
 lines = [
     ("面談日程ツール（Excel版）", f(size=18, bold=True)),
     ("マクロは使っていません。ふつうのExcelファイルとして開けます。黄色のセルが入力する場所です。", f(size=11)),
@@ -90,10 +94,10 @@ lines = [
     ("・面談の日付（上から順に、最大10日）、最初の枠・最後の枠の時刻、1枠の長さを入れます（1日最大12枠）。", None),
     ("・空けたい日や休憩の時刻には「〇」を選びます。自動案では、ほかに入る枠がないときだけ使われます。", None),
     ("2. 「名簿」シート", f(bold=True, size=12)),
-    ("・Excelの名簿から「出席番号」と「名前」をコピーして、A列・B列（5行目から）に貼り付けます（最大45人）。", None),
-    ("・他のクラスに兄弟がいる家庭は、C列で「〇」を選び、D列に兄弟のクラスなどをメモします。", None),
-    ("・E列「希望」：早い時刻／遅い時刻／早い日／遅い日 から選べます。自動案で、×のない枠の中からできるだけ希望に合う枠を選びます（希望なので、合わないこともあります）。", None),
-    ("・F列「後ろを空ける」：話が長引きそうな家庭は、同じ日のすぐ次の枠を空けます。「必ず空けたい」「出来れば空けたい」から選びます（出来れば空けたいは、空けられないときは詰めて入れます）。日の最後の枠なら空ける必要はありません。", None),
+    ("・Excelの名簿から「出席番号」と「名前」をコピーして、「番号」の列のいちばん上のマスに貼り付けます（最大45人）。", None),
+    ("・他のクラスに兄弟がいる家庭は、「兄弟」の列で「〇」を選び、「兄弟メモ」に兄弟のクラスなどをメモします。", None),
+    ("・「希望」：早い時刻／遅い時刻／早い日／遅い日 から選べます。自動案で、×のない枠の中からできるだけ希望に合う枠を選びます（希望なので、合わないこともあります）。", None),
+    ("・「後ろを空ける」：話が長引きそうな家庭は、同じ日のすぐ次の枠を空けます。「必ず空けたい」「出来れば空けたい」から選びます（出来れば空けたいは、空けられないときは詰めて入れます）。日の最後の枠なら空ける必要はありません。", None),
     ("・名簿の行は並べ替えないでください（×入力の内容とずれてしまいます）。絞り込み（フィルター）は使えます。", None),
     ("3. 「×入力」シート", f(bold=True, size=12)),
     ("・1人ずつ、予定表と同じ形の表があります。名簿の「×入力へ」をクリックすると、その人の表に移動します。", None),
@@ -103,7 +107,7 @@ lines = [
     ("・×が1つもない家庭は「提出状況」で「×なし（どこでもOK）」、提出していない家庭は「未提出」を選びます。", None),
     ("4. 「自動案」シート", f(bold=True, size=12)),
     ("・入れられる枠が少ない家庭から順に、自動で割り当てた案が表示されます（未入力・未提出の家庭は外れます）。", None),
-    ("・案でよければ、表（C6:L17）をコピーして、「割り当て」シートの同じ場所に「値の貼り付け」をします。", None),
+    ("・案でよければ、表をコピーして、「割り当て」シートの表の左上（いちばん早い日・時刻のマス）に［値の貼り付け］をします。左上の名前ボックスで「自動案の表」を選ぶと、表全体をまとめて選べます。", None),
     ("・「割り当て」シートですでに決めた人はそのまま残り、残りの人だけで案が作られます。やり直したいときは割り当ての表を消します。", None),
     ("5. 「割り当て」シート", f(bold=True, size=12)),
     ("・各枠のセルで、プルダウンから児童を選びます。", None),
@@ -118,14 +122,70 @@ lines = [
     ("", None),
     ("※ 「計算A」「計算B」は計算用の隠しシートです。さわらないでください。", f(color="9A6A00")),
 ]
-for r, (t, fo) in enumerate(lines, start=1):
-    put(ws, f"B{r}", t, font=fo or f(size=11), alignment=Alignment(wrap_text=True, vertical="top"))
+put(ws, "A1", "面談日程ツール")
+put(ws, "A2", "×のついた予定表から、個人面談の日程を組むツールです（マクロなし）。黄色のマスが入力する場所です。")
+# いまの状況
+put(ws, "B4", "いまの状況", font=f(size=13, bold=True, color=PRIMARY_D))
+R = q(ROS)
+tiles = [
+    ("名簿の人数", f'=COUNTIF({R}$B$5:$B$49,"?*")', None),
+    ("×入力済み", f'=COUNTIF({R}$H$5:$H$49,"入力済み")+COUNTIF({R}$H$5:$H$49,"×なし")', None),
+    ("未入力", f'=COUNTIF({R}$H$5:$H$49,"未入力")', "9A6A00"),
+    ("未提出", f'=COUNTIF({R}$H$5:$H$49,"未提出")', "9A6A00"),
+    ("割り当て済み", f'=SUMPRODUCT(({R}$L$5:$L$49<>"")*1)', None),
+    ("未割り当て", f'=COUNTIF({R}$N$5:$N$49,"未割り当て")', "B23A3A"),
+]
+for k, (lab, fo, warn) in enumerate(tiles):
+    c1, c2 = CL(2 + 2 * k), CL(3 + 2 * k)
+    put(ws, f"{c1}5", lab, font=f(size=10, bold=True, color=PRIMARY_D), fill=fill(LIGHT), alignment=center)
+    ws.merge_cells(f"{c1}5:{c2}5")
+    put(ws, f"{c1}6", fo, font=f(size=24, bold=True, color=PRIMARY_D), fill=fill("FFFFFF"), alignment=center, number_format='0"人"')
+    ws.merge_cells(f"{c1}6:{c2}6")
+    for rr in (5, 6):
+        for cc in (c1, c2):
+            ws[f"{cc}{rr}"].border = Border(left=Side(style="thin", color="FFFFFF"), right=Side(style="thin", color="FFFFFF"),
+                                            top=Side(style="thin", color=LIGHT), bottom=Side(style="medium", color=PRIMARY) if rr == 6 else None)
+    if warn:
+        ws.conditional_formatting.add(f"{c1}6", FormulaRule(formula=[f"{c1}6>0"], font=Font(name=FONT, size=24, bold=True, color=warn)))
+ws.row_dimensions[5].height = 22
+ws.row_dimensions[6].height = 46
+# 使う順番
+put(ws, "B8", "使う順番", font=f(size=13, bold=True, color=PRIMARY_D))
+steps = [
+    (SET, "日付と時間枠を決める", "面談する日付、最初と最後の枠の時刻、1枠の長さ。空けたい日・休憩もここで。"),
+    (ROS, "名簿を貼り付ける", "番号と名前を貼り付けます。兄弟・希望の時間・後ろを空けるもここで選びます。"),
+    (INP, "×を入力する", "予定表と同じ形の表に「×」。なぞって選んで「×」→ Ctrl+Enter でまとめて入ります。"),
+    (AUT, "自動案を見る", "入れられる枠が少ない家庭から順に自動で組んだ案。よければ割り当てに貼り付けます。"),
+    (ASG, "割り当てて仕上げる", "プルダウンで手直し。児童を選ぶと、入れられる枠に色がつきます。"),
+]
+for k, (sh, title, desc) in enumerate(steps):
+    r = 9 + 3 * k
+    put(ws, f"B{r}", k + 1, font=f(size=20, bold=True, color="FFFFFF"), fill=HEAD_D, alignment=center)
+    ws.merge_cells(f"B{r}:B{r+1}")
+    put(ws, f"C{r}", title, font=f(size=13, bold=True), fill=fill("F5FAF7"), alignment=Alignment(vertical="bottom", indent=1))
+    put(ws, f"C{r+1}", desc, font=f(size=10, color="4A5B53"), fill=fill("F5FAF7"), alignment=Alignment(vertical="top", indent=1, wrap_text=True))
+    ws.merge_cells(f"C{r}:J{r}"); ws.merge_cells(f"C{r+1}:J{r+1}")
+    put(ws, f"K{r}", f'=HYPERLINK("#\'{sh}\'!A1","開く ▶")', font=f(size=12, bold=True, color="FFFFFF"), fill=fill("3F8A6E"), alignment=center)
+    ws.merge_cells(f"K{r}:L{r+1}")
+    ws.row_dimensions[r].height = 24; ws.row_dimensions[r + 1].height = 30
+    for cc in "CDEFGHIJ":
+        ws[f"{cc}{r+1}"].border = Border(bottom=Side(style="thin", color="CFE0D6"))
+# くわしい使い方
+r0 = 26
+put(ws, f"B{r0}", "くわしい使い方", font=f(size=13, bold=True, color=PRIMARY_D))
+for k, (t, fo) in enumerate(lines[3:]):
+    r = r0 + 1 + k
+    put(ws, f"B{r}", t, font=fo or f(size=10.5), alignment=Alignment(wrap_text=True, vertical="top"))
+    ws.merge_cells(f"B{r}:M{r}")
+    if t and len(t) > 70:
+        ws.row_dimensions[r].height = 30
 
 # ---------------------------------------------------------------- 設定
 ws = sheet(SET)
 for col, w in zip("ABCDEFGHI", [16, 14, 7, 12, 18, 4, 10, 12, 10]):
     ws.column_dimensions[col].width = w
 put(ws, "A1", "設定", font=f(size=16, bold=True))
+put(ws, "A2", "面談の日付と時間枠を決めます。黄色のマスを入力してください。")
 items = [
     (3, "最初の枠", datetime.time(13, 30), "h:mm"),
     (4, "最後の枠", datetime.time(15, 30), "h:mm"),
@@ -172,14 +232,14 @@ put(ws, "A22", "※ 日付は上から詰めて入れてください。曜日・
 ws = sheet(ROS)
 heads = ["番号", "名前", "兄弟", "兄弟メモ", "希望", "後ろを空ける", "表示名", "状況", "×の数", "入れられる空き枠", "決める順",
          "日付", "時刻", "注意", "自動案", ""]
-widths = [6, 16, 6, 18, 10, 15, 18, 10, 7, 9, 7, 15, 8, 30, 22, 9]
+widths = [6, 16, 6, 18, 10, 16, 18, 10, 7, 9, 7, 15, 8, 30, 22, 9]
 for i, (h, w) in enumerate(zip(heads, widths), start=1):
     ws.column_dimensions[CL(i)].width = w
     if h:
         put(ws, f"{CL(i)}4", h, font=f(bold=True), fill=HEAD, border=box, alignment=center)
 ws.row_dimensions[4].height = 32
 put(ws, "A1", "名簿・結果", font=f(size=16, bold=True))
-put(ws, "A2", "黄色の列（番号〜後ろを空ける）を入力します。Excelの名簿から番号と名前をA5に貼り付けてください（最大45人）。行の並べ替えはしないでください。", font=f(size=10, color="444444"))
+put(ws, "A2", "黄色の列（番号〜後ろを空ける）を入力します。Excelの名簿から番号と名前を「番号」の列のいちばん上に貼り付けてください（最大45人）。行の並べ替えはしないでください。", font=f(size=10, color="444444"))
 put(ws, "A3", "希望：早い時刻／遅い時刻／早い日／遅い日。後ろを空ける：必ず空けたい／出来れば空けたい（同じ日のすぐ次の枠を空けます）。", font=f(size=10, color="444444"))
 dv_sib = DataValidation(type="list", formula1='"〇"', allow_blank=True)
 dv_hope = DataValidation(type="list", formula1='"' + ",".join(HOPES) + '"', allow_blank=True)
@@ -190,7 +250,7 @@ for i in range(1, NS + 1):
     r, a = 4 + i, 9 + i          # a: 計算Aの行
     b = base(i)
     for c in "ABCDEF":
-        put(ws, f"{c}{r}", None, fill=INPUT, border=box, alignment=Alignment(vertical="center") if c in "BD" else center)
+        put(ws, f"{c}{r}", None, fill=INPUT, border=box, alignment=Alignment(vertical="center") if c in "BD" else Alignment(horizontal="center", vertical="center", shrink_to_fit=True))
     dv_sib.add(f"C{r}"); dv_hope.add(f"E{r}"); dv_gap.add(f"F{r}")
     put(ws, f"G{r}", f'=IF(B{r}="","",IF(A{r}="","",A{r}&" ")&B{r})', border=box)
     put(ws, f"H{r}", f'=IF(B{r}="","",IF({q(INP)}F{b}="未提出","未提出",IF(I{r}>0,"入力済み",IF({q(INP)}F{b}="×なし（どこでもOK）","×なし","未入力"))))', border=box, alignment=center)
@@ -354,7 +414,7 @@ ws.freeze_panes = "C6"
 
 # ---------------------------------------------------------------- 自動案
 ws = sheet(AUT)
-grid_frame(ws, "自動案", "入れられる枠が少ない家庭から順に、自動で割り当てた案です。緑が新しく入った人。よければ表（C6:L17）をコピーし、「割り当て」の同じ場所に［値の貼り付け］をします。")
+grid_frame(ws, "自動案", "入れられる枠が少ない家庭から順に、自動で割り当てた案です。緑が新しく入った人。よければ表をコピーし（名前ボックスで「自動案の表」を選ぶと全体を選べます）、「割り当て」の表の左上に［値の貼り付け］をします。")
 for t in range(1, T + 1):
     for d in range(1, D + 1):
         j = sj(d, t); g = f"{q(ASG)}{CL(2+d)}{5+t}"
@@ -390,7 +450,7 @@ put(ws, "A1", "計算用（さわらないでください）", font=f(bold=True,
 labels = {1: "枠番号", 2: "日", 3: "時", 4: "使える", 5: "空けたい", 6: "優先順", 7: "決定済み", 8: "表示"}
 for r, lab in labels.items():
     put(ws, f"C{r}", lab)
-put(ws, "A8", "選択中→"); put(ws, "B8", f'=IFERROR(MATCH({q(ASG)}$N$5,$B$10:$B$54,0),0)')
+put(ws, "A8", "選択中→"); put(ws, "B8", f'=IF({q(ASG)}$N$5="",0,IFERROR(MATCH({q(ASG)}$N$5,$B$10:$B$54,0),0))')
 for j in range(1, N + 1):
     c = jc(j); d = (j - 1) // T + 1; t = (j - 1) % T + 1
     ws[f"{c}1"] = j; ws[f"{c}2"] = d; ws[f"{c}3"] = t
@@ -481,9 +541,91 @@ for k in range(1, NS + 1):
     ws[f"D{r}"] = f"=IF(C{r}>0,INDEX({CAr(5)},C{r}),0)"
     ws[f"G{r}"] = f"=IF(AND(C{r}>0,E{r}>0),IF(AND(INDEX({CAr(ROW_NEXT)},C{r})=1,INDEX(${nx(1)}{r}:${nx(N)}{r},C{r})=1),C{r}+1,0),0)"
 
+# ---------------------------------------------------------------- 見た目の仕上げ（タイトル帯・メニュー・見出しの色）
+from openpyxl.workbook.defined_name import DefinedName
+
+MENU = [(HOME, "ホーム"), (SET, "① 設定"), (ROS, "② 名簿"), (INP, "③ ×入力"), (AUT, "④ 自動案"), (ASG, "⑤ 割り当て")]
+# シートごと：(タイトルのセル, 帯の右はしの列, メニューボタンの場所)
+GRID_MENU = ["F1", "G1", "H1", "I1", "J1", "K1"]
+LAYOUT = {
+    HOME: ("A1", 13, None),
+    SET: ("A1", 12, ["D1", "E1", "F1:G1", "H1", "I1", "J1:K1"]),
+    ROS: ("A1", 16, ["E1:F1", "G1", "H1:I1", "J1:K1", "L1:M1", "N1"]),
+    INP: ("B1", 12, GRID_MENU),
+    AUT: ("B1", 15, GRID_MENU),
+    ASG: ("B1", 15, GRID_MENU),
+}
+wb[SET].column_dimensions["J"].width = 8
+wb[SET].column_dimensions["K"].width = 8
+TAB = {HOME: PRIMARY_D, SET: "7F8C86", ROS: "2D5FA8", INP: "B23A3A", AUT: "3F8A6E", ASG: "C77D1A"}
+date_ref = f"={q(SET)}$E$"
+for name, (tref, last, menu) in LAYOUT.items():
+    ws = wb[name]
+    ws.sheet_properties.tabColor = TAB[name]
+    ws.sheet_view.showRowColHeaders = False
+    ws.row_dimensions[1].height = 44
+    ws.row_dimensions[2].height = 24
+    for c in range(1, last + 1):
+        ws.cell(1, c).fill = fill(PRIMARY_D)
+        ws.cell(2, c).fill = fill(LIGHT)
+    t = ws[tref]
+    t.font = f(size=18, bold=True, color="FFFFFF")
+    t.alignment = Alignment(vertical="center", indent=1 if tref == "A1" else 0)
+    for c in range(1, last + 1):
+        cell = ws.cell(2, c)
+        if cell.value:
+            cell.font = f(size=10, color=PRIMARY_D)
+            cell.alignment = Alignment(vertical="center", indent=1 if c == 1 else 0)
+    if menu:
+        for (sh, lab), ref in zip(MENU, menu):
+            first = ref.split(":")[0]
+            cur = (sh == name)
+            put(ws, first, f'=HYPERLINK("#\'{sh}\'!A1","{lab}")',
+                font=f(size=11, bold=True, color=PRIMARY_D if cur else "FFFFFF"),
+                fill=fill("FFE9A8") if cur else fill("3F8A6E"), alignment=center,
+                border=Border(left=Side(style="medium", color=PRIMARY_D), right=Side(style="medium", color=PRIMARY_D),
+                              top=Side(style="medium", color=PRIMARY_D), bottom=Side(style="medium", color=PRIMARY_D)))
+            if ":" in ref:
+                ws.merge_cells(ref)
+    # 見出しの色：日付の見出しと名簿・設定の列見出しをこい緑に
+    for row in ws.iter_rows(min_row=3):
+        for cell in row:
+            v = cell.value
+            if isinstance(v, str) and v.startswith(date_ref):
+                cell.fill = HEAD_D; cell.font = f(bold=True, color="FFFFFF")
+for c in range(1, 17):
+    cell = wb[ROS].cell(4, c)
+    if cell.value:
+        cell.fill = fill("B7791F") if c <= 6 else HEAD_D    # 入力する列は茶色、計算の列は緑
+        cell.font = f(bold=True, color="FFFFFF", size=10)
+for ref in ["B10", "C10", "D10", "E10", "G10", "H10", "I10"]:
+    wb[SET][ref].fill = HEAD_D; wb[SET][ref].font = f(bold=True, color="FFFFFF")
+for ref in ["A3", "A4", "A5", "A6", "A8"]:
+    wb[SET][ref].font = f(bold=True, color=PRIMARY_D)
+# ×入力：1人分の見出し行をカード風に
+for i in range(1, NS + 1):
+    b = base(i)
+    for c in range(2, 13):
+        cell = wb[INP].cell(b, c)
+        if cell.coordinate not in (f"F{b}", f"G{b}"):
+            cell.fill = fill(LIGHT)
+    wb[INP][f"B{b}"].font = f(size=14, bold=True, color=PRIMARY_D)
+# 使わない日の見出しは灰色に
+hdr = [(INP, " ".join(f"C{base(i)+1}:L{base(i)+1}" for i in range(1, NS + 1)), f"C{base(1)+1}"),
+       (ASG, "C5:L5", "C5"), (ASG, "C21:L21", "C21"), (AUT, "C5:L5", "C5")]
+for sh, rng, tl in hdr:
+    wb[sh].conditional_formatting.add(rng, FormulaRule(formula=[f'{tl}=""'], fill=fill("CDD6D1")))
+for i in range(1, NS + 1):
+    wb[ROS].row_dimensions[4 + i].height = 19
+# シートの順番：ホーム・設定・名簿・×入力・自動案・割り当て・計算
+order = [HOME, SET, ROS, INP, AUT, ASG, CA, CB]
+wb._sheets = [wb[n] for n in order]
+wb.defined_names["自動案の表"] = DefinedName("自動案の表", attr_text=f"{q(AUT)}$C$6:$L$17")
+wb.defined_names["割り当ての表"] = DefinedName("割り当ての表", attr_text=f"{q(ASG)}$C$6:$L$17")
+
 wb[CA].sheet_state = "hidden"
 wb[CB].sheet_state = "hidden"
-wb.active = 1
+wb.active = 0
 wb.calculation.fullCalcOnLoad = True
 wb.save(OUT)
 print("saved", OUT)
