@@ -1,6 +1,7 @@
 """35人分のテストデータを入れたファイルを作る： python3 sample.py 元のファイル 出力ファイル"""
 import random, sys
 from openpyxl import load_workbook
+from openpyxl.workbook.defined_name import DefinedName
 
 random.seed(2026)
 src, out = sys.argv[1], sys.argv[2]
@@ -13,8 +14,8 @@ mei = ["はると", "ゆい", "そうた", "めい", "ひなた", "さくら", "
        "たいが", "こはる", "れん", "みお", "かいと", "えま", "はやと", "つむぎ", "あさひ", "ここな", "ゆうま", "ほのか", "しょう",
        "あかり", "けんと", "ゆず", "だいち", "みゆ", "こうき", "さら", "りょう"]
 special = {
-    4: dict(sib="〇", memo="2年1組 弟"), 11: dict(sib="〇", memo="5年3組 兄", stime=("11月26日（木）", "15:00〜")), 19: dict(sib="〇", memo="1年2組 妹"),
-    27: dict(sib="〇", memo="3年1組 弟"),
+    4: dict(sib="〇", memo="2年1組"), 11: dict(sib="〇", memo="5年3組", stime=("11月26日（木）", "15:00〜")), 19: dict(sib="〇", memo="1年2組"),
+    27: dict(sib="〇", memo="3年1組"),
     2: dict(hope="遅い時刻"), 8: dict(hope="早い時刻"), 15: dict(hope="早い日"), 23: dict(hope="遅い日"),
     30: dict(hope="遅い時刻"), 33: dict(hope="早い時刻"),
     6: dict(gap="必ず空けたい"), 14: dict(gap="出来れば空けたい"), 21: dict(gap="必ず空けたい"), 34: dict(gap="出来れば空けたい"),
@@ -59,5 +60,9 @@ inp.cell(base(7) + 2 + 2, 1).value = "×"      # 7番：13:45 全部×
 inp.cell(base(20) + 1, 2 + 5).value = "×"     # 20番：11/30 全部×
 for t in (7, 8, 9):
     wb["設定"].cell(10 + t, 12 + 4).value = "×"  # 先生：11/27 15:00〜 出張
+# 読み込み直すと消えてしまう「印刷の範囲（日数・枠数に合わせて変わる）」を付け直す
+PS = "印刷（兄弟確認）"
+wb[PS].defined_names["_xlnm.Print_Area"] = DefinedName("_xlnm.Print_Area", localSheetId=wb.sheetnames.index(PS),
+    attr_text="OFFSET('印刷（兄弟確認）'!$B$3,0,0,3+'設定'!$B$6,1+COUNT('設定'!$B$11:$B$20))")
 wb.save(out)
 print("saved", out)
