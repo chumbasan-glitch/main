@@ -22,7 +22,7 @@ special = {
 status = {9: "×なし", 17: "×なし", 25: "×なし", 12: "未提出", 31: "未提出", 35: "未入力"}
 D, T = 5, 9
 for i in range(1, 36):
-    r, b = 4 + i, 5 + (i - 1) * 16
+    r, b = 4 + i, 5 + (i - 1) * 28
     ros[f"A{r}"] = i
     ros[f"B{r}"] = f"{sei[i-1]} {mei[i-1]}"
     sp = special.get(i, {})
@@ -50,5 +50,13 @@ for i in range(1, 36):
         ng = set(list(ng)[: D * T - 6])
     for d, t in ng:
         inp.cell(b + 2 + t, 2 + d).value = "×"
+# まとめて×と、先生の都合の例
+base = lambda i: 5 + (i - 1) * 28
+inp.cell(base(3) + 1, 2 + 2).value = "×"      # 3番：11/25 全部×
+inp.cell(base(7) + 2 + 1, 1).value = "×"      # 7番：13:30 全部×
+inp.cell(base(7) + 2 + 2, 1).value = "×"      # 7番：13:45 全部×
+inp.cell(base(20) + 1, 2 + 5).value = "×"     # 20番：11/30 全部×
+for t in (7, 8, 9):
+    wb["設定"].cell(10 + t, 12 + 4).value = "×"  # 先生：11/27 15:00〜 出張
 wb.save(out)
 print("saved", out)
