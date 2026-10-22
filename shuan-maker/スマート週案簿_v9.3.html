@@ -347,7 +347,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v9.2";
+const VERSION = "v9.3";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1254,14 +1254,17 @@ function rateCell(r) {
 function renderPrint() {
   const mon = curWeek; const days = weekDays(mon); const wr = weekRec(mon); const c = D.cls;
   const info = cy().info;
+  // 印刷の形：full＝時数表あり（いつもの）、nohours＝右の時数表・メモなし、gridonly＝時数表・メモ・記録欄なし（時間割だけ）
+  const PM = ["nohours", "gridonly"].includes(D.cls.printMode) ? D.cls.printMode : "full";
+  const SIDE = PM === "full", REC = PM !== "gridonly";
   // 高さ（mm）：本体 = 243 - 見出し6 - 記録欄27 - すきま
-  const H = 243 - 6 - 1.5 - 25 - 5;
+  const H = 243 - 6 - 1.5 - (REC ? 25 : 0) - 5;
   const BH = 6.4;   // 中休み・昼休みの帯の高さ（2行分）
   const ST = 3.6;   // 教科の欄の高さ（7ポイント）
   const fixed = 6.5 + 7 + ST + 5 + BH * 2 + 9;
   const per = (H - fixed) / P();   // 1コマ（教科の欄＋内容）
   const cont = per - ST;
-  const PW = 134, LW = 6;                            // 週案の表の幅・左の列の幅（時数表は34mm）
+  const PW = SIDE ? 134 : 168, LW = 6;               // 週案の表の幅・左の列の幅（時数表は34mm。時数表なしのときは全部の幅を使う）
   const HW = days.length > 5 ? 4.5 : 6;              // 時数の欄の幅
   const colw = (PW - LW) / days.length;              // 1日の幅
   // 内容の文字：1コマに8行入る大きさ。入りきらないときだけさらに小さくする
@@ -1320,7 +1323,7 @@ function renderPrint() {
     return [`<td colspan="2" class="stc">${strip(i === 0 ? {s: x.s, h: asaShown(x)} : parts[0])}</td>`, `<td colspan="2" class="spc">${extra}<div class="cb sq" style="font-size:${fs}pt;max-height:${(rest - 0.3).toFixed(1)}mm"><div style="width:${(100 / SX).toFixed(1)}%;transform:scaleX(${SX});transform-origin:left top">${bodyHtml(items)}</div></div></td>`];
   };
   let h = `<div class="ph"><b>${esc(c.grade ? c.grade + "年" + (c.kumi ? c.kumi + "組" : "") : "")}</b><span>担任：${esc(c.teacher)}</span><span class="wt" style="margin-left:auto">${esc(weekTitle(mon))}</span></div>
-  <div class="pbody"><table class="pw"><colgroup><col style="width:${LW}mm">${days.map(() => `<col><col style="width:${days.length > 5 ? 4.5 : 6}mm">`).join("")}</colgroup>
+  <div class="pbody"><table class="pw" style="width:${PW}mm"><colgroup><col style="width:${LW}mm">${days.map(() => `<col><col style="width:${days.length > 5 ? 4.5 : 6}mm">`).join("")}</colgroup>
   <thead><tr style="height:6.5mm"><th class="l"></th>`;
   for (const d of days) { const t = parse(d); h += `<th>${t.getMonth() + 1}月${t.getDate()}日<br>${WD[t.getDay()]}</th><th class="hk">${isSchoolDay(d) ? "" : "休"}</th>`; }
   h += `</tr></thead><tbody><tr style="height:7mm"><th class="l">行事</th>`;
@@ -1361,8 +1364,8 @@ function renderPrint() {
     t += `<tr class="sub"><td>小計</td><td>${fr(s2[0])}</td><td>${fr(s2[1])}</td><td></td></tr>`;
   }
   t += `<tr class="tot"><td>合計</td><td>${fr(s1[0] + s2[0])}</td><td>${fr(s1[1] + s2[1])}</td><td></td></tr></table>`;
-  h += `<div class="side">${t}<div class="memo"><span class="k">メモ</span>\n${esc(wr.memo || "")}</div></div></div>
-  <div class="rec"><span class="k">記録欄</span>\n${esc(wr.rec || "")}</div>`;
+  h += (SIDE ? `<div class="side">${t}<div class="memo"><span class="k">メモ</span>\n${esc(wr.memo || "")}</div></div>` : "") + `</div>` +
+    (REC ? `<div class="rec"><span class="k">記録欄</span>\n${esc(wr.rec || "")}</div>` : "");
   const pe = $("#print");
   pe.style.cssText = themeVars(D.cls.theme) + `;--hw:${days.length > 5 ? 4.5 : 6}mm`;
   pe.innerHTML = h;
@@ -1714,7 +1717,8 @@ function renderSet() {
   <h3>印刷の色</h3>
   <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${c.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
     <span class="tp"><span class="tph"></span><span class="tpb"></span><span class="tps"><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s1)"></i><i style="background:var(--sub)"></i><i style="background:var(--tot)"></i></span></span><b>${t.name}</b></button>`).join("")}</div>
-  <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(c.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${c.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${c.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label></div>
+  <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(c.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${c.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${c.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label>
+    <label class="f">印刷の形<select id="sPrintMode">${[["full", "いつもの（右に時数表・メモあり）"], ["nohours", "時数表なし（右の時数表・メモをカット）"], ["gridonly", "時間割だけ（時数表・メモ・記録欄なし）"]].map(([k, n]) => `<option value="${k}"${(c.printMode || "full") === k ? " selected" : ""}>${n}</option>`).join("")}</select></label></div>
   <h3>週案に単元計画のねらいの文を入れる教科</h3>
   <p class="hint">コマに【単元】【時】を入れたとき、単元計画のその時間のねらいの文を学習内容に入れる教科に印をつけます。印を外した教科は「やまなし②」のように単元名と時だけが入ります（自分で書いた内容はそのまま残ります）。</p>
   <div class="row aimsel">${gradeSubjects().filter(x => !isSpecial(x)).map(x => `<label class="row" style="gap:3px"><input type="checkbox" class="sAim" data-s="${esc(x.name)}"${(c.noAim || {})[x.name] ? "" : " checked"}>${esc(x.name)}</label>`).join("")}
@@ -1794,6 +1798,7 @@ function renderSet() {
   $("#sFont").onchange = e => { c.font = e.target.value; changed(); };
   $$("[data-theme]", el).forEach(b => b.onclick = () => { c.theme = b.dataset.theme; changed(); });
   $("#sRate").onchange = upd(v => c.rateMode = v);
+  $("#sPrintMode").onchange = upd(v => c.printMode = v);
   $$(".sAim", el).forEach(i => i.onchange = () => { if (i.checked) delete c.noAim[i.dataset.s]; else c.noAim[i.dataset.s] = true; changed(); });
   $("#sAimAll").onclick = () => { c.noAim = {}; changed(); };
   $("#sAimNone").onclick = () => { c.noAim = {}; $$(".sAim", el).forEach(i => c.noAim[i.dataset.s] = true); changed(); };
