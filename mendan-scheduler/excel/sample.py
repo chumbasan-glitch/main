@@ -18,7 +18,7 @@ special = {
     27: dict(sib="〇", memo="3年1組"),
     2: dict(hope="遅い時刻"), 8: dict(hope="早い時刻"), 15: dict(hope="早い日"), 23: dict(hope="遅い日"),
     30: dict(hope="遅い時刻"), 33: dict(hope="早い時刻"),
-    6: dict(gap="必ず空けたい"), 14: dict(gap="出来れば空けたい"), 21: dict(gap="必ず空けたい"), 34: dict(gap="出来れば空けたい"),
+    6: dict(gap="必ず空けたい"), 14: dict(gap="出来れば空けたい"), 21: dict(gap="必ず空けたい"), 34: dict(gap="出来れば空けたい"), 25: dict(gap="空けない"),
 }
 status = {9: "×なし", 17: "×なし", 25: "×なし", 12: "未提出", 31: "未提出", 35: "未入力"}
 D, T = 5, 9
