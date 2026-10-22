@@ -93,7 +93,7 @@ lines = [
     ("・Excelの名簿から「出席番号」と「名前」をコピーして、A列・B列（5行目から）に貼り付けます（最大45人）。", None),
     ("・他のクラスに兄弟がいる家庭は、C列で「〇」を選び、D列に兄弟のクラスなどをメモします。", None),
     ("・E列「希望」：早い時刻／遅い時刻／早い日／遅い日 から選べます。自動案で、×のない枠の中からできるだけ希望に合う枠を選びます（希望なので、合わないこともあります）。", None),
-    ("・F列「後ろを空ける」：話が長引きそうな家庭は、同じ日のすぐ次の枠を空けます。「条件」は必ず空ける、「希望」はできれば空けます。日の最後の枠なら空ける必要はありません。", None),
+    ("・F列「後ろを空ける」：話が長引きそうな家庭は、同じ日のすぐ次の枠を空けます。「必ず空けたい」「出来れば空けたい」から選びます（出来れば空けたいは、空けられないときは詰めて入れます）。日の最後の枠なら空ける必要はありません。", None),
     ("・名簿の行は並べ替えないでください（×入力の内容とずれてしまいます）。絞り込み（フィルター）は使えます。", None),
     ("3. 「×入力」シート", f(bold=True, size=12)),
     ("・1人ずつ、予定表と同じ形の表があります。名簿の「×入力へ」をクリックすると、その人の表に移動します。", None),
@@ -172,7 +172,7 @@ put(ws, "A22", "※ 日付は上から詰めて入れてください。曜日・
 ws = sheet(ROS)
 heads = ["番号", "名前", "兄弟", "兄弟メモ", "希望", "後ろを空ける", "表示名", "状況", "×の数", "入れられる空き枠", "決める順",
          "日付", "時刻", "注意", "自動案", ""]
-widths = [6, 16, 6, 18, 10, 9, 18, 10, 7, 9, 7, 15, 8, 30, 22, 9]
+widths = [6, 16, 6, 18, 10, 15, 18, 10, 7, 9, 7, 15, 8, 30, 22, 9]
 for i, (h, w) in enumerate(zip(heads, widths), start=1):
     ws.column_dimensions[CL(i)].width = w
     if h:
@@ -180,10 +180,10 @@ for i, (h, w) in enumerate(zip(heads, widths), start=1):
 ws.row_dimensions[4].height = 32
 put(ws, "A1", "名簿・結果", font=f(size=16, bold=True))
 put(ws, "A2", "黄色の列（番号〜後ろを空ける）を入力します。Excelの名簿から番号と名前をA5に貼り付けてください（最大45人）。行の並べ替えはしないでください。", font=f(size=10, color="444444"))
-put(ws, "A3", "希望：早い時刻／遅い時刻／早い日／遅い日。後ろを空ける：条件＝必ず同じ日の次の枠を空ける、希望＝できれば空ける。", font=f(size=10, color="444444"))
+put(ws, "A3", "希望：早い時刻／遅い時刻／早い日／遅い日。後ろを空ける：必ず空けたい／出来れば空けたい（同じ日のすぐ次の枠を空けます）。", font=f(size=10, color="444444"))
 dv_sib = DataValidation(type="list", formula1='"〇"', allow_blank=True)
 dv_hope = DataValidation(type="list", formula1='"' + ",".join(HOPES) + '"', allow_blank=True)
-dv_gap = DataValidation(type="list", formula1='"条件,希望"', allow_blank=True)
+dv_gap = DataValidation(type="list", formula1='"必ず空けたい,出来れば空けたい"', allow_blank=True)
 for dv_ in (dv_sib, dv_hope, dv_gap):
     ws.add_data_validation(dv_)
 for i in range(1, NS + 1):
@@ -202,14 +202,14 @@ for i in range(1, NS + 1):
     gapng = (f'AND(F{r}<>"",INDEX({q(CA)}${JA}${ROW_NEXT}:${JZ}${ROW_NEXT},{q(CA)}DY{a})=1,'
              f'INDEX({q(CA)}${JA}${ROW_OCC}:${JZ}${ROW_OCC},{q(CA)}DY{a}+1)=1)')
     put(ws, f"N{r}", f'=IF(G{r}="","",IF(COUNTIF({GRID},G{r})>1,"2か所以上に入っています",IF({q(CA)}DY{a}>0,'
-                     f'IF(INDEX({q(CA)}$D${a}:$DS${a},{q(CA)}DY{a})=1,"×の枠に入っています",IF({gapng},IF(F{r}="条件","後ろの枠が空いていません","（希望）後ろが空いていません"),"")),'
+                     f'IF(INDEX({q(CA)}$D${a}:$DS${a},{q(CA)}DY{a})=1,"×の枠に入っています",IF({gapng},IF(F{r}="必ず空けたい","後ろの枠が空いていません","（出来れば）後ろが空いていません"),"")),'
                      f'IF(OR(H{r}="入力済み",H{r}="×なし"),"未割り当て",""))))', border=box)
     put(ws, f"O{r}", f'=IF({q(CA)}DU{a}=0,IF({q(CA)}DV{a}=1,"入る枠がありません",""),INDEX({q(CA)}$D$8:$DS$8,{q(CA)}DU{a}))', border=box)
     put(ws, f"P{r}", f'=HYPERLINK("#\'{INP}\'!B{b}","×入力へ")', font=f(color="2D5FA8", underline="single"), alignment=center)
 ws.freeze_panes = "C5"
 ws.auto_filter.ref = "A4:O49"
 red_txt = Font(name=FONT, color="B23A3A", bold=True)
-ws.conditional_formatting.add("N5:N49", FormulaRule(formula=['OR(N5="未割り当て",LEFT(N5,4)="（希望）")'], font=Font(name=FONT, color="9A6A00", bold=True)))
+ws.conditional_formatting.add("N5:N49", FormulaRule(formula=['OR(N5="未割り当て",LEFT(N5,6)="（出来れば）")'], font=Font(name=FONT, color="9A6A00", bold=True)))
 ws.conditional_formatting.add("N5:N49", FormulaRule(formula=['N5<>""'], font=red_txt))
 ws.conditional_formatting.add("O5:O49", FormulaRule(formula=['O5="入る枠がありません"'], font=red_txt))
 ws.conditional_formatting.add("H5:H49", FormulaRule(formula=['OR(H5="未入力",H5="未提出")'], fill=fill("FBEFC9")))
@@ -375,7 +375,7 @@ put(ws, "N5", "割り当て済み（割り当てシート）", font=f(color="666
 put(ws, "O5", f'=SUMPRODUCT(({GRID}<>"")*1)&" 人"', font=f(bold=True))
 put(ws, "N6", "自動で新しく入った", font=f(color="666666"))
 put(ws, "O6", f'=SUMPRODUCT(({q(CB)}$B$3:$B$47>0)*({q(CB)}$C$3:$C$47>0))&" 人"', font=f(bold=True))
-put(ws, "N8", "入る枠がない（×・後ろ空けの条件）", font=f(color="B23A3A", bold=True))
+put(ws, "N8", "入る枠がない（×・必ず空けたい）", font=f(color="B23A3A", bold=True))
 arr(ws, "O8", f'=_xlfn.TEXTJOIN("、",TRUE,IF({q(CA)}$DV$10:$DV$54=1,{q(CA)}$B$10:$B$54,""))', font=red_txt, alignment=Alignment(wrap_text=True, vertical="top"))
 put(ws, "N10", "未入力・未提出で外した", font=f(color="9A6A00", bold=True))
 arr(ws, "O10", f'=_xlfn.TEXTJOIN("、",TRUE,IF((({q(ROS)}$H$5:$H$49="未入力")+({q(ROS)}$H$5:$H$49="未提出"))*({q(CA)}$DY$10:$DY$54=0),{q(ROS)}$G$5:$G$49,""))', alignment=Alignment(wrap_text=True, vertical="top"))
@@ -432,12 +432,12 @@ for i in range(1, NS + 1):
     ws[f"DW{r}"] = f"=SUMPRODUCT({JA}{o}:{JZ}{o}*(1-${JA}$7:${JZ}$7))"
     ws[f"DX{r}"] = f"=SUM({JA}{r}:{JZ}{r})"
     ws[f"DZ{r}"] = f'=IFERROR(MATCH({q(ROS)}E{ro},{{"' + '","'.join(HOPES) + f'"}},0),0)'
-    ws[f"EA{r}"] = f'=IF({q(ROS)}F{ro}="条件",2,IF({q(ROS)}F{ro}="希望",1,0))'
+    ws[f"EA{r}"] = f'=IF({q(ROS)}F{ro}="必ず空けたい",2,IF({q(ROS)}F{ro}="出来れば空けたい",1,0))'
     ws[f"DY{r}"] = f'=IF(B{r}="",0,IF(COUNTIF({GRID},B{r})=1,SUMPRODUCT(({GRID}=B{r})*((COLUMN({GRID})-3)*{T}+ROW({GRID})-5)),0))'
 ws[f"A59"] = "入れられる枠（使える かつ ×なし）"
 
 # ---------------------------------------------------------------- 計算B（自動案：入れられる枠が少ない児童から順に1人ずつ決める）
-# A順番 B決めた児童 C入れた枠 D空けたい枠を使った E後ろ空け(2条件/1希望) F希望 G後ろを空けた枠
+# A順番 B決めた児童 C入れた枠 D空けたい枠を使った E後ろ空け(2必ず/1出来れば) F希望 G後ろを空けた枠
 ws = sheet(CB)
 BIG = 1000000
 PR0 = 9
