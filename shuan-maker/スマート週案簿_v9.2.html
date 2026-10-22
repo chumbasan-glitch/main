@@ -61,6 +61,11 @@ label.f>*{font-size:14px;color:var(--ink)}
 .ttnote{font-size:12.5px;line-height:1.7;color:#5A4500;background:#FFF6D8;border:1px solid #F0DC9A;border-radius:6px;padding:6px 10px;margin:0 0 12px}
 .weekbar .papernote{width:100%;text-align:right;font-size:12.5px;color:#7A5200;margin-top:-4px}
 .weekbar .papernote b{background:#FFF0C2;padding:0 4px;border-radius:3px}
+.weekbar .printhelp{width:100%;font-size:12.5px;color:#4A3A10;margin-top:-6px}
+.weekbar .printhelp summary{cursor:pointer;text-align:right;color:#7A5200}
+.weekbar .printhelp[open]{background:#FFF8E0;border:1px solid #F0DC9A;border-radius:6px;padding:6px 12px}
+.weekbar .printhelp ol{margin:6px 0 4px 1.2em;padding:0;line-height:1.8}
+.weekbar .printhelp p{margin:4px 0 2px;line-height:1.7}
 .contbar .caution{font-size:12.5px;color:#B23A1E;font-weight:700}
 .weeklayout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start}
 @media (max-width:1100px){.weeklayout{grid-template-columns:minmax(0,1fr)}}
@@ -988,6 +993,16 @@ function renderWeek() {
     <button class="btn" id="wPrint">🖨 印刷（B5縦）</button>
     <button class="btn" id="wPdf" title="印刷の画面で「PDFとして保存」を選ぶと、このファイル名で保存されます">📄 PDFで保存</button>
     <span class="papernote" title="パソコンによっては、印刷の画面がA4になっていることがあります">印刷の画面で、用紙サイズを<b>「B5」</b>にするのを忘れずに！</span>
+    <details class="printhelp"><summary>🖨 カラーにならない・小さく印刷されるとき（印刷のしかた）</summary>
+      <ol>
+        <li>「印刷」ボタンを押します。</li>
+        <li>Edgeの印刷の画面で「<b>その他の設定</b>」を開き、「<b>用紙サイズ</b>」を <b>B5</b> にします。</li>
+        <li>いちばん下の「<b>システムダイアログを使用して印刷</b>」を押します。</li>
+        <li>プリンターの画面で「<b>カラーモード</b>」を <b>カラー</b> にし、「原稿サイズ」が <b>B5</b> になっているのを確かめて、印刷します。</li>
+      </ol>
+      <p>・先にEdgeの画面でB5にしておくのがポイントです。プリンターの画面だけでB5にすると、A4用に並べた週案が縮められて小さくなります。<br>
+      ・学校のプリンターは、Edgeで「カラー」を選んでも、プリンター側の「白黒」が優先されることがあります。そのときは4.でカラーにします。</p>
+    </details>
   </div>
   <div class="weekbar contbar">
     <button class="btn primary" id="wCont" title="教科ごとに、前の週までに入れた最後の単元・時の次から、この週のコマに入れます">⏩ 前週の単元の続きを入れる</button>
