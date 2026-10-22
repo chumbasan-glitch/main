@@ -342,7 +342,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v9.1";
+const VERSION = "v9.2";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -874,6 +874,7 @@ function render() {
   renderBanners();
   ({week: renderWeek, tt: renderTT, units: renderUnits, hours: renderHours, set: renderSet})[curTab]();
   showSaveState();
+  syncTitle();
   restoreFocus(fk);
 }
 function renderBanners() {
@@ -1362,7 +1363,9 @@ function savePdf() {
   toast("印刷の画面の「プリンター」で「PDFとして保存」を選んで、「保存」を押してください", 6000);
   setTimeout(() => { renderPrint(); window.print(); }, 50);
 }
-window.addEventListener("afterprint", () => { document.title = APP_TITLE; });
+// 「システムダイアログを使用して印刷」では、印刷の画面を閉じたあとに印刷が始まるので、タイトルはもどさない
+// （タイトルは、開いている週の「6年梅組週案2026.10.19～」にそろえておく。プリンターとPDFにこの名前が出る）
+const syncTitle = () => { document.title = curWeek && D.cls.grade ? pdfName() : APP_TITLE; };
 function doPrint() { document.title = pdfName(); renderPrint(); window.print(); }
 window.addEventListener("beforeprint", () => { if (curWeek) document.title = pdfName(); renderPrint(); });
 
