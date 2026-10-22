@@ -135,6 +135,11 @@ table.grid th{background:var(--surface-2);font-size:14px;padding:8px 4px;font-we
 table.grid th.tm{width:84px;font-variant-numeric:tabular-nums}
 table.grid th.click{cursor:pointer}
 table.grid th.click:hover{background:var(--line)}
+table.grid .allrow th{padding:5px 4px;background:var(--surface)}
+table.grid .allcol{width:92px;background:var(--surface);padding:4px}
+table.grid th.allcol{background:var(--surface-2);font-size:13px}
+.allbtn{width:100%;padding:4px 6px;font-size:12.5px;color:var(--ng);border-color:var(--ng-soft)}
+.allbtn.on{background:var(--ng-soft);border-color:var(--ng)}
 td.cell{height:52px;cursor:pointer;font-size:14px;position:relative;line-height:1.25;padding:2px 3px}
 td.cell:hover{filter:brightness(.95)}
 td.cell .x{font-size:28px;font-weight:700;color:var(--ng);line-height:1}
@@ -259,7 +264,7 @@ td.cell.filled{background:var(--surface)}
         <button class="btn" id="btnPrev">◀ 前の人</button>
         <button class="btn primary" id="btnNext">次の人 ▶</button>
       </div>
-      <p class="hint">都合のつかない枠をクリックすると ✗ がつきます（もう一度クリックで消えます）。日付や時刻の見出しをクリックすると、その列・行をまとめて ✗ にできます。</p>
+      <p class="hint">都合のつかない枠をクリックすると ✗ がつきます（もう一度クリックで消えます）。「この日 全部✗」でその日（縦の列）全部、右はしの「全部✗」でその時間（横の列）全部を ✗ にできます。</p>
       <div class="gridwrap" id="inGrid"></div>
     </div>
   </section>
@@ -576,7 +581,17 @@ function buildGrid(container, cellFn, headFn){
   const ds = dates(), ts = times();
   let h = '<table class="grid"><thead><tr><th class="tm' + (headFn ? " click" : "") + '" data-all="1"></th>';
   ds.forEach(d => { h += '<th' + (headFn ? ' class="click"' : "") + ' data-d="' + d + '">' + fmtDate(d) + "</th>"; });
-  h += "</tr></thead><tbody>";
+  if(headFn) h += '<th class="allcol">この時間</th>';
+  h += "</tr>";
+  if(headFn){
+    h += '<tr class="allrow"><th class="tm"></th>';
+    ds.forEach(d => {
+      const on = headFn(times().map(t => slotKey(d,t)));
+      h += '<th><button class="btn small allbtn' + (on ? " on" : "") + '" data-d="' + d + '">' + (on ? "この日の✗を消す" : "この日 全部✗") + "</button></th>";
+    });
+    h += '<th class="allcol"></th></tr>';
+  }
+  h += "</thead><tbody>";
   ts.forEach(t => {
     h += '<tr><th class="tm' + (headFn ? " click" : "") + '" data-t="' + t + '">' + t + "〜</th>";
     ds.forEach(d => {
@@ -584,6 +599,10 @@ function buildGrid(container, cellFn, headFn){
       const c = cellFn(k);
       h += '<td class="cell ' + (c.cls || "") + '" tabindex="0" data-k="' + k + '"' + (c.title ? ' title="' + esc(c.title) + '"' : "") + ">" + (c.html || "") + "</td>";
     });
+    if(headFn){
+      const on = headFn(ds.map(d => slotKey(d,t)));
+      h += '<td class="allcol"><button class="btn small allbtn' + (on ? " on" : "") + '" data-t="' + t + '">' + (on ? "✗を消す" : "全部✗") + "</button></td>";
+    }
     h += "</tr>";
   });
   h += "</tbody></table>";
@@ -615,7 +634,7 @@ function renderInput(){
   $("inBadge").innerHTML = statusBadge(s);
   $("btnFree").setAttribute("aria-pressed", s.status === "free");
   $("btnAbsent").setAttribute("aria-pressed", s.status === "absent");
-  buildGrid($("inGrid"), k => isNg(s.id,k) ? {cls:"isng", html:'<span class="x">✗</span>'} : {}, true);
+  buildGrid($("inGrid"), k => isNg(s.id,k) ? {cls:"isng", html:'<span class="x">✗</span>'} : {}, keys => keys.every(k => isNg(s.id,k)));
   const cur = $("inList").querySelector(".cur");
   if(cur) cur.scrollIntoView({block:"nearest"});
 }
@@ -629,7 +648,7 @@ $("inGrid").addEventListener("click", e => {
   const s = student(inCur); if(!s) return;
   const td = e.target.closest("td.cell");
   if(td){ const k = td.dataset.k; setNg(s.id, [k], !isNg(s.id,k)); save(); renderInput(); return; }
-  const th = e.target.closest("th");
+  const th = e.target.closest("[data-d],[data-t],[data-all]");
   if(!th) return;
   let keys = [];
   if(th.dataset.d) keys = times().map(t => slotKey(th.dataset.d, t));
