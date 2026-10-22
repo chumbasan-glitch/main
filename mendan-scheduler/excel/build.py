@@ -489,22 +489,35 @@ for ref, col, lab in legend:
     put(ws, ref, lab, fill=fill(col), font=f(size=9, color="FFFFFF" if col == "B23A3A" else "000000", bold=True), alignment=center, border=box)
 put(ws, "J3", "後ろを空ける枠", fill=PatternFill("lightUp", fgColor="5B8BD0"), font=f(size=9, bold=True), alignment=center, border=box)
 ws.row_dimensions[3].height = 28
+# 色分け：各マスの「色の番号」を見えない列（AA〜AJ）にふつうの式で出し、条件付き書式はその番号だけを見る
 sel = f"{q(CA)}$B$8"
-okij = lambda idx: f"INDEX({q(CA)}${JA}$60:${JZ}$104,{idx},{jexpr})"
-ngij = lambda idx: f"INDEX({q(CA)}${JA}$10:${JZ}$54,{idx},{jexpr})"
-CAROW = lambda row: f"INDEX({q(CA)}${JA}${row}:${JZ}${row},{jexpr})"
-hide_rules(ws, f"C6:L{GL}", f'AND(C6="",{EXIST(jexpr)}=0)', [
-    (f'AND(C6<>"",{CAROW(4)}=0)', fill("B23A3A"), Font(name=FONT, color="FFFFFF", bold=True)),
-    (f'AND(C6<>"",IFERROR({ngij(f"MATCH(C6,{q(CA)}$B$10:$B$54,0)")}=1,FALSE))', fill("B23A3A"), Font(name=FONT, color="FFFFFF", bold=True)),
-    (f'AND(C6<>"",COUNTIF($C$6:$L${GL},C6)>1)', fill("F2B36B"), None),
-    (f'{CAROW(4)}=0', GRAY, None),
-    (f'AND(C6<>"",{CAROW(ROW_GAPBLK)}=1)', fill("C9B3E6"), None),
-    (f'AND(C6="",{CAROW(ROW_GAPBLK)}=1)', PatternFill("lightUp", fgColor="5B8BD0"), None),
-    ('AND(C6<>"",C6=$N$5)', fill("C5D7F4"), Font(name=FONT, bold=True, color="1F3F7A")),
-    (f"IF({sel}>0,{ngij(sel)}=1,FALSE)", fill("F6DEDB"), None),
-    (f'IF({sel}>0,AND(C6="",{okij(sel)}=1),FALSE)', fill("D6F0DF"), None),
-    (f'IF({sel}>0,AND(C6<>"",{okij(sel)}=1),FALSE)', fill("FBEFC9"), None),
-    (f'AND(C6="",{CAROW(5)}=1)', PatternFill("lightUp", fgColor="BBBBBB"), None),
+HC = lambda d: CL(26 + d)       # 色の番号を置く列（C→AA、D→AB …）
+for t in range(1, T + 1):
+    for d in range(1, D + 1):
+        j = sj(d, t); c = jc(j); x = f"{CL(2+d)}{5+t}"
+        A_ = lambda row: f"{q(CA)}{c}${row}"
+        ngown = f'IF({x}="",0,IFERROR(INDEX({q(CA)}{c}$10:{c}$54,MATCH({x},{q(CA)}$B$10:$B$54,0)),0))'
+        ngsel = f"IF({sel}>0,INDEX({q(CA)}{c}$10:{c}$54,{sel}),0)"
+        oksel = f"IF({sel}>0,INDEX({q(CA)}{c}$60:{c}$104,{sel}),0)"
+        ws[f"{HC(d)}{5+t}"] = (
+            f'=IF(AND({x}="",{A_(ROW_EXIST)}=0),0,IF(AND({x}<>"",{A_(4)}=0),1,IF({ngown}=1,2,'
+            f'IF(AND({x}<>"",COUNTIF($C$6:$L${GL},{x})>1),3,IF({A_(4)}=0,4,'
+            f'IF(AND({x}<>"",{A_(ROW_GAPBLK)}=1),5,IF(AND({x}="",{A_(ROW_GAPBLK)}=1),6,'
+            f'IF(AND({x}<>"",{x}=$N$5),7,IF({ngsel}=1,8,IF(AND({x}="",{oksel}=1),9,'
+            f'IF(AND({x}<>"",{oksel}=1),10,IF(AND({x}="",{A_(5)}=1),11,12))))))))))))')
+RED_F = Font(name=FONT, color="FFFFFF", bold=True)
+hide_rules(ws, f"C6:L{GL}", "AA6=0", [
+    ("AA6=1", fill("B23A3A"), RED_F),
+    ("AA6=2", fill("B23A3A"), RED_F),
+    ("AA6=3", fill("F2B36B"), None),
+    ("AA6=4", GRAY, None),
+    ("AA6=5", fill("C9B3E6"), None),
+    ("AA6=6", PatternFill("lightUp", fgColor="5B8BD0"), None),
+    ("AA6=7", fill("C5D7F4"), Font(name=FONT, bold=True, color="1F3F7A")),
+    ("AA6=8", fill("F6DEDB"), None),
+    ("AA6=9", fill("D6F0DF"), None),
+    ("AA6=10", fill("FBEFC9"), None),
+    ("AA6=11", PatternFill("lightUp", fgColor="BBBBBB"), None),
 ])
 
 # 候補の表
@@ -524,12 +537,18 @@ for t in range(1, T + 1):
         arr(ws, f"{CL(2+d)}{r}",
             f'=IF({q(CA)}{c}$4=0,"",IF({g}<>"","（決定）",IF({q(CA)}{c}${ROW_GAPBLK}=1,"（空ける）",SUMPRODUCT(({okc}=1)*({q(CA)}$C$10:$C$54=1))&"人："&_xlfn.TEXTJOIN("、",TRUE,IF(({okc}=1)*({q(CA)}$C$10:$C$54=1),{q(CA)}$B$10:$B$54,"")))))',
             font=f(size=9), alignment=Alignment(wrap_text=True, vertical="top"))
-cj = f"(COLUMN(C{CH+1})-3)*{T}+ROW(C{CH+1})-{CH}"
-hide_rules(ws, f"C{CH+1}:L{CH+T}", f"{EXIST(cj)}=0", [
-    (f"INDEX({q(CA)}${JA}$4:${JZ}$4,{cj})=0", GRAY, None),
-    (f'LEFT(C{CH+1},2)="0人"', fill("F6DEDB"), red_txt),
-    (f'LEFT(C{CH+1},2)="1人"', fill("FBE0C2"), None),
+for t in range(1, T + 1):     # 候補の表の色の番号（0=ない枠 1=使えない 2=0人 3=1人 4=ふつう）
+    for d in range(1, D + 1):
+        c = jc(sj(d, t)); x = f"{CL(2+d)}{CH+t}"
+        ws[f"{HC(d)}{CH+t}"] = (f'=IF({q(CA)}{c}${ROW_EXIST}=0,0,IF({q(CA)}{c}$4=0,1,'
+                                f'IF(LEFT({x},2)="0人",2,IF(LEFT({x},2)="1人",3,4))))')
+hide_rules(ws, f"C{CH+1}:L{CH+T}", f"AA{CH+1}=0", [
+    (f"AA{CH+1}=1", GRAY, None),
+    (f"AA{CH+1}=2", fill("F6DEDB"), red_txt),
+    (f"AA{CH+1}=3", fill("FBE0C2"), None),
 ])
+for d in range(1, D + 1):
+    ws.column_dimensions[HC(d)].hidden = True
 hide_rules(ws, f"B{CH+1}:B{CH+T}", f'B{CH+1}=""', [], frame=False)
 ws.freeze_panes = "C6"
 
