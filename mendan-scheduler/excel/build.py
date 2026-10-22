@@ -47,13 +47,14 @@ ROW_PRIO = 110                 # 110:全体の詰め方 111〜114:希望ごと�
 
 f = lambda **k: Font(name=FONT, **k)
 fill = lambda c: PatternFill("solid", start_color=c, end_color=c)
-thin = Side(style="thin", color="AFC2B8")
+thin = Side(style="thin", color="B4C3D6")
 box = Border(left=thin, right=thin, top=thin, bottom=thin)
 center = Alignment(horizontal="center", vertical="center", wrap_text=True)
 INPUT = fill("FFF8D6")         # 入力するセル
-HEAD = fill("E3EFE8")            # 時刻などの見出し（うすい緑）
-PRIMARY, PRIMARY_D, LIGHT = "2C6B55", "1F4F3F", "DDEEE6"
-HEAD_D = fill(PRIMARY)             # 日付などの見出し（こい緑）
+HEAD = fill("E8EEF7")            # 時刻などの見出し（うすい青）
+PRIMARY, PRIMARY_D, LIGHT = "2B5797", "1B365D", "DCE6F2"
+ACCENT, CARD = "3A6DB5", "F4F7FC"   # ボタン・カードの色
+HEAD_D = fill(PRIMARY)             # 日付などの見出し（こい青）
 HOME = "ホーム"
 GRAY = fill("D9D9D9")
 
@@ -162,14 +163,14 @@ for k, (sh, title, desc) in enumerate(steps):
     r = 9 + 3 * k
     put(ws, f"B{r}", k + 1, font=f(size=20, bold=True, color="FFFFFF"), fill=HEAD_D, alignment=center)
     ws.merge_cells(f"B{r}:B{r+1}")
-    put(ws, f"C{r}", title, font=f(size=13, bold=True), fill=fill("F5FAF7"), alignment=Alignment(vertical="bottom", indent=1))
-    put(ws, f"C{r+1}", desc, font=f(size=10, color="4A5B53"), fill=fill("F5FAF7"), alignment=Alignment(vertical="top", indent=1, wrap_text=True))
+    put(ws, f"C{r}", title, font=f(size=13, bold=True), fill=fill(CARD), alignment=Alignment(vertical="bottom", indent=1))
+    put(ws, f"C{r+1}", desc, font=f(size=10, color="4A5568"), fill=fill(CARD), alignment=Alignment(vertical="top", indent=1, wrap_text=True))
     ws.merge_cells(f"C{r}:J{r}"); ws.merge_cells(f"C{r+1}:J{r+1}")
-    put(ws, f"K{r}", f'=HYPERLINK("#\'{sh}\'!A1","開く ▶")', font=f(size=12, bold=True, color="FFFFFF"), fill=fill("3F8A6E"), alignment=center)
+    put(ws, f"K{r}", f'=HYPERLINK("#\'{sh}\'!A1","開く ▶")', font=f(size=12, bold=True, color="FFFFFF"), fill=fill(ACCENT), alignment=center)
     ws.merge_cells(f"K{r}:L{r+1}")
     ws.row_dimensions[r].height = 24; ws.row_dimensions[r + 1].height = 30
     for cc in "CDEFGHIJ":
-        ws[f"{cc}{r+1}"].border = Border(bottom=Side(style="thin", color="CFE0D6"))
+        ws[f"{cc}{r+1}"].border = Border(bottom=Side(style="thin", color="D3DEEC"))
 # くわしい使い方
 r0 = 26
 put(ws, f"B{r0}", "くわしい使い方", font=f(size=13, bold=True, color=PRIMARY_D))
@@ -195,7 +196,20 @@ for r, lab, v, nf in items:
     put(ws, f"A{r}", lab)
     put(ws, f"B{r}", v, fill=INPUT, border=box, number_format=nf, alignment=center)
 put(ws, "A6", "1日の枠の数")
-put(ws, "B6", f"=MIN({T},MAX(1,ROUND((B4-B3)*1440/B5,0)+1))", alignment=center)
+put(ws, "B6", f"=IF(AND(ISNUMBER(B3),ISNUMBER(B4),ISNUMBER(B5)),IF(B5>0,MIN({T},MAX(1,ROUND((B4-B3)*1440/B5,0)+1)),1),1)", alignment=center)
+# 入力ミスの注意と、入力できる値の制限
+warn = f(size=10, bold=True, color="B23A3A")
+put(ws, "C3", '=IF(ISNUMBER(B3),"","← 時刻（例 13:30）を入れてください")', font=warn)
+put(ws, "C4", '=IF(NOT(ISNUMBER(B4)),"← 時刻（例 15:30）を入れてください",IF(AND(ISNUMBER(B3),B4<B3),"← 最初の枠より後の時刻にしてください",""))', font=warn)
+put(ws, "C5", '=IF(AND(ISNUMBER(B5),B5>0),"","← 5〜120の数字を入れてください")', font=warn)
+dv_time = DataValidation(type="time", operator="between", formula1="0", formula2="0.999988426")
+dv_time.error = "時刻を「13:30」のように入れてください。"; dv_time.showErrorMessage = True
+dv_step = DataValidation(type="whole", operator="between", formula1="5", formula2="120")
+dv_step.error = "5〜120の数字（分）を入れてください。"; dv_step.showErrorMessage = True
+dv_date = DataValidation(type="date", operator="greaterThan", formula1="36526")
+dv_date.error = "日付を「11/24」のように入れてください。"; dv_date.showErrorMessage = True
+for dv_, ref in ((dv_time, "B3:B4"), (dv_step, "B5"), (dv_date, "B11:B20")):
+    ws.add_data_validation(dv_); dv_.add(ref)
 put(ws, "C6", f"（最大{T}枠）", font=f(color="666666", size=9))
 put(ws, "A8", "自動案の詰め方")
 modes = ["早い時間から（各日の最後を空ける）", "日付順に詰める（後ろの日を空ける）"]
@@ -221,7 +235,7 @@ for d in range(1, D + 1):
 for t in range(1, T + 1):
     r = 10 + t
     put(ws, f"F{r}", t, font=f(color="999999", size=9), alignment=center)
-    put(ws, f"G{r}", f'=IF(F{r}<=$B$6,$B$3+(F{r}-1)*$B$5/1440,"")', number_format="h:mm", border=box, alignment=center)
+    put(ws, f"G{r}", f'=IF(AND(F{r}<=$B$6,ISNUMBER($B$3)),$B$3+(F{r}-1)*IF(ISNUMBER($B$5),$B$5,0)/1440,"")', number_format="h:mm", border=box, alignment=center)
     put(ws, f"H{r}", None, fill=INPUT, border=box, alignment=center); dv_mark.add(f"H{r}")
     put(ws, f"I{r}", f'=IF(G{r}="","",TEXT(G{r},"h:mm")&"〜")', border=box, alignment=center)
 put(ws, "A22", "※ 日付は上から詰めて入れてください。曜日・表示・時刻は自動で出ます。", font=f(color="666666", size=9))
@@ -362,7 +376,7 @@ info = [
 ]
 for r, lab, fo in info:
     put(ws, f"N{r}", lab, font=f(color="666666"))
-    put(ws, f"O{r}", fo, font=f(bold=True))
+    put(ws, f"O{r}", fo, font=f(bold=True), alignment=Alignment(horizontal="left"))
 put(ws, "N11", "入れられる空き枠", font=f(color="666666"))
 arr(ws, "O11", f'=IFERROR(IF({q(CA)}$B$8=0,"",_xlfn.TEXTJOIN("、",TRUE,IF((INDEX({q(CA)}$D$60:$DS$104,{q(CA)}$B$8,0)=1)*({q(CA)}$D$7:$DS$7=0),{q(CA)}$D$8:$DS$8,""))),"")',
     alignment=Alignment(wrap_text=True, vertical="top"))
@@ -557,7 +571,7 @@ LAYOUT = {
 }
 wb[SET].column_dimensions["J"].width = 8
 wb[SET].column_dimensions["K"].width = 8
-TAB = {HOME: PRIMARY_D, SET: "7F8C86", ROS: "2D5FA8", INP: "B23A3A", AUT: "3F8A6E", ASG: "C77D1A"}
+TAB = {HOME: PRIMARY_D, SET: "7A8699", ROS: PRIMARY, INP: "B23A3A", AUT: ACCENT, ASG: "C77D1A"}
 date_ref = f"={q(SET)}$E$"
 for name, (tref, last, menu) in LAYOUT.items():
     ws = wb[name]
@@ -582,12 +596,12 @@ for name, (tref, last, menu) in LAYOUT.items():
             cur = (sh == name)
             put(ws, first, f'=HYPERLINK("#\'{sh}\'!A1","{lab}")',
                 font=f(size=11, bold=True, color=PRIMARY_D if cur else "FFFFFF"),
-                fill=fill("FFE9A8") if cur else fill("3F8A6E"), alignment=center,
+                fill=fill("FFE9A8") if cur else fill(ACCENT), alignment=center,
                 border=Border(left=Side(style="medium", color=PRIMARY_D), right=Side(style="medium", color=PRIMARY_D),
                               top=Side(style="medium", color=PRIMARY_D), bottom=Side(style="medium", color=PRIMARY_D)))
             if ":" in ref:
                 ws.merge_cells(ref)
-    # 見出しの色：日付の見出しと名簿・設定の列見出しをこい緑に
+    # 見出しの色：日付の見出しと名簿・設定の列見出しをこい青に
     for row in ws.iter_rows(min_row=3):
         for cell in row:
             v = cell.value
@@ -596,7 +610,7 @@ for name, (tref, last, menu) in LAYOUT.items():
 for c in range(1, 17):
     cell = wb[ROS].cell(4, c)
     if cell.value:
-        cell.fill = fill("B7791F") if c <= 6 else HEAD_D    # 入力する列は茶色、計算の列は緑
+        cell.fill = fill("B7791F") if c <= 6 else HEAD_D    # 入力する列は茶色、計算の列は青
         cell.font = f(bold=True, color="FFFFFF", size=10)
 for ref in ["B10", "C10", "D10", "E10", "G10", "H10", "I10"]:
     wb[SET][ref].fill = HEAD_D; wb[SET][ref].font = f(bold=True, color="FFFFFF")
@@ -614,7 +628,7 @@ for i in range(1, NS + 1):
 hdr = [(INP, " ".join(f"C{base(i)+1}:L{base(i)+1}" for i in range(1, NS + 1)), f"C{base(1)+1}"),
        (ASG, "C5:L5", "C5"), (ASG, "C21:L21", "C21"), (AUT, "C5:L5", "C5")]
 for sh, rng, tl in hdr:
-    wb[sh].conditional_formatting.add(rng, FormulaRule(formula=[f'{tl}=""'], fill=fill("CDD6D1")))
+    wb[sh].conditional_formatting.add(rng, FormulaRule(formula=[f'{tl}=""'], fill=fill("D0D6DE")))
 for i in range(1, NS + 1):
     wb[ROS].row_dimensions[4 + i].height = 19
 # シートの順番：ホーム・設定・名簿・×入力・自動案・割り当て・計算
