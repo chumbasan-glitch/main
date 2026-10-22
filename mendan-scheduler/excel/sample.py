@@ -22,7 +22,7 @@ special = {
 status = {9: "×なし", 17: "×なし", 25: "×なし", 12: "未提出", 31: "未提出", 35: "未入力"}
 D, T = 5, 9
 for i in range(1, 36):
-    r, b = 4 + i, 5 + (i - 1) * 15
+    r, b = 4 + i, 5 + (i - 1) * 16
     ros[f"A{r}"] = i
     ros[f"B{r}"] = f"{sei[i-1]} {mei[i-1]}"
     sp = special.get(i, {})
@@ -49,6 +49,6 @@ for i in range(1, 36):
     if len(ng) >= D * T - 2:
         ng = set(list(ng)[: D * T - 6])
     for d, t in ng:
-        inp.cell(b + 1 + t, 2 + d).value = "×"
+        inp.cell(b + 2 + t, 2 + d).value = "×"
 wb.save(out)
 print("saved", out)

@@ -15,7 +15,7 @@ from openpyxl.utils import get_column_letter as CL
 
 D, T, NS = 10, 12, 45          # 日数・1日の枠数・児童数の上限
 N = D * T                      # 枠の総数
-BLK = 15                       # ×入力シートの1人分の行数
+BLK = 16                       # ×入力シートの1人分の行数
 FONT = "BIZ UDPゴシック"
 OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール.xlsx"
 
@@ -24,6 +24,7 @@ q = lambda s: "'" + s + "'!"   # シート参照
 GRID = q(ASG) + "$C$6:$L$17"   # 割り当ての表
 
 
+# ×入力の1人分：base=名前の行、+1=「この日全部×」、+2=日付の見出し、+3〜+14=時刻の行（A列が「この時間全部×」）
 def base(i):                   # ×入力シートで i 人目のブロックの先頭行
     return 5 + (i - 1) * BLK
 
@@ -44,6 +45,10 @@ ROW_AUTOBLK = 107              # 自動案で「後ろを空ける」枠にな�
 ROW_GAPBLK = 108               # 割り当て済みの人の「後ろを空ける」枠
 ROW_OCC = 109                  # 割り当ての表に人が入っている
 ROW_PRIO = 110                 # 110:全体の詰め方 111〜114:希望ごとの優先順
+INPR = q("×入力") + "$A$1:$L$800"   # ×入力シート全体
+TBLK = "'設定'!$M$11:$V$22"         # 先生の都合で使えない枠
+TDAY = "'設定'!$M$9:$V$9"           # この日は組まない
+TTIME = "'設定'!$K$11:$K$22"        # この時間は組まない
 
 f = lambda **k: Font(name=FONT, **k)
 fill = lambda c: PatternFill("solid", start_color=c, end_color=c)
@@ -94,6 +99,7 @@ lines = [
     ("1. 「設定」シート", f(bold=True, size=12)),
     ("・面談の日付（上から順に、最大10日）、最初の枠・最後の枠の時刻、1枠の長さを入れます（1日最大12枠）。", None),
     ("・空けたい日や休憩の時刻には「〇」を選びます。自動案では、ほかに入る枠がないときだけ使われます。", None),
+    ("・出張や会議などで面談を組まない日・時間・枠は、右の「先生の都合で使えない枠」で「×」を選びます。止めた枠は、×入力・自動案・割り当てで灰色になり、使われません。", None),
     ("2. 「名簿」シート", f(bold=True, size=12)),
     ("・Excelの名簿から「出席番号」と「名前」をコピーして、「番号」の列のいちばん上のマスに貼り付けます（最大45人）。", None),
     ("・他のクラスに兄弟がいる家庭は、「兄弟」の列で「〇」を選び、「兄弟メモ」に兄弟のクラスなどをメモします。", None),
@@ -104,7 +110,7 @@ lines = [
     ("・1人ずつ、予定表と同じ形の表があります。名簿の「×入力へ」をクリックすると、その人の表に移動します。", None),
     ("・都合の悪い枠に「×」を入れます（何か文字が入っていれば×として扱います）。消すときは Delete キー。", None),
     ("・まとめて入れるとき：マウスでなぞって範囲を選び、「×」と打って Ctrl + Enter を押すと、選んだ枠が全部×になります。", None),
-    ("・その日全部（縦の列）・その時間全部（横の列）も、同じようになぞって選んで Ctrl + Enter でできます。", None),
+    ("・その日全部：日付の上の「この日全部」の欄で「×」を選びます。その時間全部：時刻の左の「この時間全部」の欄で「×」を選びます（表のマスはピンクになります）。", None),
     ("・×が1つもない家庭は「提出状況」で「×なし（どこでもOK）」、提出していない家庭は「未提出」を選びます。", None),
     ("4. 「自動案」シート", f(bold=True, size=12)),
     ("・入れられる枠が少ない家庭から順に、自動で割り当てた案が表示されます（未入力・未提出の家庭は外れます）。", None),
@@ -153,9 +159,9 @@ ws.row_dimensions[6].height = 46
 # 使う順番
 put(ws, "B8", "使う順番", font=f(size=13, bold=True, color=PRIMARY_D))
 steps = [
-    (SET, "日付と時間枠を決める", "面談する日付、最初と最後の枠の時刻、1枠の長さ。空けたい日・休憩もここで。"),
+    (SET, "日付と時間枠を決める", "面談する日付、最初と最後の枠の時刻、1枠の長さ。出張などで組まない日・時間もここで止めます。"),
     (ROS, "名簿を貼り付ける", "番号と名前を貼り付けます。兄弟・希望の時間・後ろを空けるもここで選びます。"),
-    (INP, "×を入力する", "予定表と同じ形の表に「×」。なぞって選んで「×」→ Ctrl+Enter でまとめて入ります。"),
+    (INP, "×を入力する", "予定表と同じ形の表に「×」。日付の上・時刻の左の欄で、1日全部・その時間全部も一度に×にできます。"),
     (AUT, "自動案を見る", "入れられる枠が少ない家庭から順に自動で組んだ案。よければ割り当てに貼り付けます。"),
     (ASG, "割り当てて仕上げる", "プルダウンで手直し。児童を選ぶと、入れられる枠に色がつきます。"),
 ]
@@ -219,7 +225,7 @@ dv = DataValidation(type="list", formula1='"' + ",".join(modes) + '"', allow_bla
 ws.add_data_validation(dv); dv.add("B8")
 
 for ref, v in zip(["A10", "B10", "C10", "D10", "E10", "F10", "G10", "H10", "I10"],
-                  ["", "日付", "曜日", "空ける日", "表示", "", "時刻", "休憩（空ける）", "表示"]):
+                  ["", "日付", "曜日", "なるべく空ける", "表示", "", "時刻", "休憩（なるべく空ける）", "表示"]):
     if v:
         put(ws, ref, v, font=f(bold=True), fill=HEAD, border=box, alignment=center)
 dates = [datetime.date(2026, 11, d) for d in (24, 25, 26, 27, 30)]
@@ -238,7 +244,36 @@ for t in range(1, T + 1):
     put(ws, f"G{r}", f'=IF(AND(F{r}<=$B$6,ISNUMBER($B$3)),$B$3+(F{r}-1)*IF(ISNUMBER($B$5),$B$5,0)/1440,"")', number_format="h:mm", border=box, alignment=center)
     put(ws, f"H{r}", None, fill=INPUT, border=box, alignment=center); dv_mark.add(f"H{r}")
     put(ws, f"I{r}", f'=IF(G{r}="","",TEXT(G{r},"h:mm")&"〜")', border=box, alignment=center)
-put(ws, "A22", "※ 日付は上から詰めて入れてください。曜日・表示・時刻は自動で出ます。", font=f(color="666666", size=9))
+put(ws, "A23", "※ 日付は上から詰めて入れてください。曜日・表示・時刻は自動で出ます。", font=f(color="666666", size=9))
+put(ws, "A24", "※「なるべく空ける」「休憩」は、ほかに入る枠がないときだけ使います。必ず使わない枠は、右の表で止めてください。", font=f(color="666666", size=9))
+
+# 先生の都合で使えない枠（出張・会議など）
+ws.column_dimensions["J"].width = 3
+ws.column_dimensions["K"].width = 11
+ws.column_dimensions["L"].width = 9
+for d in range(D):
+    ws.column_dimensions[CL(13 + d)].width = 14
+put(ws, "K7", "先生の都合で使えない枠（出張・会議など）", font=f(size=13, bold=True, color=PRIMARY_D))
+put(ws, "K8", "「×」を選んだ日・時間・枠は、自動案にも割り当てにも使いません。", font=f(size=9, color="666666"))
+dv_x = DataValidation(type="list", formula1='"×"', allow_blank=True)
+ws.add_data_validation(dv_x)
+put(ws, "K9", "この日は組まない ▶", font=f(size=9, bold=True, color="B23A3A"), alignment=Alignment(horizontal="right", vertical="center"))
+ws.merge_cells("K9:L9")
+put(ws, "K10", "この時間は\n組まない ▼", font=f(size=9, bold=True, color="B23A3A"), fill=HEAD, border=box, alignment=center)
+put(ws, "L10", "", fill=HEAD, border=box)
+ws.row_dimensions[10].height = 44
+for d in range(1, D + 1):
+    c = CL(12 + d)
+    put(ws, f"{c}9", None, fill=fill("FDECEA"), border=box, alignment=center, font=f(size=14, bold=True, color="B23A3A"))
+    put(ws, f"{c}10", f"={q(SET)}$E${10+d}", font=f(bold=True), fill=HEAD, border=box, alignment=center)
+    for t in range(1, T + 1):
+        put(ws, f"{c}{10+t}", None, border=box, alignment=center, font=f(size=14, bold=True, color="B23A3A"))
+dv_x.add("M9:V9"); dv_x.add("K11:K22"); dv_x.add("M11:V22")
+for t in range(1, T + 1):
+    put(ws, f"K{10+t}", None, fill=fill("FDECEA"), border=box, alignment=center, font=f(size=14, bold=True, color="B23A3A"))
+    put(ws, f"L{10+t}", f"=$I${10+t}", font=f(bold=True), fill=HEAD, border=box, alignment=center)
+ws.conditional_formatting.add("M11:V22", FormulaRule(formula=['OR(INDEX($B$11:$B$20,COLUMN(M11)-12)="",ROW(M11)-10>$B$6)'], fill=GRAY, stopIfTrue=True))
+ws.conditional_formatting.add("M11:V22", FormulaRule(formula=['OR(M11<>"",M$9<>"",$K11<>"")'], fill=fill("F6DEDB")))
 
 # ---------------------------------------------------------------- 名簿
 # A番号 B名前 C兄弟 D兄弟メモ E希望 F後ろを空ける（ここまで入力）
@@ -276,7 +311,7 @@ for i in range(1, NS + 1):
     gapng = (f'AND(F{r}<>"",INDEX({q(CA)}${JA}${ROW_NEXT}:${JZ}${ROW_NEXT},{q(CA)}DY{a})=1,'
              f'INDEX({q(CA)}${JA}${ROW_OCC}:${JZ}${ROW_OCC},{q(CA)}DY{a}+1)=1)')
     put(ws, f"N{r}", f'=IF(G{r}="","",IF(COUNTIF({GRID},G{r})>1,"2か所以上に入っています",IF({q(CA)}DY{a}>0,'
-                     f'IF(INDEX({q(CA)}$D${a}:$DS${a},{q(CA)}DY{a})=1,"×の枠に入っています",IF({gapng},IF(F{r}="必ず空けたい","後ろの枠が空いていません","（出来れば）後ろが空いていません"),"")),'
+                     f'IF(INDEX({q(CA)}$D$4:$DS$4,{q(CA)}DY{a})=0,"使えない枠に入っています",IF(INDEX({q(CA)}$D${a}:$DS${a},{q(CA)}DY{a})=1,"×の枠に入っています",IF({gapng},IF(F{r}="必ず空けたい","後ろの枠が空いていません","（出来れば）後ろが空いていません"),""))),'
                      f'IF(OR(H{r}="入力済み",H{r}="×なし"),"未割り当て",""))))', border=box)
     put(ws, f"O{r}", f'=IF({q(CA)}DU{a}=0,IF({q(CA)}DV{a}=1,"入る枠がありません",""),INDEX({q(CA)}$D$8:$DS$8,{q(CA)}DU{a}))', border=box)
     put(ws, f"P{r}", f'=HYPERLINK("#\'{INP}\'!B{b}","×入力へ")', font=f(color="2D5FA8", underline="single"), alignment=center)
@@ -291,15 +326,18 @@ ws.conditional_formatting.add("J5:J49", FormulaRule(formula=['AND(K5<>"",J5<=2)'
 
 # ---------------------------------------------------------------- ×入力
 ws = sheet(INP)
-ws.column_dimensions["A"].width = 2
+ws.column_dimensions["A"].width = 10
 ws.column_dimensions["B"].width = 10
 for d in range(D):
     ws.column_dimensions[CL(3 + d)].width = 15
 put(ws, "B1", "×入力", font=f(size=16, bold=True))
-put(ws, "B2", "都合の悪い枠に「×」。まとめて入れるときは、なぞって選んで「×」と打ち Ctrl + Enter。消すときは Delete。", font=f(size=10, color="444444"))
+put(ws, "B2", "都合の悪い枠に「×」。日付の上の欄で「×」→その日全部、時刻の左の欄で「×」→その時間全部が×になります。消すときは Delete。", font=f(size=10, color="444444"))
 put(ws, "B3", "×が1つもない家庭は「提出状況」で「×なし（どこでもOK）」、出していない家庭は「未提出」を選びます。名簿の「×入力へ」で各児童の表に移動できます。", font=f(size=10, color="444444"))
 dv_st = DataValidation(type="list", formula1='"×なし（どこでもOK）,未提出"', allow_blank=True)
-ws.add_data_validation(dv_st)
+dv_x = DataValidation(type="list", formula1='"×"', allow_blank=True)
+dv_x.error = "「×」を選んでください（消すときは Delete）。"; dv_x.showErrorMessage = True
+ws.add_data_validation(dv_st); ws.add_data_validation(dv_x)
+ALLX = fill("FDECEA")          # まとめて×の入力欄
 grid_ranges = []
 for i in range(1, NS + 1):
     b = base(i)
@@ -313,21 +351,35 @@ for i in range(1, NS + 1):
     put(ws, f"J{b}", "×の数：", alignment=Alignment(horizontal="right"))
     put(ws, f"K{b}", f"={q(ROS)}I{4+i}", font=f(bold=True))
     ws.row_dimensions[b].height = 26
-    put(ws, f"B{b+1}", "", fill=HEAD, border=box)
+    # この日全部×
+    put(ws, f"A{b+1}", "この日全部 ▶", font=f(size=9, bold=True, color="B23A3A"), alignment=Alignment(horizontal="right", vertical="center"))
+    ws.merge_cells(f"A{b+1}:B{b+1}")
     for d in range(1, D + 1):
-        put(ws, f"{CL(2+d)}{b+1}", f"={q(SET)}$E${10+d}", font=f(bold=True), fill=HEAD, border=box, alignment=center)
+        put(ws, f"{CL(2+d)}{b+1}", None, fill=ALLX, border=box, alignment=center, font=f(size=13, bold=True, color="B23A3A"))
+    dv_x.add(f"C{b+1}:L{b+1}")
+    ws.row_dimensions[b + 1].height = 22
+    # 見出し
+    put(ws, f"A{b+2}", "この時間\n全部 ▼", font=f(size=9, bold=True, color="B23A3A"), fill=HEAD, border=box, alignment=center)
+    put(ws, f"B{b+2}", "", fill=HEAD, border=box)
+    ws.row_dimensions[b + 2].height = 28
+    for d in range(1, D + 1):
+        put(ws, f"{CL(2+d)}{b+2}", f"={q(SET)}$E${10+d}", font=f(bold=True), fill=HEAD, border=box, alignment=center)
     for t in range(1, T + 1):
-        r = b + 1 + t
+        r = b + 2 + t
+        put(ws, f"A{r}", None, fill=ALLX, border=box, alignment=center, font=f(size=13, bold=True, color="B23A3A"))
         put(ws, f"B{r}", f"={q(SET)}$I${10+t}", font=f(bold=True), fill=HEAD, border=box, alignment=center)
         for d in range(1, D + 1):
             put(ws, f"{CL(2+d)}{r}", None, font=f(size=16, bold=True, color="B23A3A"), border=box, alignment=center)
         ws.row_dimensions[r].height = 22
-    grid_ranges.append(f"C{b+2}:L{b+1+T}")
+    dv_x.add(f"A{b+3}:A{b+2+T}")
+    grid_ranges.append(f"C{b+3}:L{b+2+T}")
 rng = " ".join(grid_ranges)
-tl = f"C{base(1)+2}"
+tl = f"C{base(1)+3}"
+jx = f"(COLUMN({tl})-3)*{T}+MOD(ROW({tl})-5,{BLK})-2"
 ws.conditional_formatting.add(rng, FormulaRule(
-    formula=[f'OR(INDEX({q(SET)}$B$11:$B$20,COLUMN({tl})-2)="",MOD(ROW({tl})-5,{BLK})-1>{q(SET)}$B$6)'], fill=GRAY, stopIfTrue=True))
-ws.conditional_formatting.add(rng, FormulaRule(formula=[f'{tl}<>""'], fill=fill("F6DEDB")))
+    formula=[f"INDEX({q(CA)}$D$4:$DS$4,{jx})=0"], fill=GRAY, stopIfTrue=True))
+ws.conditional_formatting.add(rng, FormulaRule(
+    formula=[f'OR({tl}<>"",$A{base(1)+3}<>"",INDEX($A$1:$L$800,ROW({tl})-MOD(ROW({tl})-5,{BLK})+1,COLUMN({tl}))<>"")'], fill=fill("F6DEDB")))
 ws.freeze_panes = "A5"
 
 # ---------------------------------------------------------------- 割り当て・自動案 共通の表
@@ -346,7 +398,7 @@ def grid_frame(ws, title, note):
         ws.row_dimensions[5 + t].height = 30
     jexpr = "(COLUMN(C6)-3)*%d+ROW(C6)-5" % T
     ws.conditional_formatting.add("C6:L17", FormulaRule(
-        formula=[f"INDEX({q(CA)}$D$4:$DS$4,{jexpr})=0"], fill=GRAY, stopIfTrue=True))
+        formula=[f'AND(C6="",INDEX({q(CA)}$D$4:$DS$4,{jexpr})=0)'], fill=GRAY, stopIfTrue=True))
     return jexpr
 
 
@@ -392,6 +444,7 @@ sel = f"{q(CA)}$B$8"
 okij = lambda idx: f"INDEX({q(CA)}$D$60:$DS$104,{idx},{jexpr})"
 ngij = lambda idx: f"INDEX({q(CA)}$D$10:$DS$54,{idx},{jexpr})"
 rules = [
+    (f'AND(C6<>"",INDEX({q(CA)}$D$4:$DS$4,{jexpr})=0)', fill("B23A3A"), Font(name=FONT, color="FFFFFF", bold=True)),
     (f'AND(C6<>"",IFERROR({ngij(f"MATCH(C6,{q(CA)}$B$10:$B$54,0)")}=1,FALSE))', fill("B23A3A"), Font(name=FONT, color="FFFFFF", bold=True)),
     ('AND(C6<>"",COUNTIF($C$6:$L$17,C6)>1)', fill("F2B36B"), None),
     (f'AND(C6<>"",INDEX({q(CA)}$D${ROW_GAPBLK}:$DS${ROW_GAPBLK},{jexpr})=1)', fill("C9B3E6"), None),
@@ -468,7 +521,8 @@ put(ws, "A8", "選択中→"); put(ws, "B8", f'=IF({q(ASG)}$N$5="",0,IFERROR(MAT
 for j in range(1, N + 1):
     c = jc(j); d = (j - 1) // T + 1; t = (j - 1) % T + 1
     ws[f"{c}1"] = j; ws[f"{c}2"] = d; ws[f"{c}3"] = t
-    ws[f"{c}4"] = f'=IF(AND(INDEX({q(SET)}$B$11:$B$20,{c}2)<>"",{c}3<={q(SET)}$B$6),1,0)'
+    ws[f"{c}4"] = (f'=IF(AND(INDEX({q(SET)}$B$11:$B$20,{c}2)<>"",{c}3<={q(SET)}$B$6,'
+                   f'INDEX({TDAY},{c}2)="",INDEX({TTIME},{c}3)="",INDEX({TBLK},{c}3,{c}2)=""),1,0)')
     ws[f"{c}5"] = f'=IF(OR(INDEX({q(SET)}$D$11:$D$20,{c}2)<>"",INDEX({q(SET)}$H$11:$H$22,{c}3)<>""),1,0)'
     ws[f"{c}6"] = f'=IF(LEFT({q(SET)}$B$8,3)="日付順",({c}2-1)*{T}+{c}3,({c}3-1)*{D}+{c}2)+{c}5*10000'
     ws[f"{c}7"] = f"=MAX({c}{ROW_OCC},{c}{ROW_GAPBLK})"
@@ -499,7 +553,8 @@ for i in range(1, NS + 1):
     ws[f"A{o}"] = i
     for j in range(1, N + 1):
         c = jc(j)
-        ws[f"{c}{r}"] = f'=IF({c}$4=1,IF(INDEX({q(INP)}$C$1:$L$700,{base(i)+1}+{c}$3,{c}$2)<>"",1,0),0)'
+        ws[f"{c}{r}"] = (f'=IF({c}$4=1,IF(OR(INDEX({INPR},{base(i)+2}+{c}$3,2+{c}$2)<>"",'
+                         f'INDEX({INPR},{base(i)+1},2+{c}$2)<>"",INDEX({INPR},{base(i)+2}+{c}$3,1)<>""),1,0),0)')
         ws[f"{c}{o}"] = f"=IF(AND({c}$4=1,{c}{r}=0),1,0)"
     ws[f"DU{r}"] = f"=IFERROR(INDEX({q(CB)}$C$3:$C$47,MATCH(A{r},{q(CB)}$B$3:$B$47,0)),0)"
     ws[f"DV{r}"] = f"=IF(AND(C{r}=1,DU{r}=0),1,0)"
@@ -563,14 +618,12 @@ MENU = [(HOME, "ホーム"), (SET, "① 設定"), (ROS, "② 名簿"), (INP, "�
 GRID_MENU = ["F1", "G1", "H1", "I1", "J1", "K1"]
 LAYOUT = {
     HOME: ("A1", 13, None),
-    SET: ("A1", 12, ["D1", "E1", "F1:G1", "H1", "I1", "J1:K1"]),
+    SET: ("A1", 22, ["D1", "E1", "F1:G1", "H1", "I1", "K1"]),
     ROS: ("A1", 16, ["E1:F1", "G1", "H1:I1", "J1:K1", "L1:M1", "N1"]),
     INP: ("B1", 12, GRID_MENU),
     AUT: ("B1", 15, GRID_MENU),
     ASG: ("B1", 15, GRID_MENU),
 }
-wb[SET].column_dimensions["J"].width = 8
-wb[SET].column_dimensions["K"].width = 8
 TAB = {HOME: PRIMARY_D, SET: "7A8699", ROS: PRIMARY, INP: "B23A3A", AUT: ACCENT, ASG: "C77D1A"}
 date_ref = f"={q(SET)}$E$"
 for name, (tref, last, menu) in LAYOUT.items():
@@ -625,7 +678,7 @@ for i in range(1, NS + 1):
             cell.fill = fill(LIGHT)
     wb[INP][f"B{b}"].font = f(size=14, bold=True, color=PRIMARY_D)
 # 使わない日の見出しは灰色に
-hdr = [(INP, " ".join(f"C{base(i)+1}:L{base(i)+1}" for i in range(1, NS + 1)), f"C{base(1)+1}"),
+hdr = [(INP, " ".join(f"C{base(i)+2}:L{base(i)+2}" for i in range(1, NS + 1)), f"C{base(1)+2}"), (SET, "M10:V10", "M10"),
        (ASG, "C5:L5", "C5"), (ASG, "C21:L21", "C21"), (AUT, "C5:L5", "C5")]
 for sh, rng, tl in hdr:
     wb[sh].conditional_formatting.add(rng, FormulaRule(formula=[f'{tl}=""'], fill=fill("D0D6DE")))
