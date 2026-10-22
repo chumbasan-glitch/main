@@ -140,6 +140,7 @@ table.grid .allcol{width:92px;background:var(--surface);padding:4px}
 table.grid th.allcol{background:var(--surface-2);font-size:13px}
 .allbtn{width:100%;padding:4px 6px;font-size:12.5px;color:var(--ng);border-color:var(--ng-soft)}
 .allbtn.on{background:var(--ng-soft);border-color:var(--ng)}
+#inGrid td.cell{touch-action:none;user-select:none;-webkit-user-select:none}
 td.cell{height:52px;cursor:pointer;font-size:14px;position:relative;line-height:1.25;padding:2px 3px}
 td.cell:hover{filter:brightness(.95)}
 td.cell .x{font-size:28px;font-weight:700;color:var(--ng);line-height:1}
@@ -264,7 +265,7 @@ td.cell.filled{background:var(--surface)}
         <button class="btn" id="btnPrev">◀ 前の人</button>
         <button class="btn primary" id="btnNext">次の人 ▶</button>
       </div>
-      <p class="hint">都合のつかない枠をクリックすると ✗ がつきます（もう一度クリックで消えます）。「この日 全部✗」でその日（縦の列）全部、右はしの「全部✗」でその時間（横の列）全部を ✗ にできます。</p>
+      <p class="hint">都合のつかない枠をクリックすると ✗ がつきます（もう一度クリックで消えます）。クリックしたままマウスを動かすと、なぞったマスにまとめて ✗ がつきます（✗のマスから始めると、なぞったマスの ✗ が消えます）。「この日 全部✗」でその日（縦の列）全部、右はしの「全部✗」でその時間（横の列）全部を ✗ にできます。</p>
       <div class="gridwrap" id="inGrid"></div>
     </div>
   </section>
@@ -644,10 +645,44 @@ function setNg(id, keys, on){
   const s = student(id);
   if(s.status !== "entered") s.status = "entered";
 }
+// クリックしたまま動かすと、なぞったマスにまとめて ✗ をつける（✗のマスから始めると消す）
+let paint = null;
+function paintCell(td){
+  const s = student(inCur); if(!s || !td) return;
+  const k = td.dataset.k;
+  if(paint.done.has(k)) return;
+  paint.done.add(k);
+  setNg(s.id, [k], paint.on);
+  td.classList.toggle("isng", paint.on);
+  td.innerHTML = paint.on ? '<span class="x">✗</span>' : "";
+}
+$("inGrid").addEventListener("pointerdown", e => {
+  if(e.button !== 0) return;
+  const td = e.target.closest("td.cell"); if(!td || !student(inCur)) return;
+  e.preventDefault();
+  paint = {on: !isNg(inCur, td.dataset.k), done: new Set()};
+  paintCell(td);
+});
+document.addEventListener("pointermove", e => {
+  if(!paint) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const td = el && el.closest("#inGrid td.cell");
+  if(td) paintCell(td);
+});
+function endPaint(){
+  if(!paint) return;
+  paint = null;
+  save(); renderInput();
+}
+document.addEventListener("pointerup", endPaint);
+document.addEventListener("pointercancel", endPaint);
 $("inGrid").addEventListener("click", e => {
   const s = student(inCur); if(!s) return;
   const td = e.target.closest("td.cell");
-  if(td){ const k = td.dataset.k; setNg(s.id, [k], !isNg(s.id,k)); save(); renderInput(); return; }
+  if(td){
+    if(e.detail === 0){ const k = td.dataset.k; setNg(s.id, [k], !isNg(s.id,k)); save(); renderInput(); }   // キーボード操作のとき
+    return;
+  }
   const th = e.target.closest("[data-d],[data-t],[data-all]");
   if(!th) return;
   let keys = [];
