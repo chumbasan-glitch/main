@@ -127,6 +127,7 @@ lines = [
     ("・「希望」：早い時刻／遅い時刻／早い日／遅い日 から選べます。自動案で、×のない枠の中からできるだけ希望に合う枠を選びます（希望なので、合わないこともあります）。", None),
     ("・「後ろを空ける」：話が長引きそうな家庭は、同じ日のすぐ次の枠を空けます。「必ず空けたい」「出来れば空けたい」から選びます（出来れば空けたいは、空けられないときは詰めて入れます）。日の最後の枠なら空ける必要はありません。", None),
     ("・名簿の行は並べ替えないでください（×入力の内容とずれてしまいます）。絞り込み（フィルター）は使えます。", None),
+    ("・自動案や調整・決定には名前だけが出ます。同じ名前の児童がいるときだけ、「番号 名前」で区別して表示します。", None),
     ("3. 「×入力」シート", f(bold=True, size=12)),
     ("・1人ずつ、予定表と同じ形の表があります。名簿の「×入力へ」をクリックすると、その人の表に移動します。", None),
     ("・都合の悪い枠に「×」を入れます（何か文字が入っていれば×として扱います）。消すときは Delete キー。", None),
@@ -334,7 +335,7 @@ for i in range(1, NS + 1):
     for c in "ABCDEF":
         put(ws, f"{c}{r}", None, fill=INPUT, border=box, alignment=Alignment(vertical="center") if c in "BD" else Alignment(horizontal="center", vertical="center", shrink_to_fit=True))
     dv_sib.add(f"C{r}"); dv_hope.add(f"E{r}"); dv_gap.add(f"F{r}")
-    put(ws, f"G{r}", f'=IF(B{r}="","",IF(A{r}="","",A{r}&" ")&B{r})', border=box)
+    put(ws, f"G{r}", f'=IF(B{r}="","",IF(COUNTIF($B$5:$B$49,B{r})>1,IF(A{r}="","",A{r}&" ")&B{r},B{r}))', border=box)   # 同じ名前がいるときだけ番号をつける
     put(ws, f"H{r}", f'=IF(B{r}="","",IF({q(INP)}F{b}="未提出","未提出",IF(I{r}>0,"入力済み",IF({q(INP)}F{b}="×なし（どこでもOK）","×なし","未入力"))))', border=box, alignment=center)
     put(ws, f"I{r}", f'=IF(B{r}="","",{q(CA)}IN{a})', border=box, alignment=center)
     put(ws, f"J{r}", f'=IF(OR(H{r}="入力済み",H{r}="×なし"),{q(CA)}IM{a},"")', border=box, alignment=center)
