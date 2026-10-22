@@ -94,6 +94,24 @@ def arr(ws, ref, formula, **style):
 
 
 WHITE = fill("FFFFFF")
+PASTE_STEPS = [
+    "「調整・決定」への貼り付けかた",
+    "① 自動案の表を選んで Ctrl + C（名前ボックスで「自動案Aの表」などを選ぶと全体を選べます）",
+    "② 「調整・決定」の表の左上（いちばん早い日・時刻のマス）をクリック",
+    "③ 右クリック →［貼り付けのオプション］の「値」（123 の絵）。または Ctrl + Shift + V",
+    "※ ふつうの貼り付け（Ctrl + V）は×。「循環参照」の注意が出たら、すぐ Ctrl + Z で元に戻します。",
+]
+
+
+def paste_box(ws, col, row, width_cols):
+    """［値の貼り付け］のやり方を、目立つ枠で書く"""
+    last = CL(col + width_cols - 1)
+    for k, text in enumerate(PASTE_STEPS):
+        r = row + k
+        put(ws, f"{CL(col)}{r}", text, font=f(size=10 if k == 0 else 9, bold=(k == 0 or k == 4), color="B23A3A" if k == 4 else PRIMARY_D),
+            fill=fill("FFF4D6"), alignment=Alignment(wrap_text=True, vertical="center", indent=1))
+        ws.merge_cells(f"{CL(col)}{r}:{last}{r}")
+
 ALLX = fill("FDECEA")          # まとめて×の入力欄
 
 
@@ -140,7 +158,8 @@ lines = [
     ("・自動で組んだ案が2つ出ます（どちらも、入れられる枠が少ない家庭から先に決めます。未入力・未提出の家庭は外れます）。", None),
     ("・自動案A（詰める）：設定の「詰め方」に従って、早い時間や前の日から詰めて組みます。", None),
     ("・自動案B（散らす）：日ごとの人数がそろい、面談と面談のあいだがなるべく空くように組みます（希望がある家庭は希望を優先）。", None),
-    ("・よいほうの表をコピーして、「調整・決定」シートの表の左上（いちばん早い日・時刻のマス）に［値の貼り付け］をします。左上の名前ボックスで「自動案Aの表」「自動案Bの表」を選ぶと、表全体をまとめて選べます。", None),
+    ("・よいほうの表をコピーして、「調整・決定」シートの表の左上（いちばん早い日・時刻のマス）に［値の貼り付け］（右クリック →「値」、または Ctrl + Shift + V）をします。左上の名前ボックスで「自動案Aの表」「自動案Bの表」を選ぶと、表全体をまとめて選べます。", None),
+    ("・ふつうの貼り付け（Ctrl + V）は使わないでください。計算式ごと貼り付けられて「循環参照」の注意が出て、色分けも消えます。出てしまったら、すぐ Ctrl + Z で元に戻します。", f(size=10.5, bold=True, color="B23A3A")),
     ("・「調整・決定」シートですでに決めた人はそのまま残り、残りの人だけで案が作られます。やり直したいときは調整・決定の表を消します。", None),
     ("5. 「調整・決定」シート", f(bold=True, size=12)),
     ("・各枠のセルで、プルダウンから児童を選びます。", None),
@@ -466,6 +485,11 @@ ws.column_dimensions["M"].width = 3
 ws.column_dimensions["N"].width = 16
 ws.column_dimensions["O"].width = 40
 put(ws, "N4", "児童を選ぶ ▼", font=f(bold=True))
+arr(ws, "C4", f'=IF(SUMPRODUCT(_xlfn.ISFORMULA(C6:L{GL})*1)>0,"⚠ ふつうの貼り付けになっています。すぐ Ctrl + Z で元に戻して、［値の貼り付け］（右クリック →「値」）をしてください。","")',
+    font=f(size=11, bold=True, color="B23A3A"), alignment=Alignment(vertical="center"))
+ws.merge_cells("C4:L4")
+ws.row_dimensions[4].height = 22
+paste_box(ws, 14, 18, 2)
 put(ws, "N5", None, fill=INPUT, border=box, font=f(size=12, bold=True))
 ws.merge_cells("N5:O5")
 dv_name.add("N5")
@@ -481,7 +505,7 @@ for r, lab, fo in info:
 put(ws, "N11", "入れられる空き枠", font=f(color="666666"))
 arr(ws, "O11", f'=IFERROR(IF({q(CA)}$B$8=0,"",_xlfn.TEXTJOIN("、",TRUE,IF((INDEX({q(CA)}${JA}$60:${JZ}$104,{q(CA)}$B$8,0)=1)*({q(CA)}${JA}$7:${JZ}$7=0),{q(CA)}${JA}$8:${JZ}$8,""))),"")',
     alignment=Alignment(wrap_text=True, vertical="top"))
-ws.merge_cells("O11:O20")
+ws.merge_cells("O11:O16")
 legend = [("C3", "C5D7F4", "選んだ児童"), ("D3", "D6F0DF", "入れられる"), ("E3", "FBEFC9", "入れられる（他の人あり）"),
           ("F3", "F6DEDB", "×の枠"), ("G3", "B23A3A", "×・使えない枠に入れた！"), ("H3", "F2B36B", "2か所に入っている"),
           ("I3", "C9B3E6", "空けるはずの枠に人がいる"), ("K3", "D9D9D9", "先生の都合で使えない")]
@@ -586,6 +610,7 @@ def auto_sheet(name, title, note, eng, blk_row, slot_col, nofit_col, tname):
     arr(ws, "O10", f'=_xlfn.TEXTJOIN("、",TRUE,IF((({q(ROS)}$H$5:$H$49="未入力")+({q(ROS)}$H$5:$H$49="未提出"))*({q(CA)}$IO$10:$IO$54=0),{q(ROS)}$G$5:$G$49,""))', alignment=Alignment(wrap_text=True, vertical="top"))
     put(ws, "N12", "なるべく空けたい枠を使った", font=f(color="666666"))
     put(ws, "O12", f'=SUM({q(eng)}$D$3:$D$47)&" 枠"', font=f(bold=True))
+    paste_box(ws, 14, 25, 2)
     put(ws, "N13", "日ごとの人数", font=f(color="666666"))
     for d in range(1, D + 1):    # 日ごとの人数（使っている日だけ）
         put(ws, f"N{13+d}", f'=IF({q(SET)}$E${10+d}="","",{q(SET)}$E${10+d})', font=f(size=10), alignment=Alignment(horizontal="right"))
