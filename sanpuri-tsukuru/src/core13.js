@@ -12,16 +12,35 @@ function drawPrismPoly(G, x, y, w, h, fs, base, Ldep, o){
   const cv = o.curved || [];
   const vis = i => { const a = base[i], b = base[(i + 1) % n]; return -0.42 * (b[1] - a[1]) + 0.3 * (b[0] - a[0]) < -1e-9; };
   G.poly(F, {fill:SHADE, stroke:false});
+  /* かくれた線：辺の上の点から見る人の方へ向かう線が，ほかの面にぶつかるかどうかで決める */
+  const DX = 0.42, DY = 0.3, EPS = 1e-4;
+  const pip = (q, poly) => { let c = false; for(let i = 0, j = poly.length - 1; i < poly.length; j = i++){ const a = poly[i], b = poly[j]; if((a[1] > q[1]) !== (b[1] > q[1]) && q[0] < (b[0] - a[0]) * (q[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+  const hidden = P => {
+    const t0 = P[2]; if(t0 > EPS && pip([P[0] + DX * t0, P[1] + DY * t0], base)) return true;
+    for(let i = 0; i < n; i++){
+      const a = base[i], b = base[(i + 1) % n], ex = b[0] - a[0], ey = b[1] - a[1], det = -DX * ey + ex * DY;
+      if(Math.abs(det) < 1e-12) continue;
+      const rx = a[0] - P[0], ry = a[1] - P[1], t = (rx * -ey + ex * ry) / det, u = (DX * ry - DY * rx) / det, z = P[2] - t;
+      if(t > EPS && u > -1e-9 && u < 1 + 1e-9 && z > -1e-9 && z < Ldep + 1e-9) return true;
+    }
+    return false;
+  };
+  const edge = (p, q) => {
+    const N = 30; let st = null, prev = null;
+    const flush = (k1, k2, hid) => { const A = p.map((v, d) => v + (q[d] - v) * k1 / N), B2 = p.map((v, d) => v + (q[d] - v) * k2 / N); G.line(...T(A), ...T(B2), hid ? {w:0.3, dash:[1, 0.8]} : {w:0.4}); };
+    for(let k = 0; k <= N; k++){
+      const kk = Math.min(N - 0.5, Math.max(0.5, k)), P = p.map((v, d) => v + (q[d] - v) * kk / N), hd = hidden(P);
+      if(prev === null){ st = 0; prev = hd; } else if(hd !== prev){ flush(st, k - 0.5, prev); st = k - 0.5; prev = hd; }
+    }
+    flush(st, N, prev);
+  };
+  for(let i = 0; i < n; i++){ const j = (i + 1) % n; edge([...base[i], Ldep], [...base[j], Ldep]); }
   for(let i = 0; i < n; i++){
-    const j = (i + 1) % n;
-    if(!vis(i)) G.line(...B[i], ...B[j], {w:0.3, dash:[1, 0.8]});
+    const pv = (i - 1 + n) % n;
+    if(cv[pv] && cv[i] && vis(pv) === vis(i)) continue;
+    edge([...base[i], 0], [...base[i], Ldep]);
   }
-  for(let i = 0; i < n; i++){
-    const pv = (i - 1 + n) % n, a = vis(pv), b = vis(i);
-    if(cv[pv] && cv[i] && a === b) continue;
-    if(a || b) G.line(...F[i], ...B[i], {w:0.4}); else G.line(...F[i], ...B[i], {w:0.3, dash:[1, 0.8]});
-  }
-  for(let i = 0; i < n; i++){ const j = (i + 1) % n; if(vis(i)) G.line(...B[i], ...B[j], {w:0.4}); G.line(...F[i], ...F[j], {w:0.4}); }
+  for(let i = 0; i < n; i++){ const j = (i + 1) % n; G.line(...F[i], ...F[j], {w:0.4}); }
   for(const [a, b] of o.inner || []) G.line(...T(a), ...T(b), {w:0.3, dash:[1, 0.8]});
   for(const [p, a, b] of o.right || []) angleMark(G, T(p), T(a), T(b), "", fs, {right:true});
   for(const lb of o.labels || []){
@@ -114,22 +133,42 @@ function prismNotch(lv){ /* 凹の形（まん中がへこんだ形） */
     const b = [[0, 0], [W, 0], [W, H], [a + m, H], [a + m, H - d], [a, H - d], [a, H], [0, H]];
     return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(W)}, {a:b[7], b:b[0], t:cm(H)}, {a:b[6], b:b[7], t:cm(a)}, {a:b[4], b:b[5], t:cm(m)}, {a:b[3], b:b[4], t:cm(d)}, depthLab(b, L, cm(L))]}), (W * H - m * d) * L, "くふうして求める", "vn" + a + m + H + d + L, false, true); }
 }
+function prismCross(lv){ /* 十字の形 */
+  const a = ri(2, 4), L = ri(2, 6), b = [[a, 0], [2 * a, 0], [2 * a, a], [3 * a, a], [3 * a, 2 * a], [2 * a, 2 * a], [2 * a, 3 * a], [a, 3 * a], [a, 2 * a], [0, 2 * a], [0, a], [a, a]];
+  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(a)}, {a:b[2], b:b[3], t:cm(a), c:[2 * a, 0]}, {a:b[3], b:b[4], t:cm(a)}, {a:b[6], b:b[7], t:cm(a)}, {a:b[9], b:b[10], t:cm(a)}, {a:[2 * a, 0, 0], b:[2 * a, 0, L], t:cm(L), depth:true}]}), 5 * a * a * L, "くふうして求める", "vx" + a + L, false, true);
+}
+/* 立てた三角柱（直角三角形の底面）・立てた四角柱 */
+function prismStandTri(lv){
+  for(;;){ const a = ri(3, 9), c = ri(3, 8), hh = ri(4, 12); if((a * c * hh) % 2) continue;
+    return volFig((G, x, y, w, h, fs) => drawPrism3(G, x, y, w, h, fs, a, c, "", hh), a * c * hh / 2, "三角柱の体積", "st" + a + c + hh); }
+}
+function prismStandBox(lv){
+  const a = ri(3, 9), b = ri(3, 9), hh = ri(4, 12);
+  return volFig((G, x, y, w, h, fs) => drawPrism4(G, x, y, w, h, fs, a, b, hh), a * b * hh, "四角柱の体積", "sb" + a + b + hh);
+}
+/* 単位をそろえる円柱・身のまわりの円柱 */
+function cylText(lv){
+  return scene([
+    () => { const t = pick(["1.2", "1.5", "1.8", "2"]), tc = ddiv(t, 10), V = dmul(tc, "3.14"); return W_(`直径が2cm，厚さが${t}mmの円柱の形をしたこう貨があります。このこう貨の体積は何cm^3ですか。円周率は3.14とします。`.replace("厚さ", "あつさ"), [`${t}mm＝${tc}cm`, `1×1×3.14×${tc}＝${V}`], `${V}cm^3`, "単位をそろえて"); },
+    () => { const m = pick(["0.5", "1", "1.5", "2"]), lc = dmul(m, 100), V = dmul(lc, "3.14"); return W_(`直径が2cm，長さが${m}mの円柱の形をしたぼうがあります。このぼうの体積は何cm^3ですか。円周率は3.14とします。`, [`${m}m＝${lc}cm`, `1×1×3.14×${lc}＝${V}`], `${V}cm^3`, "単位をそろえて"); },
+    () => { const r = ri(3, 8), h = ri(8, 16), obj = pick(["クッキーのかん", "茶づつ", "ペン立て"]), V = dmul(r * r * h, "3.14"); return W_(`半径${r}cm，高さ${h}cmの円柱の形をした${obj}があります。この${obj}の体積は何cm^3ですか。円周率は3.14とします。`, `${r}×${r}×3.14×${h}＝${V}`, `${V}cm^3`, "円柱の体積"); },
+    () => { const th = pick(["0.5", "0.8", "1.2"]), n = pick([5, 8, 10, 12]), d = pick([8, 10]), r = d / 2, hh = dmul(th, n), V = dmul(dmul(r * r, hh), "3.14"); return W_(`直径${d}cm，あつさ${th}cmの円の形をしたコースターを${n}まい重ねて，円柱の形にしました。この円柱の体積は何cm^3ですか。円周率は3.14とします。`, [`高さ　${th}×${n}＝${hh}`, `${r}×${r}×3.14×${hh}＝${V}`], `${V}cm^3`, "円柱の体積"); }]);
+}
 /* --- およその体積（身のまわりのもの） --- */
 function approxVol(lv){
   return scene([
     () => { const d = pick([6, 7, 8, 9]), h = ri(10, 16), V = dmul((d / 2) * (d / 2) * h, "3.14"); return W_(`直径が${d}cm，高さが${h}cmのカップがあります。円柱とみて，およその体積を求めましょう。円周率は3.14とします。`, `${d / 2}×${d / 2}×3.14×${h}＝${V}`, `約${V}cm^3`, "およその体積"); },
     () => { const a = ri(18, 25), b = ri(5, 8), c = ri(2, 4); return W_(`たて${b}cm，横${a}cm，高さ${c}cmくらいの筆箱があります。直方体とみて，およその体積を求めましょう。`, `${b}×${a}×${c}＝${a * b * c}`, `約${a * b * c}cm^3`, "およその体積"); },
     () => { const d = pick([10, 12, 14, 16]), h = ri(5, 8), V = dmul((d / 2) * (d / 2) * h, "3.14"); return W_(`直径が${d}cm，高さが${h}cmの丸いケーキがあります。円柱とみて，およその体積を求めましょう。円周率は3.14とします。`, `${d / 2}×${d / 2}×3.14×${h}＝${V}`, `約${V}cm^3`, "およその体積"); },
-    () => { for(;;){ const t = ri(20, 30), u = ri(30, 40), hh = ri(20, 30), L = ri(50, 70); if(((t + u) * hh * L) % 2) continue; return W_(`衣装ケースを，底面が上の辺${t}cm，下の辺${u}cm，高さ${hh}cmの台形で，長さが${L}cmの四角柱とみます。およその容積を求めましょう。`, `（${t}＋${u}）×${hh}÷2×${L}＝${(t + u) * hh * L / 2}`, `約${(t + u) * hh * L / 2}cm^3`, "およその体積"); } },
-    () => { const d = 10, th = "0.8", n = pick([5, 8, 10, 12]), V = dmul(dmul(25 * n, th), "3.14"); return W_(`直径${d}cm，厚さ${th}cmの円の形をしたコースターを${n}まい重ねて，円柱の形にしました。この円柱の体積を求めましょう。円周率は3.14とします。`.replace("厚さ", "あつさ"), `5×5×3.14×（${th}×${n}）＝${V}`, `${V}cm^3`, "円柱の体積"); }]);
+    () => { for(;;){ const t = ri(20, 30), u = ri(30, 40), hh = ri(20, 30), L = ri(50, 70); if(((t + u) * hh * L) % 2) continue; return W_(`衣装ケースを，底面が上の辺${t}cm，下の辺${u}cm，高さ${hh}cmの台形で，長さが${L}cmの四角柱とみます。およその容積を求めましょう。`, `（${t}＋${u}）×${hh}÷2×${L}＝${(t + u) * hh * L / 2}`, `約${(t + u) * hh * L / 2}cm^3`, "およその体積"); } }]);
 }
 (function(){
   const U = U6.find(u => u.id === "6-10");
   U.subs = [
-    {id:"a", name:"角柱の体積", gen(lv){ return lv === 0 ? scene([() => prismBox(lv), () => prismRightTri(lv)]) : lv === 1 ? scene([() => prismTri(lv), () => prismTrap(lv), () => prismPara(lv)]) : scene([() => prismTri(lv), () => prismTrap(lv), () => prismHouse(lv)]); }},
-    {id:"b", name:"円柱の体積", gen(lv){ if(lv === 0) return cylStand(lv); if(lv === 1) return scene([() => cylStand(lv), () => cylLying(lv)]);
-      return scene([() => cylHalf(lv), () => { const r = ri(2, 8), h = ri(3, 12); return L(`底面の円周が${dmul(2 * r, "3.14")}cm，高さが${h}cmの円柱の体積((${dmul(r * r * h, "3.14")}cm^3))`, "つぎの問題に答えましょう。円周率は3.14とします。", "円柱の体積"); }]); }},
-    {id:"c", name:"くふうして求める", gen(lv){ return lv === 0 ? prismL(lv) : lv === 1 ? scene([() => prismStairs(lv), () => prismL(lv), () => prismNotch(lv)]) : scene([() => cylHollow(lv), () => cyl34(lv), () => prismNotch(lv)]); }},
+    {id:"a", name:"角柱の体積", gen(lv){ return lv === 0 ? scene([() => prismBox(lv), () => prismRightTri(lv), () => prismStandTri(lv), () => prismStandBox(lv)]) : lv === 1 ? scene([() => prismTri(lv), () => prismTrap(lv), () => prismPara(lv)]) : scene([() => prismTri(lv), () => prismTrap(lv), () => prismHouse(lv)]); }},
+    {id:"b", name:"円柱の体積", gen(lv){ if(lv === 0) return cylStand(lv); if(lv === 1) return scene([() => cylStand(lv), () => cylLying(lv), () => cylText(lv)]);
+      return scene([() => cylHalf(lv), () => cylText(lv), () => { const r = ri(2, 8), h = ri(3, 12); return L(`底面の円周が${dmul(2 * r, "3.14")}cm，高さが${h}cmの円柱の体積((${dmul(r * r * h, "3.14")}cm^3))`, "つぎの問題に答えましょう。円周率は3.14とします。", "円柱の体積"); }]); }},
+    {id:"c", name:"くふうして求める", gen(lv){ return lv === 0 ? prismL(lv) : lv === 1 ? scene([() => prismStairs(lv), () => prismL(lv), () => prismNotch(lv), () => prismCross(lv)]) : scene([() => cylHollow(lv), () => cyl34(lv), () => prismNotch(lv), () => prismCross(lv)]); }},
     {id:"d", name:"およその体積", gen(lv){ return approxVol(lv); }}
   ];
 })();
