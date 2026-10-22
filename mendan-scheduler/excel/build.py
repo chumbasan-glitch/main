@@ -22,6 +22,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール.xlsx"
 SET, ROS, INP, ASG, AUT, CA, CB = "設定", "名簿", "×入力", "調整・決定", "自動案A", "計算A", "計算B"
 AUTB, CC = "自動案B", "計算C"      # 自動案B（散らす）とその計算
 SIB = "印刷（兄弟確認）"
+IMP = "前の版の×（取り込み）"          # 前の版の×入力シートを貼り付けて取り込む
 q = lambda s: "'" + s + "'!"   # シート参照
 GL = 5 + T                       # 調整・決定／自動案の表の最後の行
 GRID = q(ASG) + f"$C$6:$L${GL}"   # 調整・決定の表
@@ -52,6 +53,7 @@ ROW_PRIO = 110                 # 110:全体の詰め方 111〜114:希望ごと�
 ROW_EXIST = 115                # 設定した日付・時間にある枠（ない枠は表で見えなくする）
 ROW_NB = 117                   # 同じ日・同じ時間帯に、時間として次の枠がある（先生の都合は見ない）
 INPR = q("×入力") + "$A$1:$L$1300"  # ×入力シート全体
+IMPR = q("前の版の×（取り込み）") + "$A$1:$L$1300"  # 取り込みシート全体（×入力と同じ形）
 TL = 10 + T                       # 設定シートの時刻の表の最後の行
 TBLK = f"'設定'!$M$11:$V${TL}"      # 先生の都合で使えない枠
 TDAY = "'設定'!$M$9:$V$9"           # この日は組まない
@@ -173,6 +175,7 @@ lines = [
     ("・調整・決定で決めた日程が、予定表と同じ形で出ます。兄弟がいる子は色付きで、名前の下に兄弟のクラスが出ます（名簿の「兄弟メモ」にはクラス名だけを書きます。例：2年1組）。", None),
     ("・兄弟の担任から面談の日時を聞いたら、名簿の「兄弟の日付」「兄弟の時刻」を選びます。自動案では、できるだけ兄弟のすぐ前かすぐ後に入れます。", None),
     ("・Word の表に名前を入れるときは、「調整・決定」の名前のマスを選んでコピーし、Word の表の左上のマスで右クリック →「セルの上書き」で貼り付けます。", None),
+    ("・前の版で途中まで入力していたときは、前の版の「×入力」シートを全部コピーして、「前の版の×（取り込み）」シートのA1に［値の貼り付け］をします。", None),
     ("7. 結果", f(bold=True, size=12)),
     ("・「名簿」シートの右側に、決まった日時・注意（×の枠／2か所／後ろが空いていない／使えない枠／未決定）・自動案が表示されます。", None),
     ("・CSVが必要なときは「名簿」シートを開いて［ファイル］→［名前を付けて保存］→ 種類を「CSV UTF-8」にします。", None),
@@ -373,7 +376,8 @@ for i in range(1, NS + 1):
         put(ws, f"{c}{r}", None, fill=INPUT, border=box, alignment=Alignment(vertical="center") if c in "BD" else Alignment(horizontal="center", vertical="center", shrink_to_fit=True))
     dv_sib.add(f"C{r}"); dv_sday.add(f"E{r}"); dv_stime.add(f"F{r}"); dv_hope.add(f"G{r}"); dv_gap.add(f"H{r}")
     put(ws, f"I{r}", f'=IF(B{r}="","",IF(COUNTIF($B$5:$B$49,B{r})>1,IF(A{r}="","",A{r}&" ")&B{r},B{r}))', border=box)   # 同じ名前がいるときだけ番号をつける
-    put(ws, f"J{r}", f'=IF(B{r}="","",IF({q(INP)}F{b}="未提出","未提出",IF(K{r}>0,"入力済み",IF({q(INP)}F{b}="×なし（どこでもOK）","×なし","未入力"))))', border=box, alignment=center)
+    stt = f'IF({q(INP)}F{b}<>"",{q(INP)}F{b},{q(IMP)}F{b}&"")'     # 提出状況（×入力が空なら取り込みの分）
+    put(ws, f"J{r}", f'=IF(B{r}="","",IF({stt}="未提出","未提出",IF(K{r}>0,"入力済み",IF({stt}="×なし（どこでもOK）","×なし","未入力"))))', border=box, alignment=center)
     put(ws, f"K{r}", f'=IF(B{r}="","",{q(CA)}IN{a})', border=box, alignment=center)
     put(ws, f"L{r}", f'=IF(OR(J{r}="入力済み",J{r}="×なし"),{q(CA)}IM{a},"")', border=box, alignment=center)
     put(ws, f"M{r}", f'=IF({q(CA)}C{a}=1,COUNTIFS({q(CA)}$C$10:$C$54,1,{q(CA)}$IM$10:$IM$54,"<"&{q(CA)}IM{a})+1,"")', border=box, alignment=center)
@@ -454,7 +458,7 @@ tl = f"C{b1+3}"
 jx = f"(COLUMN({tl})-3)*{T}+MOD(ROW({tl})-5,{BLK})-2"
 hide_rules(ws, " ".join(grid_r), f"{EXIST(jx)}=0", [
     (f"INDEX({q(CA)}${JA}$4:${JZ}$4,{jx})=0", GRAY, None),
-    (f'OR({tl}<>"",$A{b1+3}<>"",INDEX($A$1:$L$1300,ROW({tl})-MOD(ROW({tl})-5,{BLK})+1,COLUMN({tl}))<>"")', fill("F6DEDB"), None),
+    (f'OR({tl}<>"",INDEX({q(CA)}${JA}$10:${JZ}$54,INT((ROW({tl})-5)/{BLK})+1,{jx})=1)', fill("F6DEDB"), None),
 ])
 hide_rules(ws, " ".join(day_r), f'INDEX({q(SET)}$B$11:$B$20,COLUMN(C{b1+1})-2)=""', [])
 hide_rules(ws, " ".join(time_r), f'$B{b1+3}=""', [])
@@ -670,6 +674,18 @@ ws.page_setup.fitToWidth = 1
 ws.page_setup.fitToHeight = 1
 ws.freeze_panes = "C6"
 
+# ---------------------------------------------------------------- 前の版の×（取り込み）
+ws = sheet(IMP)
+ws.sheet_properties.tabColor = "8A8A8A"
+# 説明は1〜4行目だけに書く（5行目から下は、取り込んだ×として読み取る場所なので何も置かない）
+for k, (text, fo) in enumerate([
+    ("前の版の「×入力」シートを、ここに貼り付けて取り込みます。", f(size=14, bold=True, color=PRIMARY_D)),
+    ("① 前の版の「×入力」シートで、左上の角（行番号と列記号が交わる所）をクリックして全部選び Ctrl + C　② このシートのA1（この文字のマス）をクリック　③ 右クリック →「値」（123 の絵）", f(size=11, color=PRIMARY_D)),
+    ("→ 前の版で入れた ×・この日全部・この時間全部・提出状況（×なし／未提出）が、×入力・自動案・調整・決定に反映されます。これから出てくる子は、ふつうに「×入力」に入力します。", f(size=11, color=PRIMARY_D)),
+    ("※ 取り込んだ×を消したいときは、このシートの中で消します。前の版は「自動案A・B」があり「兄弟連絡票」がない版です。", f(size=11, color="B23A3A")),
+], start=1):
+    put(ws, f"A{k}", text, font=fo)
+
 # ---------------------------------------------------------------- 計算A（×・入れられる枠・児童ごとの集計）
 ws = sheet(CA)
 put(ws, "A1", "計算用（さわらないでください）", font=f(bold=True, color="B23A3A"))
@@ -719,8 +735,9 @@ for i in range(1, NS + 1):
     ws[f"A{o}"] = i
     for j in range(1, N + 1):
         c = jc(j)
-        ws[f"{c}{r}"] = (f'=IF({c}$4=1,IF(OR(INDEX({INPR},{base(i)+2}+{c}$3,2+{c}$2)<>"",'
-                         f'INDEX({INPR},{base(i)+1},2+{c}$2)<>"",INDEX({INPR},{base(i)+2}+{c}$3,1)<>""),1,0),0)')
+        cells = lambda R: (f'INDEX({R},{base(i)+2}+{c}$3,2+{c}$2)<>"",INDEX({R},{base(i)+1},2+{c}$2)<>"",'
+                           f'INDEX({R},{base(i)+2}+{c}$3,1)<>""')
+        ws[f"{c}{r}"] = f'=IF({c}$4=1,IF(OR({cells(INPR)},{cells(IMPR)}),1,0),0)'     # ×入力 または 取り込み
         ws[f"{c}{o}"] = f"=IF(AND({c}$4=1,{c}{r}=0),1,0)"
     ws[f"IK{r}"] = f"=IFERROR(INDEX({q(CB)}$C$3:$C$47,MATCH(A{r},{q(CB)}$B$3:$B$47,0)),0)"
     ws[f"IL{r}"] = f"=IF(AND(C{r}=1,IK{r}=0),1,0)"
@@ -910,7 +927,7 @@ for sh, rng, tl in hdr:
 for i in range(1, NS + 1):
     wb[ROS].row_dimensions[4 + i].height = 19
 # シートの順番：ホーム・設定・名簿・×入力・自動案・調整・決定・計算
-order = [HOME, SET, ROS, INP, AUT, AUTB, ASG, SIB, CA, CB, CC]
+order = [HOME, SET, ROS, INP, AUT, AUTB, ASG, SIB, IMP, CA, CB, CC]
 wb._sheets = [wb[n] for n in order]
 sib_idx = order.index(SIB)
 wb[SIB].defined_names["_xlnm.Print_Area"] = DefinedName("_xlnm.Print_Area", localSheetId=sib_idx,
