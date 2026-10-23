@@ -122,7 +122,7 @@ function genAngle4(lv){
   const ans = kind === "big" ? 360 - a : 180 - a;
   const ansV = kind === "vert" ? a : ans;
   const inst = kind === "big" ? "アの角度を計算で求めましょう。" : "アの角度を計算で求めましょう。";
-  return figItem(FIGW, FIGH, draw, `ア((${ansV}°))`, {inst, lead:"角度", sig:kind + a});
+  return figItem(FIGW, FIGH, draw, `ア((${ansV}°))`, {inst, lead:"角度", sig:kind + a, shiki:kind === "big" ? `360－${a}＝${ansV}` : kind === "vert" ? [`180－${a}＝${180 - a}`, `180－${180 - a}＝${a}`] : `180－${a}＝${ansV}`});
 }
 unit4(4, "角", "5月", "分度器を使って角をはかったりかいたりしよう", [
   {id:"a", name:"角度を計算で求める", gen(lv){ return genAngle4(lv); }},
@@ -266,7 +266,7 @@ function genParallelLines(lv){
     else { angleMark(G, P1, [L_, y1], P2, a + "°", fs); angleMark(G, P2, [L_, y2], P1, "ア", fs); }
   };
   const realAns = kind === "same" ? a : kind === "alt" ? a : 180 - a;
-  return figItem(FIGW + 4, FIGH, draw, `ア((${realAns}°))`, {inst:"直線あと直線いは平行です。アの角度を求めましょう。", lead:"平行な直線と角", sig:kind + a});
+  return figItem(FIGW + 4, FIGH, draw, `ア((${realAns}°))`, {inst:"直線あと直線いは平行です。アの角度を求めましょう。", lead:"平行な直線と角", sig:kind + a, shiki:kind === "co" ? `180－${a}＝${realAns}` : `アは${a}°の角と等しい`});
 }
 unit4(9, "垂直・平行と四角形", "9月", "直角に交わる線や平行な線に目をつけて四角形を調べよう", [
   {id:"a", name:"四角形の名前", gen(lv){ const [t, a] = pick(lv === 0 ? QUADS.slice(0, 3) : QUADS); return L(`${t}((${a}))`, "つぎの四角形の名前を書きましょう。", "四角形の名前"); }},
@@ -391,7 +391,7 @@ function genRectArea(lv){
     G.text(cm(a), rx + a * s / 2, ry + b * s + 3, {size:fs * 0.8, align:"center"});
     if(!L_) G.text(cm(b), rx + a * s + 1.5, ry + b * s / 2, {size:fs * 0.8});
   };
-  return figItem(FIGW, FIGH, draw, `((${a * b}cm^2))`, {inst:"つぎの長方形や正方形の面積を求めましょう。", lead:"面積", sig:"r" + a + b});
+  return figItem(FIGW, FIGH, draw, `((${a * b}cm^2))`, {inst:"つぎの長方形や正方形の面積を求めましょう。", lead:"面積", sig:"r" + a + b, shiki:`${a}×${b}＝${a * b}`});
 }
 function genLArea(lv){
   const W = ri(6, 12), H = ri(5, 10), w2 = ri(2, W - 3), h2 = ri(2, H - 2), A = W * H - (W - w2) * (H - h2);
@@ -401,7 +401,7 @@ function genLArea(lv){
     G.poly(P, {w:0.4}); const cen = centroid(P);
     sideLabel(G, P[0], P[1], cm(w2), cen, fs); sideLabel(G, P[4], P[5], cm(W), cen, fs); sideLabel(G, P[5], P[0], cm(H), cen, fs); sideLabel(G, P[3], P[4], cm(h2), cen, fs);
   };
-  return figItem(FIGW + 4, FIGH + 4, draw, `((${A}cm^2))`, {inst:"つぎの図形の面積を求めましょう。", lead:"いろいろな形の面積", sig:"L" + W + H + w2 + h2});
+  return figItem(FIGW + 4, FIGH + 4, draw, `((${A}cm^2))`, {inst:"つぎの図形の面積を求めましょう。", lead:"いろいろな形の面積", sig:"L" + W + H + w2 + h2, shiki:`${W}×${H}－${W - w2}×${H - h2}＝${A}`});
 }
 unit4(14, "面積", "12月", "広さの単位を使って，面積を求めよう", [
   {id:"a", name:"長方形・正方形の面積", gen(lv){ return genRectArea(lv); }},

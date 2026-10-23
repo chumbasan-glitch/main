@@ -239,7 +239,7 @@ function genSector(lv){
       const mx = cx + R_ * 0.5 * Math.cos(s1), my = cy + R_ * 0.5 * Math.sin(s1);
       G.text(cm(r), mx + 1.5, my + 2.2, {size:fs * 0.75});
     };
-    return figItem(FIGW, FIGH + 6, draw, (askPer ? "まわりの長さ" : "面積") + "((" + (askPer ? cm(Pm) : A + "cm^2") + "))", {inst:"つぎのおうぎ形について答えましょう。円周率は3.14とします。", lead:"おうぎ形", sig:"s" + th + r + askPer});
+    return figItem(FIGW, FIGH + 6, draw, (askPer ? "まわりの長さ" : "面積") + "((" + (askPer ? cm(Pm) : A + "cm^2") + "))", {calc:true, shiki:askPer ? [`${2 * r}×3.14×${F(th / gcd(th, 360), 360 / gcd(th, 360))}＋${r}×2`, `＝${Pm}`] : `${r}×${r}×3.14×${F(th / gcd(th, 360), 360 / gcd(th, 360))}＝${A}`, inst:"つぎのおうぎ形について答えましょう。円周率は3.14とします。", lead:"おうぎ形", sig:"s" + th + r + askPer});
   }
 }
 function genParallelAngle(lv){
@@ -257,7 +257,7 @@ function genParallelAngle(lv){
     angleMark(G, P, A, B, lv === 2 ? x + "°" : "ア", fs);
   };
   const q = lv === 2 ? `ア((${a}°))` : `ア((${x}°))`;
-  return figItem(FIGW + 6, FIGH + 4, draw, q, {inst:"直線ℓと直線mは平行です。アの角度を求めましょう。", lead:"角度", sig:"p" + a + b + lv});
+  return figItem(FIGW + 6, FIGH + 4, draw, q, {shiki:lv === 2 ? `${x}－${b}＝${a}` : `${a}＋${b}＝${x}`, inst:"直線ℓと直線mは平行です。アの角度を求めましょう。", lead:"角度", sig:"p" + a + b + lv});
 }
 unitN(6, "図形の応用", "図形の性質を組み合わせて考えよう", [
   {id:"a", name:"おうぎ形", gen(lv){ return genSector(lv); }},

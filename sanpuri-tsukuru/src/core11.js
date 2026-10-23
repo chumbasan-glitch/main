@@ -41,7 +41,7 @@ function genTiles(lv){
     for(const [cx, cy] of cells){ const X = ox + cx * s, Y = oy + cy * s; G.rect(X, Y, s, s, {w:0.35, fill:"#e0e0e0"}); G.line(X, Y + s, X + s, Y, {w:0.35}); }
     for(const [cx, cy] of tops){ const X = ox + cx * s, Y = oy + cy * s; G.poly([[X, Y], [X + s, Y], [X, Y - s]], {w:0.35, fill:"#e0e0e0"}); }
   };
-  return figItem(50, 30, draw, `((${cells.length * 2 + tops.length}まい))`, {inst:"さんかくの　いろいたを　なんまい　つかって　いますか。", lead:"いろいた", sig:JSON.stringify(cells) + tops.length});
+  return figItem(50, 30, draw, `((${cells.length * 2 + tops.length}まい))`, {inst:"さんかくの　いろいたを　なんまい　つかって　いますか。", lead:"いろいた", sig:(() => { const mx = Math.min(...cells.map(c => c[0])), my = Math.min(...cells.map(c => c[1])); return cells.map(c => (c[0] - mx) + "," + (c[1] - my)).sort().join("|") + "/" + tops.map(c => (c[0] - mx) + "," + (c[1] - my)).sort().join("|"); })()});
 }
 
 unit1(1, "１０までの かず", "4月", "10までの　かずを　かぞえて　かこう", [

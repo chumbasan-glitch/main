@@ -118,7 +118,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <header class="top">
     <h1>算プリツクール</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 3.7</span>
+    <span class="ver">ver. 3.8</span>
   </header>
 
   <div class="layout">
@@ -573,6 +573,10 @@ function wordItem(text, shiki, answer, o){
 /* 図＋ひとつの問い */
 function figItem(fw, fh, drawFig, qmk, o){
   o = o || {};
+  const hasPar = /\(\(/.test(qmk);
+  const calc = o.calc !== undefined ? o.calc : hasPar && /求め|計算/.test(o.inst || "");
+  if(calc) return calcFigItem(fw, fh, drawFig, qmk, o);
+  if(/^\(\(/.test(qmk)) qmk = (knows("答") ? "答え" : "こたえ") + qmk;
   const q = parseMk(qmk);
   return Object.assign({cat:"fig", n:1,
     minW(G, fs){ return Math.max(fw, lineMetrics(G, q, fs).w) + 0.3 * fs; },
@@ -582,6 +586,28 @@ function figItem(fw, fh, drawFig, qmk, o){
       drawFig(G, x, y, fw, fh, fs, ans);
       const m = lineMetrics(G, q, fs);
       drawToks(G, q, x, y + fh + 0.5 * fs + m.up, fs, ans);
+    }
+  }, o);
+}
+/* 計算して求める図の問題：図・「式」を書く場所・「答え（　　）」 */
+function calcFigItem(fw, fh, drawFig, qmk, o){
+  const ansLab = knows("答") ? "答え" : "こたえ", shLab = knows("式") ? "式" : "しき";
+  const q = parseMk(ansLab + "　" + qmk.replace(/^\s+/, ""));
+  const sh = o.shiki ? (Array.isArray(o.shiki) ? o.shiki : [o.shiki]).map(parseMk) : [];
+  const nl = Math.max(2, sh.length);
+  const widen = fs => { for(const t of q) if(t.t === "par" && t.minw !== 9 * fs){ t.minw = 9 * fs; t.m = null; } };
+  return Object.assign({cat:"fig", n:1,
+    minW(G, fs){ widen(fs); return Math.max(fw, lineMetrics(G, q, fs).w) + 0.3 * fs; },
+    height(G, W, fs){ widen(fs); const m = lineMetrics(G, q, fs); return fh + 0.6 * fs + nl * 1.45 * fs + 0.6 * fs + m.up + m.dn; },
+    firstUp(G, W, fs){ return 0.62 * fs; },
+    draw(G, x, y, W, fs, ans){
+      widen(fs);
+      drawFig(G, x, y, fw, fh, fs, ans);
+      const yy = y + fh + 0.6 * fs + 0.7 * fs;
+      G.text(shLab, x, yy, {size:fs});
+      if(ans) sh.forEach((t, i) => drawToks(G, t, x + 2.2 * fs, yy + i * 1.45 * fs, fs * 0.92, true, RED));
+      const m = lineMetrics(G, q, fs), ay = y + fh + 0.6 * fs + nl * 1.45 * fs + 0.6 * fs + m.up;
+      drawToks(G, q, x + Math.max(0, W - m.w - 0.6 * fs), ay, fs, ans);
     }
   }, o);
 }
@@ -912,7 +938,11 @@ function genTriAngle(lv){
     }
     if(lv === 2) angleMark(G, c, a, c2, ext + "°", fs);
   };
-  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度"});
+  let shk;
+  if(lv === 0){ const kn = [0, 1, 2].filter(i => i !== unknown).map(i => ang[i]); shk = `180－（${kn[0]}＋${kn[1]}）＝${ansV}`; }
+  else if(lv === 1) shk = unknown === 0 ? `180－${be}×2＝${ansV}` : `（180－${al}）÷2＝${ansV}`;
+  else shk = `${ext}－${be}＝${ansV}`;
+  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度", shiki:shk});
 }
 
 /* 四角形の角 */
@@ -951,7 +981,9 @@ function genQuadAngle(lv){
       else angleMark(G, P[i], ...nb, rd[i] + "°", fs);
     }
   };
-  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度"});
+  const kn = [0, 1, 2, 3].filter(i => i !== unknown).map(i => (lv === 1 && i === 0) ? 90 : rd[i]);
+  const shq = `360－（${kn.join("＋")}）＝${ansV}`;
+  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度", shiki:extAt >= 0 ? [`180－${ext}＝${rd[extAt]}`, shq] : shq});
 }
 
 /* 合同な三角形 */
@@ -1016,7 +1048,7 @@ function genCongruent(lv, kind){
 
 /* 面積の図 */
 function genArea(kind, lv){
-  let pts, S, dims = [], hLine = null, ext = null, diag = null, extraSide = null;
+  let pts, S, shA, dims = [], hLine = null, ext = null, diag = null, extraSide = null;
   const dec = lv === 1 && kind !== "rhombus" ? R() < 0.5 : false;
   const v = (lo, hi) => dec ? rdec(lo * 10, hi * 10, 1) : String(ri(lo, hi));
   if(kind === "para"){
@@ -1024,7 +1056,7 @@ function genArea(kind, lv){
     let s = lv === 2 ? bn + ri(1, 3) : ri(1, Math.max(1, Math.floor(bn / 2)));
     if(lv === 1 && !dec){ const tr = pick([[3, 4, 5], [6, 8, 10], [5, 12, 13]]); s = tr[0] > bn - 1 ? 2 : tr[0]; }
     pts = [[s, 0], [s + bn, 0], [bn, hn], [0, hn]];
-    S = dmul(b, h);
+    S = dmul(b, h); shA = `${b}×${h}＝${S}`;
     dims = [[3, 2, cm(b)]]; hLine = [[s, 0], [s, hn], cm(h)];
     if(lv === 2) ext = [[bn, hn], [s, hn]];
     if(lv === 1 && !dec){ const sl = Math.round(Math.hypot(s, hn) * 10) / 10; extraSide = [[0, 3], ds(Math.round(sl * 10), 1)]; }
@@ -1032,21 +1064,21 @@ function genArea(kind, lv){
     const b = v(4, 10), h = v(3, 8), bn = +b, hn = +h;
     const s = lv === 2 ? bn + ri(1, 3) : ri(1, Math.max(1, Math.floor(bn) - 1));
     pts = [[s, 0], [bn, hn], [0, hn]];
-    S = ds(dparse(dmul(b, h))[0] * 5, dparse(dmul(b, h))[1] + 1);
+    S = ds(dparse(dmul(b, h))[0] * 5, dparse(dmul(b, h))[1] + 1); shA = `${b}×${h}÷2＝${S}`;
     dims = [[1, 2, cm(b)]]; hLine = [[s, 0], [s, hn], cm(h)];
     if(lv === 2) ext = [[bn, hn], [s, hn]];
   } else if(kind === "trap"){
     const a = v(2, 6), b = v(+a + 2, 11), h = v(3, 6), an = +a, bn = +b, hn = +h;
     const s = lv === 2 ? 0 : ri(0, Math.max(0, Math.floor(bn - an)));
     pts = [[s, 0], [s + an, 0], [bn, hn], [0, hn]];
-    const pr = dparse(dmul(dadd(a, b), h)); S = ds(pr[0] * 5, pr[1] + 1);
+    const pr = dparse(dmul(dadd(a, b), h)); S = ds(pr[0] * 5, pr[1] + 1); shA = `（${a}＋${b}）×${h}÷2＝${S}`;
     dims = [[0, 1, cm(a)], [3, 2, cm(b)]];
     hLine = s === 0 ? [[0, 0], [0, hn], cm(h), true] : [[s, 0], [s, hn], cm(h)];
   } else {
     const p = String(ri(4, 10)), q = String(ri(3, 8)), pn = +p, qn = +q;
     const cx = lv === 2 ? pn * (0.25 + R() * 0.15) : pn / 2;
     pts = lv === 2 ? [[0, qn / 2], [cx, 0], [pn, qn / 2], [cx, qn]] : [[0, qn / 2], [pn / 2, 0], [pn, qn / 2], [pn / 2, qn]];
-    S = ds(pn * qn * 5, 1);
+    S = ds(pn * qn * 5, 1); shA = `${p}×${q}÷2＝${S}`;
     diag = [[[0, qn / 2], [pn, qn / 2], cm(p)], [[cx, 0], [cx, qn], cm(q)]];
   }
   const draw = (G, x, y, w, h, fs, ans) => {
@@ -1081,7 +1113,7 @@ function genArea(kind, lv){
     }
   };
   const name = {para:"平行四辺形", tri:"三角形", trap:"台形", rhombus:lv === 2 ? "四角形" : "ひし形"}[kind];
-  return figItem(FIGW + 4, FIGH, draw, "((" + S + "cm^2))", {inst:"つぎの図形の面積を求めましょう。", lead:name + "の面積"});
+  return figItem(FIGW + 4, FIGH, draw, "((" + S + "cm^2))", {inst:"つぎの図形の面積を求めましょう。", lead:name + "の面積", shiki:shA});
 }
 
 /* 円周 */
@@ -1100,8 +1132,9 @@ function genCircle(lv){
   };
   const c = dmul(String(d), "3.14");
   const ansV = lv === 2 ? ds(d * 157 + d * 100, 2) : c;
+  const shC = lv === 0 ? `${d}×3.14＝${c}` : lv === 1 ? `${d / 2}×2×3.14＝${c}` : `${d}×3.14÷2＋${d}＝${ansV}`;
   return figItem(FIGW - 8, FIGH, draw, (lv === 2 ? "まわりの長さ" : "円周") + "((" + cm(ansV) + "))",
-    {inst:lv === 2 ? "つぎの図形のまわりの長さを求めましょう。円周率は3.14とします。" : "つぎの円の円周の長さを求めましょう。円周率は3.14とします。", lead:lv === 2 ? "半円のまわりの長さ" : "円周"});
+    {inst:lv === 2 ? "つぎの図形のまわりの長さを求めましょう。円周率は3.14とします。" : "つぎの円の円周の長さを求めましょう。円周率は3.14とします。", lead:lv === 2 ? "半円のまわりの長さ" : "円周", shiki:shC});
 }
 
 /* 直方体・立方体・L字の立体 */
@@ -1137,7 +1170,8 @@ function genBox(lv, lshape){
   };
   const Vs = typeof V === "number" ? String(V) : V;
   const lead = lshape ? "いろいろな形の体積" : "体積";
-  return figItem(FIGW + 4, FIGH + 2, draw, "((" + Vs + unitS + "^3))", {inst:"つぎの立体の体積を求めましょう。", lead});
+  const shV = lshape ? [`${w2}×${H}×${D}＋${W - w2}×${h1}×${D}`, `＝${Vs}`] : `${W}×${D}×${H}＝${Vs}`;
+  return figItem(FIGW + 4, FIGH + 2, draw, "((" + Vs + unitS + "^3))", {inst:"つぎの立体の体積を求めましょう。", lead, shiki:shV});
 }
 
 /* 円グラフ・帯グラフ */
@@ -1395,7 +1429,8 @@ function genNetRead(lv){
     drawToks(G, parseMk(cm(h)), t[0] + 1, (t[1] + b[1]) / 2, fs * 0.8, false);
   };
   const q = lv === 2 ? `イ((${cm(d)}))` : `ア((${cm(W)}))`;
-  return figItem(FIGW + 6, FIGH + 18, draw, q, {sig:lv + ":" + d + ":" + h, inst:lv === 2 ? "下の円柱の【展|てん】開図で，イの長さを求めましょう。円周率は3.14とします。" : "下の円柱の【展|てん】開図で，アの長さを求めましょう。円周率は3.14とします。", lead:"【展|てん】開図の長さ"});
+  const shN = lv === 2 ? `${W}÷3.14＝${d}` : lv === 1 ? `${d / 2}×2×3.14＝${W}` : `${d}×3.14＝${W}`;
+  return figItem(FIGW + 6, FIGH + 18, draw, q, {shiki:shN, sig:lv + ":" + d + ":" + h, inst:lv === 2 ? "下の円柱の【展|てん】開図で，イの長さを求めましょう。円周率は3.14とします。" : "下の円柱の【展|てん】開図で，アの長さを求めましょう。円周率は3.14とします。", lead:"【展|てん】開図の長さ"});
 }
 
 /* ================= 5年の単元と問題 ================= */
@@ -2357,13 +2392,14 @@ function genCircleArea(lv){
     else if(kind === "half"){ const yy = cy + R_ / 2; G.arc(cx, yy, R_, Math.PI, 2 * Math.PI, {w:0.4}); G.line(cx - R_, yy, cx + R_, yy, {w:0.4}); G.dot(cx, yy, 0.35); G.text(cm(r), cx + R_ / 2, yy + 0.9 * fs, {size:fs * 0.85, align:"center"}); }
     else { const R2 = R_ * 1.5, ox = cx - R2 / 2, oy = cy + R2 / 2; G.arc(ox, oy, R2, -Math.PI / 2, 0, {w:0.4}); G.line(ox, oy, ox + R2, oy, {w:0.4}); G.line(ox, oy, ox, oy - R2, {w:0.4}); G.text(cm(r), ox + R2 / 2, oy + 0.9 * fs, {size:fs * 0.85, align:"center"}); }
   };
-  return figItem(FIGW - 8, FIGH, draw, "((" + A + "cm^2))", {inst:"つぎの図形の面積を求めましょう。円周率は3.14とします。", lead:"円の面積", sig:kind + r + lv});
+  const shA = kind === "full" ? (lv === 0 ? `${r}×${r}×3.14＝${A}` : [`半径　${2 * r}÷2＝${r}`, `${r}×${r}×3.14＝${A}`]) : kind === "half" ? `${r}×${r}×3.14÷2＝${A}` : `${r}×${r}×3.14÷4＝${A}`;
+  return figItem(FIGW - 8, FIGH, draw, "((" + A + "cm^2))", {inst:"つぎの図形の面積を求めましょう。円周率は3.14とします。", lead:"円の面積", sig:kind + r + lv, shiki:shA});
 }
 function genCircleMix(lv){
   const s = ri(2, 10) * (lv === 0 ? 1 : 2);
-  let A, draw;
+  let A, draw, shM;
   if(lv === 0){
-    const r1 = ri(4, 10), r2 = ri(2, r1 - 1); A = dmul(r1 * r1 - r2 * r2, "3.14");
+    const r1 = ri(4, 10), r2 = ri(2, r1 - 1); A = dmul(r1 * r1 - r2 * r2, "3.14"); shM = [`${r1}×${r1}×3.14－${r2}×${r2}×3.14`, `＝${A}`];
     draw = (G, x, y, w, h, fs) => {
       const R_ = Math.min(w, h) / 2 - 4, cx = x + w / 2, cy = y + h / 2, rr = R_ * r2 / r1, ctx = G.ctx, k = G.k;
       ctx.beginPath(); ctx.arc(cx * k, cy * k, R_ * k, 0, 2 * Math.PI); ctx.arc(cx * k, cy * k, rr * k, 0, 2 * Math.PI, true); ctx.fillStyle = "#dddddd"; ctx.fill();
@@ -2372,7 +2408,7 @@ function genCircleMix(lv){
       G.line(cx, cy, cx - rr, cy, {w:0.3}); G.text(cm(r2), cx - rr / 2, cy + 0.8 * fs, {size:fs * 0.75, align:"center"});
     };
   } else if(lv === 1){
-    A = ds(s * s * 100 - s * s * 78.5, 2);
+    A = ds(s * s * 100 - s * s * 78.5, 2); shM = [`${s}×${s}－${s}×${s}×3.14÷4`, `＝${A}`];
     draw = (G, x, y, w, h, fs) => {
       const L_ = Math.min(w, h) - 8, ox = x + (w - L_) / 2, oy = y + 4, ctx = G.ctx, k = G.k;
       ctx.beginPath(); ctx.rect(ox * k, oy * k, L_ * k, L_ * k); ctx.moveTo(ox * k, (oy + L_) * k); ctx.arc(ox * k, (oy + L_) * k, L_ * k, -Math.PI / 2, 0, false); ctx.closePath(); ctx.fillStyle = "#dddddd"; ctx.fill("evenodd");
@@ -2380,7 +2416,7 @@ function genCircleMix(lv){
       G.text(cm(s), ox + L_ / 2, oy + L_ + 0.9 * fs, {size:fs * 0.8, align:"center"});
     };
   } else {
-    A = ds(s * s * 57, 2);
+    A = ds(s * s * 57, 2); shM = [`（${s}×${s}×3.14÷4－${s}×${s}÷2）×2`, `＝${A}`];
     draw = (G, x, y, w, h, fs) => {
       const L_ = Math.min(w, h) - 8, ox = x + (w - L_) / 2, oy = y + 4, ctx = G.ctx, k = G.k;
       ctx.beginPath(); ctx.moveTo(ox * k, oy * k); ctx.arc(ox * k, (oy + L_) * k, L_ * k, -Math.PI / 2, 0, false); ctx.arc((ox + L_) * k, oy * k, L_ * k, Math.PI / 2, Math.PI, false); ctx.closePath(); ctx.fillStyle = "#dddddd"; ctx.fill();
@@ -2388,7 +2424,7 @@ function genCircleMix(lv){
       G.text(cm(s), ox + L_ / 2, oy + L_ + 0.9 * fs, {size:fs * 0.8, align:"center"});
     };
   }
-  return figItem(FIGW - 6, FIGH + 6, draw, "((" + A + "cm^2))", {inst:"色をぬった部分の面積を求めましょう。円周率は3.14とします。", lead:"いろいろな面積", sig:"m" + lv + s + A});
+  return figItem(FIGW - 6, FIGH + 6, draw, "((" + A + "cm^2))", {inst:"色をぬった部分の面積を求めましょう。円周率は3.14とします。", lead:"いろいろな面積", sig:"m" + lv + s + A, shiki:shM});
 }
 unit6(9, "円の面積", "9月", "円の面積の公式を使って求めよう", [
   {id:"a", name:"円の面積", gen(lv){ return genCircleArea(lv); }},
@@ -2838,7 +2874,7 @@ function genSector(lv){
       const mx = cx + R_ * 0.5 * Math.cos(s1), my = cy + R_ * 0.5 * Math.sin(s1);
       G.text(cm(r), mx + 1.5, my + 2.2, {size:fs * 0.75});
     };
-    return figItem(FIGW, FIGH + 6, draw, (askPer ? "まわりの長さ" : "面積") + "((" + (askPer ? cm(Pm) : A + "cm^2") + "))", {inst:"つぎのおうぎ形について答えましょう。円周率は3.14とします。", lead:"おうぎ形", sig:"s" + th + r + askPer});
+    return figItem(FIGW, FIGH + 6, draw, (askPer ? "まわりの長さ" : "面積") + "((" + (askPer ? cm(Pm) : A + "cm^2") + "))", {calc:true, shiki:askPer ? [`${2 * r}×3.14×${F(th / gcd(th, 360), 360 / gcd(th, 360))}＋${r}×2`, `＝${Pm}`] : `${r}×${r}×3.14×${F(th / gcd(th, 360), 360 / gcd(th, 360))}＝${A}`, inst:"つぎのおうぎ形について答えましょう。円周率は3.14とします。", lead:"おうぎ形", sig:"s" + th + r + askPer});
   }
 }
 function genParallelAngle(lv){
@@ -2856,7 +2892,7 @@ function genParallelAngle(lv){
     angleMark(G, P, A, B, lv === 2 ? x + "°" : "ア", fs);
   };
   const q = lv === 2 ? `ア((${a}°))` : `ア((${x}°))`;
-  return figItem(FIGW + 6, FIGH + 4, draw, q, {inst:"直線ℓと直線mは平行です。アの角度を求めましょう。", lead:"角度", sig:"p" + a + b + lv});
+  return figItem(FIGW + 6, FIGH + 4, draw, q, {shiki:lv === 2 ? `${x}－${b}＝${a}` : `${a}＋${b}＝${x}`, inst:"直線ℓと直線mは平行です。アの角度を求めましょう。", lead:"角度", sig:"p" + a + b + lv});
 }
 unitN(6, "図形の応用", "図形の性質を組み合わせて考えよう", [
   {id:"a", name:"おうぎ形", gen(lv){ return genSector(lv); }},
@@ -3000,7 +3036,7 @@ function genAngle4(lv){
   const ans = kind === "big" ? 360 - a : 180 - a;
   const ansV = kind === "vert" ? a : ans;
   const inst = kind === "big" ? "アの角度を計算で求めましょう。" : "アの角度を計算で求めましょう。";
-  return figItem(FIGW, FIGH, draw, `ア((${ansV}°))`, {inst, lead:"角度", sig:kind + a});
+  return figItem(FIGW, FIGH, draw, `ア((${ansV}°))`, {inst, lead:"角度", sig:kind + a, shiki:kind === "big" ? `360－${a}＝${ansV}` : kind === "vert" ? [`180－${a}＝${180 - a}`, `180－${180 - a}＝${a}`] : `180－${a}＝${ansV}`});
 }
 unit4(4, "角", "5月", "分度器を使って角をはかったりかいたりしよう", [
   {id:"a", name:"角度を計算で求める", gen(lv){ return genAngle4(lv); }},
@@ -3144,7 +3180,7 @@ function genParallelLines(lv){
     else { angleMark(G, P1, [L_, y1], P2, a + "°", fs); angleMark(G, P2, [L_, y2], P1, "ア", fs); }
   };
   const realAns = kind === "same" ? a : kind === "alt" ? a : 180 - a;
-  return figItem(FIGW + 4, FIGH, draw, `ア((${realAns}°))`, {inst:"直線あと直線いは平行です。アの角度を求めましょう。", lead:"平行な直線と角", sig:kind + a});
+  return figItem(FIGW + 4, FIGH, draw, `ア((${realAns}°))`, {inst:"直線あと直線いは平行です。アの角度を求めましょう。", lead:"平行な直線と角", sig:kind + a, shiki:kind === "co" ? `180－${a}＝${realAns}` : `アは${a}°の角と等しい`});
 }
 unit4(9, "垂直・平行と四角形", "9月", "直角に交わる線や平行な線に目をつけて四角形を調べよう", [
   {id:"a", name:"四角形の名前", gen(lv){ const [t, a] = pick(lv === 0 ? QUADS.slice(0, 3) : QUADS); return L(`${t}((${a}))`, "つぎの四角形の名前を書きましょう。", "四角形の名前"); }},
@@ -3269,7 +3305,7 @@ function genRectArea(lv){
     G.text(cm(a), rx + a * s / 2, ry + b * s + 3, {size:fs * 0.8, align:"center"});
     if(!L_) G.text(cm(b), rx + a * s + 1.5, ry + b * s / 2, {size:fs * 0.8});
   };
-  return figItem(FIGW, FIGH, draw, `((${a * b}cm^2))`, {inst:"つぎの長方形や正方形の面積を求めましょう。", lead:"面積", sig:"r" + a + b});
+  return figItem(FIGW, FIGH, draw, `((${a * b}cm^2))`, {inst:"つぎの長方形や正方形の面積を求めましょう。", lead:"面積", sig:"r" + a + b, shiki:`${a}×${b}＝${a * b}`});
 }
 function genLArea(lv){
   const W = ri(6, 12), H = ri(5, 10), w2 = ri(2, W - 3), h2 = ri(2, H - 2), A = W * H - (W - w2) * (H - h2);
@@ -3279,7 +3315,7 @@ function genLArea(lv){
     G.poly(P, {w:0.4}); const cen = centroid(P);
     sideLabel(G, P[0], P[1], cm(w2), cen, fs); sideLabel(G, P[4], P[5], cm(W), cen, fs); sideLabel(G, P[5], P[0], cm(H), cen, fs); sideLabel(G, P[3], P[4], cm(h2), cen, fs);
   };
-  return figItem(FIGW + 4, FIGH + 4, draw, `((${A}cm^2))`, {inst:"つぎの図形の面積を求めましょう。", lead:"いろいろな形の面積", sig:"L" + W + H + w2 + h2});
+  return figItem(FIGW + 4, FIGH + 4, draw, `((${A}cm^2))`, {inst:"つぎの図形の面積を求めましょう。", lead:"いろいろな形の面積", sig:"L" + W + H + w2 + h2, shiki:`${W}×${H}－${W - w2}×${H - h2}＝${A}`});
 }
 unit4(14, "面積", "12月", "広さの単位を使って，面積を求めよう", [
   {id:"a", name:"長方形・正方形の面積", gen(lv){ return genRectArea(lv); }},
@@ -3647,7 +3683,7 @@ function genBalls(lv){
     G.text(cm(r), bx + 1.5 * R_, by + R_ - 1.5, {size:fs * 0.7, align:"center"});
   };
   const q = lv === 2 ? `たての長さ((${4 * r}cm))　横の長さ((${2 * r * n}cm))` : `箱の横の長さ((${2 * r * n}cm))`;
-  return figItem(62, lv === 2 ? 34 : 24, draw, q, {inst:`同じ大きさの球が，箱にぴったり入っています。球の半${KEI}は図のとおりです。`, lead:"円と球", sig:"b" + r + n + rows});
+  return figItem(62, lv === 2 ? 34 : 24, draw, q, {calc:true, shiki:lv === 2 ? [`たて　${r}×2×2＝${4 * r}`, `横　${r}×2×${n}＝${2 * r * n}`] : `${r}×2×${n}＝${2 * r * n}`, inst:`同じ大きさの球が，箱にぴったり入っています。球の半${KEI}は図のとおりです。`, lead:"円と球", sig:"b" + r + n + rows});
 }
 unit3(7, "円と球", "9月", "円や球のとくちょうを見つけて，コンパスでかこう", [
   {id:"a", name:`半${KEI}と直${KEI}`.replace(/【(.)\|[^】]*】/g, "$1"), gen(lv){
@@ -4112,7 +4148,7 @@ function genTiles(lv){
     for(const [cx, cy] of cells){ const X = ox + cx * s, Y = oy + cy * s; G.rect(X, Y, s, s, {w:0.35, fill:"#e0e0e0"}); G.line(X, Y + s, X + s, Y, {w:0.35}); }
     for(const [cx, cy] of tops){ const X = ox + cx * s, Y = oy + cy * s; G.poly([[X, Y], [X + s, Y], [X, Y - s]], {w:0.35, fill:"#e0e0e0"}); }
   };
-  return figItem(50, 30, draw, `((${cells.length * 2 + tops.length}まい))`, {inst:"さんかくの　いろいたを　なんまい　つかって　いますか。", lead:"いろいた", sig:JSON.stringify(cells) + tops.length});
+  return figItem(50, 30, draw, `((${cells.length * 2 + tops.length}まい))`, {inst:"さんかくの　いろいたを　なんまい　つかって　いますか。", lead:"いろいた", sig:(() => { const mx = Math.min(...cells.map(c => c[0])), my = Math.min(...cells.map(c => c[1])); return cells.map(c => (c[0] - mx) + "," + (c[1] - my)).sort().join("|") + "/" + tops.map(c => (c[0] - mx) + "," + (c[1] - my)).sort().join("|"); })()});
 }
 
 unit1(1, "１０までの かず", "4月", "10までの　かずを　かぞえて　かこう", [
@@ -5414,9 +5450,16 @@ function cyl34(lv){
   const r = ri(2, 6), L = ri(4, 12), V = dmul(r * r * L, "2.355"), b = arcPts(r, 0, 1.5 * Math.PI, 27).concat([[0, 0]]), cv = b.map((_, i) => i < 27);
   return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {curved:cv, labels:[{a:[0, 0], b:[r, 0], t:cm(r), c:[0, r]}, depthLab(b, L, cm(L))], right:[[[0, 0, 0], [1, 0, 0], [0, -1, 0]]]}), V, "円柱の一部の体積", "c3" + r + L, true, false, `${r}×${r}×3.14×{3/4}×${L}＝${V}`);
 }
+function dimArrow(G, x1, x2, yl, label, fs){
+  const ah = 1, lo = Math.min(x1, x2), hi = Math.max(x1, x2);
+  G.line(lo, yl, hi, yl, {w:0.3});
+  G.poly([[lo + ah, yl - ah * 0.55], [lo, yl], [lo + ah, yl + ah * 0.55]], {close:false, w:0.3});
+  G.poly([[hi - ah, yl - ah * 0.55], [hi, yl], [hi - ah, yl + ah * 0.55]], {close:false, w:0.3});
+  G.text(label, (lo + hi) / 2, yl - 0.75 * fs, {size:fs * 0.75, align:"center"});
+}
 function drawHollowCyl(G, x, y, w, h, fs, Rr, r, hh){
-  const s = Math.min((w - 18) / (2 * Rr), (h - 14) / (hh + 2 * Rr * 0.4));
-  const rx = Rr * s, ry = rx * 0.33, ix = r * s, iy = ix * 0.33, cx = x + w / 2 - 3, top = y + 7 + ry, bot = top + hh * s;
+  const s = Math.min((w - 18) / (2 * Rr), (h - 22) / (hh + 2 * Rr * 0.4));
+  const rx = Rr * s, ry = rx * 0.33, ix = r * s, iy = ix * 0.33, cx = x + w / 2 - 3, top = y + 15 + ry, bot = top + hh * s;
   G.ellipse(cx, top, rx, ry, 0, 2 * Math.PI, {w:0.4});
   G.ellipse(cx, top, ix, iy, 0, 2 * Math.PI, {w:0.4});
   G.ellipse(cx, bot, rx, ry, 0, Math.PI, {w:0.4});
@@ -5425,8 +5468,12 @@ function drawHollowCyl(G, x, y, w, h, fs, Rr, r, hh){
   G.line(cx - rx, top, cx - rx, bot, {w:0.4}); G.line(cx + rx, top, cx + rx, bot, {w:0.4});
   G.line(cx - ix, top, cx - ix, bot, {w:0.3, dash:[1, 0.8]}); G.line(cx + ix, top, cx + ix, bot, {w:0.3, dash:[1, 0.8]});
   G.dot(cx, top, 0.35);
-  G.line(cx, top, cx - ix, top, {w:0.3}); G.text(cm(r), cx - rx * 0.5, top - ry - 1.4, {size:fs * 0.75, align:"center"});
-  G.line(cx, top, cx + rx, top, {w:0.3}); G.text(cm(Rr), cx + rx * 0.55, top - ry - 1.4, {size:fs * 0.75, align:"center"});
+  G.line(cx - ix, top, cx + rx, top, {w:0.3});
+  /* 寸法線：内側の半径（左）と外側の半径（右） */
+  const yl = top - ry - 3.2;
+  for(const xx of [cx - ix, cx, cx + rx]) G.line(xx, yl - 1, xx, top, {w:0.2, dash:[0.6, 0.6]});
+  dimArrow(G, cx - ix, cx, yl, cm(r), fs);
+  dimArrow(G, cx, cx + rx, yl, cm(Rr), fs);
   drawToks(G, parseMk(cm(hh)), cx + rx + 1.2, (top + bot) / 2, fs * 0.8, false);
 }
 function cylHollow(lv){
@@ -5476,7 +5523,8 @@ function drawTank(G, x, y, w, h, fs, W, H, D, d, labs){
   const pre = d ? (G2, T) => {
     G2.poly([T([0, 0, 0]), T([W, 0, 0]), T([W, d, 0]), T([0, d, 0])], {fill:WATER, stroke:false});
     G2.poly([T([0, d, 0]), T([W, d, 0]), T([W, d, D]), T([0, d, D])], {fill:WATER, stroke:false});
-    G2.line(...T([0, d, 0]), ...T([W, d, 0]), {w:0.3}); G2.line(...T([W, d, 0]), ...T([W, d, D]), {w:0.3});
+    G2.poly([T([W, 0, 0]), T([W, 0, D]), T([W, d, D]), T([W, d, 0])], {fill:WATER, stroke:false});
+    G2.line(...T([0, d, 0]), ...T([W, d, 0]), {w:0.3}); G2.line(...T([W, d, 0]), ...T([W, d, D]), {w:0.3}); G2.line(...T([W, d, D]), ...T([0, d, D]), {w:0.25, dash:[1, 0.8]});
   } : null;
   const L_ = [{a:b[0], b:b[1], t:cm(W)}, {a:b[3], b:b[0], t:cm(H)}, {a:[W, H, 0], b:[W, H, D], t:cm(D), depth:true}];
   if(d) L_.push({a:[W, 0], b:[W, d], t:cm(d)});

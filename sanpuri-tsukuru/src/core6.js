@@ -395,13 +395,14 @@ function genCircleArea(lv){
     else if(kind === "half"){ const yy = cy + R_ / 2; G.arc(cx, yy, R_, Math.PI, 2 * Math.PI, {w:0.4}); G.line(cx - R_, yy, cx + R_, yy, {w:0.4}); G.dot(cx, yy, 0.35); G.text(cm(r), cx + R_ / 2, yy + 0.9 * fs, {size:fs * 0.85, align:"center"}); }
     else { const R2 = R_ * 1.5, ox = cx - R2 / 2, oy = cy + R2 / 2; G.arc(ox, oy, R2, -Math.PI / 2, 0, {w:0.4}); G.line(ox, oy, ox + R2, oy, {w:0.4}); G.line(ox, oy, ox, oy - R2, {w:0.4}); G.text(cm(r), ox + R2 / 2, oy + 0.9 * fs, {size:fs * 0.85, align:"center"}); }
   };
-  return figItem(FIGW - 8, FIGH, draw, "((" + A + "cm^2))", {inst:"つぎの図形の面積を求めましょう。円周率は3.14とします。", lead:"円の面積", sig:kind + r + lv});
+  const shA = kind === "full" ? (lv === 0 ? `${r}×${r}×3.14＝${A}` : [`半径　${2 * r}÷2＝${r}`, `${r}×${r}×3.14＝${A}`]) : kind === "half" ? `${r}×${r}×3.14÷2＝${A}` : `${r}×${r}×3.14÷4＝${A}`;
+  return figItem(FIGW - 8, FIGH, draw, "((" + A + "cm^2))", {inst:"つぎの図形の面積を求めましょう。円周率は3.14とします。", lead:"円の面積", sig:kind + r + lv, shiki:shA});
 }
 function genCircleMix(lv){
   const s = ri(2, 10) * (lv === 0 ? 1 : 2);
-  let A, draw;
+  let A, draw, shM;
   if(lv === 0){
-    const r1 = ri(4, 10), r2 = ri(2, r1 - 1); A = dmul(r1 * r1 - r2 * r2, "3.14");
+    const r1 = ri(4, 10), r2 = ri(2, r1 - 1); A = dmul(r1 * r1 - r2 * r2, "3.14"); shM = [`${r1}×${r1}×3.14－${r2}×${r2}×3.14`, `＝${A}`];
     draw = (G, x, y, w, h, fs) => {
       const R_ = Math.min(w, h) / 2 - 4, cx = x + w / 2, cy = y + h / 2, rr = R_ * r2 / r1, ctx = G.ctx, k = G.k;
       ctx.beginPath(); ctx.arc(cx * k, cy * k, R_ * k, 0, 2 * Math.PI); ctx.arc(cx * k, cy * k, rr * k, 0, 2 * Math.PI, true); ctx.fillStyle = "#dddddd"; ctx.fill();
@@ -410,7 +411,7 @@ function genCircleMix(lv){
       G.line(cx, cy, cx - rr, cy, {w:0.3}); G.text(cm(r2), cx - rr / 2, cy + 0.8 * fs, {size:fs * 0.75, align:"center"});
     };
   } else if(lv === 1){
-    A = ds(s * s * 100 - s * s * 78.5, 2);
+    A = ds(s * s * 100 - s * s * 78.5, 2); shM = [`${s}×${s}－${s}×${s}×3.14÷4`, `＝${A}`];
     draw = (G, x, y, w, h, fs) => {
       const L_ = Math.min(w, h) - 8, ox = x + (w - L_) / 2, oy = y + 4, ctx = G.ctx, k = G.k;
       ctx.beginPath(); ctx.rect(ox * k, oy * k, L_ * k, L_ * k); ctx.moveTo(ox * k, (oy + L_) * k); ctx.arc(ox * k, (oy + L_) * k, L_ * k, -Math.PI / 2, 0, false); ctx.closePath(); ctx.fillStyle = "#dddddd"; ctx.fill("evenodd");
@@ -418,7 +419,7 @@ function genCircleMix(lv){
       G.text(cm(s), ox + L_ / 2, oy + L_ + 0.9 * fs, {size:fs * 0.8, align:"center"});
     };
   } else {
-    A = ds(s * s * 57, 2);
+    A = ds(s * s * 57, 2); shM = [`（${s}×${s}×3.14÷4－${s}×${s}÷2）×2`, `＝${A}`];
     draw = (G, x, y, w, h, fs) => {
       const L_ = Math.min(w, h) - 8, ox = x + (w - L_) / 2, oy = y + 4, ctx = G.ctx, k = G.k;
       ctx.beginPath(); ctx.moveTo(ox * k, oy * k); ctx.arc(ox * k, (oy + L_) * k, L_ * k, -Math.PI / 2, 0, false); ctx.arc((ox + L_) * k, oy * k, L_ * k, Math.PI / 2, Math.PI, false); ctx.closePath(); ctx.fillStyle = "#dddddd"; ctx.fill();
@@ -426,7 +427,7 @@ function genCircleMix(lv){
       G.text(cm(s), ox + L_ / 2, oy + L_ + 0.9 * fs, {size:fs * 0.8, align:"center"});
     };
   }
-  return figItem(FIGW - 6, FIGH + 6, draw, "((" + A + "cm^2))", {inst:"色をぬった部分の面積を求めましょう。円周率は3.14とします。", lead:"いろいろな面積", sig:"m" + lv + s + A});
+  return figItem(FIGW - 6, FIGH + 6, draw, "((" + A + "cm^2))", {inst:"色をぬった部分の面積を求めましょう。円周率は3.14とします。", lead:"いろいろな面積", sig:"m" + lv + s + A, shiki:shM});
 }
 unit6(9, "円の面積", "9月", "円の面積の公式を使って求めよう", [
   {id:"a", name:"円の面積", gen(lv){ return genCircleArea(lv); }},

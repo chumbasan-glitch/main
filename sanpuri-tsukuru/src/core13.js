@@ -122,9 +122,16 @@ function cyl34(lv){
   const r = ri(2, 6), L = ri(4, 12), V = dmul(r * r * L, "2.355"), b = arcPts(r, 0, 1.5 * Math.PI, 27).concat([[0, 0]]), cv = b.map((_, i) => i < 27);
   return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {curved:cv, labels:[{a:[0, 0], b:[r, 0], t:cm(r), c:[0, r]}, depthLab(b, L, cm(L))], right:[[[0, 0, 0], [1, 0, 0], [0, -1, 0]]]}), V, "円柱の一部の体積", "c3" + r + L, true, false, `${r}×${r}×3.14×{3/4}×${L}＝${V}`);
 }
+function dimArrow(G, x1, x2, yl, label, fs){
+  const ah = 1, lo = Math.min(x1, x2), hi = Math.max(x1, x2);
+  G.line(lo, yl, hi, yl, {w:0.3});
+  G.poly([[lo + ah, yl - ah * 0.55], [lo, yl], [lo + ah, yl + ah * 0.55]], {close:false, w:0.3});
+  G.poly([[hi - ah, yl - ah * 0.55], [hi, yl], [hi - ah, yl + ah * 0.55]], {close:false, w:0.3});
+  G.text(label, (lo + hi) / 2, yl - 0.75 * fs, {size:fs * 0.75, align:"center"});
+}
 function drawHollowCyl(G, x, y, w, h, fs, Rr, r, hh){
-  const s = Math.min((w - 18) / (2 * Rr), (h - 14) / (hh + 2 * Rr * 0.4));
-  const rx = Rr * s, ry = rx * 0.33, ix = r * s, iy = ix * 0.33, cx = x + w / 2 - 3, top = y + 7 + ry, bot = top + hh * s;
+  const s = Math.min((w - 18) / (2 * Rr), (h - 22) / (hh + 2 * Rr * 0.4));
+  const rx = Rr * s, ry = rx * 0.33, ix = r * s, iy = ix * 0.33, cx = x + w / 2 - 3, top = y + 15 + ry, bot = top + hh * s;
   G.ellipse(cx, top, rx, ry, 0, 2 * Math.PI, {w:0.4});
   G.ellipse(cx, top, ix, iy, 0, 2 * Math.PI, {w:0.4});
   G.ellipse(cx, bot, rx, ry, 0, Math.PI, {w:0.4});
@@ -133,8 +140,12 @@ function drawHollowCyl(G, x, y, w, h, fs, Rr, r, hh){
   G.line(cx - rx, top, cx - rx, bot, {w:0.4}); G.line(cx + rx, top, cx + rx, bot, {w:0.4});
   G.line(cx - ix, top, cx - ix, bot, {w:0.3, dash:[1, 0.8]}); G.line(cx + ix, top, cx + ix, bot, {w:0.3, dash:[1, 0.8]});
   G.dot(cx, top, 0.35);
-  G.line(cx, top, cx - ix, top, {w:0.3}); G.text(cm(r), cx - rx * 0.5, top - ry - 1.4, {size:fs * 0.75, align:"center"});
-  G.line(cx, top, cx + rx, top, {w:0.3}); G.text(cm(Rr), cx + rx * 0.55, top - ry - 1.4, {size:fs * 0.75, align:"center"});
+  G.line(cx - ix, top, cx + rx, top, {w:0.3});
+  /* 寸法線：内側の半径（左）と外側の半径（右） */
+  const yl = top - ry - 3.2;
+  for(const xx of [cx - ix, cx, cx + rx]) G.line(xx, yl - 1, xx, top, {w:0.2, dash:[0.6, 0.6]});
+  dimArrow(G, cx - ix, cx, yl, cm(r), fs);
+  dimArrow(G, cx, cx + rx, yl, cm(Rr), fs);
   drawToks(G, parseMk(cm(hh)), cx + rx + 1.2, (top + bot) / 2, fs * 0.8, false);
 }
 function cylHollow(lv){
@@ -184,7 +195,8 @@ function drawTank(G, x, y, w, h, fs, W, H, D, d, labs){
   const pre = d ? (G2, T) => {
     G2.poly([T([0, 0, 0]), T([W, 0, 0]), T([W, d, 0]), T([0, d, 0])], {fill:WATER, stroke:false});
     G2.poly([T([0, d, 0]), T([W, d, 0]), T([W, d, D]), T([0, d, D])], {fill:WATER, stroke:false});
-    G2.line(...T([0, d, 0]), ...T([W, d, 0]), {w:0.3}); G2.line(...T([W, d, 0]), ...T([W, d, D]), {w:0.3});
+    G2.poly([T([W, 0, 0]), T([W, 0, D]), T([W, d, D]), T([W, d, 0])], {fill:WATER, stroke:false});
+    G2.line(...T([0, d, 0]), ...T([W, d, 0]), {w:0.3}); G2.line(...T([W, d, 0]), ...T([W, d, D]), {w:0.3}); G2.line(...T([W, d, D]), ...T([0, d, D]), {w:0.25, dash:[1, 0.8]});
   } : null;
   const L_ = [{a:b[0], b:b[1], t:cm(W)}, {a:b[3], b:b[0], t:cm(H)}, {a:[W, H, 0], b:[W, H, D], t:cm(D), depth:true}];
   if(d) L_.push({a:[W, 0], b:[W, d], t:cm(d)});

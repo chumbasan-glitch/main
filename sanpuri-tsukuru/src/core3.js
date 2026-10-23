@@ -91,7 +91,11 @@ function genTriAngle(lv){
     }
     if(lv === 2) angleMark(G, c, a, c2, ext + "°", fs);
   };
-  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度"});
+  let shk;
+  if(lv === 0){ const kn = [0, 1, 2].filter(i => i !== unknown).map(i => ang[i]); shk = `180－（${kn[0]}＋${kn[1]}）＝${ansV}`; }
+  else if(lv === 1) shk = unknown === 0 ? `180－${be}×2＝${ansV}` : `（180－${al}）÷2＝${ansV}`;
+  else shk = `${ext}－${be}＝${ansV}`;
+  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度", shiki:shk});
 }
 
 /* 四角形の角 */
@@ -130,7 +134,9 @@ function genQuadAngle(lv){
       else angleMark(G, P[i], ...nb, rd[i] + "°", fs);
     }
   };
-  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度"});
+  const kn = [0, 1, 2, 3].filter(i => i !== unknown).map(i => (lv === 1 && i === 0) ? 90 : rd[i]);
+  const shq = `360－（${kn.join("＋")}）＝${ansV}`;
+  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度", shiki:extAt >= 0 ? [`180－${ext}＝${rd[extAt]}`, shq] : shq});
 }
 
 /* 合同な三角形 */
@@ -195,7 +201,7 @@ function genCongruent(lv, kind){
 
 /* 面積の図 */
 function genArea(kind, lv){
-  let pts, S, dims = [], hLine = null, ext = null, diag = null, extraSide = null;
+  let pts, S, shA, dims = [], hLine = null, ext = null, diag = null, extraSide = null;
   const dec = lv === 1 && kind !== "rhombus" ? R() < 0.5 : false;
   const v = (lo, hi) => dec ? rdec(lo * 10, hi * 10, 1) : String(ri(lo, hi));
   if(kind === "para"){
@@ -203,7 +209,7 @@ function genArea(kind, lv){
     let s = lv === 2 ? bn + ri(1, 3) : ri(1, Math.max(1, Math.floor(bn / 2)));
     if(lv === 1 && !dec){ const tr = pick([[3, 4, 5], [6, 8, 10], [5, 12, 13]]); s = tr[0] > bn - 1 ? 2 : tr[0]; }
     pts = [[s, 0], [s + bn, 0], [bn, hn], [0, hn]];
-    S = dmul(b, h);
+    S = dmul(b, h); shA = `${b}×${h}＝${S}`;
     dims = [[3, 2, cm(b)]]; hLine = [[s, 0], [s, hn], cm(h)];
     if(lv === 2) ext = [[bn, hn], [s, hn]];
     if(lv === 1 && !dec){ const sl = Math.round(Math.hypot(s, hn) * 10) / 10; extraSide = [[0, 3], ds(Math.round(sl * 10), 1)]; }
@@ -211,21 +217,21 @@ function genArea(kind, lv){
     const b = v(4, 10), h = v(3, 8), bn = +b, hn = +h;
     const s = lv === 2 ? bn + ri(1, 3) : ri(1, Math.max(1, Math.floor(bn) - 1));
     pts = [[s, 0], [bn, hn], [0, hn]];
-    S = ds(dparse(dmul(b, h))[0] * 5, dparse(dmul(b, h))[1] + 1);
+    S = ds(dparse(dmul(b, h))[0] * 5, dparse(dmul(b, h))[1] + 1); shA = `${b}×${h}÷2＝${S}`;
     dims = [[1, 2, cm(b)]]; hLine = [[s, 0], [s, hn], cm(h)];
     if(lv === 2) ext = [[bn, hn], [s, hn]];
   } else if(kind === "trap"){
     const a = v(2, 6), b = v(+a + 2, 11), h = v(3, 6), an = +a, bn = +b, hn = +h;
     const s = lv === 2 ? 0 : ri(0, Math.max(0, Math.floor(bn - an)));
     pts = [[s, 0], [s + an, 0], [bn, hn], [0, hn]];
-    const pr = dparse(dmul(dadd(a, b), h)); S = ds(pr[0] * 5, pr[1] + 1);
+    const pr = dparse(dmul(dadd(a, b), h)); S = ds(pr[0] * 5, pr[1] + 1); shA = `（${a}＋${b}）×${h}÷2＝${S}`;
     dims = [[0, 1, cm(a)], [3, 2, cm(b)]];
     hLine = s === 0 ? [[0, 0], [0, hn], cm(h), true] : [[s, 0], [s, hn], cm(h)];
   } else {
     const p = String(ri(4, 10)), q = String(ri(3, 8)), pn = +p, qn = +q;
     const cx = lv === 2 ? pn * (0.25 + R() * 0.15) : pn / 2;
     pts = lv === 2 ? [[0, qn / 2], [cx, 0], [pn, qn / 2], [cx, qn]] : [[0, qn / 2], [pn / 2, 0], [pn, qn / 2], [pn / 2, qn]];
-    S = ds(pn * qn * 5, 1);
+    S = ds(pn * qn * 5, 1); shA = `${p}×${q}÷2＝${S}`;
     diag = [[[0, qn / 2], [pn, qn / 2], cm(p)], [[cx, 0], [cx, qn], cm(q)]];
   }
   const draw = (G, x, y, w, h, fs, ans) => {
@@ -260,7 +266,7 @@ function genArea(kind, lv){
     }
   };
   const name = {para:"平行四辺形", tri:"三角形", trap:"台形", rhombus:lv === 2 ? "四角形" : "ひし形"}[kind];
-  return figItem(FIGW + 4, FIGH, draw, "((" + S + "cm^2))", {inst:"つぎの図形の面積を求めましょう。", lead:name + "の面積"});
+  return figItem(FIGW + 4, FIGH, draw, "((" + S + "cm^2))", {inst:"つぎの図形の面積を求めましょう。", lead:name + "の面積", shiki:shA});
 }
 
 /* 円周 */
@@ -279,8 +285,9 @@ function genCircle(lv){
   };
   const c = dmul(String(d), "3.14");
   const ansV = lv === 2 ? ds(d * 157 + d * 100, 2) : c;
+  const shC = lv === 0 ? `${d}×3.14＝${c}` : lv === 1 ? `${d / 2}×2×3.14＝${c}` : `${d}×3.14÷2＋${d}＝${ansV}`;
   return figItem(FIGW - 8, FIGH, draw, (lv === 2 ? "まわりの長さ" : "円周") + "((" + cm(ansV) + "))",
-    {inst:lv === 2 ? "つぎの図形のまわりの長さを求めましょう。円周率は3.14とします。" : "つぎの円の円周の長さを求めましょう。円周率は3.14とします。", lead:lv === 2 ? "半円のまわりの長さ" : "円周"});
+    {inst:lv === 2 ? "つぎの図形のまわりの長さを求めましょう。円周率は3.14とします。" : "つぎの円の円周の長さを求めましょう。円周率は3.14とします。", lead:lv === 2 ? "半円のまわりの長さ" : "円周", shiki:shC});
 }
 
 /* 直方体・立方体・L字の立体 */
@@ -316,7 +323,8 @@ function genBox(lv, lshape){
   };
   const Vs = typeof V === "number" ? String(V) : V;
   const lead = lshape ? "いろいろな形の体積" : "体積";
-  return figItem(FIGW + 4, FIGH + 2, draw, "((" + Vs + unitS + "^3))", {inst:"つぎの立体の体積を求めましょう。", lead});
+  const shV = lshape ? [`${w2}×${H}×${D}＋${W - w2}×${h1}×${D}`, `＝${Vs}`] : `${W}×${D}×${H}＝${Vs}`;
+  return figItem(FIGW + 4, FIGH + 2, draw, "((" + Vs + unitS + "^3))", {inst:"つぎの立体の体積を求めましょう。", lead, shiki:shV});
 }
 
 /* 円グラフ・帯グラフ */
@@ -574,5 +582,6 @@ function genNetRead(lv){
     drawToks(G, parseMk(cm(h)), t[0] + 1, (t[1] + b[1]) / 2, fs * 0.8, false);
   };
   const q = lv === 2 ? `イ((${cm(d)}))` : `ア((${cm(W)}))`;
-  return figItem(FIGW + 6, FIGH + 18, draw, q, {sig:lv + ":" + d + ":" + h, inst:lv === 2 ? "下の円柱の【展|てん】開図で，イの長さを求めましょう。円周率は3.14とします。" : "下の円柱の【展|てん】開図で，アの長さを求めましょう。円周率は3.14とします。", lead:"【展|てん】開図の長さ"});
+  const shN = lv === 2 ? `${W}÷3.14＝${d}` : lv === 1 ? `${d / 2}×2×3.14＝${W}` : `${d}×3.14＝${W}`;
+  return figItem(FIGW + 6, FIGH + 18, draw, q, {shiki:shN, sig:lv + ":" + d + ":" + h, inst:lv === 2 ? "下の円柱の【展|てん】開図で，イの長さを求めましょう。円周率は3.14とします。" : "下の円柱の【展|てん】開図で，アの長さを求めましょう。円周率は3.14とします。", lead:"【展|てん】開図の長さ"});
 }

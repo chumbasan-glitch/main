@@ -194,7 +194,7 @@ function genBalls(lv){
     G.text(cm(r), bx + 1.5 * R_, by + R_ - 1.5, {size:fs * 0.7, align:"center"});
   };
   const q = lv === 2 ? `たての長さ((${4 * r}cm))　横の長さ((${2 * r * n}cm))` : `箱の横の長さ((${2 * r * n}cm))`;
-  return figItem(62, lv === 2 ? 34 : 24, draw, q, {inst:`同じ大きさの球が，箱にぴったり入っています。球の半${KEI}は図のとおりです。`, lead:"円と球", sig:"b" + r + n + rows});
+  return figItem(62, lv === 2 ? 34 : 24, draw, q, {calc:true, shiki:lv === 2 ? [`たて　${r}×2×2＝${4 * r}`, `横　${r}×2×${n}＝${2 * r * n}`] : `${r}×2×${n}＝${2 * r * n}`, inst:`同じ大きさの球が，箱にぴったり入っています。球の半${KEI}は図のとおりです。`, lead:"円と球", sig:"b" + r + n + rows});
 }
 unit3(7, "円と球", "9月", "円や球のとくちょうを見つけて，コンパスでかこう", [
   {id:"a", name:`半${KEI}と直${KEI}`.replace(/【(.)\|[^】]*】/g, "$1"), gen(lv){

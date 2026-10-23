@@ -61,6 +61,10 @@ function wordItem(text, shiki, answer, o){
 /* 図＋ひとつの問い */
 function figItem(fw, fh, drawFig, qmk, o){
   o = o || {};
+  const hasPar = /\(\(/.test(qmk);
+  const calc = o.calc !== undefined ? o.calc : hasPar && /求め|計算/.test(o.inst || "");
+  if(calc) return calcFigItem(fw, fh, drawFig, qmk, o);
+  if(/^\(\(/.test(qmk)) qmk = (knows("答") ? "答え" : "こたえ") + qmk;
   const q = parseMk(qmk);
   return Object.assign({cat:"fig", n:1,
     minW(G, fs){ return Math.max(fw, lineMetrics(G, q, fs).w) + 0.3 * fs; },
@@ -70,6 +74,28 @@ function figItem(fw, fh, drawFig, qmk, o){
       drawFig(G, x, y, fw, fh, fs, ans);
       const m = lineMetrics(G, q, fs);
       drawToks(G, q, x, y + fh + 0.5 * fs + m.up, fs, ans);
+    }
+  }, o);
+}
+/* 計算して求める図の問題：図・「式」を書く場所・「答え（　　）」 */
+function calcFigItem(fw, fh, drawFig, qmk, o){
+  const ansLab = knows("答") ? "答え" : "こたえ", shLab = knows("式") ? "式" : "しき";
+  const q = parseMk(ansLab + "　" + qmk.replace(/^\s+/, ""));
+  const sh = o.shiki ? (Array.isArray(o.shiki) ? o.shiki : [o.shiki]).map(parseMk) : [];
+  const nl = Math.max(2, sh.length);
+  const widen = fs => { for(const t of q) if(t.t === "par" && t.minw !== 9 * fs){ t.minw = 9 * fs; t.m = null; } };
+  return Object.assign({cat:"fig", n:1,
+    minW(G, fs){ widen(fs); return Math.max(fw, lineMetrics(G, q, fs).w) + 0.3 * fs; },
+    height(G, W, fs){ widen(fs); const m = lineMetrics(G, q, fs); return fh + 0.6 * fs + nl * 1.45 * fs + 0.6 * fs + m.up + m.dn; },
+    firstUp(G, W, fs){ return 0.62 * fs; },
+    draw(G, x, y, W, fs, ans){
+      widen(fs);
+      drawFig(G, x, y, fw, fh, fs, ans);
+      const yy = y + fh + 0.6 * fs + 0.7 * fs;
+      G.text(shLab, x, yy, {size:fs});
+      if(ans) sh.forEach((t, i) => drawToks(G, t, x + 2.2 * fs, yy + i * 1.45 * fs, fs * 0.92, true, RED));
+      const m = lineMetrics(G, q, fs), ay = y + fh + 0.6 * fs + nl * 1.45 * fs + 0.6 * fs + m.up;
+      drawToks(G, q, x + Math.max(0, W - m.w - 0.6 * fs), ay, fs, ans);
     }
   }, o);
 }
