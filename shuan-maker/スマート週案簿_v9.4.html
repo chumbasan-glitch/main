@@ -347,7 +347,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v9.3";
+const VERSION = "v9.4";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -974,13 +974,16 @@ ${esc(val)}</textarea>${manual && inf.auto ? '<button class="rv" title="単元�
   </div>`;
 }
 const BREAKS = [[2, "naka", "中"], [4, "hiru", "昼"]];
+function nextWeekOf(weeks) {
+  const t = mondayOf(today()); const i = weeks.indexOf(t);
+  if (i >= 0) return weeks[Math.min(i + 1, weeks.length - 1)];
+  return t < weeks[0] ? weeks[0] : weeks[weeks.length - 1];
+}
 function renderWeek() {
   const el = $("#tab-week");
   const weeks = weeksOfYear();
-  if (!curWeek || !weeks.includes(curWeek)) {
-    const t = mondayOf(today());
-    curWeek = weeks.includes(t) ? t : weeks[0];
-  }
+  // 開いたときは「次の週」（週案は次の週の分を作ることが多いため）。年度の最後の週なら今週
+  if (!curWeek || !weeks.includes(curWeek)) curWeek = nextWeekOf(weeks);
   const mon = curWeek; const wr = weekRec(mon); const days = weekDays(mon);
   let wopts = weeks.map(m => `<option value="${m}"${m === mon ? " selected" : ""}>${weekEdited(m) ? "● " : "　"}${esc(weekTitle(m))}</option>`).join("");
   let h = `<div class="weekbar">
@@ -988,6 +991,7 @@ function renderWeek() {
     <select id="wSel">${wopts}</select>
     <button class="btn" id="wNext">次の週 ▶</button>
     <button class="btn" id="wToday">今週</button>
+    <button class="btn" id="wNextWk">来週</button>
     <span class="sp" style="flex:1"></span>
     <label class="row" style="gap:4px"><input type="checkbox" id="wSat"${wr.sat ? " checked" : ""}> 土曜授業がある</label>
     <button class="btn" id="wPrint">🖨 印刷（B5縦）</button>
@@ -1113,6 +1117,7 @@ function bindWeek(el, mon) {
   $("#wSel").onchange = e => { curWeek = e.target.value; render(); };
   $("#wPrev").onclick = () => { const i = weeks.indexOf(mon); if (i > 0) { curWeek = weeks[i - 1]; render(); } };
   $("#wNext").onclick = () => { const i = weeks.indexOf(mon); if (i < weeks.length - 1) { curWeek = weeks[i + 1]; render(); } };
+  $("#wNextWk").onclick = () => { const t = addDays(mondayOf(today()), 7); if (weeks.includes(t)) { curWeek = t; render(); } else toast("来週はこの年度にありません"); };
   $("#wToday").onclick = () => { const t = mondayOf(today()); if (weeks.includes(t)) { curWeek = t; render(); } else toast("今週はこの年度にありません"); };
   $("#wSat").onchange = e => { ensureWeek(mon).sat = e.target.checked; changed(); };
   $("#wPrint").onclick = doPrint;
