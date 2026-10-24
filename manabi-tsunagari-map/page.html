@@ -333,7 +333,7 @@ table.tksteps th.faded small::after{content:"（この学年ではまだ扱わ�
       <div class="text" id="subjGoal" style="margin-top:10px"></div>
     </details>
     <details class="card" style="margin-top:10px">
-      <summary>指導計画の作成と内容の取扱い（学習指導要領の文言）</summary>
+      <summary id="planSum">指導計画の作成と内容の取扱い（学習指導要領の文言）</summary>
       <div class="text" id="subjPlan" style="margin-top:10px"></div>
     </details>
   </section>
@@ -441,6 +441,7 @@ const ITEMS = CONTENT.items;
 const BYID = Object.fromEntries(ITEMS.map(it => [it.id, it]));
 /* 品川区版：教科書の単元（CONTENT.edition があるときだけ） */
 const ED = CONTENT.edition || null;
+const DOC = s => s.doc || "学習指導要領", SRC = s => s.doc ? s.section : "小学校学習指導要領（平成29年告示）" + s.section;
 const bookShort = b => b.replace(/年([上下])$/, "$1");
 const unitTxt = x => x.u + "（" + bookShort(x.b) + "）";
 function unitList(it, max){
@@ -453,6 +454,7 @@ function unitSec(it){
   const s = SUBJ[it.subject];
   if(!it.units){
     const why = s.id === "zuko" ? "図画工作（日本文教出版）の題材は、資料がそろいしだい入れます。"
+      : s.id === "shiminka" ? "市民科は品川区立学校教育要領に基づく教科で、各校が単元を構成します（検定教科書はありません）。"
       : ["sougou","tokkatsu","gaikokugokatsudo"].includes(s.id) ? "この教科等には検定教科書がないため、単元は入れていません。"
       : "この内容に当たる単元は、教科書会社の年間指導計画では示されていません（ほかの内容とあわせて扱われることがあります）。";
     return '<div class="sec"><h3>教科書の単元（品川区の教科書）</h3><p class="note">' + why + '</p></div>';
@@ -607,7 +609,7 @@ function renderTable(){
   $("subjSel").innerHTML = SUBJECTS.map(x => '<option value="' + x.id + '"' + (x.id === curSubj ? " selected" : "") + '>' + esc(x.name) + '</option>').join("");
   $("tableTitle").textContent = s.name + "の系統表";
   $("tableLead").textContent = mode === "area"
-    ? "学習指導要領の「内容」の区分で並べています。見出しはClaudeが指導要領の文言をもとに短くまとめたものです（理科・家庭・体育・道徳・特別活動などは指導要領の名称や文言そのままです）。タップすると、原文と前後の学年のつながりが見られます。"
+    ? (s.doc ? "品川区立学校教育要領「第2 内容」の5つの領域・15の能力で並べています（5・6年は教育要領の「第5学年，第6学年及び第7学年」の内容）。見出しは能力名と、内容の最初の項目です。タップすると原文が見られます。" : "学習指導要領の「内容」の区分で並べています。見出しはClaudeが指導要領の文言をもとに短くまとめたものです（理科・家庭・体育・道徳・特別活動などは指導要領の名称や文言そのままです）。タップすると、原文と前後の学年のつながりが見られます。")
     : "同じテーマの学びを横1列にそろえました。左から右へ、どのように学びが積みあがるかを追えます（テーマの分け方はClaudeによるものです）。下の「教科横断」の行は、解説 総則編 付録6で、この教科のその内容が挙げられているものです。";
   if(ED) $("tableLead").textContent += (s.textbook ? "　品川区版：教科書（" + s.textbook + "）の単元を小さく添えています。" : "　品川区版：この教科等は検定教科書がないか、単元の資料がまだないため、単元は入っていません。");
   $("modeArea").setAttribute("aria-pressed", mode === "area");
@@ -632,11 +634,12 @@ function renderTable(){
   }
   $("sysTable").innerHTML = h + '</tbody>';
   bindItems($("sysTable"));
-  $("goalSum").textContent = s.name + "の目標（学習指導要領の文言）";
-  $("subjGoal").innerHTML = textLines(s.goal, l => /^[⑴⑵⑶]/.test(l) ? 'l2' : '') + '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + ' 第１ 目標</p>';
+  $("goalSum").textContent = s.name + "の目標（" + DOC(s) + "の文言）";
+  $("subjGoal").innerHTML = textLines(s.goal, l => /^[⑴⑵⑶]/.test(l) ? 'l2' : '') + '<p class="src">出典：' + esc(SRC(s)) + ' 第１ 目標</p>';
   /* はじめは、その教科を学ぶ最初の学年が見えるようにする */
   requestAnimationFrame(() => scrollToGrade(Math.min(...s.spans.flat())));
-  $("subjPlan").innerHTML = textLines(s.plan, l => /^[１２３４]　/.test(l) ? 'l1' : 'l2') + '<p class="src">出典：同 ' + esc(s.section) + ' 第３ 指導計画の作成と内容の取扱い</p>';
+  $("planSum").textContent = "指導計画の作成と内容の取扱い（" + DOC(s) + "の文言）";
+  $("subjPlan").innerHTML = textLines(s.plan, l => /^[１２３４]　/.test(l) ? 'l1' : 'l2') + '<p class="src">出典：' + (s.doc ? esc(s.section) : '同 ' + esc(s.section)) + ' 第３ 指導計画の作成と内容の取扱い</p>';
 }
 function scrollToGrade(g){
   const sc = $("sysTable").parentElement, th = $("col-" + g);
@@ -836,11 +839,11 @@ function openItem(id){
   const citeL = new Set(xids.flatMap(t => it.cross[t].lines || [])), citeN = new Set(xids.flatMap(t => it.cross[t].notes || []));
   const citeCls = (set) => (l, k) => (set.has(k) ? 'cite ' : '') + (set === citeL && tkL.has(k) ? 'tk ' : '') + lineCls(l);
   const bandLbl = it.g.length > 1 ? '〔第' + KANJI_G[g0] + '学年及び第' + KANJI_G[gEnd] + '学年〕' : '〔第' + KANJI_G[g0] + '学年〕';
-  h += '<div class="sec"><h3>学習指導要領の文言</h3><div class="text">' + (it.name ? '<p class="l1">' + show(it.name) + '</p>' : '') +
+  h += '<div class="sec"><h3>' + DOC(s) + 'の文言</h3><div class="text">' + (it.name ? '<p class="l1">' + show(it.name) + '</p>' : '') +
     (it.title ? '<p class="l2">' + (it.mark ? it.mark + '　' : '') + show(it.title) + '</p>' : '') +
     it.lines.map((l, k) => '<p class="' + citeCls(citeL)(l, k) + '">' + show(l) + '</p>').join("") +
     (citeL.size || tkL.size ? '<p class="citenote">' + (citeL.size ? '<i></i>付録6（教科横断）に抜き出されている部分' : '') + (tkL.size ? '<b></b>探究とのつながりの根拠' : '') + '</p>' : '') +
-    '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + ' ' + (["sougou","tokkatsu"].includes(it.subject) ? '' : bandLbl) + ' ' + esc(it.areaName || '') + '</p></div></div>';
+    '<p class="src">出典：' + esc(SRC(s)) + ' ' + (["sougou","tokkatsu"].includes(it.subject) ? '' : bandLbl) + ' ' + esc(it.areaName || '') + '</p></div></div>';
   for(const e of it.extra || []) h += '<div class="sec"><h3>' + esc(e.label) + '</h3><div class="text">' + textLines(e.lines, lineCls) + '</div></div>';
   if(it.notes && it.notes.length){
     h += '<div class="sec"><h3>内容の取扱い（この内容に関係するもの）</h3><div class="text">' + it.notes.map((l, k) => '<p class="' + citeCls(citeN)(l, k) + '">' + show(l) + '</p>').join("") + (citeN.size ? '<p class="citenote"><i></i>付録6（教科横断）に抜き出されている部分</p>' : '') + '</div></div>';
@@ -960,7 +963,7 @@ function buildA4(){
     }
     h += '</tr>';
   }
-  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + '。目標は原文。見出し・テーマは「学びのつながりマップ」が原文をもとにまとめたもの。</span><span>学びのつながりマップ　第1版　2026年10月24日更新</span></div>';
+  h += '</tbody></table><div class="a4foot"><span>出典：' + esc(SRC(s)) + '。目標は原文。見出し・テーマは「学びのつながりマップ」が原文をもとにまとめたもの。</span><span>学びのつながりマップ　第1版　2026年10月24日更新</span></div>';
   const box = $("a4"); box.innerHTML = h;
   /* 1枚に収まるまで文字を小さくする */
   const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 16;

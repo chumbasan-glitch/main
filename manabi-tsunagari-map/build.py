@@ -296,6 +296,11 @@ for fn in ('units_pub', 'units_manual'):
 for s in sc['subjects']:
     if s['id'] in BOOKS: s['textbook'] = BOOKS[s['id']]
     if s['id'] in SHIMIN: s['name'] += '（市民科）'
+SH = json.load(open(P('data', 'shiminka.json')))
+k = next(i for i, x in enumerate(sc['subjects']) if x['id'] == 'tokkatsu') + 1
+sc['subjects'].insert(k, SH['subject'])
+sc['items'] += SH['items']
+sc['themes'] += SH['themes']
 sc['edition'] = {'name': '品川区版', 'sources': srcs,
                  'note': '品川区立学校が令和6〜9年度に使う教科書（品川区教育委員会の採択）の単元を添えています。'}
 st = open(P('template.html')).read()
