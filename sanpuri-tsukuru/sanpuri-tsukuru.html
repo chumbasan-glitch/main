@@ -125,7 +125,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <header class="top">
     <h1>算プリツクール</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 4.6</span>
+    <span class="ver">ver. 4.7</span>
   </header>
 
   <div class="layout">
@@ -4396,8 +4396,12 @@ const scene = list => {
   const keys = list.map(f => f.toString()), us = keys.map(k => SCENE_USE.get(k) || 0), m = Math.min(...us);
   const i = pick(list.map((f, j) => j).filter(j => us[j] === m));
   SCENE_USE.set(keys[i], m + 1);
-  return list[i]();
+  /* どの種類（場面）の問題かを記録しておき，同じ種類が続かないようにならべるときに使う */
+  const it = list[i]();
+  if(it && typeof it === "object" && !it.__type) it.__type = "s" + hashStr(keys[i]);
+  return it;
 };
+function hashStr(s){ let h = 0; for(let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
 
 /* ---------- 6年 ---------- */
 override("6-8.c", function(lv){
@@ -5816,7 +5820,9 @@ const sceneN = (name, fns, lv) => {
   const keys = fns.map((_, i) => name + "#" + i), us = keys.map(k => SCENE_USE.get(k) || 0), m = Math.min(...us);
   const i = pick(fns.map((f, j) => j).filter(j => us[j] === m));
   SCENE_USE.set(keys[i], m + 1);
-  return fns[i](lv);
+  const it = fns[i](lv);
+  if(it && typeof it === "object" && !it.__type) it.__type = keys[i];
+  return it;
 };
 /* もとの問題（base）と新しい種類（types）をまぜる。base は少し多めに出す */
 function vary(ref, types, pBase){
@@ -6784,8 +6790,8 @@ function buildItems(st){
         const sig = it.sig || (it.toks && it.cat !== "fig" ? mkText(it.toks) : it.subs ? it.subs.map(mkText).join("|") : null);
         if(sig && S.seen.has(sig)) continue;
         /* 同じ場面（数だけちがう問題）は，ほかの場面を使いきるまで出さない */
-        const sk = sceneKey(it);
-        if(sk){ const m = Math.min(...S.kseen.values()), c = S.kseen.get(sk) || 0; if(c > 0 && ((c > m && tries < 30) || tries < 15)) continue; }
+        const sk = (it.__type || it.cat === "word") ? sceneKey(it) : null;
+        if(sk){ const m = Math.min(...S.kseen.values()), c = S.kseen.get(sk) || 0; if(c > 0 && ((c > m && tries < 30) || tries < 15 || (it.__type && tries < 45))) continue; }
         if(it.n > left){ if(it.trim) it.trim(left); else continue; }
         if(sk) S.kseen.set(sk, (S.kseen.get(sk) || 0) + 1);
         if(sig) S.seen.add(sig);
@@ -6800,6 +6806,28 @@ function buildItems(st){
       let progress = 0;
       for(const s of pool){ if(short <= 0) break; const g = genFor(s, 1); short -= g; progress += g; }
       if(!progress) break;
+    }
+    /* 同じ指示の中で同じ種類の問題がとなりあうしかないときは，べつの問題に入れかえる（できなければへらす） */
+    {
+      const all = [...got.values()].flat(), byInst = new Map();
+      for(const it of all){ const gk = it.cat + "|" + it.inst; if(!byInst.has(gk)) byInst.set(gk, []); byInst.get(gk).push(it); }
+      for(const [gk, list] of byInst){
+        for(let guard = 0; guard < 20; guard++){
+          const cnt = new Map(); for(const it of list) if(it.__type) cnt.set(it.__type, (cnt.get(it.__type) || 0) + 1);
+          let worst = null; for(const [k, c] of cnt) if(c > list.length - c + 1 && (!worst || c > worst[1])) worst = [k, c];
+          if(!worst) break;
+          const victim = list.filter(it => it.__type === worst[0]).pop(), s = victim.sub, S = st_.get(s);
+          let rep = null;
+          for(let t = 0; t < 60 && !rep; t++){
+            const lv = st.level === "mix" ? ri(0, 2) : st.level; let it; try{ it = s.gen(lv); }catch(e){ break; }
+            if(!it || it.cat + "|" + it.inst !== gk || it.__type === worst[0] || it.n !== victim.n) continue;
+            const sig = it.sig || (it.toks && it.cat !== "fig" ? mkText(it.toks) : it.subs ? it.subs.map(mkText).join("|") : null);
+            if(sig && S.seen.has(sig)) continue; if(sig) S.seen.add(sig); it.unit = u; it.sub = s; rep = it;
+          }
+          const arr = got.get(s), ix = arr.indexOf(victim), lx = list.indexOf(victim);
+          if(rep){ arr[ix] = rep; list[lx] = rep; } else { arr.splice(ix, 1); list.splice(lx, 1); }
+        }
+      }
     }
     for(const s of u.subs) if(got.has(s)){
       const g = got.get(s);
@@ -6817,14 +6845,16 @@ function genericInst(cat){
 }
 /* 場面の見分け：数字をのぞいた問題文の書き出し（ぽん・ぼん→ほん などもそろえる） */
 function sceneKey(it){
-  if(it.cat !== "word" || !it.toks) return null;
+  if(it.__type) return it.__type;
+  if(!it.toks) return null;
   const t = mkText(it.toks).replace(/[0-9０-９.．]+/g, "").replace(/[ぱぽぴぷぺ]/g, c => "はほひふへ"["ぱぽぴぷぺ".indexOf(c)]).replace(/[ばぼびぶべ]/g, c => "はほひふへ"["ばぼびぶべ".indexOf(c)]).replace(/[\s　]/g, "");
   return t.slice(0, 10);
 }
 /* 文章題は、細かい内容（sub）が交互になるようにならべて、同じ種類の問題が続かないようにする。
    さらに，同じ場面の問題がとなりあったら，あとの問題と入れかえる */
 function spread(list){
-  if(!list.length || list[0].cat !== "word") return list;
+  if(!list.length) return list;
+  if(list[0].cat !== "word") return unclump(list);
   const bk = []; for(const it of list){ let b = bk.find(x => x.s === it.sub); if(!b) bk.push(b = {s:it.sub, a:[]}); b.a.push(it); }
   const out = []; for(let k = 0; out.length < list.length; k++) for(const b of bk) if(b.a[k]) out.push(b.a[k]);
   return unclump(out);
@@ -6851,7 +6881,7 @@ function groupList(list){
     const parts = insts.map(t => spread(ci.filter(i => i.inst === t)));
     const big = parts.filter(p => p.reduce((s, i) => s + i.n, 0) >= 2), small = parts.filter(p => !big.includes(p));
     const rest = small.flat();
-    parts.forEach(p => { if(big.includes(p)) out.push({items:p}); else if(p === small[0]) out.push({items:rest}); });
+    parts.forEach(p => { if(big.includes(p)) out.push({items:p}); else if(p === small[0]) out.push({items:unclump(rest)}); });
   }
   return out;
 }

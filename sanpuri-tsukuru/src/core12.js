@@ -7,8 +7,12 @@ const scene = list => {
   const keys = list.map(f => f.toString()), us = keys.map(k => SCENE_USE.get(k) || 0), m = Math.min(...us);
   const i = pick(list.map((f, j) => j).filter(j => us[j] === m));
   SCENE_USE.set(keys[i], m + 1);
-  return list[i]();
+  /* どの種類（場面）の問題かを記録しておき，同じ種類が続かないようにならべるときに使う */
+  const it = list[i]();
+  if(it && typeof it === "object" && !it.__type) it.__type = "s" + hashStr(keys[i]);
+  return it;
 };
+function hashStr(s){ let h = 0; for(let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
 
 /* ---------- 6年 ---------- */
 override("6-8.c", function(lv){

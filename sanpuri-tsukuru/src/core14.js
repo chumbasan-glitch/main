@@ -5,7 +5,9 @@ const sceneN = (name, fns, lv) => {
   const keys = fns.map((_, i) => name + "#" + i), us = keys.map(k => SCENE_USE.get(k) || 0), m = Math.min(...us);
   const i = pick(fns.map((f, j) => j).filter(j => us[j] === m));
   SCENE_USE.set(keys[i], m + 1);
-  return fns[i](lv);
+  const it = fns[i](lv);
+  if(it && typeof it === "object" && !it.__type) it.__type = keys[i];
+  return it;
 };
 /* もとの問題（base）と新しい種類（types）をまぜる。base は少し多めに出す */
 function vary(ref, types, pBase){
