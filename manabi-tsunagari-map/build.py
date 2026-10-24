@@ -191,8 +191,11 @@ def add_cross(tid, name, kind, rows, page=None, sosoku=(), F=None, group=None):
         T['cats'].append(cat)
         for i in ids:
             if i.startswith('plan:'):
-                sub = i[5:]
-                texts = [p['text'] for p in (F or {}).get('plan', []) if p['subject'] == sub]
+                sub, _, phrase = i[5:].partition(':')
+                if phrase:   # 教科の「指導計画の作成と内容の取扱い」から，その言葉がある項目を引く
+                    texts = [l for l in next(x for x in subjects if x["id"] == sub)['plan'] if phrase in l]
+                else:
+                    texts = [p['text'] for p in (F or {}).get('plan', []) if p['subject'] == sub]
                 assert texts, (name, i)
                 # 表の罫線の記号や，行の折り返しで入った空白を取る
                 texts = [re.sub(r'(?<=[^\x00-\x7f]) +(?=[^\x00-\x7f])', '', re.sub(r'[⎧⎫⎨⎬⎩⎭⎜]', '', x)).strip() for x in texts]
