@@ -869,7 +869,7 @@ vary("6-9.c", [
 vary("6-11.a", [
   lv => { const a = ri(2, 9), b = ri(2, 9); if(a === b) return null; return L(`${a}：${b}の比の値((${fA(FR(a, b))}))`, K_Q, "比の値"); },
   lv => { const a = ri(2, 9), b = ri(2, 9), k = ri(2, 5); if(a === b) return null; return L(`${a}：${b}と${a * k}：${b * k}は等しい比ですか。((等しい))`, K_Q, "等しい比"); },
-  lv => { const a = ri(2, 9), b = ri(2, 9); if(a === b) return null; return W_(`す${a}dLとサラダ油${b}dLをまぜてドレッシングをつくります。すとサラダ油の量の比を書きましょう。`, `${a}：${b}`, `${a}：${b}`, "比"); }
+  lv => { const a = ri(2, 9), b = ri(2, 9); if(a === b) return null; return W_(`【酢|す】${a}dLとサラダ油${b}dLをまぜてドレッシングをつくります。【酢|す】とサラダ油の量の比を書きましょう。`, `${a}：${b}`, `${a}：${b}`, "比"); }
 ]);
 vary("6-11.b", [
   lv => { const a = ri(2, 9), b = ri(2, 9), k = ri(2, 9); if(gcd(a, b) !== 1) return null; return L(`${ds(a * k, 1)}：${ds(b * k, 1)}を簡単にしましょう。((${a}：${b}))`, K_Q, "比を簡単に"); },
