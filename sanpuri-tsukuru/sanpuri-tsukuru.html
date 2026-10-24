@@ -125,7 +125,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <header class="top">
     <h1>算プリツクール</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 4.2</span>
+    <span class="ver">ver. 4.3</span>
   </header>
 
   <div class="layout">
@@ -2419,29 +2419,49 @@ unit6(6, "資料の整理", "7月", "代表値やちらばりでデータをく�
 /* ---------- ならべ方と組み合わせ方 ---------- */
 const fact = n => n <= 1 ? 1 : n * fact(n - 1);
 const comb = (n, k) => fact(n) / fact(k) / fact(n - k);
+const permN = (n, k) => k <= 0 ? 1 : n * permN(n - 1, k - 1);
+const distinctDigits = (k, zero) => shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, zero ? k - 1 : k).concat(zero ? [0] : []).sort((a, b) => a - b);
+const COLORS6 = ["赤", "青", "黄", "緑", "白", "黒", "むらさき"];
+const NAMES6 = ["ゆい", "そうた", "はると", "あおい", "りん", "けんと", "みお"];
 unit6(7, "ならべ方と組み合わせ方", "9月", "図や表を使って，順番に調べて数えよう", [
   {id:"a", name:"ならべ方", gen(lv){
     const Q = "つぎの問題に答えましょう。";
-    if(lv === 0){ const n = ri(3, 4); return pick([
-      () => L(`${"ABCD".slice(0, n).split("").join("，")}の${n}人が，1列にならびます。ならび方は何通りありますか。((${fact(n)}通り))`, Q, "ならべ方"),
-      () => L(`${[1, 2, 3, 4].slice(0, n).join("，")}の${n}まいのカードを全部ならべて，${n}けたの整数をつくります。整数は何通りできますか。((${fact(n)}通り))`, Q, "ならべ方")])(); }
-    if(lv === 1){ const n = ri(4, 5); return pick([
+    if(lv === 0){ const n = ri(3, 4); return scene([
+      () => L(`${NAMES6.slice(0, n).join("，")}の${n}人が，1列にならびます。ならび方は何通りありますか。((${fact(n)}通り))`, Q, "ならべ方"),
+      () => { const d = distinctDigits(n, false); return L(`${d.join("，")}の${n}まいのカードを全部ならべて，${n}けたの整数をつくります。整数は何通りできますか。((${fact(n)}通り))`, Q, "ならべ方"); },
+      () => { const c = shuffle(COLORS6).slice(0, n); return L(`${c.join("，")}の${n}色の旗を，1列にならべます。ならべ方は何通りありますか。((${fact(n)}通り))`, Q, "ならべ方"); },
+      () => L(`${n}さつのちがう本を，本だなに1列にならべます。ならべ方は何通りありますか。((${fact(n)}通り))`, Q, "ならべ方"),
+      () => L(`${n}人でリレーをします。走る順番は何通りありますか。((${fact(n)}通り))`, Q, "ならべ方")]); }
+    if(lv === 1){ const n = ri(4, 6); return scene([
       () => L(`${n}人の中から，リレーの第1走者と第2走者を1人ずつ選びます。選び方は何通りありますか。((${n * (n - 1)}通り))`, Q, "ならべ方"),
-      () => L(`1から${n}までの${n}まいのカードから2まいをならべて，2けたの整数をつくります。整数は何通りできますか。((${n * (n - 1)}通り))`, Q, "ならべ方"),
-      () => { const k = ri(2, 4); return L(`コインを${k}回投げます。表と裏の出方は，全部で何通りありますか。((${P10(0) * Math.pow(2, k)}通り))`, Q, "ならべ方"); }])(); }
-    return pick([
-      () => L(`0，1，2，3の4まいのカードから3まいをならべて，3けたの整数をつくります。整数は何通りできますか。((18通り))`, Q, "ならべ方"),
-      () => { const n = ri(4, 5); return L(`${n}人の中から，委員長，副委員長，書記を1人ずつ選びます。選び方は何通りありますか。((${n * (n - 1) * (n - 2)}通り))`, Q, "ならべ方"); }])();
+      () => { const d = distinctDigits(n, false); return L(`${d.join("，")}の${n}まいのカードから2まいをならべて，2けたの整数をつくります。整数は何通りできますか。((${n * (n - 1)}通り))`, Q, "ならべ方"); },
+      () => L(`${n}人の中から，班長と副班長を1人ずつ選びます。選び方は何通りありますか。((${n * (n - 1)}通り))`, Q, "ならべ方"),
+      () => { const c = shuffle(COLORS6).slice(0, n); return L(`${c.join("，")}の${n}色から2色を選んで，旗の上と下をぬり分けます。ぬり方は何通りありますか。((${n * (n - 1)}通り))`, Q, "ならべ方"); },
+      () => { const k = ri(2, 4); return L(`コインを${k}回投げます。表と裏の出方は，全部で何通りありますか。((${Math.pow(2, k)}通り))`, Q, "ならべ方"); },
+      () => { const a = ri(2, 4), b = ri(2, 4); return L(`家から公園までの道は${a}通り，公園から駅までの道は${b}通りあります。家から公園を通って駅まで行く行き方は何通りありますか。((${a * b}通り))`, Q, "ならべ方"); }]); }
+    return scene([
+      () => { const m = ri(4, 5), k = m === 4 ? 3 : ri(2, 3), d = distinctDigits(m, true); return L(`${d.join("，")}の${m}まいのカードから${k}まいをならべて，${k}けたの整数をつくります。整数は何通りできますか。((${(m - 1) * permN(m - 1, k - 1)}通り))`, Q, "ならべ方"); },
+      () => { const n = ri(4, 6); return L(`${n}人の中から，委員長，副委員長，書記を1人ずつ選びます。選び方は何通りありますか。((${n * (n - 1) * (n - 2)}通り))`, Q, "ならべ方"); },
+      () => { const d = distinctDigits(4, false), ev = d.filter(v => v % 2 === 0).length; if(!ev) return L(`${d.join("，")}の4まいのカードから3まいをならべて，3けたの整数をつくります。整数は何通りできますか。((24通り))`, Q, "ならべ方"); return L(`${d.join("，")}の4まいのカードから3まいをならべて，3けたの整数をつくります。そのうちぐう数は何通りありますか。((${ev * 6}通り))`, Q, "ならべ方"); },
+      () => { const n = ri(4, 5); return L(`${n}人の中から，1位，2位，3位を決めます。決め方は何通りありますか。((${n * (n - 1) * (n - 2)}通り))`, Q, "ならべ方"); }]);
   }},
   {id:"b", name:"組み合わせ方", gen(lv){
     const Q = "つぎの問題に答えましょう。";
-    if(lv === 0){ const n = ri(4, 5); return L(`${"ABCDE".slice(0, n).split("").join("，")}の${n}チームが，どのチームとも1回ずつ試合をします。試合は全部で何試合ですか。((${comb(n, 2)}試合))`, Q, "組み合わせ方"); }
-    if(lv === 1){ const n = ri(4, 6); return pick([
+    if(lv === 0){ const n = ri(4, 6); return scene([
+      () => L(`${"ABCDEF".slice(0, n).split("").join("，")}の${n}チームが，どのチームとも1回ずつ試合をします。試合は全部で何試合ですか。((${comb(n, 2)}試合))`, Q, "組み合わせ方"),
+      () => L(`${n}人が，どの人とも1回ずつあくしゅをします。あくしゅは全部で何回ですか。((${comb(n, 2)}回))`, Q, "組み合わせ方"),
+      () => L(`${n}つのクラスで，どのクラスとも1回ずつドッジボールの試合をします。試合は全部で何試合ですか。((${comb(n, 2)}試合))`, Q, "組み合わせ方")]); }
+    if(lv === 1){ const n = ri(4, 7); return scene([
       () => L(`${n}種類のアイスクリームから，ちがう種類を2つ選びます。選び方は何通りありますか。((${comb(n, 2)}通り))`, Q, "組み合わせ方"),
-      () => L(`10円，50円，100円，500円の4まいのこう貨から2まいを選びます。できる金額は何通りありますか。((6通り))`, Q, "組み合わせ方")])(); }
-    const n = 5, k = 3; return pick([
-      () => L(`${n}人の中から，そうじ当番を${k}人選びます。選び方は何通りありますか。((${comb(n, k)}通り))`, Q, "組み合わせ方"),
-      () => L(`赤，青，黄，緑，白の5色から，4色を選びます。選び方は何通りありますか。((5通り))`, Q, "組み合わせ方")])();
+      () => L(`${n}さつの本の中から，2さつを選んでかります。選び方は何通りありますか。((${comb(n, 2)}通り))`, Q, "組み合わせ方"),
+      () => { const cs = shuffle([1, 5, 10, 50, 100, 500]).slice(0, 4).sort((a, b) => a - b), sums = new Set(); for(let i = 0; i < 4; i++) for(let j = i + 1; j < 4; j++) sums.add(cs[i] + cs[j]);
+        return L(`${cs.map(v => v + "円").join("，")}のこう貨が1まいずつあります。このうち2まいを選んでできる金額は何通りありますか。((${sums.size}通り))`, Q, "組み合わせ方"); },
+      () => { const m = Math.min(n, 6), c = shuffle(COLORS6).slice(0, m); return L(`${c.join("，")}の${m}色の中から，2色を選びます。選び方は何通りありますか。((${comb(m, 2)}通り))`, Q, "組み合わせ方"); }]); }
+    return scene([
+      () => { const n = ri(5, 7), k = ri(2, 3); return L(`${n}人の中から，そうじ当番を${k}人選びます。選び方は何通りありますか。((${comb(n, k)}通り))`, Q, "組み合わせ方"); },
+      () => { const n = ri(5, 7), k = n - 1, c = COLORS6.slice(0, n); return L(`${c.join("，")}の${n}色から，${k}色を選びます。選び方は何通りありますか。((${n}通り))`, Q, "組み合わせ方"); },
+      () => { const n = ri(5, 7); return L(`円の周りに${n}この点があります。このうち3つの点を結んで三角形をつくります。三角形は何こできますか。((${comb(n, 3)}こ))`, Q, "組み合わせ方"); },
+      () => { const n = ri(5, 8); return L(`${n}種類のくだものから，3種類を選んでフルーツポンチをつくります。選び方は何通りありますか。((${comb(n, 3)}通り))`, Q, "組み合わせ方"); }]);
   }}
 ]);
 
@@ -5813,26 +5833,41 @@ function buildItems(st){
       use = k < subs.length ? shuffle(subs.map((s, i) => i)).slice(0, k).sort((a, b) => a - b).map(i => subs[i]) : subs;
       cnt = use.map(() => 0); for(let i = 0; i < n; i++) cnt[i % use.length]++;
     }
-    use.forEach((s, si) => {
-      let left = cnt[si], guard = 0, tries = 0; const got = [], seen = new Set(), kseen = new Map();
-      while(left > 0 && guard++ < 50 + 40 * cnt[si]){
-        tries++;
+    /* 同じ問題は出さない。その内容で作れる問題が足りないときは，ほかの内容でおぎなう */
+    const st_ = new Map(), got = new Map(), uSeen = new Set();
+    const genFor = (s, want) => {
+      let S = st_.get(s); if(!S){ S = {seen:uSeen, kseen:new Map(), done:false}; st_.set(s, S); got.set(s, []); }
+      let left = want, tries = 0;
+      while(left > 0 && !S.done){
+        if(++tries > 80){ S.done = true; break; }
         const lv = st.level === "mix" ? ri(0, 2) : st.level;
-        let it; try{ it = s.gen(lv); }catch(e){ console.error(u.name, s.name, e); break; }
+        let it; try{ it = s.gen(lv); }catch(e){ console.error(u.name, s.name, e); S.done = true; break; }
         if(!it) continue;
         const sig = it.sig || (it.toks && it.cat !== "fig" ? mkText(it.toks) : it.subs ? it.subs.map(mkText).join("|") : null);
-        if(sig && seen.has(sig) && tries < 30) continue;
+        if(sig && S.seen.has(sig)) continue;
         /* 同じ場面（数だけちがう問題）は，ほかの場面を使いきるまで出さない */
         const sk = sceneKey(it);
-        if(sk){ const m = Math.min(...kseen.values()), c = kseen.get(sk) || 0; if(c > 0 && ((c > m && tries < 24) || tries < 12)) continue; }
-        if(sk) kseen.set(sk, (kseen.get(sk) || 0) + 1);
-        if(sig) seen.add(sig);
+        if(sk){ const m = Math.min(...S.kseen.values()), c = S.kseen.get(sk) || 0; if(c > 0 && ((c > m && tries < 30) || tries < 15)) continue; }
         if(it.n > left){ if(it.trim) it.trim(left); else continue; }
-        it.unit = u; it.sub = s; got.push(it); left -= it.n; tries = 0;
+        if(sk) S.kseen.set(sk, (S.kseen.get(sk) || 0) + 1);
+        if(sig) S.seen.add(sig);
+        it.unit = u; it.sub = s; got.get(s).push(it); left -= it.n; tries = 0;
       }
-      got.sort((a, b) => a.inst < b.inst ? -1 : a.inst > b.inst ? 1 : 0);
-      out.push(...got);
-    });
+      return want - left;
+    };
+    let short = 0;
+    use.forEach((s, si) => { short += cnt[si] - genFor(s, cnt[si]); });
+    const pool = sn ? use : subsOn(st, u);
+    for(let round = 0; short > 0 && round < 40; round++){
+      let progress = 0;
+      for(const s of pool){ if(short <= 0) break; const g = genFor(s, 1); short -= g; progress += g; }
+      if(!progress) break;
+    }
+    for(const s of u.subs) if(got.has(s)){
+      const g = got.get(s);
+      g.sort((a, b) => a.inst < b.inst ? -1 : a.inst > b.inst ? 1 : 0);
+      out.push(...g);
+    }
   }
   return out;
 }

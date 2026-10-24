@@ -22,26 +22,41 @@ function buildItems(st){
       use = k < subs.length ? shuffle(subs.map((s, i) => i)).slice(0, k).sort((a, b) => a - b).map(i => subs[i]) : subs;
       cnt = use.map(() => 0); for(let i = 0; i < n; i++) cnt[i % use.length]++;
     }
-    use.forEach((s, si) => {
-      let left = cnt[si], guard = 0, tries = 0; const got = [], seen = new Set(), kseen = new Map();
-      while(left > 0 && guard++ < 50 + 40 * cnt[si]){
-        tries++;
+    /* 同じ問題は出さない。その内容で作れる問題が足りないときは，ほかの内容でおぎなう */
+    const st_ = new Map(), got = new Map(), uSeen = new Set();
+    const genFor = (s, want) => {
+      let S = st_.get(s); if(!S){ S = {seen:uSeen, kseen:new Map(), done:false}; st_.set(s, S); got.set(s, []); }
+      let left = want, tries = 0;
+      while(left > 0 && !S.done){
+        if(++tries > 80){ S.done = true; break; }
         const lv = st.level === "mix" ? ri(0, 2) : st.level;
-        let it; try{ it = s.gen(lv); }catch(e){ console.error(u.name, s.name, e); break; }
+        let it; try{ it = s.gen(lv); }catch(e){ console.error(u.name, s.name, e); S.done = true; break; }
         if(!it) continue;
         const sig = it.sig || (it.toks && it.cat !== "fig" ? mkText(it.toks) : it.subs ? it.subs.map(mkText).join("|") : null);
-        if(sig && seen.has(sig) && tries < 30) continue;
+        if(sig && S.seen.has(sig)) continue;
         /* 同じ場面（数だけちがう問題）は，ほかの場面を使いきるまで出さない */
         const sk = sceneKey(it);
-        if(sk){ const m = Math.min(...kseen.values()), c = kseen.get(sk) || 0; if(c > 0 && ((c > m && tries < 24) || tries < 12)) continue; }
-        if(sk) kseen.set(sk, (kseen.get(sk) || 0) + 1);
-        if(sig) seen.add(sig);
+        if(sk){ const m = Math.min(...S.kseen.values()), c = S.kseen.get(sk) || 0; if(c > 0 && ((c > m && tries < 30) || tries < 15)) continue; }
         if(it.n > left){ if(it.trim) it.trim(left); else continue; }
-        it.unit = u; it.sub = s; got.push(it); left -= it.n; tries = 0;
+        if(sk) S.kseen.set(sk, (S.kseen.get(sk) || 0) + 1);
+        if(sig) S.seen.add(sig);
+        it.unit = u; it.sub = s; got.get(s).push(it); left -= it.n; tries = 0;
       }
-      got.sort((a, b) => a.inst < b.inst ? -1 : a.inst > b.inst ? 1 : 0);
-      out.push(...got);
-    });
+      return want - left;
+    };
+    let short = 0;
+    use.forEach((s, si) => { short += cnt[si] - genFor(s, cnt[si]); });
+    const pool = sn ? use : subsOn(st, u);
+    for(let round = 0; short > 0 && round < 40; round++){
+      let progress = 0;
+      for(const s of pool){ if(short <= 0) break; const g = genFor(s, 1); short -= g; progress += g; }
+      if(!progress) break;
+    }
+    for(const s of u.subs) if(got.has(s)){
+      const g = got.get(s);
+      g.sort((a, b) => a.inst < b.inst ? -1 : a.inst > b.inst ? 1 : 0);
+      out.push(...g);
+    }
   }
   return out;
 }
