@@ -1,0 +1,658 @@
+<title>学びのつながりマップ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* 6本の学年の柱に、教科の色が積みあがっていく「時間割の壁」。上にタブ、下に表、詳しい内容は右（スマホは下）から出るシート */
+:root{
+  --bg:#f6f7f4; --panel:#ffffff; --ink:#1f2a2e; --ink2:#55626a; --line:#d9ded8; --accent:#2b5d8a; --mark:#ffe36b; --markInk:#1f2a2e;
+  --font-display:"Zen Maru Gothic","BIZ UDPGothic","Hiragino Maru Gothic ProN","Meiryo",sans-serif;
+  --font-body:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+  /* 学年の色の濃さ：1年がいちばんうすく、6年がいちばん濃い */
+  --l1:93%; --l2:85%; --l3:75%; --l4:62%; --l5:50%; --l6:39%;
+  --s1:55%; --s2:58%; --s3:58%; --s4:55%; --s5:55%; --s6:58%;
+  --t1:#1f2a2e; --t2:#1f2a2e; --t3:#1f2a2e; --t4:#ffffff; --t5:#ffffff; --t6:#ffffff;
+  --empty:#eceeea;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#161b1d; --panel:#1f2629; --ink:#e7ecea; --ink2:#a3afb3; --line:#36403f; --accent:#8cbbe6; --mark:#d9b800; --markInk:#111;
+  --l1:22%; --l2:28%; --l3:35%; --l4:44%; --l5:54%; --l6:66%;
+  --s1:30%; --s2:36%; --s3:42%; --s4:48%; --s5:55%; --s6:62%;
+  --t1:#e7ecea; --t2:#e7ecea; --t3:#ffffff; --t4:#ffffff; --t5:#111; --t6:#111;
+  --empty:#232b2d; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#161b1d; --panel:#1f2629; --ink:#e7ecea; --ink2:#a3afb3; --line:#36403f; --accent:#8cbbe6; --mark:#d9b800; --markInk:#111;
+  --l1:22%; --l2:28%; --l3:35%; --l4:44%; --l5:54%; --l6:66%;
+  --s1:30%; --s2:36%; --s3:42%; --s4:48%; --s5:55%; --s6:62%;
+  --t1:#e7ecea; --t2:#e7ecea; --t3:#ffffff; --t4:#ffffff; --t5:#111; --t6:#111;
+  --empty:#232b2d; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.65}
+body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); z-index:30; background:var(--panel)}
+button{font:inherit; color:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+.wrap{max-width:1240px; margin:0 auto; padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* 学年の色（教科の色相 --h は各要素につける） */
+.g1{background:hsl(var(--h) var(--s1) var(--l1)); color:var(--t1)}
+.g2{background:hsl(var(--h) var(--s2) var(--l2)); color:var(--t2)}
+.g3{background:hsl(var(--h) var(--s3) var(--l3)); color:var(--t3)}
+.g4{background:hsl(var(--h) var(--s4) var(--l4)); color:var(--t4)}
+.g5{background:hsl(var(--h) var(--s5) var(--l5)); color:var(--t5)}
+.g6{background:hsl(var(--h) var(--s6) var(--l6)); color:var(--t6)}
+/* 2学年まとめは中間の濃さ */
+.g12{background:hsl(var(--h) var(--s2) calc((var(--l1) + var(--l2)) / 2)); color:var(--t1)}
+.g34{background:hsl(var(--h) var(--s4) calc((var(--l3) + var(--l4)) / 2)); color:var(--t3)}
+.g56{background:hsl(var(--h) var(--s6) calc((var(--l5) + var(--l6)) / 2)); color:var(--t6)}
+.gall{background:linear-gradient(90deg,hsl(var(--h) var(--s1) var(--l1)),hsl(var(--h) var(--s6) var(--l6))); color:var(--t3)}
+
+/* ヘッダー */
+header.top{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:var(--panel); border-bottom:1px solid var(--line)}
+.topin{display:flex; flex-wrap:wrap; align-items:center; gap:8px 20px; padding-block:10px}
+.brand{display:flex; align-items:center; gap:10px; min-width:0}
+.brand h1{font-family:var(--font-display); font-weight:700; font-size:20px; margin:0; letter-spacing:.04em; white-space:nowrap}
+.stack{display:grid; grid-template-columns:repeat(6,6px); align-items:end; gap:2px; height:22px; --h:210}
+.stack i{display:block; border-radius:1px}
+nav.tabs{display:flex; gap:4px; flex-wrap:wrap; margin-left:auto}
+nav.tabs button{border:1px solid var(--line); background:var(--bg); border-radius:999px; padding:6px 14px; cursor:pointer; font-weight:700; font-size:14px}
+nav.tabs button[aria-selected="true"]{background:var(--ink); color:var(--panel); border-color:var(--ink)}
+
+main{padding-block:20px 60px}
+h2{font-family:var(--font-display); font-size:22px; margin:0 0 6px; text-wrap:balance}
+.lead{color:var(--ink2); margin:0 0 16px; max-width:62em}
+.tools{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin:0 0 14px}
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--panel)}
+.seg button{border:0; background:transparent; padding:7px 14px; cursor:pointer; font-size:14px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent); color:var(--panel); font-weight:700}
+.btn{border:1px solid var(--line); background:var(--panel); border-radius:10px; padding:8px 14px; cursor:pointer; font-weight:700; font-size:14px}
+.btn.primary{background:var(--accent); color:var(--panel); border-color:var(--accent)}
+.btn:disabled{opacity:.55; cursor:wait}
+select{font:inherit; padding:7px 10px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--ink)}
+.note{font-size:13px; color:var(--ink2)}
+.status{font-size:13px; color:var(--ink2); min-height:1.4em}
+
+/* 表（横にはみ出す分は表の中だけでスクロール） */
+.scroller{overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--panel)}
+table.grid{border-collapse:separate; border-spacing:0; width:100%; min-width:880px; table-layout:fixed}
+table.grid th,table.grid td{border-bottom:1px solid var(--line); vertical-align:top; padding:6px}
+table.grid thead th{position:sticky; top:0; background:var(--panel); z-index:2; font-size:13px; padding:8px 6px}
+table.grid th.rowh{position:sticky; left:0; background:var(--panel); z-index:1; text-align:left; width:130px; font-size:13px; border-right:1px solid var(--line)}
+table.grid thead th.rowh{z-index:3}
+.colh{display:flex; flex-direction:column; align-items:center; gap:4px}
+.colh .bar{width:60%; border-radius:3px 3px 0 0; --h:210}
+.rowname{display:flex; align-items:center; gap:8px; font-weight:700}
+.dot{width:12px; height:12px; border-radius:3px; flex:none; background:hsl(var(--h) 55% 50%)}
+td.cell{padding:4px}
+.cellbox{border-radius:8px; padding:6px 7px; min-height:44px; height:100%}
+.chips{display:flex; flex-direction:column; gap:4px}
+.chip{display:block; width:100%; text-align:left; border:0; border-radius:6px; padding:5px 7px; font-size:13px; line-height:1.4; cursor:pointer; background:rgba(255,255,255,.55); color:#1f2a2e}
+.g4 .chip,.g5 .chip,.g6 .chip,.g56 .chip{background:rgba(0,0,0,.18); color:#fff}
+:root[data-theme="dark"] .chip{background:rgba(0,0,0,.28); color:var(--ink)}
+:root[data-theme="dark"] .g5 .chip,:root[data-theme="dark"] .g6 .chip,:root[data-theme="dark"] .g56 .chip{background:rgba(255,255,255,.45); color:#111}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip{background:rgba(0,0,0,.28); color:var(--ink)}
+  :root:not([data-theme="light"]) .g5 .chip,:root:not([data-theme="light"]) .g6 .chip,:root:not([data-theme="light"]) .g56 .chip{background:rgba(255,255,255,.45); color:#111}}
+.chip:hover{outline:2px solid currentColor}
+.chip.hit{box-shadow:inset 0 0 0 2px var(--mark)}
+.none{color:var(--ink2); font-size:12px; padding:6px; background:var(--empty); border-radius:8px; min-height:44px}
+.none.off{background:repeating-linear-gradient(135deg,var(--empty) 0 6px,transparent 6px 12px)}
+
+/* 6年間マップ */
+table.map td{padding:3px}
+table.map .mcell{border-radius:7px; padding:6px 8px; min-height:52px; font-size:12px; line-height:1.45; cursor:pointer; border:0; width:100%; text-align:left; display:block}
+table.map .mcell.wait{cursor:default; opacity:.6}
+table.map .mcell b{display:block; font-size:12px}
+.legend{display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin:12px 0 0; font-size:13px; color:var(--ink2)}
+.ramp{display:inline-flex; gap:2px; --h:210}
+.ramp i{display:inline-block; width:22px; height:14px; border-radius:2px; font-style:normal; font-size:10px; text-align:center; line-height:14px}
+.badge{display:inline-block; font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); color:var(--ink2); background:var(--panel); white-space:nowrap}
+
+/* 学年別 */
+.gradepick{display:flex; gap:6px; flex-wrap:wrap}
+.gradepick button{border:0; border-radius:10px; padding:8px 16px; font-weight:700; cursor:pointer; --h:210; font-family:var(--font-display); font-size:16px}
+.gradepick button[aria-pressed="true"]{outline:3px solid var(--ink); outline-offset:2px}
+.cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; min-width:0}
+.card h3{margin:0 0 8px; font-size:16px; display:flex; align-items:center; gap:8px; font-family:var(--font-display)}
+.card .chips .chip{font-size:14px}
+.card details{margin-top:10px; font-size:13px}
+.card summary{cursor:pointer; color:var(--accent); font-weight:700}
+.areaLabel{font-size:12px; color:var(--ink2); margin:8px 0 3px; font-weight:700; letter-spacing:.04em}
+.terms{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px}
+.terms span{font-size:12px; border:1px solid var(--line); border-radius:6px; padding:1px 7px}
+
+/* 検索 */
+.searchbox{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px}
+.searchbox input{flex:1 1 260px; min-width:0; font:inherit; font-size:17px; padding:10px 14px; border-radius:12px; border:2px solid var(--line); background:var(--panel); color:var(--ink)}
+.suggest{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 16px}
+.suggest button{border:1px solid var(--line); background:var(--panel); border-radius:999px; padding:3px 12px; cursor:pointer; font-size:13px}
+.results{display:flex; flex-direction:column; gap:10px}
+.res{display:grid; grid-template-columns:62px 1fr; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; cursor:pointer; text-align:left; width:100%}
+.res .gtag{border-radius:8px; font-weight:700; text-align:center; padding:6px 0; font-family:var(--font-display); align-self:start}
+.res .gtag small{display:block; font-size:11px; font-weight:400}
+.res h4{margin:0 0 3px; font-size:15px}
+.res p{margin:0; font-size:13px; color:var(--ink2)}
+.res .where{font-size:12px; color:var(--ink2)}
+mark{background:var(--mark); color:var(--markInk); border-radius:3px; padding:0 2px}
+.counts{font-size:14px; margin:0 0 10px; display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center}
+.counts .gc{font-size:12px; padding:1px 9px; border-radius:999px; font-weight:700}
+
+/* 詳しい画面（シート） */
+.sheetBack{position:fixed; inset:0; background:rgba(10,15,18,.42); z-index:40}
+.sheet{position:fixed; z-index:41; top:0; right:0; bottom:0; width:min(640px,100%); background:var(--panel); overflow-y:auto; box-shadow:-10px 0 30px rgba(0,0,0,.18);
+  padding:calc(env(safe-area-inset-top,0px) + 14px) max(18px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 40px) 18px}
+.sheet .close{position:sticky; top:0; float:right; border:1px solid var(--line); background:var(--panel); border-radius:999px; padding:4px 14px; cursor:pointer; font-weight:700; z-index:2}
+.sheet h2{font-size:21px; margin:6px 0 4px}
+.sheet .meta{display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:14px}
+.gpill{border-radius:999px; padding:2px 12px; font-weight:700; font-size:13px}
+.sec{margin:18px 0 0}
+.sec > h3{font-size:14px; letter-spacing:.06em; color:var(--ink2); margin:0 0 8px; border-bottom:1px solid var(--line); padding-bottom:4px}
+.flow{margin:0 0 12px}
+.flow .tname{font-weight:700; font-size:14px; margin:0 0 6px; display:flex; align-items:center; gap:6px}
+.steps{display:flex; align-items:flex-end; gap:6px; overflow-x:auto; padding-bottom:4px}
+.step{flex:0 0 auto; width:118px; border:0; border-radius:8px; padding:6px 8px; font-size:12px; line-height:1.4; text-align:left; cursor:pointer}
+.step b{display:block; font-size:11px; opacity:.9}
+.step.now{outline:3px solid var(--ink); outline-offset:1px; cursor:default}
+.prevnext{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px}
+.pn{border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13px; min-width:0}
+.pn b{display:block; font-size:12px; color:var(--ink2); margin-bottom:2px}
+.pn ul{margin:0; padding-left:1.1em}
+.pn button{border:0; background:none; padding:0; text-align:left; cursor:pointer; color:var(--accent); text-decoration:underline; font-size:13px}
+.text{font-size:14px; line-height:1.8; background:var(--bg); border-radius:10px; padding:12px 14px}
+.text p{margin:0}
+.text .l1{font-weight:700; margin-top:6px}
+.text .l2{padding-left:2.6em; text-indent:-2.6em}
+.text .src{font-size:12px; color:var(--ink2); margin-top:8px}
+.kw{display:flex; flex-direction:column; gap:8px}
+.kwrow{border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13px}
+.kwrow .kwname{font-weight:700; margin-right:6px}
+.kwrow .others{display:flex; flex-wrap:wrap; gap:4px; margin-top:4px}
+.kwrow .others button{border:0; border-radius:6px; padding:2px 8px; font-size:12px; cursor:pointer}
+.frac{display:inline-flex; flex-direction:column; vertical-align:middle; text-align:center; font-size:.78em; line-height:1.05; margin:0 1px}
+.frac span+span{border-top:1px solid currentColor}
+
+/* A4 PDF用（画面外に置いて画像にする） */
+#a4{position:fixed; left:-5000px; top:0; width:1123px; height:794px; background:#fff; color:#1f2a2e; padding:30px 34px; font-family:var(--font-body); overflow:hidden}
+#a4 .a4head{display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid hsl(var(--h) 55% 40%); padding-bottom:6px; margin-bottom:8px}
+#a4 h1{font-family:var(--font-display); font-size:26px; margin:0}
+#a4 .a4goal{font-size:11px; line-height:1.5; margin-bottom:8px; background:hsl(var(--h) 40% 96%); border-radius:6px; padding:6px 10px}
+#a4 .a4goal ul{margin:2px 0 0; padding-left:1.2em}
+#a4 table{width:100%; border-collapse:separate; border-spacing:2px; table-layout:fixed}
+#a4 th{font-size:1em; padding:2px 4px; background:#f1f3f0; line-height:1.3}
+#a4 th.rh{width:118px; text-align:left}
+#a4 td{vertical-align:top; padding:2px 4px; border-radius:3px}
+#a4 td div{line-height:1.3}
+#a4 td div::before{content:"・"}
+#a4 .a4foot{position:absolute; left:34px; right:34px; bottom:14px; font-size:9px; color:#55626a; display:flex; justify-content:space-between}
+#a4 .g1,#a4 .g2,#a4 .g3{color:#1f2a2e} #a4 .g4,#a4 .g5,#a4 .g6{color:#fff}
+#a4 .g1{background:hsl(var(--h) 55% 93%)} #a4 .g2{background:hsl(var(--h) 58% 85%)} #a4 .g3{background:hsl(var(--h) 58% 75%)}
+#a4 .g4{background:hsl(var(--h) 55% 58%)} #a4 .g5{background:hsl(var(--h) 55% 47%)} #a4 .g6{background:hsl(var(--h) 58% 36%)}
+#a4 td.empty{background:#f4f5f3}
+.overlay{position:fixed; inset:0; z-index:60; background:rgba(10,15,18,.7); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+  padding:calc(env(safe-area-inset-top,0px) + 16px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(16px,env(safe-area-inset-left,0px))}
+.overlay img{max-width:100%; max-height:75vh; background:#fff; border-radius:4px}
+.overlay p{color:#fff; margin:0; text-align:center}
+
+@media (max-width:640px){
+  .brand h1{font-size:18px}
+  nav.tabs{margin-left:0; width:100%}
+  nav.tabs button{flex:1 1 auto; padding:6px 8px; font-size:13px}
+  .sheet{top:auto; height:88%; width:100%; border-radius:16px 16px 0 0; padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .res{grid-template-columns:50px 1fr}
+  .prevnext{grid-template-columns:1fr}
+}
+@media print{
+  header.top,main,.sheet,.sheetBack{display:none!important}
+  #a4{position:static; left:auto}
+  @page{size:A4 landscape; margin:0}
+}
+@media (prefers-reduced-motion: no-preference){
+  .sheet{animation:slidein .18s ease-out}
+  @keyframes slidein{from{transform:translateX(30px); opacity:.6}}
+}
+</style>
+
+<header class="top">
+  <div class="wrap topin">
+    <div class="brand">
+      <div class="stack" aria-hidden="true" id="logoStack"></div>
+      <h1>学びのつながりマップ</h1>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="画面の切りかえ">
+      <button role="tab" id="tab-map" data-view="map">6年間マップ</button>
+      <button role="tab" id="tab-grade" data-view="grade">学年別</button>
+      <button role="tab" id="tab-table" data-view="table">教科の系統表</button>
+      <button role="tab" id="tab-search" data-view="search">検索</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 6年間マップ -->
+  <section class="view" id="view-map" aria-labelledby="tab-map">
+    <h2>6年間の学びのマップ</h2>
+    <p class="lead">教科ごとの色が、学年が上がるにつれて濃くなります。うすい色から濃い色へ、学びが積みあがっていく様子を見てください。マスをタップすると、その教科の系統表へ移動します。</p>
+    <div class="scroller"><table class="grid map" id="mapTable"></table></div>
+    <div class="legend">
+      <span>学年の濃さ</span><span class="ramp" id="ramp"></span>
+      <span class="badge">見本</span><span>いまは算数だけ内容が入っています。ほかの教科は、指導要領の学年のまとめ方（2学年ずつなど）だけを示しています。</span>
+    </div>
+  </section>
+
+  <!-- 学年別 -->
+  <section class="view" id="view-grade" aria-labelledby="tab-grade" hidden>
+    <h2>学年別の一覧</h2>
+    <p class="lead">学年を選ぶと、その学年で学ぶ内容が教科ごとに並びます。見出しをタップすると、前の学年・次の学年とのつながりが見られます。</p>
+    <div class="tools"><div class="gradepick" id="gradePick"></div></div>
+    <div class="cards" id="gradeCards"></div>
+  </section>
+
+  <!-- 教科の系統表 -->
+  <section class="view" id="view-table" aria-labelledby="tab-table" hidden>
+    <h2 id="tableTitle">算数の系統表</h2>
+    <p class="lead" id="tableLead"></p>
+    <div class="tools">
+      <label class="note" for="subjSel">教科</label>
+      <select id="subjSel"></select>
+      <div class="seg" role="group" aria-label="並べ方">
+        <button type="button" id="modeArea" aria-pressed="true">指導要領の区分</button>
+        <button type="button" id="modeTheme" aria-pressed="false">テーマ別</button>
+      </div>
+      <button type="button" class="btn primary" id="pdfBtn">A4・1枚のPDFにする</button>
+      <span class="status" id="pdfStatus"></span>
+    </div>
+    <div class="scroller"><table class="grid" id="sysTable"></table></div>
+    <details class="card" style="margin-top:16px">
+      <summary>算数の目標（学習指導要領の文言）</summary>
+      <div class="text" id="subjGoal" style="margin-top:10px"></div>
+    </details>
+    <details class="card" style="margin-top:10px">
+      <summary>指導計画の作成と内容の取扱い（学習指導要領の文言）</summary>
+      <div class="text" id="subjPlan" style="margin-top:10px"></div>
+    </details>
+  </section>
+
+  <!-- 検索 -->
+  <section class="view" id="view-search" aria-labelledby="tab-search" hidden>
+    <h2>言葉でさがす</h2>
+    <p class="lead">全学年・全教科の学習指導要領の文言からさがします。見つかった言葉には色がつきます。同じ言葉が、どの学年で、どんな学びの中に出てくるかを見比べてみてください。</p>
+    <div class="searchbox">
+      <label for="q" class="note" style="flex-basis:100%">さがす言葉</label>
+      <input id="q" type="search" placeholder="例：単位、図、日常生活" autocomplete="off">
+    </div>
+    <div class="suggest" id="suggest"></div>
+    <div class="counts" id="counts"></div>
+    <div class="results" id="results"></div>
+  </section>
+</main>
+
+<div class="sheetBack" id="sheetBack" hidden></div>
+<aside class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="dTitle"></aside>
+<div id="a4" aria-hidden="true"></div>
+<div class="overlay" id="imgOverlay" hidden></div>
+
+<script>
+/*DATA*/
+
+/* ---------- 教科の一覧（色相と、学習指導要領の学年のまとめ方） ---------- */
+const SUBJECTS = [
+  {id:"kokugo", name:"国語", h:0,   bands:[[1,2],[3,4],[5,6]]},
+  {id:"shakai", name:"社会", h:28,  bands:[[3],[4],[5],[6]]},
+  {id:"sansu",  name:"算数", h:212, bands:[[1],[2],[3],[4],[5],[6]]},
+  {id:"rika",   name:"理科", h:140, bands:[[3],[4],[5],[6]]},
+  {id:"seikatsu", name:"生活", h:80, bands:[[1,2]]},
+  {id:"ongaku", name:"音楽", h:328, bands:[[1,2],[3,4],[5,6]]},
+  {id:"zuko",   name:"図画工作", h:46, bands:[[1,2],[3,4],[5,6]]},
+  {id:"katei",  name:"家庭", h:14,  bands:[[5,6]]},
+  {id:"taiiku", name:"体育", h:176, bands:[[1,2],[3,4],[5,6]]},
+  {id:"gaikokugokatsudo", name:"外国語活動", h:252, bands:[[3,4]]},
+  {id:"gaikokugo", name:"外国語", h:252, bands:[[5,6]]},
+  {id:"doutoku", name:"特別の教科 道徳", h:288, bands:[[1,2],[3,4],[5,6]]},
+  {id:"sougou", name:"総合的な学習の時間", h:32, bands:[[3,4,5,6]]},
+  {id:"tokkatsu", name:"特別活動", h:198, bands:[[1,2,3,4,5,6]]},
+];
+const SUBJ = Object.fromEntries(SUBJECTS.map(s => [s.id, s]));
+
+/* 教科をまたいで同じ言葉を見つけるための、登録した言葉（Claudeが選んだもの） */
+const KEYWORDS = [
+  ["観察", /観察/], ["比べる", /比べ/], ["分類・整理", /分類|整理/], ["表", /表(?=に|や|を|と|の|\s|，|。)/], ["グラフ", /グラフ/],
+  ["データ", /データ/], ["図", /図(?!形)/], ["式", /式/], ["言葉", /言葉/], ["説明", /説明/], ["伝え合う", /伝え合/],
+  ["表現", /表現/], ["日常生活", /日常生活|日常の事象/], ["身の回り", /身の回り/], ["具体物・操作", /具体物|操作/],
+  ["単位", /単位/], ["長さ", /長さ/], ["重さ", /重さ/], ["かさ", /かさ/], ["時間・時刻", /時間|時刻/], ["位置", /位置/],
+  ["面積", /面積/], ["体積", /体積/], ["速さ", /速さ/], ["割合", /割合/], ["平均", /平均/], ["対称", /対称/],
+  ["円", /円(?!グラフ)/], ["角の大きさ", /角の大きさ|角について/], ["拡大・縮小", /拡大|縮図/], ["筋道を立てて", /筋道/],
+  ["振り返る", /振り返/], ["問題解決", /問題解決|問題を解決/], ["そろばん", /そろばん/], ["敷き詰める", /敷き詰め/],
+  ["美しさ", /美しさ/], ["コンピュータ", /コンピュータ|プログラミング/], ["変化", /変化|変わり方/], ["関係付ける", /関係付け/],
+];
+
+/* ---------- データの準備 ---------- */
+const S = CONTENT.sansu;
+const ITEMS = S.items.map(it => ({...it, subject:"sansu"}));
+const BYID = Object.fromEntries(ITEMS.map(it => [it.id, it]));
+const THEME = Object.fromEntries(S.themes.map(t => [t.id, t]));
+const KANJI_G = ["","１","２","３","４","５","６"];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const gClass = gs => gs.length === 1 ? "g" + gs[0] : gs.length === 2 ? "g" + gs.join("") : "gall";
+const gLabel = gs => gs.length === 1 ? gs[0] + "年" : gs[0] + "〜" + gs[gs.length - 1] + "年";
+/* 1/10 のような分数を、分母・分子の形で表示する */
+const frac = html => html.replace(/(^|[^\d.])(\d+)\/(\d+)(?![\d])/g, (m, a, n, d) => a + '<span class="frac" aria-label="' + d + '分の' + n + '"><span>' + n + '</span><span>' + d + '</span></span>');
+const show = s => frac(esc(s));
+const itemText = it => [it.title, ...it.lines, ...(it.notes || [])].join("\n");
+
+/* ---------- ロゴの積み木 ---------- */
+$("logoStack").innerHTML = [1,2,3,4,5,6].map(g => '<i class="g' + g + '" style="height:' + (6 + g * 2.6) + 'px"></i>').join("");
+$("ramp").innerHTML = [1,2,3,4,5,6].map(g => '<i class="g' + g + '">' + g + '</i>').join("");
+
+/* ---------- 画面の切りかえ ---------- */
+const VIEWS = ["map","grade","table","search"];
+function go(view, opts){
+  for(const v of VIEWS){
+    $("view-" + v).hidden = v !== view;
+    $("tab-" + v).setAttribute("aria-selected", v === view ? "true" : "false");
+  }
+  try{ localStorage.setItem("mtm-view", view); }catch(e){}
+  if(view === "search") setTimeout(() => $("q").focus(), 0);
+  if(opts && opts.grade && view === "table") scrollToGrade(opts.grade);
+  if(!opts || !opts.keepScroll) window.scrollTo(0, 0);
+}
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
+
+/* ---------- 6年間マップ ---------- */
+function renderMap(){
+  let h = '<thead><tr><th class="rowh">教科</th>' + [1,2,3,4,5,6].map(g => '<th>' + g + '年</th>').join("") + '</tr></thead><tbody>';
+  for(const s of SUBJECTS){
+    const ready = s.id === "sansu";
+    h += '<tr><th class="rowh" style="--h:' + s.h + '"><span class="rowname"><span class="dot"></span>' + esc(s.name) + '</span>' + (ready ? '' : '<span class="badge">準備中</span>') + '</th>';
+    let g = 1;
+    while(g <= 6){
+      const band = s.bands.find(b => b[0] === g);
+      if(!band){ h += '<td><div class="none off" aria-label="学習しない学年"></div></td>'; g++; continue; }
+      const cls = gClass(band);
+      let inner = '<b>' + gLabel(band) + (band.length > 1 ? "（まとめて示す）" : "") + '</b>';
+      if(ready){
+        const its = ITEMS.filter(it => it.g.includes(g));
+        const seen = []; its.forEach(it => Object.keys(it.themes).forEach(t => { if(!seen.includes(t)) seen.push(t); }));
+        inner += seen.slice(0, 5).map(t => esc(THEME[t].name)).join("・") + (seen.length > 5 ? " ほか" : "");
+      }
+      h += '<td colspan="' + band.length + '"><button type="button" class="mcell ' + cls + (ready ? '' : ' wait') + '" style="--h:' + s.h + '" ' +
+        (ready ? 'data-go="' + s.id + '" data-g="' + g + '"' : 'disabled aria-disabled="true"') + '>' + inner + '</button></td>';
+      g += band.length;
+    }
+    h += '</tr>';
+  }
+  $("mapTable").innerHTML = h + '</tbody>';
+  $("mapTable").querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go("table", {grade:+b.dataset.g})));
+}
+
+/* ---------- 学年別 ---------- */
+let curGrade = 1;
+function renderGrade(){
+  $("gradePick").innerHTML = [1,2,3,4,5,6].map(g => '<button type="button" class="g' + g + '" aria-pressed="' + (g === curGrade) + '" data-g="' + g + '">' + g + '年</button>').join("");
+  $("gradePick").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { curGrade = +b.dataset.g; renderGrade(); }));
+  const g = curGrade, G = S.grades[g];
+  let h = '';
+  for(const s of SUBJECTS){
+    if(!s.bands.some(b => b.includes(g))) continue;
+    if(s.id !== "sansu"){
+      h += '<div class="card" style="--h:' + s.h + '"><h3><span class="dot"></span>' + esc(s.name) + ' <span class="badge">準備中</span></h3><p class="note">全教科版で内容が入ります。</p></div>';
+      continue;
+    }
+    h += '<div class="card" style="--h:' + s.h + '"><h3><span class="dot"></span>算数 ' + g + '年</h3>';
+    for(const a of S.areas){
+      const its = ITEMS.filter(it => it.g.includes(g) && it.area === a.key);
+      if(!its.length) continue;
+      h += '<div class="areaLabel">' + esc(a.name) + '</div><div class="chips cellbox g' + g + '" style="--h:' + s.h + '">' +
+        its.map(it => '<button type="button" class="chip" data-item="' + it.id + '">' + show(it.head) + '</button>').join("") + '</div>';
+    }
+    h += '<details><summary>' + g + '年の目標（指導要領の文言）</summary><div class="text">' + G.goal.map(l => '<p class="l2">' + show(l) + '</p>').join("") + '</div></details>';
+    h += '<details><summary>〔数学的活動〕</summary><div class="text">' + G.activity.map(l => '<p class="l2">' + show(l) + '</p>').join("") + '</div></details>';
+    h += '<div class="areaLabel">〔用語・記号〕</div><div class="terms">' + G.terms.map(t => '<span>' + show(t) + '</span>').join("") + '</div>';
+    h += '</div>';
+  }
+  $("gradeCards").innerHTML = h;
+  bindItems($("gradeCards"));
+}
+
+/* ---------- 教科の系統表 ---------- */
+let mode = "area";
+let hitSet = new Set();
+function rowsFor(m){
+  if(m === "area") return S.areas.map(a => ({name:a.name, grades:a.grades, cells:g => ITEMS.filter(it => it.area === a.key && it.g.includes(g)).map(it => ({it, label:it.head}))}));
+  return S.themes.map(t => {
+    const its = ITEMS.filter(it => it.themes[t.id]);
+    const gs = [...new Set(its.flatMap(it => it.g))];
+    return {name:t.name, sub:S.areas.find(a => a.key === t.area).name, grades:gs, all:true,
+      cells:g => its.filter(it => it.g.includes(g)).map(it => ({it, label:it.themes[t.id]}))};
+  });
+}
+function renderTable(){
+  const s = SUBJ.sansu;
+  $("subjSel").innerHTML = SUBJECTS.map(x => '<option value="' + x.id + '"' + (x.id === "sansu" ? " selected" : " disabled") + '>' + esc(x.name) + (x.id === "sansu" ? "" : "（準備中）") + '</option>').join("");
+  $("tableLead").textContent = mode === "area"
+    ? "学習指導要領の「内容」の区分（Ａ〜Ｄ）で並べています。見出しはClaudeが指導要領の文言をもとに短くまとめたものです。タップすると、原文と前後の学年のつながりが見られます。"
+    : "同じテーマの学びを横1列にそろえました。左から右へ、どのように学びが積みあがるかを追えます（テーマの分け方はClaudeによるものです）。";
+  $("modeArea").setAttribute("aria-pressed", mode === "area");
+  $("modeTheme").setAttribute("aria-pressed", mode === "theme");
+  const rows = rowsFor(mode);
+  let h = '<thead><tr><th class="rowh">' + (mode === "area" ? "区分" : "テーマ") + '</th>' +
+    [1,2,3,4,5,6].map(g => '<th id="col-' + g + '"><div class="colh"><div class="bar g' + g + '" style="--h:' + s.h + ';height:' + (g * 5) + 'px"></div>' + g + '年</div></th>').join("") + '</tr></thead><tbody>';
+  for(const r of rows){
+    h += '<tr><th class="rowh" style="--h:' + s.h + '"><span class="rowname">' + esc(r.name) + '</span>' + (r.sub ? '<span class="note">' + esc(r.sub) + '</span>' : '') + '</th>';
+    for(let g = 1; g <= 6; g++){
+      const cs = r.cells(g);
+      if(!cs.length){
+        const outside = mode === "area" && !r.grades.includes(g);
+        h += '<td class="cell"><div class="none' + (outside ? ' off' : '') + '">' + (outside ? (r.name.includes("測定") ? "4年からは「変化と関係」" : "3年までは「測定」") : "") + '</div></td>';
+        continue;
+      }
+      h += '<td class="cell"><div class="cellbox chips g' + g + '" style="--h:' + s.h + '">' +
+        cs.map(c => '<button type="button" class="chip' + (hitSet.has(c.it.id) ? ' hit' : '') + '" data-item="' + c.it.id + '">' + show(c.label) + '</button>').join("") + '</div></td>';
+    }
+    h += '</tr>';
+  }
+  $("sysTable").innerHTML = h + '</tbody>';
+  bindItems($("sysTable"));
+  $("subjGoal").innerHTML = S.goal.map((l, i) => '<p class="' + (i ? 'l2' : '') + '">' + show(l) + '</p>').join("") + '<p class="src">出典：小学校学習指導要領（平成29年告示）第２章 第３節 算数 第１ 目標</p>';
+  $("subjPlan").innerHTML = S.plan.map(l => '<p class="' + (/^[１２３]　/.test(l) ? 'l1' : 'l2') + '">' + show(l) + '</p>').join("") + '<p class="src">出典：同 第３ 指導計画の作成と内容の取扱い</p>';
+}
+function scrollToGrade(g){
+  const sc = $("sysTable").parentElement, th = $("col-" + g);
+  if(th) sc.scrollLeft = Math.max(0, th.offsetLeft - 140);
+}
+$("modeArea").addEventListener("click", () => { mode = "area"; renderTable(); });
+$("modeTheme").addEventListener("click", () => { mode = "theme"; renderTable(); });
+
+function bindItems(root){ root.querySelectorAll("[data-item]").forEach(b => b.addEventListener("click", () => openItem(b.dataset.item))); }
+
+/* ---------- 詳しい画面 ---------- */
+let lastFocus = null;
+function openItem(id){
+  const it = BYID[id], s = SUBJ[it.subject], g = it.g[0];
+  if($("sheet").hidden) lastFocus = document.activeElement;
+  let h = '<button type="button" class="close" id="closeSheet">閉じる</button>';
+  h += '<div class="meta" style="--h:' + s.h + '"><span class="gpill ' + gClass(it.g) + '">' + gLabel(it.g) + '</span><span class="badge">' + esc(s.name) + '</span><span class="badge">' + esc(S.areas.find(a => a.key === it.area).name) + '</span></div>';
+  h += '<h2 id="dTitle">' + show(it.head) + '</h2>';
+
+  /* 学びのつながり：テーマごとに1〜6年の流れを見せる */
+  h += '<div class="sec"><h3>学びのつながり</h3>';
+  for(const tid of Object.keys(it.themes)){
+    const line = ITEMS.filter(x => x.themes[tid]).sort((a, b) => a.g[0] - b.g[0] || a.no - b.no);
+    h += '<div class="flow"><div class="tname">テーマ「' + esc(THEME[tid].name) + '」</div><div class="steps">' +
+      line.map(x => '<button type="button" class="step ' + gClass(x.g) + (x.id === id ? ' now' : '') + '" style="--h:' + s.h + ';min-height:' + (40 + x.g[0] * 9) + 'px" ' + (x.id === id ? 'aria-current="true"' : 'data-item="' + x.id + '"') + '><b>' + gLabel(x.g) + (x.id === id ? '（いま）' : '') + '</b>' + show(x.themes[tid]) + '</button>').join("") + '</div>';
+    const prev = line.filter(x => x.g[0] < g), next = line.filter(x => x.g[0] > g);
+    const pg = prev.length ? Math.max(...prev.map(x => x.g[0])) : null, ng = next.length ? Math.min(...next.map(x => x.g[0])) : null;
+    h += '<div class="prevnext"><div class="pn"><b>前の学年で学んだこと</b>' + (pg ? '<ul>' + prev.filter(x => x.g[0] === pg).map(x => '<li>' + pg + '年：<button type="button" data-item="' + x.id + '">' + show(x.themes[tid]) + '</button></li>').join("") + '</ul>' : 'このテーマは、この学年から始まります。') + '</div>' +
+      '<div class="pn"><b>次の学年で学ぶこと</b>' + (ng ? '<ul>' + next.filter(x => x.g[0] === ng).map(x => '<li>' + ng + '年：<button type="button" data-item="' + x.id + '">' + show(x.themes[tid]) + '</button></li>').join("") + '</ul>' : '小学校では、この学年がまとめになります（中学校数学へつながります）。') + '</div></div></div>';
+  }
+  h += '</div>';
+
+  /* 学習指導要領の文言 */
+  h += '<div class="sec"><h3>学習指導要領の文言</h3><div class="text"><p class="l2">' + "⑴⑵⑶⑷⑸⑹⑺⑻"[it.no - 1] + '　' + show(it.title) + '</p>' +
+    it.lines.map(l => '<p class="' + (/^[アイ]　/.test(l) ? 'l1' : 'l2') + '">' + show(l) + '</p>').join("") +
+    '<p class="src">出典：小学校学習指導要領（平成29年告示）算数〔第' + KANJI_G[g] + '学年〕２ 内容 ' + esc(it.areaName) + '</p></div></div>';
+  if(it.notes && it.notes.length){
+    h += '<div class="sec"><h3>内容の取扱い（この内容に関係するもの）</h3><div class="text">' + it.notes.map(l => '<p class="l2">' + show(l) + '</p>').join("") + '<p class="src">出典：同〔第' + KANJI_G[g] + '学年〕３ 内容の取扱い</p></div></div>';
+  }
+
+  /* 同じ言葉が出てくる内容 */
+  const text = itemText(it);
+  const kws = KEYWORDS.filter(([, re]) => re.test(text));
+  h += '<div class="sec"><h3>同じ言葉が出てくる内容</h3>';
+  if(kws.length){
+    h += '<div class="kw">' + kws.map(([name, re]) => {
+      const others = ITEMS.filter(x => x.id !== id && re.test(itemText(x)));
+      const bySubj = {};
+      others.forEach(x => (bySubj[x.subject] = bySubj[x.subject] || []).push(x));
+      return '<div class="kwrow"><span class="kwname">「' + esc(name) + '」</span><span class="note">ほかに ' + others.length + ' 件</span>' +
+        Object.entries(bySubj).map(([sid, xs]) => '<div class="others" style="--h:' + SUBJ[sid].h + '"><span class="note">' + esc(SUBJ[sid].name) + '：</span>' +
+          xs.map(x => '<button type="button" class="' + gClass(x.g) + '" data-item="' + x.id + '">' + gLabel(x.g) + ' ' + show(x.head) + '</button>').join("") + '</div>').join("") + '</div>';
+    }).join("") + '</div>';
+  } else h += '<p class="note">登録した言葉は出てきません。</p>';
+  h += '<p class="note">いまは見本のため算数の中だけで探しています。全教科版では、理科・生活・社会など他教科の内容もここに並びます。</p></div>';
+
+  $("sheet").innerHTML = h;
+  $("sheet").hidden = false; $("sheetBack").hidden = false;
+  $("sheet").scrollTop = 0;
+  bindItems($("sheet"));
+  $("closeSheet").addEventListener("click", closeSheet);
+  $("closeSheet").focus();
+}
+function closeSheet(){
+  $("sheet").hidden = true; $("sheetBack").hidden = true;
+  if(lastFocus && document.contains(lastFocus)) lastFocus.focus();
+}
+$("sheetBack").addEventListener("click", closeSheet);
+document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("sheet").hidden) closeSheet(); });
+
+/* ---------- 検索 ---------- */
+const SUGGEST = ["単位","図","日常生活","比べ","表","グラフ","筋道","面積","割合","そろばん","敷き詰め"];
+$("suggest").innerHTML = '<span class="note">例：</span>' + SUGGEST.map(w => '<button type="button" data-w="' + w + '">' + w + '</button>').join("");
+$("suggest").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { $("q").value = b.dataset.w; doSearch(); }));
+const markText = (s, q) => {
+  const e = esc(s); if(!q) return frac(e);
+  const eq = esc(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return frac(e.replace(new RegExp(eq, "g"), m => "<mark>" + m + "</mark>"));
+};
+function doSearch(){
+  const q = $("q").value.trim();
+  hitSet = new Set();
+  if(!q){ $("results").innerHTML = ""; $("counts").innerHTML = ""; renderTable(); return; }
+  const hits = [];
+  for(const it of ITEMS){
+    const parts = [it.head, ...Object.values(it.themes), it.title, ...it.lines, ...(it.notes || [])];
+    const found = parts.filter(p => p.includes(q));
+    if(found.length){ hits.push({it, found}); hitSet.add(it.id); }
+  }
+  /* 学年の目標・数学的活動・用語にも出てくるか */
+  const extra = [];
+  for(const [g, G] of Object.entries(S.grades)){
+    [["目標", G.goal], ["数学的活動", G.activity], ["用語・記号", [G.terms.join("　")]]].forEach(([nm, ls]) => ls.forEach(l => { if(l.includes(q)) extra.push({g:+g, nm, l}); }));
+  }
+  const perG = [1,2,3,4,5,6].map(g => hits.filter(x => x.it.g.includes(g)).length);
+  $("counts").innerHTML = '<b>「' + esc(q) + '」は ' + hits.length + ' 件の内容に出てきます</b>' +
+    perG.map((n, i) => '<span class="gc g' + (i + 1) + '" style="--h:' + SUBJ.sansu.h + '">' + (i + 1) + '年 ' + n + '</span>').join("");
+  let h = hits.map(({it, found}) => {
+    const snip = found.filter(f => f !== it.head).slice(0, 2);
+    return '<button type="button" class="res" data-item="' + it.id + '" style="--h:' + SUBJ[it.subject].h + '"><span class="gtag ' + gClass(it.g) + '">' + gLabel(it.g) + '<small>' + esc(SUBJ[it.subject].name) + '</small></span><span>' +
+      '<h4>' + markText(it.head, q) + '</h4><span class="where">' + esc(it.areaName) + '</span>' + snip.map(f => '<p>' + markText(f, q) + '</p>').join("") + '</span></button>';
+  }).join("");
+  if(extra.length){
+    h += '<h3 style="margin:14px 0 4px;font-size:15px">学年の目標・数学的活動・用語にも出てきます</h3>' + extra.map(x =>
+      '<div class="res" style="--h:' + SUBJ.sansu.h + ';cursor:default"><span class="gtag g' + x.g + '">' + x.g + '年<small>算数</small></span><span><span class="where">' + x.nm + '</span><p>' + markText(x.l, q) + '</p></span></div>').join("");
+  }
+  if(!hits.length && !extra.length) h = '<p class="note">見つかりませんでした。ひらがなと漢字を変えたり（例：「くらべる」→「比べ」）、短い言葉にしたりしてみてください。</p>';
+  h += '<p class="note">見本のため、いまは算数の文言だけをさがしています。系統表でも、見つかった内容に黄色のわくがつきます。</p>';
+  $("results").innerHTML = h;
+  bindItems($("results"));
+  renderTable();
+}
+let st; $("q").addEventListener("input", () => { clearTimeout(st); st = setTimeout(doSearch, 180); });
+
+/* ---------- A4・1枚のPDF ---------- */
+function buildA4(){
+  const s = SUBJ.sansu, gs = S.goalShort, rows = rowsFor(mode);
+  let h = '<div class="a4head" style="--h:' + s.h + '"><h1>算数　学びのつながり（1〜6年）</h1><div style="font-size:11px">' + (mode === "area" ? "指導要領の区分で表示" : "テーマ別で表示") + '</div></div>';
+  h += '<div class="a4goal" style="--h:' + s.h + '"><b>教科の目標</b>　' + esc(gs.lead) + '<ul>' + gs.points.map(p => '<li>' + esc(p) + '</li>').join("") + '</ul></div>';
+  h += '<table style="--h:' + s.h + '"><thead><tr><th class="rh">' + (mode === "area" ? "区分" : "テーマ") + '</th>' + [1,2,3,4,5,6].map(g => '<th>' + g + '年</th>').join("") + '</tr></thead><tbody>';
+  for(const r of rows){
+    h += '<tr><th class="rh">' + esc(r.name) + '</th>';
+    for(let g = 1; g <= 6; g++){
+      const cs = r.cells(g);
+      h += cs.length ? '<td class="g' + g + '">' + cs.map(c => '<div>' + show(c.label) + '</div>').join("") + '</td>' : '<td class="empty"></td>';
+    }
+    h += '</tr>';
+  }
+  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）算数。見出し・テーマ・目標の要約は「学びのつながりマップ」によるもの。原文は学習指導要領で確認してください。</span><span>学びのつながりマップ</span></div>';
+  const box = $("a4"); box.innerHTML = h;
+  /* 1枚に収まるまで文字を小さくする */
+  const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 13;
+  const over = () => tb.getBoundingClientRect().bottom > foot.getBoundingClientRect().top - 6;
+  tb.style.fontSize = fs + "px";
+  while(over() && fs > 6){ fs -= .25; tb.style.fontSize = fs + "px"; }
+  return box;
+}
+let dl = null, dlChecked = false;
+const LOCAL = location.protocol === "file:";
+async function getDl(){
+  if(dlChecked) return dl;
+  try{ if(window.claude && typeof window.claude.use === "function") dl = await window.claude.use("downloads"); }catch(e){ dl = null; }
+  dlChecked = true; return dl;
+}
+function pdfStatus(m){ $("pdfStatus").textContent = m; }
+async function loadLibs(){
+  const add = src => new Promise((ok, ng) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = ng; document.head.appendChild(s); });
+  if(!window.html2canvas) await add("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+  if(!(window.jspdf && window.jspdf.jsPDF)) await add("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+}
+$("pdfBtn").addEventListener("click", async e => {
+  const btn = e.currentTarget; btn.disabled = true;
+  try{
+    const box = buildA4();
+    const name = "学びのつながり_算数_" + (mode === "area" ? "区分" : "テーマ別") + ".pdf";
+    /* ネットにつながっていないファイル版：印刷画面から「PDFに保存」を選ぶ */
+    try{ pdfStatus("PDFを作っています…"); await loadLibs(); }
+    catch(err){
+      if(LOCAL){ pdfStatus("印刷の画面で、送信先を「PDFに保存」、用紙をA4横にしてください。"); window.print(); return; }
+      pdfStatus("PDFを作る部品を読みこめませんでした。インターネットにつながっているか確かめてください。"); return;
+    }
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    box.style.left = "0"; box.style.zIndex = "-1";
+    const canvas = await html2canvas(box, {scale:2, backgroundColor:"#ffffff", windowWidth:1123});
+    box.style.left = "-5000px";
+    const pdf = new window.jspdf.jsPDF({orientation:"landscape", unit:"mm", format:"a4"});
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 297, 210);
+    const blob = pdf.output("blob");
+    if(LOCAL){
+      const u = URL.createObjectURL(blob), a = document.createElement("a");
+      a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(u), 10000);
+      pdfStatus("PDFを保存しました。A4横で印刷できます。"); return;
+    }
+    const d = await getDl();
+    if(d){
+      try{ await d.save({filename:name, data:blob}); pdfStatus("PDFを保存しました。A4横で印刷できます。"); }
+      catch(err){ pdfStatus("保存をやめました。もう一度ボタンをおすと保存できます。"); }
+      return;
+    }
+    /* 保存ができない画面：画像を出して、長押しや右クリックで保存してもらう */
+    const ov = $("imgOverlay");
+    ov.innerHTML = '<p>この画面ではファイルを保存できません。画像を長押し（パソコンは右クリック）して保存し、A4横で印刷してください。</p><img alt="算数の系統表 A4" src="' + canvas.toDataURL("image/jpeg", 0.92) + '"><button type="button" class="btn" id="ovClose">閉じる</button>';
+    ov.hidden = false; $("ovClose").addEventListener("click", () => { ov.hidden = true; });
+    pdfStatus("");
+  } finally { btn.disabled = false; }
+});
+
+/* ---------- はじめの表示 ---------- */
+renderMap(); renderGrade(); renderTable();
+let startView = "map";
+const hv = location.hash.replace("#", "");
+if(VIEWS.includes(hv)) startView = hv;
+else { try{ const v = localStorage.getItem("mtm-view"); if(VIEWS.includes(v)) startView = v; }catch(e){} }
+go(startView);
+getDl();
+</script>
