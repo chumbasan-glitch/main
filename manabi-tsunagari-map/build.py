@@ -183,8 +183,9 @@ json.dump({'items': items, 'subjects': [{'id': s['id'], 'plan': s['plan']} for s
 BYID = {it['id']: it for it in items}
 cross = []
 FU = json.load(open(P('data', 'furoku.json'))) if os.path.exists(P('data', 'furoku.json')) else {}
-def add_cross(tid, name, kind, rows, page=None, sosoku=(), F=None):
+def add_cross(tid, name, kind, rows, page=None, sosoku=(), F=None, group=None):
     T = {'id': tid, 'name': name, 'kind': kind, 'page': page, 'sosoku': list(sosoku), 'cats': [], 'plans': []}
+    if group: T['group'] = group
     THEMES.append({'id': tid, 'name': name, 'cross': True})
     for cat, ids in rows:
         T['cats'].append(cat)
@@ -197,10 +198,15 @@ def add_cross(tid, name, kind, rows, page=None, sosoku=(), F=None):
                 texts = [re.sub(r'(?<=[^\x00-\x7f]) +(?=[^\x00-\x7f])', '', re.sub(r'[⎧⎫⎨⎬⎩⎭⎜]', '', x)).strip() for x in texts]
                 T['plans'].append({'subject': sub, 'cat': cat, 'lines': list(dict.fromkeys(texts))})
                 continue
+            i, _, phrase = i.partition(':')
             assert i in BYID, (name, i)
             it = BYID[i]
             it['themes'][tid] = it['head']
             hl = (F or {}).get('items', {}).get(i, {})
+            if phrase:   # 根拠の言葉が入っている行に色を付ける
+                hl = {'lines': [k for k, l in enumerate(it['lines']) if phrase in l],
+                      'notes': [k for k, l in enumerate(it.get('notes', [])) if phrase in l]}
+                assert hl['lines'] or hl['notes'], (name, i, phrase)
             # 1つの内容が2つの小見出しにまたがることがある（例：けがの防止 → 生活安全と交通安全）
             c = it.setdefault('cross', {}).setdefault(tid, {'cats': [], 'lines': hl.get('lines', []), 'notes': hl.get('notes', [])})
             c['cats'].append(cat)
@@ -219,13 +225,46 @@ for r in read_tsv('school_themes'):
 for k, (name, rs) in enumerate(srows.items()):
     add_cross('x%02d' % (k + 1), name, 'school', rs)
 
+# ---------- 探究とのつながり（Claudeの案） ----------
+STEPS = ['問題意識を形成する', 'テーマを決定する', '問いを設定する', '仮説を立てる', '計画を立てる', '情報を収集する',
+         '情報を整理・分析する', '仮説を検証する', '成果物を作成する', '共有する', '成果を評価する']
+PROCS = ['課題の設定', '情報の収集', '整理・分析', 'まとめ・表現', '学習の振り返り']
+STEP_PROC = [0, 0, 0, 0, 0, 1, 2, 2, 3, 3, 4]   # 11ステップ → 学習指導要領の探究の過程
+for r in read_tsv('tankyu_steps'):
+    it = BYID[r[0]]
+    k = next(k for k, l in enumerate(it['lines']) if l.startswith(r[1]))
+    it.setdefault('steps', []).append({'k': k, 's': [int(x) for x in r[2].split(',')], 'ex': r[3] if len(r) > 3 else ''})
+levels = [{'g': int(r[0]), 'level': int(r[1]), 'name': r[2], 'steps': [int(x) for x in r[3].split(',')]} for r in read_tsv('tankyu_levels')]
+# 探究課題：付録6と重なるものはその結び付きを使う
+kgroups, krows = [], {}
+for r in read_tsv('tankyu_kadai'):
+    if r[0] not in kgroups: kgroups.append(r[0])
+    krows.setdefault((r[0], r[1]), []).append(r[2:])
+for k, ((grp, name), rs) in enumerate(krows.items()):
+    tid = 'k%02d' % (k + 1)
+    if rs[0][0].startswith('='):
+        src, _, only = rs[0][0][1:].partition(':')
+        X = next(x for x in cross if x['name'] == src + 'に関する教育')
+        T = {'id': tid, 'name': name, 'kind': 'tankyu', 'group': grp, 'page': X['page'], 'sosoku': [], 'from': X['name'],
+             'cats': [c for c in X['cats'] if not only or c == only], 'plans': [p for p in X['plans'] if not only or p['cat'] == only]}
+        THEMES.append({'id': tid, 'name': name, 'cross': True})
+        for it in items:
+            c = it.get('cross', {}).get(X['id'])
+            if c and (not only or only in c['cats']):
+                it['themes'][tid] = it['head']
+                it['cross'][tid] = {'cats': [x for x in c['cats'] if not only or x == only], 'lines': c['lines'], 'notes': c['notes']}
+        cross.append(T)
+    else:
+        add_cross(tid, name, 'tankyu', [(c, ids.split()) for c, ids in rs], group=grp)
+tankyu = {'steps': STEPS, 'procs': PROCS, 'stepProc': STEP_PROC, 'levels': levels, 'groups': kgroups}
+
 used = {k for it in items for k in it['themes']}
 THEMES = [t for t in THEMES if t['id'] in used]
 print(len(items), 'items,', len(THEMES), 'themes,', len(cross), 'cross themes')
 for s in subjects:
     print(' ', s['name'], sum(1 for it in items if it['subject'] == s['id']))
 
-content = {'subjects': subjects, 'themes': THEMES, 'items': items, 'cross': cross}
+content = {'subjects': subjects, 'themes': THEMES, 'items': items, 'cross': cross, 'tankyu': tankyu}
 t = open(P('template.html')).read()
 t = t.replace('/*DATA*/', 'const CONTENT = ' + json.dumps(content, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
 open(P('page.html'), 'w').write(t)

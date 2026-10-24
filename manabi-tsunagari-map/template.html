@@ -14,7 +14,7 @@
   --s1:55%; --s2:58%; --s3:58%; --s4:55%; --s5:55%; --s6:58%;
   --t1:#1f2a2e; --t2:#1f2a2e; --t3:#1f2a2e; --t4:#ffffff; --t5:#ffffff; --t6:#ffffff;
   --chip:rgba(255,255,255,.6); --chipInk:#1f2a2e; --chipD:rgba(0,0,0,.2); --chipDInk:#ffffff;
-  --empty:#eceeea; --cite:#fff1a8; --citeLine:#d9a400;
+  --empty:#eceeea; --cite:#fff1a8; --citeLine:#d9a400; --tk:#e2efff; --tkLine:#3a7bd5;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#161b1d; --panel:#1f2629; --ink:#e7ecea; --ink2:#a3afb3; --line:#36403f; --accent:#8cbbe6; --mark:#d9b800; --markInk:#111;
@@ -22,7 +22,7 @@
   --s1:30%; --s2:36%; --s3:42%; --s4:48%; --s5:55%; --s6:62%;
   --t1:#e7ecea; --t2:#e7ecea; --t3:#ffffff; --t4:#ffffff; --t5:#111; --t6:#111;
   --chip:rgba(0,0,0,.3); --chipInk:#e7ecea; --chipD:rgba(255,255,255,.5); --chipDInk:#111;
-  --empty:#232b2d; --cite:#4a3f12; --citeLine:#d9b800; color-scheme:dark;
+  --empty:#232b2d; --cite:#4a3f12; --citeLine:#d9b800; --tk:#17324d; --tkLine:#6aa7ff; color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#161b1d; --panel:#1f2629; --ink:#e7ecea; --ink2:#a3afb3; --line:#36403f; --accent:#8cbbe6; --mark:#d9b800; --markInk:#111;
@@ -30,7 +30,7 @@
   --s1:30%; --s2:36%; --s3:42%; --s4:48%; --s5:55%; --s6:62%;
   --t1:#e7ecea; --t2:#e7ecea; --t3:#ffffff; --t4:#ffffff; --t5:#111; --t6:#111;
   --chip:rgba(0,0,0,.3); --chipInk:#e7ecea; --chipD:rgba(255,255,255,.5); --chipDInk:#111;
-  --empty:#232b2d; --cite:#4a3f12; --citeLine:#d9b800; color-scheme:dark;
+  --empty:#232b2d; --cite:#4a3f12; --citeLine:#d9b800; --tk:#17324d; --tkLine:#6aa7ff; color-scheme:dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -210,6 +210,20 @@ mark{background:var(--mark); color:var(--markInk); border-radius:3px; padding:0 
 #a4 .a4legend{font-size:10px; margin:0 0 6px; display:flex; flex-wrap:wrap; gap:4px 14px}
 #a4 td .ct{font-size:.85em; opacity:.85}
 
+/* 探究 */
+.levelbar{display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin:0 0 12px; font-size:14px}
+.levelbar b{font-family:var(--font-display); font-size:16px}
+.stepno{display:inline-block; min-width:1.6em; text-align:center; border-radius:999px; background:var(--accent); color:var(--panel); font-size:12px; font-weight:700; padding:0 4px; margin-right:2px}
+table.tksteps th.sth{font-size:12px; line-height:1.35; text-align:left; vertical-align:bottom}
+table.tksteps th.sth small{display:block; color:var(--ink2); font-weight:400}
+table.tksteps .faded{opacity:.42}
+table.tksteps th.faded small::after{content:"（この学年ではまだ扱わない）"}
+.exmark{display:inline-block; font-size:10px; border-radius:4px; padding:0 4px; margin-left:3px; background:var(--accent); color:var(--panel); vertical-align:1px}
+.text p.tk{box-shadow:inset 3px 0 0 var(--tkLine); background:var(--tk); border-radius:3px}
+.text p.cite.tk{box-shadow:inset 3px 0 0 var(--citeLine), inset 6px 0 0 var(--tkLine)}
+.citenote b{display:inline-block; width:22px; height:10px; background:var(--tk); box-shadow:inset 3px 0 0 var(--tkLine); vertical-align:middle; margin:0 4px 0 10px}
+.tkrow{display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px}
+
 /* A4 PDF用（画面外に置いて画像にする） */
 #a4{position:fixed; left:-5000px; top:0; width:1123px; height:794px; background:#fff; color:#1f2a2e; padding:26px 30px; font-family:var(--font-body); overflow:hidden}
 #a4 .a4head{display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid hsl(var(--h) 55% 40%); padding-bottom:5px; margin-bottom:7px}
@@ -266,6 +280,7 @@ mark{background:var(--mark); color:var(--markInk); border-radius:3px; padding:0 
       <button role="tab" id="tab-grade" data-view="grade">学年別</button>
       <button role="tab" id="tab-table" data-view="table">教科の系統表</button>
       <button role="tab" id="tab-cross" data-view="cross">教科横断</button>
+      <button role="tab" id="tab-tankyu" data-view="tankyu">探究</button>
       <button role="tab" id="tab-search" data-view="search">検索</button>
     </nav>
   </div>
@@ -334,6 +349,45 @@ mark{background:var(--mark); color:var(--markInk); border-radius:3px; padding:0 
     </details>
   </section>
 
+  <!-- 探究 -->
+  <section class="view" id="view-tankyu" aria-labelledby="tab-tankyu" hidden>
+    <h2>探究学習とのつながり</h2>
+    <p class="lead">各教科で身に付ける力のうち、探究学習に生かせるものを並べました。「過程で見る」は探究のステップごとに、「課題で見る」は総合的な学習の時間の探究課題ごとに、関係する内容が並びます。つながりの多くはClaudeが学習指導要領の文言の意味から考えた案です。解説（総合的な学習の時間編）に例があるものには「解説例」と付けています。</p>
+    <div class="tools">
+      <div class="seg" role="group" aria-label="見方">
+        <button type="button" id="tkModeProc" aria-pressed="true">過程で見る</button>
+        <button type="button" id="tkModeKadai" aria-pressed="false">課題で見る</button>
+      </div>
+    </div>
+    <div id="tkProc">
+      <div class="tools">
+        <div class="seg" role="group" aria-label="ステップの分け方">
+          <button type="button" id="tkStep11" aria-pressed="true">探究の11ステップ</button>
+          <button type="button" id="tkStep4" aria-pressed="false">学習指導要領の探究の過程</button>
+        </div>
+        <div class="gradepick" id="tkGrade"></div>
+        <button type="button" class="btn primary" id="pdfTkBtn">A4・1枚のPDFにする</button>
+        <span class="status" id="pdfTkStatus"></span>
+      </div>
+      <div class="levelbar" id="tkLevel"></div>
+      <div class="scroller"><table class="grid tksteps" id="tkTable"></table></div>
+      <details class="card" style="margin-top:16px">
+        <summary>11ステップと、学習指導要領の探究の過程との対応</summary>
+        <div class="text" id="tkMapText" style="margin-top:10px"></div>
+      </details>
+    </div>
+    <div id="tkKadai" hidden>
+      <div class="crosspick" id="kPick"></div>
+      <div class="crosshead" id="kHead"></div>
+      <div class="tools">
+        <div class="catfilter" id="kFilter" role="group" aria-label="小見出しでしぼりこむ"></div>
+        <button type="button" class="btn primary" id="pdfKBtn">A4・1枚のPDFにする</button>
+        <span class="status" id="pdfKStatus"></span>
+      </div>
+      <div class="scroller"><table class="grid" id="kTable"></table></div>
+    </div>
+  </section>
+
   <!-- 検索 -->
   <section class="view" id="view-search" aria-labelledby="tab-search" hidden>
     <h2>言葉でさがす</h2>
@@ -385,7 +439,7 @@ const XDEF = CONTENT.cross, XBYID = Object.fromEntries(XDEF.map(x => [x.id, x]))
 const MARU = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫";
 const catNo = (x, cat) => MARU[x.cats.indexOf(cat)] || "";
 const catTags = (x, cats) => cats.map(c => '<span class="cattag">' + catNo(x, c) + esc(c) + '</span>').join(" ");
-const xSource = x => x.kind === "furoku" ? "解説 総則編 付録6（" + x.page + "ページ〜）" : "学校で決めたテーマ";
+const xSource = x => x.kind === "furoku" ? "解説 総則編 付録6（" + x.page + "ページ〜）" : x.kind === "tankyu" ? "解説 総合的な学習の時間編 p.74-75の探究課題の例（" + (x.from ? "つながりは付録6「" + x.from + "」より" : "つながりはClaudeの案") + "）" : "学校で決めたテーマ";
 const KANJI_G = ["","１","２","３","４","５","６"];
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -406,7 +460,7 @@ $("logoStack").innerHTML = [1,2,3,4,5,6].map(g => '<i class="g' + g + '" style="
 $("ramp").innerHTML = [1,2,3,4,5,6].map(g => '<i class="g' + g + '">' + g + '</i>').join("");
 
 /* ---------- 画面の切りかえ ---------- */
-const VIEWS = ["map","grade","table","cross","search"];
+const VIEWS = ["map","grade","table","cross","tankyu","search"];
 function go(view, opts){
   for(const v of VIEWS){
     $("view-" + v).hidden = v !== view;
@@ -415,6 +469,7 @@ function go(view, opts){
   try{ localStorage.setItem("mtm-view", view); }catch(e){}
   if(view === "table") renderTable();
   if(view === "cross") renderCross();
+  if(view === "tankyu") renderTankyu();
   if(view === "search") setTimeout(() => $("q").focus(), 0);
   window.scrollTo(0, 0);
   if(opts && opts.grade && view === "table") requestAnimationFrame(() => scrollToGrade(opts.grade));
@@ -559,35 +614,43 @@ $("modeTheme").addEventListener("click", () => { mode = "theme"; renderTable(); 
 
 function bindItems(root){ root.querySelectorAll("[data-item]").forEach(b => b.addEventListener("click", () => openItem(b.dataset.item))); }
 
-/* ---------- 教科横断 ---------- */
-let curCross = XBYID.f13 ? "f13" : (XDEF[0] && XDEF[0].id), catSel = null;
-function crossRows(x){
+/* ---------- 教科横断・探究課題（同じ形の表） ---------- */
+const XS = {
+  cross:{cur:XBYID.f13 ? "f13" : ((XDEF.find(x => x.kind !== "tankyu") || {}).id), cat:null, ids:{pick:"crossPick", head:"crossHead", filter:"catFilter", table:"crossTable", sbox:"sosokuBox", stext:"sosokuText"}},
+  kadai:{cur:(XDEF.find(x => x.kind === "tankyu") || {}).id, cat:null, ids:{pick:"kPick", head:"kHead", filter:"kFilter", table:"kTable"}},
+};
+function crossRows(x, cat){
   const rows = [];
   for(const s of SUBJECTS){
-    const its = ITEMS.filter(it => it.subject === s.id && it.cross && it.cross[x.id] && (!catSel || it.cross[x.id].cats.includes(catSel)))
-      .map(it => ({it, label:it.head, cats:catSel ? [catSel] : it.cross[x.id].cats}));
-    const plans = x.plans.map((p, k) => ({...p, k})).filter(p => p.subject === s.id && (!catSel || p.cat === catSel));
+    const its = ITEMS.filter(it => it.subject === s.id && it.cross && it.cross[x.id] && (!cat || it.cross[x.id].cats.includes(cat)))
+      .map(it => ({it, label:it.head, cats:cat ? [cat] : it.cross[x.id].cats}));
+    const plans = x.plans.map((p, k) => ({...p, k})).filter(p => p.subject === s.id && (!cat || p.cat === cat));
     if(its.length || plans.length) rows.push({s, its, plans});
   }
   return rows;
 }
-function renderCross(){
-  if(!XDEF.length){ $("crossTable").innerHTML = ""; return; }
-  const x = XBYID[curCross];
-  if(catSel && !x.cats.includes(catSel)) catSel = null;
-  const fu = XDEF.filter(y => y.kind === "furoku"), sc = XDEF.filter(y => y.kind === "school");
-  const btn = y => '<button type="button" data-x="' + y.id + '" aria-pressed="' + (y.id === curCross) + '">' + esc(y.name.replace("に関する教育", "")) + '</button>';
-  $("crossPick").innerHTML = '<span class="grp">付録6：</span>' + fu.map(btn).join("") + (sc.length ? '<span class="grp">学校独自：</span>' + sc.map(btn).join("") : '');
-  $("crossPick").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { curCross = b.dataset.x; catSel = null; renderCross(); }));
-  const n = ITEMS.filter(it => it.cross && it.cross[x.id]).length, subs = new Set(ITEMS.filter(it => it.cross && it.cross[x.id]).map(it => it.subject));
+function renderX(st){
+  const I = st.ids, x = XBYID[st.cur];
+  if(!x){ $(I.table).innerHTML = ""; return; }
+  if(st.cat && !x.cats.includes(st.cat)) st.cat = null;
+  const btn = y => '<button type="button" data-x="' + y.id + '" aria-pressed="' + (y.id === st.cur) + '">' + esc(y.name.replace("に関する教育", "")) + '</button>';
+  if(st === XS.kadai){
+    const groups = CONTENT.tankyu.groups;
+    $(I.pick).innerHTML = groups.map(g => '<span class="grp">' + esc(g) + '：</span>' + XDEF.filter(y => y.kind === "tankyu" && y.group === g).map(btn).join("")).join('<br>');
+  } else {
+    const fu = XDEF.filter(y => y.kind === "furoku"), sc = XDEF.filter(y => y.kind === "school");
+    $(I.pick).innerHTML = '<span class="grp">付録6：</span>' + fu.map(btn).join("") + (sc.length ? '<span class="grp">学校独自：</span>' + sc.map(btn).join("") : '');
+  }
+  $(I.pick).querySelectorAll("button").forEach(b => b.addEventListener("click", () => { st.cur = b.dataset.x; st.cat = null; renderX(st); }));
+  const its = ITEMS.filter(it => it.cross && it.cross[x.id]), subs = new Set(its.map(it => it.subject));
   x.plans.forEach(p => subs.add(p.subject));
-  $("crossHead").innerHTML = '<h3>' + esc(x.name) + '</h3><p>' + esc(xSource(x)) + '　／　' + subs.size + '教科等・' + n + 'の内容' + (x.plans.length ? '＋指導計画の作成と内容の取扱い' : '') + '</p>' +
-    '<p>小見出しは、付録6が挙げている内容を、意味のちがいが分かるようにClaudeが分けたものです。</p>';
-  $("catFilter").innerHTML = '<button type="button" data-c="" aria-pressed="' + !catSel + '">すべて</button>' +
-    x.cats.map(c => '<button type="button" data-c="' + esc(c) + '" aria-pressed="' + (catSel === c) + '">' + catNo(x, c) + esc(c) + '</button>').join("");
-  $("catFilter").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { catSel = b.dataset.c || null; renderCross(); }));
+  $(I.head).innerHTML = '<h3>' + esc(x.name) + '</h3><p>' + esc(xSource(x)) + '　／　' + subs.size + '教科等・' + its.length + 'の内容' + (x.plans.length ? '＋指導計画の作成と内容の取扱い' : '') + '</p>' +
+    '<p>' + (x.kind === "tankyu" && !x.from ? '教科の内容とのつながりと小見出しは、Claudeが学習指導要領の文言の意味から考えた案です。' : '小見出しは、付録6が挙げている内容を、意味のちがいが分かるようにClaudeが分けたものです。') + '</p>';
+  $(I.filter).innerHTML = '<button type="button" data-c="" aria-pressed="' + !st.cat + '">すべて</button>' +
+    x.cats.map(c => '<button type="button" data-c="' + esc(c) + '" aria-pressed="' + (st.cat === c) + '">' + catNo(x, c) + esc(c) + '</button>').join("");
+  $(I.filter).querySelectorAll("button").forEach(b => b.addEventListener("click", () => { st.cat = b.dataset.c || null; renderX(st); }));
   let h = '<thead><tr><th class="rowh">教科等</th>' + [1,2,3,4,5,6].map(g => '<th><div class="colh"><div class="bar g' + g + '" style="--h:212;height:' + (g * 5) + 'px"></div>' + g + '年</div></th>').join("") + '</tr></thead><tbody>';
-  for(const r of crossRows(x)){
+  for(const r of crossRows(x, st.cat)){
     const s = r.s;
     if(r.its.length){
       h += '<tr><th class="rowh" style="--h:' + s.h + '"><span class="rowname"><span class="dot"></span>' + esc(s.name) + '</span></th>';
@@ -604,12 +667,15 @@ function renderCross(){
         r.plans.map(p => '<button type="button" class="planchip" data-plan="' + p.k + '">' + show(p.lines[0].slice(0, 70)) + (p.lines[0].length > 70 || p.lines.length > 1 ? '…' : '') + '<br><span class="cattag">' + catNo(x, p.cat) + esc(p.cat) + '</span></button>').join("") + '</div></td></tr>';
     }
   }
-  $("crossTable").innerHTML = h + '</tbody>';
-  bindItems($("crossTable"));
-  $("crossTable").querySelectorAll("[data-plan]").forEach(b => b.addEventListener("click", () => openPlan(x.id, +b.dataset.plan)));
-  $("sosokuBox").hidden = !x.sosoku.length;
-  $("sosokuText").innerHTML = textLines(x.sosoku) + '<p class="src">出典：' + esc(xSource(x)) + '（総則の欄）</p>';
+  $(I.table).innerHTML = h + '</tbody>';
+  bindItems($(I.table));
+  $(I.table).querySelectorAll("[data-plan]").forEach(b => b.addEventListener("click", () => openPlan(x.id, +b.dataset.plan)));
+  if(I.sbox){
+    $(I.sbox).hidden = !x.sosoku.length;
+    $(I.stext).innerHTML = textLines(x.sosoku) + '<p class="src">出典：' + esc(xSource(x)) + '（総則の欄）</p>';
+  }
 }
+const renderCross = () => renderX(XS.cross);
 function openPlan(tid, k){
   const x = XBYID[tid], p = x.plans[k], s = SUBJ[p.subject];
   if($("sheet").hidden) lastFocus = document.activeElement;
@@ -620,6 +686,61 @@ function openPlan(tid, k){
   $("sheet").hidden = false; $("sheetBack").hidden = false; $("sheet").scrollTop = 0;
   $("closeSheet").addEventListener("click", closeSheet); $("closeSheet").focus();
 }
+
+/* ---------- 探究 ---------- */
+const TK = CONTENT.tankyu, CIRC = "①②③④⑤⑥⑦⑧⑨⑩⑪";
+let tkMode = "proc", tk11 = true, tkG = 0;
+const tkLevel = g => TK.levels.find(l => l.g === g);
+/* 列：11ステップ、または学習指導要領の過程（5列：最後は振り返り） */
+function tkCols(){
+  if(tk11) return TK.steps.map((n, i) => ({key:[i + 1], name:CIRC[i] + n, sub:TK.procs[TK.stepProc[i]]}));
+  return TK.procs.map((n, p) => ({key:TK.stepProc.map((q, i) => q === p ? i + 1 : 0).filter(Boolean), name:n, sub:TK.stepProc.map((q, i) => q === p ? CIRC[i] : "").join("")}));
+}
+function tkRows(){
+  const rows = [];
+  for(const s of SUBJECTS){
+    const its = ITEMS.filter(it => it.subject === s.id && it.steps && (!tkG || it.g.includes(tkG)));
+    if(its.length) rows.push({s, its});
+  }
+  return rows;
+}
+function renderTankyu(){
+  $("tkModeProc").setAttribute("aria-pressed", tkMode === "proc"); $("tkModeKadai").setAttribute("aria-pressed", tkMode === "kadai");
+  $("tkProc").hidden = tkMode !== "proc"; $("tkKadai").hidden = tkMode !== "kadai";
+  if(tkMode === "kadai") return renderX(XS.kadai);
+  $("tkStep11").setAttribute("aria-pressed", tk11); $("tkStep4").setAttribute("aria-pressed", !tk11);
+  $("tkGrade").innerHTML = '<button type="button" data-g="0" aria-pressed="' + (tkG === 0) + '" style="background:var(--panel);border:1px solid var(--line)">全学年</button>' +
+    [1,2,3,4,5,6].map(g => '<button type="button" class="g' + g + '" data-g="' + g + '" aria-pressed="' + (g === tkG) + '">' + g + '年</button>').join("");
+  $("tkGrade").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { tkG = +b.dataset.g; renderTankyu(); }));
+  const lv = tkG ? tkLevel(tkG) : null;
+  $("tkLevel").innerHTML = lv ? '<b>' + tkG + '年：レベル' + lv.level + '　' + esc(lv.name) + '</b><span>取り組むステップ：' + lv.steps.map(n => '<span class="stepno">' + CIRC[n - 1] + '</span>').join("") + '</span><span class="note">うすい列は、この学年ではまだ扱わないステップです。教科の中でその力が育つ内容も並べています。</span>'
+    : TK.levels.filter((l, i, a) => a.findIndex(m => m.level === l.level) === i).map(l => { const gs = TK.levels.filter(m => m.level === l.level).map(m => m.g); return '<span><b>レベル' + l.level + '</b> ' + esc(l.name) + '（' + gLabel(gs) + '）：' + l.steps.map(n => CIRC[n - 1]).join("") + '</span>'; }).join("");
+  const cols = tkCols();
+  const faded = c => lv && !c.key.some(k => lv.steps.includes(k));
+  let h = '<thead><tr><th class="rowh">教科等</th>' + cols.map(c => '<th class="sth' + (faded(c) ? ' faded' : '') + '">' + esc(c.name) + '<small>' + esc(c.sub) + '</small></th>').join("") + '</tr></thead><tbody>';
+  for(const r of tkRows()){
+    const s = r.s;
+    h += '<tr><th class="rowh" style="--h:' + s.h + '"><span class="rowname"><span class="dot"></span>' + esc(s.name) + '</span></th>';
+    for(const c of cols){
+      const its = r.its.filter(it => it.steps.some(x => x.s.some(k => c.key.includes(k)))).sort(byGrade);
+      if(!its.length){ h += '<td class="cell' + (faded(c) ? ' faded' : '') + '"><div class="none"></div></td>'; continue; }
+      h += '<td class="cell' + (faded(c) ? ' faded' : '') + '"><div class="chips">' + its.map(it => {
+        const ex = it.steps.some(x => x.ex && x.s.some(k => c.key.includes(k)));
+        return '<button type="button" class="chip ' + gClass(it.g) + '" style="--h:' + s.h + '" data-item="' + it.id + '">' + show(it.head) + '<small>' + gLabel(it.g) + (ex ? '<span class="exmark">解説例</span>' : '') + '</small></button>';
+      }).join("") + '</div></td>';
+    }
+    h += '</tr>';
+  }
+  $("tkTable").innerHTML = h + '</tbody>';
+  $("tkTable").style.minWidth = (tk11 ? 1500 : 900) + "px";
+  bindItems($("tkTable"));
+  $("tkMapText").innerHTML = TK.procs.map((p, i) => '<p class="l2"><b>' + esc(p) + '</b>：' + TK.steps.map((n, k) => TK.stepProc[k] === i ? CIRC[k] + n : "").filter(Boolean).join("、") + '</p>').join("") +
+    '<p class="src">学習指導要領（総合的な学習の時間）の探究の過程は「課題の設定、情報の収集、整理・分析、まとめ・表現」。「学習の振り返り」は、総合の目標や内容の取扱いにある「学習の過程を振り返り」などに当たるものとしてClaudeが置いたものです。</p>';
+}
+$("tkModeProc").addEventListener("click", () => { tkMode = "proc"; renderTankyu(); });
+$("tkModeKadai").addEventListener("click", () => { tkMode = "kadai"; renderTankyu(); });
+$("tkStep11").addEventListener("click", () => { tk11 = true; renderTankyu(); });
+$("tkStep4").addEventListener("click", () => { tk11 = false; renderTankyu(); });
 
 /* ---------- 詳しい画面 ---------- */
 let lastFocus = null;
@@ -664,14 +785,26 @@ function openItem(id){
     }).join("") + '</div></div>';
   }
 
+  /* 探究とのつながり（Claudeの案） */
+  const tkL = new Set((it.steps || []).map(x => x.k));
+  if(it.steps){
+    const all = [...new Set(it.steps.flatMap(x => x.s))].sort((a, b) => a - b);
+    const lv = it.g.map(g => tkLevel(g)).filter(Boolean);
+    h += '<div class="sec"><h3>探究とのつながり（Claudeの案）</h3><div class="tkrow">' +
+      all.map(n => '<span class="cattag"><span class="stepno">' + CIRC[n - 1] + '</span>' + esc(TK.steps[n - 1]) + '（' + esc(TK.procs[TK.stepProc[n - 1]]) + '）</span>').join(" ") + '</div>' +
+      (it.steps.some(x => x.ex) ? '<p class="note">解説（総合的な学習の時間編）に例があります：' + esc([...new Set(it.steps.map(x => x.ex).filter(Boolean))].join("、")) + '</p>' : '') +
+      (lv.length ? '<p class="note">' + lv.map(l => l.g + '年はレベル' + l.level + '（' + esc(l.name) + '）：' + (all.filter(n => !l.steps.includes(n)).length ? all.filter(n => !l.steps.includes(n)).map(n => CIRC[n - 1]).join("") + 'はまだ扱わないステップ' : 'すべて取り組むステップ')).join("／") + '</p>' : '') +
+      '<p class="note">青い線の行が、つながりの根拠にした文言です。</p></div>';
+  }
+
   /* 学習指導要領の文言 */
   const citeL = new Set(xids.flatMap(t => it.cross[t].lines || [])), citeN = new Set(xids.flatMap(t => it.cross[t].notes || []));
-  const citeCls = (set) => (l, k) => (set.has(k) ? 'cite ' : '') + lineCls(l);
+  const citeCls = (set) => (l, k) => (set.has(k) ? 'cite ' : '') + (set === citeL && tkL.has(k) ? 'tk ' : '') + lineCls(l);
   const bandLbl = it.g.length > 1 ? '〔第' + KANJI_G[g0] + '学年及び第' + KANJI_G[gEnd] + '学年〕' : '〔第' + KANJI_G[g0] + '学年〕';
   h += '<div class="sec"><h3>学習指導要領の文言</h3><div class="text">' + (it.name ? '<p class="l1">' + show(it.name) + '</p>' : '') +
     (it.title ? '<p class="l2">' + (it.mark ? it.mark + '　' : '') + show(it.title) + '</p>' : '') +
     it.lines.map((l, k) => '<p class="' + citeCls(citeL)(l, k) + '">' + show(l) + '</p>').join("") +
-    (citeL.size ? '<p class="citenote"><i></i>付録6（教科横断）に抜き出されている部分</p>' : '') +
+    (citeL.size || tkL.size ? '<p class="citenote">' + (citeL.size ? '<i></i>付録6（教科横断）に抜き出されている部分' : '') + (tkL.size ? '<b></b>探究とのつながりの根拠' : '') + '</p>' : '') +
     '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + ' ' + (["sougou","tokkatsu"].includes(it.subject) ? '' : bandLbl) + ' ' + esc(it.areaName || '') + '</p></div></div>';
   for(const e of it.extra || []) h += '<div class="sec"><h3>' + esc(e.label) + '</h3><div class="text">' + textLines(e.lines, lineCls) + '</div></div>';
   if(it.notes && it.notes.length){
@@ -704,7 +837,7 @@ function openItem(id){
   $("sheet").hidden = false; $("sheetBack").hidden = false;
   $("sheet").scrollTop = 0;
   bindItems($("sheet"));
-  $("sheet").querySelectorAll("[data-x]").forEach(b => b.addEventListener("click", () => { curCross = b.dataset.x; catSel = b.dataset.cat || null; closeSheet(); go("cross"); }));
+  $("sheet").querySelectorAll("[data-x]").forEach(b => b.addEventListener("click", () => { const x = XBYID[b.dataset.x], st = x.kind === "tankyu" ? XS.kadai : XS.cross; st.cur = x.id; st.cat = b.dataset.cat || null; closeSheet(); if(x.kind === "tankyu"){ tkMode = "kadai"; go("tankyu"); } else go("cross"); }));
   $("closeSheet").addEventListener("click", closeSheet);
   $("closeSheet").focus();
 }
@@ -801,9 +934,9 @@ function buildA4(){
   while(over() && fs > 5.5){ fs -= .25; tb.style.fontSize = fs + "px"; }
   return box;
 }
-function buildA4Cross(){
-  const x = XBYID[curCross], rows = crossRows(x);
-  let h = '<div class="a4head" style="--h:212"><h1>' + esc(x.name) + '　教科横断のつながり（1〜6年）</h1><div style="font-size:11px">' + esc(xSource(x)) + (catSel ? '／' + esc(catSel) + 'のみ' : '') + '</div></div>';
+function buildA4X(st){
+  const x = XBYID[st.cur], catSel = st.cat, rows = crossRows(x, catSel);
+  let h = '<div class="a4head" style="--h:212"><h1>' + esc(x.name) + '　' + (x.kind === "tankyu" ? '探究課題と教科のつながり' : '教科横断のつながり') + '（1〜6年）</h1><div style="font-size:11px">' + esc(xSource(x)) + (catSel ? '／' + esc(catSel) + 'のみ' : '') + '</div></div>';
   h += '<div class="a4legend"><b>小見出し</b>' + x.cats.filter(c => !catSel || c === catSel).map(c => '<span>' + catNo(x, c) + esc(c) + '</span>').join("") + '</div>';
   h += '<table style="--h:212"><thead><tr><th class="rh">教科等</th>' + [1,2,3,4,5,6].map(g => '<th>' + g + '年</th>').join("") + '</tr></thead><tbody>';
   for(const r of rows){
@@ -818,12 +951,33 @@ function buildA4Cross(){
     }
     if(r.plans.length) h += '<tr><th class="rh">' + (r.its.length ? '' : esc(s.name)) + '<br><span style="font-weight:400;font-size:.85em">指導計画・内容の取扱い</span></th><td colspan="6" class="empty">' + r.plans.map(p => '<div>' + show(p.lines.join(" ").slice(0, 110)) + (p.lines.join(" ").length > 110 ? '…' : '') + ' <span class="ct">' + catNo(x, p.cat) + '</span></div>').join("") + '</td></tr>';
   }
-  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総則編 付録6。見出しと小見出しは「学びのつながりマップ」がまとめたもの。</span><span>学びのつながりマップ</span></div>';
+  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総則編 付録6・総合的な学習の時間編。見出しと小見出しは「学びのつながりマップ」がまとめたもの。</span><span>学びのつながりマップ</span></div>';
   const box = $("a4"); box.innerHTML = h;
   const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 15;
   const over = () => tb.getBoundingClientRect().bottom > foot.getBoundingClientRect().top - 6;
   tb.style.fontSize = fs + "px";
   while(over() && fs > 5.5){ fs -= .25; tb.style.fontSize = fs + "px"; }
+  return box;
+}
+function buildA4Tk(){
+  const cols = tkCols(), lv = tkG ? tkLevel(tkG) : null, faded = c => lv && !c.key.some(k => lv.steps.includes(k));
+  let h = '<div class="a4head" style="--h:212"><h1>探究学習と教科のつながり（' + (tkG ? tkG + '年' : '1〜6年') + '）</h1><div style="font-size:11px">' + (tk11 ? '探究の11ステップ' : '学習指導要領の探究の過程') + '</div></div>';
+  if(lv) h += '<div class="a4legend"><b>' + tkG + '年：レベル' + lv.level + ' ' + esc(lv.name) + '</b><span>取り組むステップ ' + lv.steps.map(n => CIRC[n - 1]).join("") + '（灰色の列はまだ扱わないステップ）</span></div>';
+  h += '<table style="--h:212"><thead><tr><th class="rh">教科等</th>' + cols.map(c => '<th' + (faded(c) ? ' style="opacity:.45"' : '') + '>' + esc(c.name) + '</th>').join("") + '</tr></thead><tbody>';
+  for(const r of tkRows()){
+    h += '<tr style="--h:' + r.s.h + '"><th class="rh">' + esc(r.s.name) + '</th>';
+    for(const c of cols){
+      const its = r.its.filter(it => it.steps.some(x => x.s.some(k => c.key.includes(k)))).sort(byGrade);
+      h += its.length ? '<td class="' + (tkG ? 'g' + tkG : 'g3') + '"' + (faded(c) ? ' style="opacity:.5"' : '') + '>' + its.map(it => '<div>' + show(it.head) + (tkG ? '' : '（' + gLabel(it.g) + '）') + '</div>').join("") + '</td>' : '<td class="empty"></td>';
+    }
+    h += '</tr>';
+  }
+  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総合的な学習の時間編。教科の内容と探究のステップとのつながりはClaudeの案。</span><span>学びのつながりマップ</span></div>';
+  const box = $("a4"); box.innerHTML = h;
+  const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 13;
+  const over = () => tb.getBoundingClientRect().bottom > foot.getBoundingClientRect().top - 6;
+  tb.style.fontSize = fs + "px";
+  while(over() && fs > 4.5){ fs -= .25; tb.style.fontSize = fs + "px"; }
   return box;
 }
 let dl = null, dlChecked = false;
@@ -875,7 +1029,9 @@ async function makePdf(btn, build, name, pdfStatus, altName){
   } finally { btn.disabled = false; }
 }
 $("pdfBtn").addEventListener("click", e => makePdf(e.currentTarget, buildA4, "学びのつながり_" + short(SUBJ[curSubj]) + "_" + (mode === "area" ? "区分" : "テーマ別") + ".pdf", m => { $("pdfStatus").textContent = m; }, SUBJ[curSubj].name + "の系統表 A4"));
-$("pdfCrossBtn").addEventListener("click", e => makePdf(e.currentTarget, buildA4Cross, "教科横断_" + XBYID[curCross].name.replace("に関する教育", "") + (catSel ? "_" + catSel : "") + ".pdf", m => { $("pdfCrossStatus").textContent = m; }, XBYID[curCross].name + " A4"));
+$("pdfTkBtn").addEventListener("click", e => makePdf(e.currentTarget, buildA4Tk, "探究とのつながり_" + (tkG ? tkG + "年" : "全学年") + "_" + (tk11 ? "11ステップ" : "探究の過程") + ".pdf", m => { $("pdfTkStatus").textContent = m; }, "探究とのつながり A4"));
+$("pdfKBtn").addEventListener("click", e => makePdf(e.currentTarget, () => buildA4X(XS.kadai), "探究課題_" + XBYID[XS.kadai.cur].name + (XS.kadai.cat ? "_" + XS.kadai.cat : "") + ".pdf", m => { $("pdfKStatus").textContent = m; }, XBYID[XS.kadai.cur].name + " A4"));
+$("pdfCrossBtn").addEventListener("click", e => makePdf(e.currentTarget, () => buildA4X(XS.cross), "教科横断_" + XBYID[XS.cross.cur].name.replace("に関する教育", "") + (XS.cross.cat ? "_" + XS.cross.cat : "") + ".pdf", m => { $("pdfCrossStatus").textContent = m; }, XBYID[XS.cross.cur].name + " A4"));
 
 
 /* ---------- はじめの表示 ---------- */
@@ -885,7 +1041,7 @@ function fromHash(useSaved){
   const hv = location.hash.replace("#", "");
   if(VIEWS.includes(hv)) return go(hv);
   if(SUBJ[hv]){ curSubj = hv; return go("table"); }
-  if(XBYID[hv]){ curCross = hv; catSel = null; return go("cross"); }
+  if(XBYID[hv]){ const st = XBYID[hv].kind === "tankyu" ? XS.kadai : XS.cross; st.cur = hv; st.cat = null; if(st === XS.kadai){ tkMode = "kadai"; return go("tankyu"); } return go("cross"); }
   let v = "map";
   if(useSaved){ try{ const x = localStorage.getItem("mtm-view"); if(VIEWS.includes(x)) v = x; }catch(e){} }
   go(v);
