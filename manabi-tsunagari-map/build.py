@@ -275,3 +275,36 @@ full = ('<!doctype html><html lang="ja"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>' + t + '</body></html>')
 open(P('manabi-tsunagari-map.html'), 'w').write(full)
 print(len(full.encode()), 'bytes')
+
+# ---------- 品川区版：品川区が採択した教科書（令和6〜9年度）の単元を添える ----------
+import copy
+BOOKS = {'kokugo': '光村図書（国語・書写）', 'shakai': '東京書籍', 'sansu': '学校図書', 'rika': '学校図書', 'seikatsu': '光村図書',
+         'ongaku': '教育芸術社', 'zuko': '日本文教出版', 'katei': '東京書籍', 'taiiku': '東京書籍（保健）',
+         'gaikokugo': '東京書籍（NEW HORIZON Elementary）', 'doutoku': '東京書籍'}
+SHIMIN = ('doutoku', 'tokkatsu', 'sougou')
+sc = copy.deepcopy(content)
+SB = {it['id']: it for it in sc['items']}
+srcs = []
+for fn in ('units_pub', 'units_manual'):
+    p = P('midashi', 'shinagawa', fn + '.tsv')
+    if not os.path.exists(p): continue
+    for l in open(p):
+        if l.startswith('#') or not l.strip(): continue
+        iid, u, b, src = l.rstrip('\n').split('\t')
+        if src not in srcs: srcs.append(src)
+        SB[iid].setdefault('units', []).append({'u': u, 'b': b, 's': srcs.index(src)})
+for s in sc['subjects']:
+    if s['id'] in BOOKS: s['textbook'] = BOOKS[s['id']]
+    if s['id'] in SHIMIN: s['name'] += '（市民科）'
+sc['edition'] = {'name': '品川区版', 'sources': srcs,
+                 'note': '品川区立学校が令和6〜9年度に使う教科書（品川区教育委員会の採択）の単元を添えています。'}
+st = open(P('template.html')).read()
+st = st.replace('<title>学びのつながりマップ</title>', '<title>学びのつながりマップ 品川区版</title>')
+st = st.replace('<h1>学びのつながりマップ</h1>', '<h1>学びのつながりマップ<small class="ed">品川区版</small></h1>')
+st = st.replace('学びのつながりマップ　第1版', '学びのつながりマップ 品川区版　第1版')
+st = st.replace('/*DATA*/', 'const CONTENT = ' + json.dumps(sc, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
+os.makedirs(P('shinagawa'), exist_ok=True)
+open(P('shinagawa', 'page.html'), 'w').write(st)
+sfull = full.replace(t, st)
+open(P('shinagawa', 'manabi-tsunagari-map-shinagawa.html'), 'w').write(sfull)
+print('品川区版', sum(len(it.get('units', [])) for it in sc['items']), 'units,', len(sfull.encode()), 'bytes')

@@ -100,6 +100,11 @@ td.cell{padding:4px}
 .chip:hover{outline:2px solid currentColor}
 .chip.hit{box-shadow:inset 0 0 0 3px var(--mark)}
 .chip small{display:block; font-size:11px; opacity:.85}
+.units{display:block; font-size:10.5px; line-height:1.35; opacity:.8; margin-top:2px}
+.units::before{content:"📖 "}
+.unitbox{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:14px}
+.unitbox p{margin:3px 0}
+.brand h1 .ed{font-size:.62em; margin-left:6px; padding:1px 7px; border-radius:999px; background:var(--accent); color:var(--panel); vertical-align:2px; letter-spacing:0}
 .none{color:var(--ink2); font-size:12px; padding:6px; background:var(--empty); border-radius:8px; min-height:44px; height:100%}
 .none.off{background:repeating-linear-gradient(135deg,var(--empty) 0 6px,transparent 6px 12px)}
 
@@ -235,6 +240,7 @@ table.tksteps th.faded small::after{content:"（この学年ではまだ扱わ�
 #a4 th.rh{width:118px; text-align:left}
 #a4 td{vertical-align:top; padding:2px 4px; border-radius:3px}
 #a4 td div{line-height:1.3}
+#a4 .units{font-size:.8em; margin-top:0; opacity:.85}
 #a4 td div::before{content:"・"}
 #a4 .a4foot{position:absolute; left:30px; right:30px; bottom:12px; font-size:9px; color:#55626a; display:flex; justify-content:space-between; gap:20px}
 #a4 .g1,#a4 .g2,#a4 .g3,#a4 .g12,#a4 .g34{color:#1f2a2e} #a4 .g4,#a4 .g5,#a4 .g6,#a4 .g56,#a4 .g456,#a4 .g3456{color:#fff} #a4 .g123456{color:#1f2a2e}
@@ -433,6 +439,31 @@ const SUBJ = Object.fromEntries(SUBJECTS.map(s => [s.id, s]));
 const SORDER = Object.fromEntries(SUBJECTS.map((s, i) => [s.id, i]));
 const ITEMS = CONTENT.items;
 const BYID = Object.fromEntries(ITEMS.map(it => [it.id, it]));
+/* 品川区版：教科書の単元（CONTENT.edition があるときだけ） */
+const ED = CONTENT.edition || null;
+const bookShort = b => b.replace(/年([上下])$/, "$1");
+const unitTxt = x => x.u + "（" + bookShort(x.b) + "）";
+function unitList(it, max){
+  if(!ED || !it.units) return "";
+  const us = max && it.units.length > max ? it.units.slice(0, max) : it.units;
+  return '<span class="units">' + esc(us.map(unitTxt).join("、")) + (it.units.length > us.length ? ' ほか' + (it.units.length - us.length) : '') + '</span>';
+}
+function unitSec(it){
+  if(!ED) return "";
+  const s = SUBJ[it.subject];
+  if(!it.units){
+    const why = s.id === "zuko" ? "図画工作（日本文教出版）の題材は、資料がそろいしだい入れます。"
+      : ["sougou","tokkatsu","gaikokugokatsudo"].includes(s.id) ? "この教科等には検定教科書がないため、単元は入れていません。"
+      : "この内容に当たる単元は、教科書会社の年間指導計画では示されていません（ほかの内容とあわせて扱われることがあります）。";
+    return '<div class="sec"><h3>教科書の単元（品川区の教科書）</h3><p class="note">' + why + '</p></div>';
+  }
+  const books = [...new Set(it.units.map(x => x.b))];
+  const srcs = [...new Set(it.units.map(x => ED.sources[x.s]))];
+  return '<div class="sec"><h3>教科書の単元（品川区の教科書）</h3><div class="unitbox">' +
+    books.map(b => '<p><b>' + esc(b) + '</b>　' + esc(it.units.filter(x => x.b === b).map(x => x.u).join("、")) + '</p>').join("") + '</div>' +
+    '<p class="src">' + (s.textbook ? '教科書：' + esc(s.textbook) + '。' : '') + '出典：' + esc(srcs.join("、")) + '。' +
+    (srcs.some(x => x.startsWith("Claude")) ? '単元と学習指導要領の内容との結び付けは、教科書会社の資料に示されていないためClaudeが考えた案です。' : '単元と学習指導要領の内容との結び付けは、教科書会社の資料に示されているものです。') + '</p></div>';
+}
 const THEMES = CONTENT.themes;
 const THEME = Object.fromEntries(THEMES.map(t => [t.id, t]));
 const TORDER = Object.fromEntries(THEMES.map((t, i) => [t.id, i]));
@@ -578,6 +609,7 @@ function renderTable(){
   $("tableLead").textContent = mode === "area"
     ? "学習指導要領の「内容」の区分で並べています。見出しはClaudeが指導要領の文言をもとに短くまとめたものです（理科・家庭・体育・道徳・特別活動などは指導要領の名称や文言そのままです）。タップすると、原文と前後の学年のつながりが見られます。"
     : "同じテーマの学びを横1列にそろえました。左から右へ、どのように学びが積みあがるかを追えます（テーマの分け方はClaudeによるものです）。下の「教科横断」の行は、解説 総則編 付録6で、この教科のその内容が挙げられているものです。";
+  if(ED) $("tableLead").textContent += (s.textbook ? "　品川区版：教科書（" + s.textbook + "）の単元を小さく添えています。" : "　品川区版：この教科等は検定教科書がないか、単元の資料がまだないため、単元は入っていません。");
   $("modeArea").setAttribute("aria-pressed", mode === "area");
   $("modeTheme").setAttribute("aria-pressed", mode === "theme");
   const rows = rowsFor(curSubj, mode);
@@ -594,7 +626,7 @@ function renderTable(){
       }
       const span = c.gs, cls = gClass(span);
       h += '<td class="cell"' + cs + '><div class="cellbox chips ' + cls + '" style="--h:' + s.h + '">' +
-        c.its.map(x => '<button type="button" class="chip' + (hitSet.has(x.it.id) ? ' hit' : '') + '" data-item="' + x.it.id + '">' + show(x.label) + (x.it.g.length < span.length ? '<small>' + gLabel(x.it.g) + '</small>' : '') + '</button>').join("") + '</div></td>';
+        c.its.map(x => '<button type="button" class="chip' + (hitSet.has(x.it.id) ? ' hit' : '') + '" data-item="' + x.it.id + '">' + show(x.label) + (x.it.g.length < span.length ? '<small>' + gLabel(x.it.g) + '</small>' : '') + unitList(x.it, 3) + '</button>').join("") + '</div></td>';
     }
     h += '</tr>';
   }
@@ -757,6 +789,7 @@ function openItem(id){
   let h = '<button type="button" class="close" id="closeSheet">閉じる</button>';
   h += '<div class="meta" style="--h:' + s.h + '"><span class="gpill ' + gClass(it.g) + '">' + gLabel(it.g) + '</span><span class="badge">' + esc(s.name) + '</span>' + (area ? '<span class="badge">' + esc(area.name) + '</span>' : '') + '</div>';
   h += '<h2 id="dTitle">' + show(it.head) + '</h2>';
+  h += unitSec(it);
 
   /* 学びのつながり：テーマごとに1〜6年の流れ（ほかの教科もふくむ） */
   h += '<div class="sec"><h3>学びのつながり</h3>';
@@ -866,7 +899,7 @@ function doSearch(){
   if(!q){ $("results").innerHTML = ""; $("counts").innerHTML = ""; $("subjFilter").innerHTML = ""; renderMapHits(); return; }
   const hits = [];
   for(const it of ITEMS){
-    const parts = [it.head, ...Object.values(it.themes), it.name || "", it.title, ...it.lines, ...(it.notes || []), ...((it.extra || []).flatMap(e => e.lines))];
+    const parts = [it.head, ...Object.values(it.themes), it.name || "", it.title, ...it.lines, ...(it.notes || []), ...((it.extra || []).flatMap(e => e.lines)), ...(ED && it.units ? it.units.map(x => x.u) : [])];
     const found = [...new Set(parts.filter(p => p && p.includes(q)))];
     if(found.length){ hits.push({it, found}); hitSet.add(it.id); }
   }
@@ -916,14 +949,14 @@ let st; $("q").addEventListener("input", () => { clearTimeout(st); st = setTimeo
 function buildA4(){
   const s = SUBJ[curSubj], rows = rowsFor(curSubj, mode);
   const cols = [...new Set(s.spans.flat())].sort((a, b) => a - b);
-  let h = '<div class="a4head" style="--h:' + s.h + '"><h1>' + esc(s.name) + '　学びのつながり（' + gLabel(cols) + '）</h1><div style="font-size:11px">' + (mode === "area" ? "指導要領の区分で表示" : "テーマ別で表示") + '</div></div>';
+  let h = '<div class="a4head" style="--h:' + s.h + '"><h1>' + esc(s.name) + '　学びのつながり（' + gLabel(cols) + '）</h1><div style="font-size:11px">' + (mode === "area" ? "指導要領の区分で表示" : "テーマ別で表示") + (ED && s.textbook ? '<br>📖 教科書の単元：' + esc(s.textbook) : '') + '</div></div>';
   h += '<div class="a4goal" style="--h:' + s.h + '"><p><b>教科の目標</b>　' + show(s.goal[0]) + '</p>' + s.goal.slice(1).map(l => '<p>' + show(l) + '</p>').join("") + '</div>';
   h += '<table style="--h:' + s.h + '"><thead><tr><th class="rh">' + (mode === "area" ? "区分" : "テーマ") + '</th>' + cols.map(g => '<th>' + g + '年</th>').join("") + '</tr></thead><tbody>';
   for(const r of rows){
     h += '<tr><th class="rh">' + esc(r.name) + '</th>';
     for(const c of rowCells(r, curSubj, cols)){
       const cs = c.gs.length > 1 ? ' colspan="' + c.gs.length + '"' : '';
-      h += c.its ? '<td class="' + gClass(c.gs) + '"' + cs + '>' + c.its.map(x => '<div>' + show(x.label) + (x.it.g.length < c.gs.length ? '（' + gLabel(x.it.g) + '）' : '') + '</div>').join("") + '</td>' : '<td class="empty"' + cs + '></td>';
+      h += c.its ? '<td class="' + gClass(c.gs) + '"' + cs + '>' + c.its.map(x => '<div>' + show(x.label) + (x.it.g.length < c.gs.length ? '（' + gLabel(x.it.g) + '）' : '') + unitList(x.it, 4) + '</div>').join("") + '</td>' : '<td class="empty"' + cs + '></td>';
     }
     h += '</tr>';
   }
