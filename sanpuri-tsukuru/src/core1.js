@@ -157,8 +157,10 @@ function makeG(ctx, k){
 }
 
 /* ================= 記法の大きさと描画 ================= */
+/* 1〜3年は書く場所を大きくする（buildItems で学年に合わせて決める） */
+let ANS_K = 1;
 function tokMetrics(G, t, fs){
-  if(t.m && t.m.fs === fs) return t.m;
+  if(t.m && t.m.fs === fs && t.m.k === ANS_K) return t.m;
   let m;
   if(t.t === "s") m = {w:G.width(t.s, fs), up:0.62 * fs, dn:0.62 * fs};
   else if(t.t === "sup") m = {w:G.width(t.s, fs * 0.6) + 0.05 * fs, up:0.62 * fs, dn:0.62 * fs};
@@ -170,11 +172,12 @@ function tokMetrics(G, t, fs){
   } else if(t.t === "br") m = {w:0, up:0, dn:0};
   else {
     const im = lineMetrics(G, t.a, fs);
-    if(t.t === "box") m = {w:Math.max(im.w + 1.0 * fs, 2.2 * fs), up:Math.max(im.up, 0.62 * fs) + 0.12 * fs, dn:Math.max(im.dn, 0.62 * fs) + 0.12 * fs, im};
-    else if(t.t === "par") m = {w:Math.max(im.w + 2.2 * fs, t.minw || 5.5 * fs), up:Math.max(im.up, 0.7 * fs), dn:Math.max(im.dn, 0.7 * fs), im};
-    else m = {w:Math.max(im.w, t.minw || 2.4 * fs) + 0.3 * fs, up:Math.max(im.up, 0.62 * fs), dn:Math.max(im.dn, 0.62 * fs), im};
+    const K = ANS_K, ex = (K - 1) * 0.55 * fs;
+    if(t.t === "box") m = {w:Math.max(im.w + 1.0 * fs, 2.2 * fs * K), up:Math.max(im.up, 0.62 * fs) + 0.12 * fs + ex, dn:Math.max(im.dn, 0.62 * fs) + 0.12 * fs + ex, im};
+    else if(t.t === "par") m = {w:Math.max(im.w + 2.2 * fs, (t.minw || 5.5 * fs) * K), up:Math.max(im.up, 0.7 * fs) + ex, dn:Math.max(im.dn, 0.7 * fs) + ex, im};
+    else m = {w:Math.max(im.w, (t.minw || 2.4 * fs) * (t.t === "ans" ? K * K : 1)) + 0.3 * fs, up:Math.max(im.up, 0.62 * fs) + (t.t === "ans" ? ex : 0), dn:Math.max(im.dn, 0.62 * fs) + (t.t === "ans" ? ex : 0), im};
   }
-  m.fs = fs; t.m = m; return m;
+  m.fs = fs; m.k = ANS_K; t.m = m; return m;
 }
 function lineMetrics(G, toks, fs){
   let w = 0, up = 0.62 * fs, dn = 0.62 * fs;
@@ -233,7 +236,11 @@ function wrapToks(G, toks, maxW, fs){
     const uw = tokMetrics(G, u, fs).w;
     if(w + uw > maxW && cur.length){
       if(u.t === "s" && NOHEAD.includes(u.s)){ cur.push(u); w += uw; continue; }
-      lines.push(cur); cur = []; w = 0;
+      /* 数字のとちゅうでは折り返さない（数字ごと次の行へ） */
+      const isNum = v => v && v.t === "s" && /[0-9０-９.．]/.test(v.s);
+      let carry = [];
+      if(isNum(u)) while(cur.length > 1 && isNum(cur[cur.length - 1])) carry.unshift(cur.pop());
+      lines.push(cur); cur = carry; w = carry.reduce((a, v) => a + tokMetrics(G, v, fs).w, 0);
     }
     cur.push(u); w += uw;
   }

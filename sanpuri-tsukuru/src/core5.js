@@ -6,6 +6,7 @@ function buildItems(st){
   R = makeRng(st.seed);
   if(typeof SCENE_USE !== "undefined") SCENE_USE.clear();
   setLearned(st.grade);
+  ANS_K = st.grade <= 2 ? 1.35 : st.grade === 3 ? 1.2 : 1;
   const out = [];
   for(const u of unitsOf(st.grade)){
     if(!st.units.includes(u.id)) continue;
@@ -156,7 +157,7 @@ function layoutPages(G, groups, paper, fs, opt){
     const gh = blockMetrics(G, instLines, fs, 0.25 * fs).h + 0.8 * fs;
     const nonfull = g.items.filter(i => !i.full);
     let c = 1;
-    for(const cc of [4, 3, 2]){
+    for(const cc of (ANS_K > 1 ? [3, 2] : [4, 3, 2])){
       const cw = (availW - (cc - 1) * gapX) / cc;
       if(nonfull.length && nonfull.every(i => i.minW(G, fs) + numW <= cw)){ c = cc; break; }
     }
@@ -179,7 +180,7 @@ function layoutPages(G, groups, paper, fs, opt){
         cell.h = cell.lead + cell.item.height(G, cell.cw, fs);
         h = Math.max(h, cell.h);
       });
-      const rowGap = 1.3 * fs;
+      const rowGap = 1.3 * fs * (ANS_K > 1 && row.some(cl => cl.item.cat === "calc" || cl.item.cat === "hissan") ? 1.7 : 1);
       const need = h + (ri_ === 0 ? gh : 0);
       if(y + need > bottom && y > pageTop + 1) newPage();
       if(ri_ === 0){ pages[pages.length - 1].ops.push({t:"group", g, gi, y, instLines, ptsTxt}); y += gh; }

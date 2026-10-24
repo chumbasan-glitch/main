@@ -33,9 +33,9 @@ function wordItem(text, shiki, answer, o){
     parts(G, W, fs){
       const lines = wrapToks(G, toks, W, fs);
       const tb = blockMetrics(G, lines, fs, 0.3 * fs);
-      const shH = Math.max(3.2 * fs, sh.reduce((h, l) => h + lineMetrics(G, l, fs).up + lineMetrics(G, l, fs).dn + 0.3 * fs, 0));
+      const shH = Math.max(3.2 * fs * ANS_K * ANS_K, sh.reduce((h, l) => h + lineMetrics(G, l, fs).up + lineMetrics(G, l, fs).dn + 0.3 * fs, 0));
       const am = lineMetrics(G, an, fs);
-      return {lines, tb, shH, am, ansH:Math.max(1.9 * fs, am.up + am.dn + 0.4 * fs)};
+      return {lines, tb, shH, am, ansH:Math.max(1.9 * fs * ANS_K, am.up + am.dn + 0.4 * fs)};
     },
     height(G, W, fs){ const p = this.parts(G, W, fs); return p.tb.h + 0.35 * fs + p.shH + p.ansH; },
     firstUp(G, W, fs){ const p = this.parts(G, W, fs); return p.tb.ms[0].up; },
@@ -49,7 +49,7 @@ function wordItem(text, shiki, answer, o){
         for(const l of sh){ const m = lineMetrics(G, l, fs); sy += m.up; drawToks(G, l, x + 1.8 * fs, sy + 0.08 * fs, fs, false, RED); sy += m.dn + 0.3 * fs; }
       }
       yy += p.shH;
-      const lw = Math.min(W * 0.5, Math.max(W * 0.34, p.am.w + 3 * fs)), lx = x + W - lw;
+      const lw = Math.min(W * 0.55, Math.max(W * (ANS_K > 1 ? 0.45 : 0.34), p.am.w + 3 * fs)), lx = x + W - lw;
       const ly = yy + p.ansH - 0.25 * fs;
       G.text(knows("答") ? "答え" : "こたえ", lx - 0.4 * fs, ly - 0.62 * fs, {size:fs, align:"right"});
       G.line(lx, ly, x + W, ly, {w:0.3});
@@ -59,8 +59,88 @@ function wordItem(text, shiki, answer, o){
 }
 
 /* 図＋ひとつの問い */
+/* ================= 図の中の数字を見やすい場所に置く =================
+   図をかくあいだ，線と文字を記録しておき，長さ・角度・記号の文字が
+   線やほかの文字に重なったり，図の外にはみ出したりしたら，近くのあいている場所へずらす */
+const SMART_RE = /^(約)?[0-9０-９.．]+(cm|mm|m|km|°|度)$|^[アイウエオカキクケコあいうえおかきくけこ]$/;
+function smartFig(drawFig){
+  const f = function(G, x, y, w, h, fs, ans){
+    const segs = [], texts = [];
+    const seg = (a, b) => segs.push([a, b]);
+    const arcSeg = (cx, cy, rx, ry, a0, a1, ccw) => {
+      let d = a1 - a0; if(ccw){ if(d > 0) d -= 2 * Math.PI; } else if(d < 0) d += 2 * Math.PI;
+      if(Math.abs(a1 - a0) >= 2 * Math.PI - 1e-6) d = 2 * Math.PI;
+      const n = Math.max(6, Math.ceil(Math.abs(d) / 0.2)); let pv = null;
+      for(let i = 0; i <= n; i++){ const t = a0 + d * i / n, q = [cx + rx * Math.cos(t), cy + ry * Math.sin(t)]; if(pv) seg(pv, q); pv = q; }
+    };
+    const mkP = live => {
+      const P = Object.create(G), D = live ? G : null;
+      if(!live) P.ctx = new Proxy({}, {get:(t, k) => k in t ? t[k] : () => ({addColorStop(){}}), set:(t, k, v) => { t[k] = v; return true; }});
+      P.line = (x1, y1, x2, y2, o) => { seg([x1, y1], [x2, y2]); if(D) D.line(x1, y1, x2, y2, o); };
+      P.poly = (pts, o) => { if(!o || o.stroke !== false){ for(let i = 0; i + 1 < pts.length; i++) seg(pts[i], pts[i + 1]); if(!o || o.close !== false) seg(pts[pts.length - 1], pts[0]); } if(D) D.poly(pts, o); };
+      P.rect = (rx, ry, rw, rh, o) => { if(!o || o.stroke !== false){ seg([rx, ry], [rx + rw, ry]); seg([rx + rw, ry], [rx + rw, ry + rh]); seg([rx + rw, ry + rh], [rx, ry + rh]); seg([rx, ry + rh], [rx, ry]); } if(D) D.rect(rx, ry, rw, rh, o); };
+      P.arc = (cx, cy, r, a0, a1, o) => { if(!o || o.stroke !== false) arcSeg(cx, cy, r, r, a0, a1, o && o.ccw); if(D) D.arc(cx, cy, r, a0, a1, o); };
+      P.ellipse = (cx, cy, rx, ry, a0, a1, o) => { arcSeg(cx, cy, rx, ry, a0, a1, false); if(D) D.ellipse(cx, cy, rx, ry, a0, a1, o); };
+      P.dot = (dx_, dy_, r, c) => { if(D) D.dot(dx_, dy_, r, c); };
+      P.text = (str, tx, ty, o) => texts.push([str, tx, ty, o || {}]);
+      return P;
+    };
+    const tbox = t => { const o = t[3], sz = o.size || 5, al = o.align || "left", wd = G.width(t[0], sz, o.weight);
+      const x0 = al === "center" ? t[1] - wd / 2 : al === "right" ? t[1] - wd : t[1];
+      const base = o.base || "middle", y0 = base === "middle" ? t[2] - sz * 0.5 : base === "top" ? t[2] : t[2] - sz * 0.8;
+      return [x0, y0, x0 + wd, y0 + sz]; };
+    /* 1回目：かかずに大きさだけはかり，はみ出すなら図全体をずらす（乱数は2回目に同じ値を使う） */
+    const R0 = R, seq = []; let sx = 0, sy = 0;
+    try{
+      R = () => { const v = R0(); seq.push(v); return v; };
+      drawFig(mkP(false), x, y, w, h, fs, ans);
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for(const [a, b] of segs) for(const q of [a, b]){ x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+      for(const t of texts){ const b = tbox(t); x0 = Math.min(x0, b[0]); x1 = Math.max(x1, b[2]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[3]); }
+      if(x1 - x0 <= w){ if(x0 < x) sx = x - x0; else if(x1 > x + w) sx = x + w - x1; }
+      if(y1 - y0 <= h + 1.5){ if(y0 < y - 1.5) sy = y - 1.5 - y0; else if(y1 > y + h) sy = y + h - y1; }
+    }catch(e){ seq.length = 0; }
+    segs.length = 0; texts.length = 0;
+    let qi = 0; R = () => qi < seq.length ? seq[qi++] : R0();
+    try{ drawFig(mkP(true), x + sx, y + sy, w, h, fs, ans); } finally { R = R0; }
+    /* となりあって続けてかかれた文字は1つのまとまりにする */
+    const groups = [];
+    for(const t of texts){
+      const sz = t[3].size || 5, bx = tbox(t);
+      const g = groups[groups.length - 1];
+      if(g && Math.abs(g.ty - t[2]) < 0.05 && Math.abs(g.bx[2] - bx[0]) < 0.3 * sz){ g.items.push(t); g.bx = [Math.min(g.bx[0], bx[0]), Math.min(g.bx[1], bx[1]), Math.max(g.bx[2], bx[2]), Math.max(g.bx[3], bx[3])]; g.str += t[0]; }
+      else groups.push({items:[t], bx, ty:t[2], str:t[0]});
+    }
+    const cr = (a, b, c, d) => { const o1 = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]), o2 = (b[0] - a[0]) * (d[1] - a[1]) - (b[1] - a[1]) * (d[0] - a[0]), o3 = (d[0] - c[0]) * (a[1] - c[1]) - (d[1] - c[1]) * (a[0] - c[0]), o4 = (d[0] - c[0]) * (b[1] - c[1]) - (d[1] - c[1]) * (b[0] - c[0]); return o1 * o2 < 0 && o3 * o4 < 0; };
+    const hitSeg = (bx, m) => { const x0 = bx[0] - m, y0 = bx[1] - m * 0.6, x1 = bx[2] + m, y1 = bx[3] + m * 0.6, inn = q => q[0] > x0 && q[0] < x1 && q[1] > y0 && q[1] < y1, E = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]];
+      return segs.some(([a, b]) => inn(a) || inn(b) || E.some(([c, d]) => cr(a, b, c, d))); };
+    const ov = (a, b, m) => !(a[2] + m < b[0] || a[0] - m > b[2] || a[3] + m * 0.5 < b[1] || a[1] - m * 0.5 > b[3]);
+    const out = bx => bx[0] < x - 0.5 || bx[2] > x + w + 0.5 || bx[1] < y - 1.5 || bx[3] > y + h + 0.5;
+    const placed = groups.filter(g => !SMART_RE.test(g.str)).map(g => g.bx);
+    for(const g of groups){
+      if(!SMART_RE.test(g.str)) continue;
+      const bad = bx => hitSeg(bx, 0.55) || placed.some(p => ov(bx, p, 0.4)) || out(bx);
+      let dx = 0, dy = 0;
+      if(bad(g.bx)){
+        let best = null;
+        for(let r = 0.4; r <= 3.2 * fs && !best; r += 0.35) for(let k = 0; k < 24; k++){
+          const t = k * Math.PI / 12, ddx = r * Math.cos(t), ddy = r * Math.sin(t) * 0.8, bx = [g.bx[0] + ddx, g.bx[1] + ddy, g.bx[2] + ddx, g.bx[3] + ddy];
+          if(!bad(bx)){ best = [ddx, ddy]; break; }
+        }
+        if(!best){ /* はみ出しだけでもなおす */ const sx = Math.max(0, x - g.bx[0]) - Math.max(0, g.bx[2] - x - w); best = [sx, 0]; }
+        [dx, dy] = best;
+      }
+      const nb = [g.bx[0] + dx, g.bx[1] + dy, g.bx[2] + dx, g.bx[3] + dy];
+      placed.push(nb);
+      g.dx = dx; g.dy = dy;
+    }
+    for(const g of groups) for(const t of g.items) G.text(t[0], t[1] + (g.dx || 0), t[2] + (g.dy || 0), t[3]);
+  };
+  f.__smart = true; return f;
+}
 function figItem(fw, fh, drawFig, qmk, o){
   o = o || {};
+  if(o.smart !== false && !drawFig.__smart) drawFig = smartFig(drawFig);
   const hasPar = /\(\(/.test(qmk);
   const calc = o.calc !== undefined ? o.calc : hasPar && /求め|計算/.test(o.inst || "");
   if(calc) return calcFigItem(fw, fh, drawFig, qmk, o);
@@ -79,6 +159,7 @@ function figItem(fw, fh, drawFig, qmk, o){
 }
 /* 計算して求める図の問題：図・「式」を書く場所・「答え（　　）」 */
 function calcFigItem(fw, fh, drawFig, qmk, o){
+  if(o.smart !== false && !drawFig.__smart){ drawFig = smartFig(drawFig); }
   const ansLab = knows("答") ? "答え" : "こたえ", shLab = knows("式") ? "式" : "しき";
   const q = parseMk(ansLab + "　" + qmk.replace(/^\s+/, ""));
   const sh = o.shiki ? (Array.isArray(o.shiki) ? o.shiki : [o.shiki]).map(parseMk) : [];
@@ -103,6 +184,7 @@ function calcFigItem(fw, fh, drawFig, qmk, o){
 /* 図（表）＋いくつかの問い（小さい問題の番号は自分でつける） */
 function setItem(fw, fh, drawFig, subs, o){
   o = o || {};
+  if(o.smart !== false) drawFig = smartFig(drawFig);
   const it = Object.assign({cat:"fig", full:true, selfNum:true,
     subs:subs.map(parseMk),
     get n(){ return this.subs.length; },

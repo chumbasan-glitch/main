@@ -399,7 +399,7 @@ function genRectArea(lv){
 function genLArea(lv){
   const W = ri(6, 12), H = ri(5, 10), w2 = ri(2, W - 3), h2 = ri(2, H - 2), A = W * H - (W - w2) * (H - h2);
   const draw = (G, x, y, w, h, fs) => {
-    const s = Math.min((w - 14) / W, (h - 10) / H), ox = x + (w - W * s) / 2, oy = y + (h - H * s) / 2;
+    const s = Math.min((w - 22) / W, (h - 12) / H), ox = x + (w - W * s) / 2, oy = y + (h - H * s) / 2;
     const P = [[0, 0], [w2, 0], [w2, H - h2], [W, H - h2], [W, H], [0, H]].map(p => [ox + p[0] * s, oy + p[1] * s]);
     G.poly(P, {w:0.4}); const cen = centroid(P);
     sideLabel(G, P[0], P[1], cm(w2), cen, fs); sideLabel(G, P[4], P[5], cm(W), cen, fs); sideLabel(G, P[5], P[0], cm(H), cen, fs); sideLabel(G, P[3], P[4], cm(h2), cen, fs);

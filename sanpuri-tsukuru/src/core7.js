@@ -229,17 +229,23 @@ function genSector(lv){
     if(askPer ? !perOk : !areaOk) continue;
     const A = dmul(r * r * th / 360, "3.14"), Pm = dadd(dmul(2 * r * th / 360, "3.14"), 2 * r);
     const draw = (G, x, y, w, h, fs) => {
-      const R_ = Math.min(w, h) / 2 - 4, cx = x + w / 2, cy = y + h / 2 + (th <= 180 ? R_ * 0.3 : 0);
+      /* おうぎ形の大きさに合わせて，わくいっぱいにかく */
       const s0 = -Math.PI / 2 - th * D2R / 2, s1 = s0 + th * D2R;
+      const pts = [[0, 0]].concat(Array.from({length:37}, (_, i) => { const t = s0 + (s1 - s0) * i / 36; return [Math.cos(t), Math.sin(t)]; }));
+      const f = fitPts(pts, x, y, w, h, 6), R_ = f.s, cx = f.pts[0][0], cy = f.pts[0][1];
       G.arc(cx, cy, R_, s0, s1, {fill:SHADE, stroke:false});
       G.arc(cx, cy, R_, s0, s1, {w:0.4});
       G.line(cx, cy, cx + R_ * Math.cos(s0), cy + R_ * Math.sin(s0), {w:0.4}); G.line(cx, cy, cx + R_ * Math.cos(s1), cy + R_ * Math.sin(s1), {w:0.4});
-      G.arc(cx, cy, 2.2, s0, s1, {w:0.25});
-      const md = (s0 + s1) / 2; G.text(th + "°", cx + 5 * Math.cos(md), cy + 5 * Math.sin(md), {size:fs * 0.7, align:"center"});
-      const mx = cx + R_ * 0.5 * Math.cos(s1), my = cy + R_ * 0.5 * Math.sin(s1);
-      G.text(cm(r), mx + 1.5, my + 2.2, {size:fs * 0.75});
+      G.arc(cx, cy, 2.4, s0, s1, {w:0.25});
+      const md = (s0 + s1) / 2, lw = G.width(th + "°", fs * 0.75), half = Math.min(th, 180) * D2R / 2;
+      const dd = Math.min(R_ * 0.6, Math.max(4.6, (lw / 2 + 0.8) / Math.tan(half) + 1));
+      G.text(th + "°", cx + dd * Math.cos(md), cy + dd * Math.sin(md), {size:fs * 0.75, align:"center"});
+      /* 半径は右がわの辺の外に */
+      const ue = [Math.cos(s1), Math.sin(s1)], nv = [-ue[1], ue[0]], m2 = [cx + R_ * 0.55 * ue[0], cy + R_ * 0.55 * ue[1]];
+      const lw2 = G.width(cm(r), fs * 0.8), o2 = 1.2 + Math.abs(nv[0]) * lw2 / 2 + Math.abs(nv[1]) * fs * 0.4;
+      G.text(cm(r), m2[0] + nv[0] * o2, m2[1] + nv[1] * o2, {size:fs * 0.8, align:"center"});
     };
-    return figItem(FIGW, FIGH + 6, draw, (askPer ? "まわりの長さ" : "面積") + "((" + (askPer ? cm(Pm) : A + "cm^2") + "))", {calc:true, shiki:askPer ? [`${2 * r}×3.14×${F(th / gcd(th, 360), 360 / gcd(th, 360))}＋${r}×2`, `＝${Pm}`] : `${r}×${r}×3.14×${F(th / gcd(th, 360), 360 / gcd(th, 360))}＝${A}`, inst:"つぎのおうぎ形について答えましょう。円周率は3.14とします。", lead:"おうぎ形", sig:"s" + th + r + askPer});
+    return figItem(FIGW + 10, FIGH + 12, draw, (askPer ? "まわりの長さ" : "面積") + "((" + (askPer ? cm(Pm) : A + "cm^2") + "))", {calc:true, shiki:askPer ? [`${2 * r}×3.14×${F(th / gcd(th, 360), 360 / gcd(th, 360))}＋${r}×2`, `＝${Pm}`] : `${r}×${r}×3.14×${F(th / gcd(th, 360), 360 / gcd(th, 360))}＝${A}`, inst:"つぎのおうぎ形について答えましょう。円周率は3.14とします。", lead:"おうぎ形", sig:"s" + th + r + askPer});
   }
 }
 function genParallelAngle(lv){

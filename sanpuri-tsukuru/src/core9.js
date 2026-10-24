@@ -191,10 +191,10 @@ function genBalls(lv){
     G.rect(bx, by, 2 * R_ * n, 2 * R_ * rows, {w:0.4});
     for(let j = 0; j < rows; j++) for(let i = 0; i < n; i++) G.arc(bx + R_ * (2 * i + 1), by + R_ * (2 * j + 1), R_, 0, 2 * Math.PI, {w:0.35});
     G.line(bx + R_, by + R_, bx + 2 * R_, by + R_, {w:0.3}); G.dot(bx + R_, by + R_, 0.3);
-    G.text(cm(r), bx + 1.5 * R_, by + R_ - 1.5, {size:fs * 0.7, align:"center"});
+    G.text(cm(r), bx + 1.5 * R_, by + R_ - fs * 0.45 - 0.5, {size:fs * 0.75, align:"center"});
   };
   const q = lv === 2 ? `たての長さ((${4 * r}cm))　横の長さ((${2 * r * n}cm))` : `箱の横の長さ((${2 * r * n}cm))`;
-  return figItem(62, lv === 2 ? 34 : 24, draw, q, {calc:true, shiki:lv === 2 ? [`たて　${r}×2×2＝${4 * r}`, `横　${r}×2×${n}＝${2 * r * n}`] : `${r}×2×${n}＝${2 * r * n}`, inst:`同じ大きさの球が，箱にぴったり入っています。球の半${KEI}は図のとおりです。`, lead:"円と球", sig:"b" + r + n + rows});
+  return figItem(lv === 2 ? 84 : 70, lv === 2 ? 58 : 32, draw, q, {calc:true, shiki:lv === 2 ? [`たて　${r}×2×2＝${4 * r}`, `横　${r}×2×${n}＝${2 * r * n}`] : `${r}×2×${n}＝${2 * r * n}`, inst:`同じ大きさの球が，箱にぴったり入っています。球の半${KEI}は図のとおりです。`, lead:"円と球", sig:"b" + r + n + rows});
 }
 unit3(7, "円と球", "9月", "円や球のとくちょうを見つけて，コンパスでかこう", [
   {id:"a", name:`半${KEI}と直${KEI}`.replace(/【(.)\|[^】]*】/g, "$1"), gen(lv){

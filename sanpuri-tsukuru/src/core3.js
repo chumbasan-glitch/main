@@ -95,7 +95,7 @@ function genTriAngle(lv){
   if(lv === 0){ const kn = [0, 1, 2].filter(i => i !== unknown).map(i => ang[i]); shk = `180－（${kn[0]}＋${kn[1]}）＝${ansV}`; }
   else if(lv === 1) shk = unknown === 0 ? `180－${be}×2＝${ansV}` : `（180－${al}）÷2＝${ansV}`;
   else shk = `${ext}－${be}＝${ansV}`;
-  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度", shiki:shk});
+  return figItem(FIGW + 14, FIGH + 14, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度", shiki:shk});
 }
 
 /* 四角形の角 */
@@ -136,7 +136,7 @@ function genQuadAngle(lv){
   };
   const kn = [0, 1, 2, 3].filter(i => i !== unknown).map(i => (lv === 1 && i === 0) ? 90 : rd[i]);
   const shq = `360－（${kn.join("＋")}）＝${ansV}`;
-  return figItem(FIGW, FIGH, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度", shiki:extAt >= 0 ? [`180－${ext}＝${rd[extAt]}`, shq] : shq});
+  return figItem(FIGW + 14, FIGH + 14, draw, "ア((" + ansV + "°))", {inst:"アの角度は何度ですか。計算で求めましょう。", lead:"アの角度", shiki:extAt >= 0 ? [`180－${ext}＝${rd[extAt]}`, shq] : shq});
 }
 
 /* 合同な三角形 */
@@ -259,14 +259,14 @@ function genArea(kind, lv){
       const c = T([diag[1][0][0], diag[0][0][1]]);
       G.poly([[c[0] + 0.5 * fs, c[1]], [c[0] + 0.5 * fs, c[1] - 0.5 * fs], [c[0], c[1] - 0.5 * fs]], {close:false, w:0.25});
       const l1 = parseMk(diag[0][2]), l2 = parseMk(diag[1][2]);
-      const a0 = T(diag[0][0]), a1 = T(diag[0][1]);
-      drawToks(G, l1, (a0[0] + a1[0]) / 2 + (lv === 2 ? 2.5 * fs : 1.2 * fs), a0[1] + 0.8 * fs, fs * 0.85, false);
-      const b0 = T(diag[1][0]);
-      drawToks(G, l2, b0[0] + 0.6 * fs, b0[1] + 1.4 * fs, fs * 0.85, false);
+      /* 横の対角線の長さは右半分の線の下，たての対角線の長さは上半分の線の右に書く */
+      const a1 = T(diag[0][1]), b0 = T(diag[1][0]), w1 = lineMetrics(G, l1, fs * 0.85).w;
+      drawToks(G, l1, (c[0] + a1[0]) / 2 - w1 / 2 + 0.3 * fs, c[1] + 0.75 * fs, fs * 0.85, false);
+      drawToks(G, l2, c[0] + 0.45 * fs, (b0[1] + c[1]) / 2 - 0.2 * fs, fs * 0.85, false);
     }
   };
   const name = {para:"平行四辺形", tri:"三角形", trap:"台形", rhombus:lv === 2 ? "四角形" : "ひし形"}[kind];
-  return figItem(FIGW + 4, FIGH, draw, "((" + S + "cm^2))", {inst:"つぎの図形の面積を求めましょう。", lead:name + "の面積", shiki:shA});
+  return figItem(FIGW + (kind === "rhombus" ? 14 : 4), FIGH + (kind === "rhombus" ? 12 : 0), draw, "((" + S + "cm^2))", {inst:"つぎの図形の面積を求めましょう。", lead:name + "の面積", shiki:shA});
 }
 
 /* 円周 */
@@ -313,7 +313,7 @@ function genBox(lv, lshape){
       P3 = [[0, 0, 0], [Wn, 0, 0], [Wn, Hn, 0], [0, Hn, 0], [0, 0, Dn], [Wn, 0, Dn], [Wn, Hn, Dn], [0, Hn, Dn]];
       vis = [[0, 1], [1, 2], [2, 3], [3, 0], [3, 7], [2, 6], [1, 5], [7, 6], [6, 5]];
       hid = [[0, 4], [4, 5], [4, 7]];
-      labels = [[0, 1, W + unitS], [1, 5, D + unitS], [1, 2, H + unitS]];
+      labels = [[0, 1, W + unitS], [1, 5, D + unitS], [3, 0, H + unitS]];
       if(W === H && H === D && !lshape) labels = [[0, 1, W + unitS]];
     }
     const f = fitPts(P3.map(proj), x, y, w, h, 6.5), P = f.pts, cen = centroid(P);
@@ -403,6 +403,7 @@ function genGraph(kind, lv){
 /* ================= かく問題（作図・展開図） ================= */
 /* 左に図、右（入らなければ下）に大きめのかくらん */
 function drawItem(fw, fh, drawFig, bw, bh, drawAns, o){
+  drawFig = smartFig(drawFig);
   return Object.assign({cat:"fig", n:1, full:true,
     minW(){ return 9999; },
     side(W){ return W - fw - 6 >= bw; },
@@ -500,8 +501,12 @@ function drawCylinder(G, x, y, w, h, fs, d, hh, labR){
   G.ellipse(cx, bot, rx, ry, 0, Math.PI, {w:0.4});
   G.ellipse(cx, bot, rx, ry, Math.PI, 2 * Math.PI, {w:0.3, dash:[1, 0.8]});
   G.line(cx - rx, top, cx - rx, bot, {w:0.4}); G.line(cx + rx, top, cx + rx, bot, {w:0.4});
-  if(labR){ G.line(cx, top, cx + rx, top, {w:0.3}); G.dot(cx, top, 0.35); G.text(cm(d / 2), cx + rx / 2, top - ry - 1.2, {size:fs * 0.8, align:"center"}); }
-  else { G.line(cx - rx, top, cx + rx, top, {w:0.3}); G.text(cm(d), cx, top - ry - 1.2, {size:fs * 0.8, align:"center"}); }
+  /* 半径・直径は，上の面にかいた線の長さを，図の上に矢印つきの線で示す */
+  const yl = top - ry - 2.6, x0 = labR ? cx : cx - rx;
+  if(labR){ G.line(cx, top, cx + rx, top, {w:0.3}); G.dot(cx, top, 0.35); }
+  else G.line(cx - rx, top, cx + rx, top, {w:0.3});
+  for(const xx of [x0, cx + rx]) G.line(xx, yl - 0.8, xx, top, {w:0.2, dash:[0.6, 0.6]});
+  dimArrow(G, x0, cx + rx, yl, cm(labR ? d / 2 : d), fs * 1.07);
   drawToks(G, parseMk(cm(hh)), cx + rx + 1.2, (top + bot) / 2, fs * 0.8, false);
 }
 function drawPrism3(G, x, y, w, h, fs, a, b, c, hh){
@@ -510,14 +515,14 @@ function drawPrism3(G, x, y, w, h, fs, a, b, c, hh){
   const f = fitPts(P3.map(proj), x, y, w, h, 7), P = f.pts, cen = centroid(P);
   for(const [i, j] of [[0, 2], [1, 2], [2, 5]]) G.line(...P[i], ...P[j], {w:0.3, dash:[1, 0.8]});
   for(const [i, j] of [[0, 1], [0, 3], [1, 4], [3, 4], [4, 5], [5, 3]]) G.line(...P[i], ...P[j], {w:0.4});
-  angleMark(G, P[3], P[4], P[5], "", fs, {right:true}); sideLabel(G, P[0], P[1], cm(a), cen, fs); sideLabel(G, P[3], P[5], cm(b), cen, fs); if(c) sideLabel(G, P[4], P[5], cm(c), cen, fs); sideLabel(G, P[1], P[4], cm(hh), cen, fs);
+  angleMark(G, P[3], P[4], P[5], "", fs, {right:true}); sideLabel(G, P[0], P[1], cm(a), cen, fs); sideLabel(G, P[3], P[5], cm(b), cen, fs); if(c) sideLabel(G, P[4], P[5], cm(c), cen, fs); sideLabel(G, P[0], P[3], cm(hh), cen, fs);
 }
 function drawPrism4(G, x, y, w, h, fs, a, b, hh){
   const P3 = [[0, 0, 0], [a, 0, 0], [a, hh, 0], [0, hh, 0], [0, 0, b], [a, 0, b], [a, hh, b], [0, hh, b]];
   const f = fitPts(P3.map(proj), x, y, w, h, 7), P = f.pts, cen = centroid(P);
   for(const [i, j] of [[0, 4], [4, 5], [4, 7]]) G.line(...P[i], ...P[j], {w:0.3, dash:[1, 0.8]});
   for(const [i, j] of [[0, 1], [1, 2], [2, 3], [3, 0], [3, 7], [2, 6], [1, 5], [7, 6], [6, 5]]) G.line(...P[i], ...P[j], {w:0.4});
-  sideLabel(G, P[0], P[1], cm(a), cen, fs); sideLabel(G, P[1], P[5], cm(b), cen, fs); sideLabel(G, P[1], P[2], cm(hh), cen, fs);
+  sideLabel(G, P[0], P[1], cm(a), cen, fs); sideLabel(G, P[1], P[5], cm(b), cen, fs); sideLabel(G, P[3], P[0], cm(hh), cen, fs);
 }
 /* 展開図の線（単位cm）：[点の列の集まり] と 円 */
 function netShapes(kind, v){
