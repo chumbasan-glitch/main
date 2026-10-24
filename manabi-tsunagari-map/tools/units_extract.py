@@ -54,7 +54,7 @@ for g in range(1, 7):
             for n in re.findall(r'\((\d+)\)', rest):
                 add(f'sansu-{g}-{a}-{n}', name, f'{g}年{vol}', '学校図書 年間指導計画作成資料')
 
-# ---------- 国語（光村図書）：指導事項配列表（◎・○・☆の付いた指導事項） ----------
+# ---------- 国語（光村図書）：指導事項配列表（◎＝主に扱う指導事項，☆＝言語活動） ----------
 SEC = {'（1）': 'K1', '（2）': 'K2', '（3）': 'K3'}
 for g in range(1, 7):
     d = docx.Document(F(f'kokugo_hairetsu_{g}.docx'))
@@ -80,9 +80,9 @@ for g in range(1, 7):
         for name, kr, sr in zip(names, k_t[hk + 1:], srows):
             if not name: continue
             for c, iid in kcols.items():
-                if kr[c] in ('◎', '○', '☆'): add(iid, name, book, '光村図書 指導事項配列表')
+                if kr[c] in ('◎', '☆'): add(iid, name, book, '光村図書 指導事項配列表')
             for c, iid in scols.items():
-                if sr[c] in ('◎', '○', '☆'): add(iid, name, book, '光村図書 指導事項配列表')
+                if sr[c] in ('◎', '☆'): add(iid, name, book, '光村図書 指導事項配列表')
 
 # ---------- 書写（光村図書）：書写の単元は国語の「書写に関する事項」に入れる ----------
 SHO = {'12': 'ウ', '34': 'エ', '56': 'エ'}
