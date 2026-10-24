@@ -1,145 +1,194 @@
-import json, re
+# 学びのつながりマップを組み立てる
+#   1. python3 tools/extract.py <学習指導要領PDF>   … src/*.txt をつくる（算数は src/sansu.txt を手で整えたもの）
+#   2. python3 tools/parse.py                        … data/parsed.json をつくる
+#   3. python3 build.py                              … page.html（アーティファクト用）と manabi-tsunagari-map.html（配布用）
+import json, re, os
 
+ROOT = os.path.dirname(os.path.abspath(__file__))
+P = lambda *a: os.path.join(ROOT, *a)
 ZEN = '０１２３４５６７８９'
 KAKKO = '⑴⑵⑶⑷⑸⑹⑺⑻⑼⑽⑾⑿⒀⒁⒂⒃'
 AREA_LETTER = {'Ａ': 'A', 'Ｂ': 'B', 'Ｃ': 'C', 'Ｄ': 'D'}
 
-def zen2int(t):
-    return int(''.join(str(ZEN.index(c)) if c in ZEN else c for c in t))
-
-# ---------- 算数の本文を読む ----------
-lines = [l for l in open('src_sansu.txt').read().split('\n') if l.strip()]
-sansu = {'goal': [], 'grades': {}, 'plan': [], 'items': []}
-cur = None      # いま読んでいる場所
-g = None
-sec = None
-area = None
-item = None
-for l in lines:
-    m = re.match(r'〔第(.)学年〕', l)
-    if l == '〔目標〕':
-        cur = 'goal'; continue
-    if m:
-        g = zen2int(m.group(1)); cur = 'grade'
-        sansu['grades'][g] = {'goal': [], 'activity': [], 'terms': [], 'notes': []}
-        continue
-    if l == '〔指導計画の作成と内容の取扱い〕':
-        cur = 'plan'; continue
-    if cur == 'goal':
-        sansu['goal'].append(l); continue
-    if cur == 'plan':
-        sansu['plan'].append(l); continue
-    G = sansu['grades'].get(g)
-    if l.startswith('１　目　標'):
-        sec = 'goal'; continue
-    if l.startswith('２　内　容'):
-        sec = 'content'; continue
-    if l.startswith('３　内容の取扱い'):
-        sec = 'notes'; continue
-    if l == '〔数学的活動〕':
-        sec = 'activity'; continue
-    if l.startswith('〔用語・記号〕'):
-        G['terms'] = l[len('〔用語・記号〕'):].split('　'); sec = None; continue
-    if sec == 'goal':
-        G['goal'].append(l)
-    elif sec == 'activity':
-        G['activity'].append(l)
-    elif sec == 'notes':
-        G['notes'].append(l)
-    elif sec == 'content':
-        m = re.match(r'([ＡＢＣＤ])　(.+)$', l)
-        if m:
-            area = {'letter': AREA_LETTER[m.group(1)], 'name': m.group(2)}; continue
-        if l[0] in KAKKO:
-            no = KAKKO.index(l[0]) + 1
-            title = l[2:]
-            item = {'id': 'sansu-%d-%s-%d' % (g, area['letter'], no), 'g': [g],
-                    'area': area['letter'] + ('2' if area['name'] == '変化と関係' else ''),
-                    'areaName': area['name'], 'no': no, 'title': title, 'lines': []}
-            sansu['items'].append(item)
-        else:
-            item['lines'].append(l)
-
-# ---------- 見出しとテーマ ----------
-heads = {}
-for l in open('sansu_midashi.tsv'):
-    l = l.rstrip('\n')
-    if not l or l.startswith('#'):
-        continue
-    key, head, th = l.split('\t')
-    themes = {}
-    for t in th.split('|'):
-        k, _, lab = t.partition('=')
-        themes[k] = lab or head
-    heads[key] = (head, themes)
-for it in sansu['items']:
-    key = '%d-%s-%d' % (it['g'][0], it['area'][0], it['no'])
-    it['head'], it['themes'] = heads.pop(key)
-assert not heads, heads
-
-# ---------- 内容の取扱いを、関係する内容に結びつける ----------
-for g, G in sansu['grades'].items():
-    for n in G['notes']:
-        refs = re.findall(r'「([ＡＢＣＤ])[^」]*」(.*?)(?:について|に関連|$)', n)
-        for letter, seg in refs:
-            nos = [c for c in seg if c in KAKKO]
-            for c in nos:
-                for it in sansu['items']:
-                    if it['g'][0] == g and it['area'][0] == AREA_LETTER[letter] and it['no'] == KAKKO.index(c) + 1:
-                        it.setdefault('notes', [])
-                        if n not in it['notes']:
-                            it['notes'].append(n)
-
-sansu['areas'] = [
-    {'key': 'A', 'name': 'Ａ 数と計算', 'grades': [1, 2, 3, 4, 5, 6]},
-    {'key': 'B', 'name': 'Ｂ 図形', 'grades': [1, 2, 3, 4, 5, 6]},
-    {'key': 'C', 'name': 'Ｃ 測定', 'grades': [1, 2, 3]},
-    {'key': 'C2', 'name': 'Ｃ 変化と関係', 'grades': [4, 5, 6]},
-    {'key': 'D', 'name': 'Ｄ データの活用', 'grades': [1, 2, 3, 4, 5, 6]},
+# 教科の並び・色相・学習指導要領での学年のまとめ方
+SUBJECTS = [
+    ('kokugo', '国語', 0), ('shakai', '社会', 28), ('sansu', '算数', 212), ('rika', '理科', 140),
+    ('seikatsu', '生活', 80), ('ongaku', '音楽', 328), ('zuko', '図画工作', 46), ('katei', '家庭', 14),
+    ('taiiku', '体育', 176), ('gaikokugokatsudo', '外国語活動', 252), ('gaikokugo', '外国語', 252),
+    ('doutoku', '特別の教科 道徳', 288), ('sougou', '総合的な学習の時間', 32), ('tokkatsu', '特別活動', 198),
 ]
-sansu['themes'] = [
-    {'id': 'seisu', 'name': '整数のしくみ', 'area': 'A'},
-    {'id': 'gaisu', 'name': 'がい数と見積もり', 'area': 'A'},
-    {'id': 'kagen', 'name': 'たし算・ひき算', 'area': 'A'},
-    {'id': 'jouhou', 'name': 'かけ算', 'area': 'A'},
-    {'id': 'johou', 'name': 'わり算', 'area': 'A'},
-    {'id': 'shousu', 'name': '小数', 'area': 'A'},
-    {'id': 'bunsu', 'name': '分数', 'area': 'A'},
-    {'id': 'shiki', 'name': '式と計算のきまり', 'area': 'A'},
-    {'id': 'soroban', 'name': 'そろばん', 'area': 'A'},
-    {'id': 'heimen', 'name': '平面図形', 'area': 'B'},
-    {'id': 'rittai', 'name': '立体図形', 'area': 'B'},
-    {'id': 'ichi', 'name': 'ものの位置', 'area': 'B'},
-    {'id': 'kaku', 'name': '角', 'area': 'B'},
-    {'id': 'menseki', 'name': '面積', 'area': 'B'},
-    {'id': 'taiseki', 'name': '体積', 'area': 'B'},
-    {'id': 'ryou', 'name': '量と単位', 'area': 'C'},
-    {'id': 'jikan', 'name': '時刻と時間', 'area': 'C'},
-    {'id': 'henka', 'name': '変わり方と比例', 'area': 'C2'},
-    {'id': 'wariai', 'name': '割合・比・単位量あたり', 'area': 'C2'},
-    {'id': 'data', 'name': 'データの活用', 'area': 'D'},
-]
-tids = {t['id'] for t in sansu['themes']}
-for it in sansu['items']:
-    for k in it['themes']:
-        assert k in tids, (it['id'], k)
-# A4のまとめ用に短くした教科の目標（Claudeによる要約）
-sansu['goalShort'] = {
-    'lead': '数学的な見方・考え方を働かせ，数学的活動を通して，数学的に考える資質・能力を育成する。',
-    'points': [
-        '知識及び技能：数量や図形の基礎的・基本的な概念や性質を理解し，日常の事象を数理的に処理する技能を身に付ける。',
-        '思考力，判断力，表現力等：筋道を立てて考察する力，統合的・発展的に考察する力，数学的な表現で簡潔・明瞭・的確に表す力を養う。',
-        '学びに向かう力，人間性等：数学的活動の楽しさや数学のよさに気付き，学んだことを生活や学習に活用しようとする態度を養う。',
-    ],
+SECTION = {
+    'kokugo': '第２章 第１節 国語', 'shakai': '第２章 第２節 社会', 'sansu': '第２章 第３節 算数', 'rika': '第２章 第４節 理科',
+    'seikatsu': '第２章 第５節 生活', 'ongaku': '第２章 第６節 音楽', 'zuko': '第２章 第７節 図画工作',
+    'katei': '第２章 第８節 家庭', 'taiiku': '第２章 第９節 体育', 'gaikokugo': '第２章 第10節 外国語',
+    'doutoku': '第３章 特別の教科 道徳', 'gaikokugokatsudo': '第４章 外国語活動', 'sougou': '第５章 総合的な学習の時間',
+    'tokkatsu': '第６章 特別活動',
 }
 
-data = {'sansu': sansu}
-t = open('template.html').read()
-t = t.replace('/*DATA*/', 'const CONTENT = ' + json.dumps(data, ensure_ascii=False).replace('<', '\\u003c') + ';')
-# アーティファクト用（ページの外側はアーティファクトがつける）
-open('page.html', 'w').write(t)
-# 配る用のHTMLファイル（ダブルクリックで開ける形）
+def z2i(t):
+    return int(''.join(str(ZEN.index(c)) if c in ZEN else c for c in t))
+
+# ---------- 算数（src/sansu.txt は形が少しちがうので、ここで読む） ----------
+def parse_sansu():
+    lines = [l for l in open(P('src', 'sansu.txt')).read().split('\n') if l.strip()]
+    S = {'goal': [], 'bands': {}, 'plan': [], 'items': []}
+    cur = g = sec = area = item = None
+    for l in lines:
+        m = re.match(r'〔第(.)学年〕', l)
+        if l == '〔目標〕':
+            cur = 'goal'; continue
+        if m:
+            g = z2i(m.group(1)); cur = 'grade'
+            S['bands'][str(g)] = {'grades': [g], 'goal': [], 'activity': [], 'terms': [], 'notes': []}
+            continue
+        if l == '〔指導計画の作成と内容の取扱い〕':
+            cur = 'plan'; continue
+        if cur == 'goal':
+            S['goal'].append(l); continue
+        if cur == 'plan':
+            S['plan'].append(l); continue
+        G = S['bands'][str(g)]
+        if l.startswith('１　目　標'): sec = 'goal'; continue
+        if l.startswith('２　内　容'): sec = 'content'; continue
+        if l.startswith('３　内容の取扱い'): sec = 'notes'; continue
+        if l == '〔数学的活動〕': sec = 'activity'; continue
+        if l.startswith('〔用語・記号〕'):
+            G['terms'] = l[len('〔用語・記号〕'):].split('　'); sec = None; continue
+        if sec in ('goal', 'activity', 'notes'):
+            G[sec].append(l)
+        elif sec == 'content':
+            m = re.match(r'([ＡＢＣＤ])　(.+)$', l)
+            if m:
+                area = {'letter': AREA_LETTER[m.group(1)], 'name': m.group(2)}; continue
+            if l[0] in KAKKO:
+                no = KAKKO.index(l[0]) + 1
+                akey = area['letter'] + ('2' if area['name'] == '変化と関係' else '')
+                item = {'id': 'sansu-%d-%s-%d' % (g, area['letter'], no), 'subject': 'sansu', 'g': [g], 'area': akey,
+                        'areaName': area['name'], 'no': str(no), 'num': no, 'title': l[2:], 'lines': []}
+                S['items'].append(item)
+            else:
+                item['lines'].append(l)
+    for k, G in S['bands'].items():
+        g = int(k)
+        for n in G['notes']:
+            for letter, seg in re.findall(r'「([ＡＢＣＤ])[^」]*」(.*?)(?:について|に関連|$)', n):
+                for c in [c for c in seg if c in KAKKO]:
+                    for it in S['items']:
+                        if it['g'][0] == g and it['area'][0] == AREA_LETTER[letter] and it['num'] == KAKKO.index(c) + 1:
+                            it.setdefault('notes', [])
+                            if n not in it['notes']: it['notes'].append(n)
+        G['extra'] = [{'label': '〔数学的活動〕', 'lines': G.pop('activity')},
+                      {'label': '〔用語・記号〕', 'terms': G.pop('terms')}]
+        G.pop('notes')
+    S['areas'] = [{'key': 'A', 'name': 'Ａ 数と計算'}, {'key': 'B', 'name': 'Ｂ 図形'}, {'key': 'C', 'name': 'Ｃ 測定'},
+                  {'key': 'C2', 'name': 'Ｃ 変化と関係'}, {'key': 'D', 'name': 'Ｄ データの活用'}]
+    return S
+
+# ---------- 見出しとテーマを付ける ----------
+def read_tsv(name):
+    rows = []
+    for l in open(P('midashi', name + '.tsv')):
+        l = l.rstrip('\n')
+        if not l or l.startswith('#'): continue
+        rows.append(l.split('\t'))
+    return rows
+
+def split_glued(text, head):
+    """「物と重さ物の性質について…」のように名前と本文がつながった行を分ける"""
+    if head and text.startswith(head) and len(text) > len(head):
+        return [head, text[len(head):]]
+    return [text]
+
+data = json.load(open(P('data', 'parsed.json')))
+data['sansu'] = parse_sansu()
+# themes.tsv のはじめのまとまり（「# 算数」より前）は教科をまたぐテーマ
+THEMES, cross = [], True
+for l in open(P('midashi', 'themes.tsv')):
+    l = l.rstrip('\n')
+    if l.startswith('# 算数'): cross = False
+    if not l or l.startswith('#'): continue
+    tid, tname = l.split('\t')
+    THEMES.append({'id': tid, 'name': tname, **({'cross': True} if cross else {})})
+TID = {t['id'] for t in THEMES}
+items = []
+subjects = []
+for sid, name, hue in SUBJECTS:
+    S = data[sid]
+    heads = {}
+    for r in read_tsv(sid):
+        th = {}
+        for t in r[2].split('|'):
+            k, _, lab = t.partition('=')
+            assert k in TID, (sid, r[0], k)
+            th[k] = lab
+        heads[r[0]] = (r[1], th, r[3] if len(r) > 3 else None)
+    for it in S['items']:
+        key = it['id'][len(sid) + 1:]
+        assert key in heads, (sid, key)
+        head, th, area = heads.pop(key)
+        if head == '-':
+            head = it['autohead']
+        it['head'] = head
+        # 画面では教科名を別に出すので，「（理科）」のような後ろの教科名は外す
+        it['themes'] = {k: re.sub(r'（[^（）]*(語|会|数|科|活|楽|工作|庭|育|保健|道徳|総合|活動)）$', '', v) if v else head for k, v in th.items()}
+        if area:
+            it['area'] = area
+        # 本文の頭の番号（⑴など）
+        if it.get('title') and it.get('num') and (sid not in ('doutoku', 'gaikokugo', 'gaikokugokatsudo', 'taiiku') or it['area'] == 'G'):
+            it['mark'] = KAKKO[it['num'] - 1]
+        # 名前と本文がつながった行（理科の内容の名前，特別活動の項目名）を分ける
+        if it.get('title') and sid == 'rika':
+            parts = split_glued(it['title'], head)
+            if len(parts) == 2:
+                it['title'] = parts[1]; it['name'] = parts[0]
+        if it['lines'] and sid == 'tokkatsu':
+            l0 = it['lines'][0]
+            mk = l0[:2] if (l0[0] in KAKKO or l0[1:2] == '　') else ''
+            parts = split_glued(l0[len(mk):], head)
+            if len(parts) == 2:
+                it['lines'] = [mk + parts[0], parts[1]] + it['lines'][1:]
+        it['lines'] = [l.replace("you'rewelcome", "you're welcome") for l in it['lines']]
+        it.pop('autohead', None); it.pop('itemName', None)
+        items.append(it)
+    assert not heads, (sid, list(heads))
+    areas = S.get('areas') or []
+    if sid == 'shakai':
+        areas = [{'key': 'chiri', 'name': '地理的環境と人々の生活'}, {'key': 'rekishi', 'name': '歴史と人々の生活'},
+                 {'key': 'koumin', 'name': '現代社会の仕組みや働きと人々の生活'}]
+        for it in S['items']:
+            it['areaName'] = next(a['name'] for a in areas if a['key'] == it['area'])
+    for a in areas:
+        a['grades'] = sorted({g for it in S['items'] if it['area'] == a['key'] for g in it['g']})
+        a.pop('lead', None)
+    bands = sorted(({'grades': b['grades'], 'goal': b.get('goal', []), 'extra': b.get('extra', [])}
+                    for b in S['bands'].values()), key=lambda b: b['grades'][0])
+    # 特別活動は活動ごとの目標を学年の欄に出す
+    if sid == 'tokkatsu':
+        bands[0]['extra'] = [{'label': '〔' + a['name'] + '〕の目標', 'lines': a.pop('goal')} for a in areas]
+        for a in areas: a.pop('notes', None)
+    plan = S.get('plan', [])
+    # 音楽の「音符，休符，記号や用語」の一覧は図なので，文字にできた部分までにする
+    plan = [l[:l.index('取り扱うこと。五') + 7] + '（※音符・休符・記号などの一覧は図で示されているため，ここでは省略しています）' if '取り扱うこと。五' in l else l for l in plan]
+    subjects.append({'id': sid, 'name': name, 'h': hue, 'section': SECTION[sid], 'goal': S['goal'],
+                     'plan': plan, 'areas': areas, 'bands': bands})
+
+# 学年のまとめ方（マップの列のまとめ方）
+for s in subjects:
+    s['spans'] = [b['grades'] for b in s['bands']]
+    if s['id'] == 'taiiku':
+        s['spans'] = [[1, 2], [3, 4], [5, 6]]
+
+used = {k for it in items for k in it['themes']}
+THEMES = [t for t in THEMES if t['id'] in used]
+print(len(items), 'items,', len(THEMES), 'themes')
+for s in subjects:
+    print(' ', s['name'], sum(1 for it in items if it['subject'] == s['id']))
+
+content = {'subjects': subjects, 'themes': THEMES, 'items': items}
+t = open(P('template.html')).read()
+t = t.replace('/*DATA*/', 'const CONTENT = ' + json.dumps(content, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
+open(P('page.html'), 'w').write(t)
 full = ('<!doctype html><html lang="ja"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>' + t + '</body></html>')
-open('manabi-tsunagari-map.html', 'w').write(full)
-print(len(sansu['items']), 'items', len(full.encode()), 'bytes')
+open(P('manabi-tsunagari-map.html'), 'w').write(full)
+print(len(full.encode()), 'bytes')
