@@ -19,7 +19,7 @@ const timeStrH = (h, m) => m === 0 ? `${h}じ` : m === 30 ? `${h}じはん` : `$
 
 /* ○をならべたグラフ（1・2年） */
 function drawPicto(G, x, y, w, h, fs, labels, vals){
-  const n = labels.length, cw = Math.min(11, (w - 4) / n), mx = Math.max(...vals), ch = Math.min(4.2, (h - 8) / mx), bx = x + (w - cw * n) / 2, by = y + h - 7;
+  const n = labels.length, cw = Math.min(15, (w - 4) / n), mx = Math.max(...vals), ch = Math.min(4.2, (h - 8) / mx), bx = x + (w - cw * n) / 2, by = y + h - 7;
   G.line(bx, by, bx + cw * n, by, {w:0.4});
   labels.forEach((l, i) => {
     const cx = bx + (i + 0.5) * cw;

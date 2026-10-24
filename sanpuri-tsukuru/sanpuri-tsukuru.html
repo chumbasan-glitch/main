@@ -125,7 +125,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <header class="top">
     <h1>算プリツクール</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 4.7</span>
+    <span class="ver">ver. 4.8</span>
   </header>
 
   <div class="layout">
@@ -3650,7 +3650,7 @@ const timeStrH = (h, m) => m === 0 ? `${h}じ` : m === 30 ? `${h}じはん` : `$
 
 /* ○をならべたグラフ（1・2年） */
 function drawPicto(G, x, y, w, h, fs, labels, vals){
-  const n = labels.length, cw = Math.min(11, (w - 4) / n), mx = Math.max(...vals), ch = Math.min(4.2, (h - 8) / mx), bx = x + (w - cw * n) / 2, by = y + h - 7;
+  const n = labels.length, cw = Math.min(15, (w - 4) / n), mx = Math.max(...vals), ch = Math.min(4.2, (h - 8) / mx), bx = x + (w - cw * n) / 2, by = y + h - 7;
   G.line(bx, by, bx + cw * n, by, {w:0.4});
   labels.forEach((l, i) => {
     const cx = bx + (i + 0.5) * cw;
@@ -6752,6 +6752,52 @@ vary("6-n6.d", [
   lv => { const a = ri(2, 5) * 10, b = ri(2, 5) * 10, v = ri(2, 6) * 1000; if((v * 100) % (a * b)) return null; return W_(`内のりがたて${a}cm，横${b}cmの直方体の水そうに，毎分${v / 1000}Lずつ水を入れます。10分後の水の深さは何cmですか。`, `${v / 1000 * 10}L＝${v * 10}cm^3，${v * 10}÷（${a}×${b}）`, `${ddiv(v * 10, a * b)}cm`, "水の深さ"); },
   lv => { const a = ri(2, 4) * 10, h = ri(2, 4) * 10, d = ri(5, h / 2); return W_(`1辺${a}cmの立方体の水そうに，深さ${d}cmまで水が入っています。水の体積は何cm^3ですか。`, `${a}×${a}×${d}`, `${a * a * d}cm^3`, "水の深さ"); }
 ], 0.4);
+
+/* ---------- グラフ・表の読みとり（テーマと問い方をふやす） ---------- */
+const PICTO_THEMES = [
+  {t1:"すきな　あそびを　しらべて，○で　あらわしました。", t2:"すきな　あそびを　しらべて，○で　あらわしました。", items:["おにごっこ", "なわとび", "ボール", "すなば", "ブランコ"]},
+  {t1:"かって　いる　いきものを　しらべて，○で　あらわしました。", t2:"かって　いる　生きものを　しらべて，○で　あらわしました。", items:["いぬ", "ねこ", "きんぎょ", "かめ", "ことり"]},
+  {t1:"すきな　のりものを　しらべて，○で　あらわしました。", t2:"すきな　のりものを　しらべて，○で　あらわしました。", items:["でんしゃ", "バス", "ひこうき", "ふね", "くるま"]}
+];
+function pictoItem2(g, lv){
+  const th = pick(PICTO_THEMES), one = g === 1, labels = shuffle(th.items).slice(0, 4), vals = labels.map(() => ri(2, 8));
+  if(new Set(vals).size < 4) return pictoItem2(g, lv);
+  const order = vals.map((v, i) => i).sort((a, b) => vals[b] - vals[a]), tot = vals.reduce((a, b) => a + b, 0), k = ri(3, 6), over = labels.filter((l, i) => vals[i] > k);
+  const nin = one ? "にん" : "人";
+  const subs = [
+    one ? `ぜんぶで　なんにん　しらべましたか。((${tot}にん))` : `ぜんぶで　何人　しらべましたか。((${tot}人))`,
+    one ? `2ばんめに　おおいのは　どれですか。((${labels[order[1]]}))` : `2ばんめに　多いのは　どれですか。((${labels[order[1]]}))`
+  ];
+  if(lv >= 1) subs.push(one ? `${k}にんより　おおいのは　いくつ　ありますか。((${over.length}つ))` : `${k}人より　多いのは　いくつ　ありますか。((${over.length}つ))`);
+  return setItem(66, 44, (G, x, y, w, h, fs) => drawPicto(G, x, y, w, h, fs, labels, vals), subs,
+    {inst:one ? K1_Q : K2_Q, lead:one ? "かずしらべ" : "グラフ", text:one ? th.t1 : th.t2, sig:"p2" + labels.join() + vals.join()});
+}
+vary("1-6.a", [lv => pictoItem2(1, lv)], 0.5);
+vary("1-18.a", [lv => pictoItem2(1, lv)], 0.5);
+vary("2-1.a", [lv => pictoItem2(2, lv)], 0.5);
+const BAR_THEMES = [
+  {text:"下のぼうグラフは，3年生がすきな教科を調べたものです。", items:["国語", "算数", "体育", "音楽", "その他"], u:"人"},
+  {text:"下のぼうグラフは，図書室で1週間にかりられた本の数を，しゅるいごとに表したものです。", items:["物語", "図かん", "童話", "詩", "その他"], u:"さつ"},
+  {text:"下のぼうグラフは，学校の前を10分間に通った乗り物の数を調べたものです。", items:["乗用車", "トラック", "バス", "自転車", "その他"], u:"台"}
+];
+vary("3-5.a", [lv => {
+  const th = pick(BAR_THEMES), step = lv === 0 ? 1 : lv === 1 ? 2 : 5, vals = th.items.map((_, i) => i === 4 ? ri(1, 4) * step : ri(2, 14) * step);
+  const main = vals.slice(0, 4); if(new Set(main).size < 4) return null;
+  const order = main.map((v, i) => i).sort((a, b) => main[b] - main[a]), tot = vals.reduce((a, b) => a + b, 0);
+  const subs = [`全部で何${th.u}ですか。((${tot}${th.u}))`, `2番目に多いのはどれですか。((${th.items[order[1]]}))`];
+  if(main[order[0]] % main[order[3]] === 0) subs.push(`${th.items[order[0]]}は${th.items[order[3]]}の何倍ですか。((${main[order[0]] / main[order[3]]}倍))`);
+  else subs.push(`いちばん多いものといちばん少ないもの（その他をのぞく）のちがいは何${th.u}ですか。((${main[order[0]] - main[order[3]]}${th.u}))`);
+  return setItem(72, 52, (G, x, y, w, h, fs) => drawBars(G, x, y, w, h, fs, th.items, vals, step, th.u), subs, {inst:K_Q, lead:"ぼうグラフ", text:th.text, sig:"b2" + vals.join()});
+}], 0.5);
+vary("4-2.a", [lv => {
+  const T = tempSeries(), mn = T.indexOf(Math.min(...T)), mx = T.indexOf(Math.max(...T));
+  if(T.filter(v => v === T[mx]).length > 1 || T.filter(v => v === T[mn]).length > 1) return null;
+  const d = T.slice(1).map((v, i) => v - T[i]), dn = d.indexOf(Math.min(...d));
+  if(d.filter(v => v === d[dn]).length > 1) return null;
+  const subs = [`気温がいちばん低いのは何月ですか。((${MONTHS[mn]}))`, `いちばん高い月といちばん低い月の気温のちがいは何度ですか。((${T[mx] - T[mn]}度))`];
+  if(lv >= 1) subs.push(`気温の下がり方がいちばん大きいのは，何月から何月の間ですか。((${MONTHS[dn]}から${MONTHS[dn + 1]}))`);
+  return setItem(78, 54, (G, x, y, w, h, fs) => drawLineGraph(G, x, y, w, h, fs, [T], 30, 5, "度"), subs, {inst:K_Q, lead:"折れ線グラフ", text:"下の折れ線グラフは，ある市の1年間の気温の変わり方を表したものです。", sig:"l2" + T.join()});
+}], 0.5);
 
 /* ================= 問題を作る・ならべる ================= */
 function unitsOf(grade){ return GRADES[grade] || []; }
