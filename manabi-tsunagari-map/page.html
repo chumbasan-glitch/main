@@ -267,6 +267,7 @@ table.tksteps th.faded small::after{content:"（この学年ではまだ扱わ�
   .sheet{animation:slidein .18s ease-out}
   @keyframes slidein{from{transform:translateX(30px); opacity:.6}}
 }
+.verfoot{text-align:center; font-size:12px; color:var(--ink2); padding:18px 16px 28px}
 </style>
 
 <header class="top">
@@ -402,6 +403,7 @@ table.tksteps th.faded small::after{content:"（この学年ではまだ扱わ�
     <div class="results" id="results"></div>
   </section>
 </main>
+<footer class="verfoot">学びのつながりマップ　第1版　2026年10月24日更新</footer>
 
 <div class="sheetBack" id="sheetBack" hidden></div>
 <aside class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="dTitle"></aside>
@@ -925,7 +927,7 @@ function buildA4(){
     }
     h += '</tr>';
   }
-  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + '。目標は原文。見出し・テーマは「学びのつながりマップ」が原文をもとにまとめたもの。</span><span>学びのつながりマップ</span></div>';
+  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + '。目標は原文。見出し・テーマは「学びのつながりマップ」が原文をもとにまとめたもの。</span><span>学びのつながりマップ　第1版　2026年10月24日更新</span></div>';
   const box = $("a4"); box.innerHTML = h;
   /* 1枚に収まるまで文字を小さくする */
   const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 16;
@@ -951,7 +953,7 @@ function buildA4X(st){
     }
     if(r.plans.length) h += '<tr><th class="rh">' + (r.its.length ? '' : esc(s.name)) + '<br><span style="font-weight:400;font-size:.85em">指導計画・内容の取扱い</span></th><td colspan="6" class="empty">' + r.plans.map(p => '<div>' + show(p.lines.join(" ").slice(0, 110)) + (p.lines.join(" ").length > 110 ? '…' : '') + ' <span class="ct">' + catNo(x, p.cat) + '</span></div>').join("") + '</td></tr>';
   }
-  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総則編 付録6・総合的な学習の時間編。見出しと小見出しは「学びのつながりマップ」がまとめたもの。</span><span>学びのつながりマップ</span></div>';
+  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総則編 付録6・総合的な学習の時間編。見出しと小見出しは「学びのつながりマップ」がまとめたもの。</span><span>学びのつながりマップ　第1版　2026年10月24日更新</span></div>';
   const box = $("a4"); box.innerHTML = h;
   const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 15;
   const over = () => tb.getBoundingClientRect().bottom > foot.getBoundingClientRect().top - 6;
@@ -972,7 +974,7 @@ function buildA4Tk(){
     }
     h += '</tr>';
   }
-  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総合的な学習の時間編。教科の内容と探究のステップとのつながりはClaudeの案。</span><span>学びのつながりマップ</span></div>';
+  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総合的な学習の時間編。教科の内容と探究のステップとのつながりはClaudeの案。</span><span>学びのつながりマップ　第1版　2026年10月24日更新</span></div>';
   const box = $("a4"); box.innerHTML = h;
   const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 13;
   const over = () => tb.getBoundingClientRect().bottom > foot.getBoundingClientRect().top - 6;
