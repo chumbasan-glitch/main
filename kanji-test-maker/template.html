@@ -124,6 +124,17 @@ header.top .ver{margin-left:auto;color:var(--ink-soft);font-size:12px;white-spac
 .nrow input{width:100%;min-width:0;font-family:"Klee One",serif;font-size:18px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
 .nrow input:focus{outline:2px solid var(--accent);outline-offset:0}
 .nrow .del{width:32px;height:32px;border:none;border-radius:50%;background:var(--surface-2);color:var(--ink-soft);font-size:16px;font-weight:700;cursor:pointer}
+.gs-open{width:100%;border:2px solid var(--accent);background:var(--accent-soft);color:var(--accent);font:inherit;font-weight:700;font-size:15px;padding:10px;border-radius:10px;cursor:pointer}
+.gs-in{width:100%;font-family:"Klee One",serif;font-size:22px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+.gs-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.gs-list:empty{display:none}
+.gs-row{display:grid;grid-template-columns:56px 1fr;align-items:center;padding:6px 14px;border-bottom:1px solid var(--line)}
+.gs-row:last-child{border-bottom:none}
+.gs-row .k{font-family:"Klee One",serif;font-weight:600;font-size:30px;text-align:center}
+.gs-row .g{font-weight:700;font-size:17px}
+.gs-row .g.no{color:var(--ink-soft);font-weight:500;font-size:15px}
+#gsOverlay .box{max-width:560px}
+#gsOverlay{-webkit-user-select:auto;user-select:auto;-webkit-touch-callout:default}
 .mode-seg button{font-size:16px;padding:11px 8px}
 body.note .test-only,body:not(.note) .note-only{display:none!important}
 .save{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -176,7 +187,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>カンジーツクール</h1>
     <span class="sub">光村図書・縦書き／漢字の小テストと漢字ノートを、かんたんに作って印刷できます</span>
-    <span class="ver" title="このページの版">ver 10.3（2026.10.18）</span>
+    <span class="ver" title="このページの版">ver 11.0（2026.10.24）</span>
   </header>
 
   <div class="layout">
@@ -185,6 +196,7 @@ h2.sec{margin:0;font-size:17px}
         <button type="button" data-v="test">漢字テスト</button>
         <button type="button" data-v="note">漢字ノート</button>
       </div>
+      <button class="gs-open" type="button" id="gsOpen">🔍 この字何年で習う？</button>
       <div class="step note-only">
         <div class="step-h"><span class="n">1</span>ノートの大きさ</div>
         <div class="seg" id="segNgrid">
@@ -437,6 +449,16 @@ h2.sec{margin:0;font-size:17px}
       <p class="hint">書体：Windowsでは「UD デジタル 教科書体」、iPadでは「Klee One」で印刷されます。</p>
     </section>
   </div>
+  </div>
+</div>
+
+<div class="overlay" id="gsOverlay" hidden role="dialog" aria-label="この字何年で習う？">
+  <div class="box">
+    <div class="row" style="justify-content:space-between"><strong style="font-size:17px">この字何年で習う？</strong><button class="btn small" type="button" id="gsClose">閉じる</button></div>
+    <p class="hint">漢字を入れると、何年生で習う漢字かが出ます。いくつでもまとめて入れられます。</p>
+    <input class="gs-in" id="gsIn" type="text" placeholder="例：海岸線" aria-label="しらべる漢字">
+    <div class="gs-list" id="gsList" aria-live="polite"></div>
+    <p class="hint">小学校で習う漢字（1026字）の学年をもとにしています。</p>
   </div>
 </div>
 
@@ -1452,6 +1474,21 @@ async function saveNoteImages(btn){
   });
 }
 $("saveImgA").addEventListener("click", e => saveImage(true, e.currentTarget));
+/* ---------- この字何年で習う？ ---------- */
+function renderGs(){
+  const ks = [...new Set([...$("gsIn").value].filter(isKanji))], el = $("gsList"); el.innerHTML = "";
+  for(const k of ks){
+    const g = GRADE_OF[k], row = document.createElement("div"); row.className = "gs-row";
+    const a = document.createElement("span"); a.className = "k"; a.textContent = k;
+    const b = document.createElement("span"); b.className = "g" + (g ? "" : " no"); b.textContent = g ? g + "年" : "小学校では習いません";
+    row.append(a, b); el.appendChild(row);
+  }
+}
+$("gsOpen").addEventListener("click", () => { $("gsOverlay").hidden = false; renderGs(); $("gsIn").focus(); });
+$("gsClose").addEventListener("click", () => { $("gsOverlay").hidden = true; });
+$("gsOverlay").addEventListener("click", e => { if(e.target === $("gsOverlay")) $("gsOverlay").hidden = true; });
+document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("gsOverlay").hidden) $("gsOverlay").hidden = true; });
+$("gsIn").addEventListener("input", renderGs);
 $("imgClose").addEventListener("click", () => { $("imgOverlay").hidden = true; });
 $("imgClose2").addEventListener("click", () => { $("imgOverlay").hidden = true; });
 
