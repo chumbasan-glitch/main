@@ -110,13 +110,22 @@ for tp in TOPICS:
         ids = {h[0] for h in c['hits']}
         for iid, fld, k in c['hits']:
             # たくさんの項目に同じ文がある行（「次のような知識及び技能を…」など）は手がかりにしない
-            ok = len(ids) <= 3 and (fld in ('lines', 'notes') or len(ids) == 1)
+            # 1つの項目にだけ当たった行を手がかりにする（同じ文がいくつもの項目にある行は，色付けだけに使う）
+            ok = len(ids) == 1
             d = items.setdefault(iid, {'ok': False, 'lines': set(), 'notes': set(), 'head': False})
             if ok: d['ok'] = True
             if len(ids) > 3: continue
             if fld == 'lines': d['lines'].add(k)
             elif fld == 'notes': d['notes'].add(k)
             else: d['head'] = True
+    # 同じ文が複数の項目にあるが，付録6の表で確かめて入っていると分かったもの
+    FORCE = {'郷土や地域': ['gaikokugokatsudo-34-H-1', 'gaikokugo-56-H-1'], '心身の健康の保持増進': ['taiiku-56-A-0']}
+    for iid in FORCE.get(tp, []):
+        d = items.setdefault(iid, {'ok': True, 'lines': set(), 'notes': set(), 'head': False})
+        d['ok'] = True
+        for c in T['cites']:
+            for h in c['hits']:
+                if h[0] == iid: (d['lines'] if h[1] == 'lines' else d['notes'] if h[1] == 'notes' else set()).add(h[2])
     # 体育：「同様に記載」とある「場や用具の安全」の⑶を，ほかの領域・学年にも付ける
     if tp == '防災を含む安全':
         for it in BYSUB['taiiku']:

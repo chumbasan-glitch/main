@@ -9551,25 +9551,11 @@
     "notes": [],
     "head": false
    },
-   "ongaku-12-B-1": {
-    "lines": [],
-    "notes": [
-     0
-    ],
-    "head": false
-   },
    "ongaku-34-B-1": {
     "lines": [],
     "notes": [
      0,
      1
-    ],
-    "head": false
-   },
-   "ongaku-56-B-1": {
-    "lines": [],
-    "notes": [
-     0
     ],
     "head": false
    },
@@ -9618,13 +9604,6 @@
      1
     ],
     "head": true
-   },
-   "katei-56-B-3": {
-    "lines": [
-     0
-    ],
-    "notes": [],
-    "head": false
    },
    "katei-56-A-4": {
     "lines": [
@@ -12082,13 +12061,6 @@
      5
     ],
     "head": true
-   },
-   "shakai-4-X-1": {
-    "lines": [
-     2
-    ],
-    "notes": [],
-    "head": false
    },
    "shakai-4-X-5": {
     "lines": [
@@ -14945,13 +14917,6 @@
     ],
     "head": true
    },
-   "shakai-4-X-5": {
-    "lines": [],
-    "notes": [
-     0
-    ],
-    "head": false
-   },
    "shakai-5-X-5": {
     "lines": [
      3
@@ -17242,13 +17207,6 @@
      2
     ],
     "head": true
-   },
-   "katei-56-A-3": {
-    "lines": [
-     0
-    ],
-    "notes": [],
-    "head": false
    },
    "taiiku-3-G-1": {
     "lines": [
@@ -19827,13 +19785,6 @@
     ],
     "head": true
    },
-   "shakai-3-X-1": {
-    "lines": [],
-    "notes": [
-     0
-    ],
-    "head": false
-   },
    "shakai-4-X-2": {
     "lines": [
      1,
@@ -19852,13 +19803,6 @@
      3
     ],
     "head": true
-   },
-   "shakai-5-X-1": {
-    "lines": [],
-    "notes": [
-     0
-    ],
-    "head": false
    },
    "shakai-5-X-5": {
     "lines": [

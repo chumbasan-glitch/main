@@ -27,14 +27,14 @@
 郷土や地域	郷土の伝統と特色ある地域	shakai-4-X-4 shakai-4-X-5
 郷土や地域	地域に親しむ	seikatsu-12-S1-3 seikatsu-12-S2-5 seikatsu-12-S2-8
 郷土や地域	方言と共通語	kokugo-56-K3-ウ
-郷土や地域	郷土の音楽・身近な美術	ongaku-12-B-1 ongaku-34-B-1 ongaku-56-B-1 zuko-34-B-1 zuko-56-B-1 plan:ongaku
-郷土や地域	家庭と地域の人々	katei-56-A-3 katei-56-A-4 katei-56-B-3 plan:katei
+郷土や地域	郷土の音楽・身近な美術	ongaku-34-B-1 zuko-34-B-1 zuko-56-B-1 plan:ongaku
+郷土や地域	家庭と地域の人々	katei-56-A-3 katei-56-A-4 plan:katei
 郷土や地域	地域の行事を英語で伝える	gaikokugokatsudo-34-H-1 gaikokugo-56-H-1
 郷土や地域	地域の探究課題	sougou-3456-X-5
 海洋	海に囲まれた国土と産業	shakai-5-X-1 shakai-5-X-2 shakai-5-X-3 shakai-5-X-4
 海洋	自然の中での体験	tokkatsu-123456-GG-4
 環境	身近な自然とふれあう	seikatsu-12-S2-5 seikatsu-12-S2-6
-環境	くらしと環境を守る取組	shakai-4-X-1 shakai-4-X-2 shakai-4-X-5 shakai-5-X-1 shakai-5-X-5
+環境	くらしと環境を守る取組	shakai-4-X-2 shakai-4-X-5 shakai-5-X-1 shakai-5-X-5
 環境	生物と環境	rika-3-B-1 rika-6-B-3 plan:rika
 環境	環境に配慮した生活	katei-56-C-2
 環境	自然を大切にする心	doutoku-12-D-20 doutoku-34-D-20 doutoku-56-D-20
@@ -51,10 +51,10 @@
 心身の健康の保持増進	衣食住と健康	katei-56-B-1 katei-56-B-4 katei-56-B-6
 心身の健康の保持増進	規則正しい生活	seikatsu-12-S1-2 doutoku-12-A-03 doutoku-34-A-03 doutoku-56-A-03
 心身の健康の保持増進	生命を大切にする心	doutoku-12-D-19 doutoku-34-D-19 doutoku-56-D-19
-心身の健康の保持増進	健康を支える社会の仕組み	shakai-4-X-2 shakai-4-X-5 shakai-5-X-5
+心身の健康の保持増進	健康を支える社会の仕組み	shakai-4-X-2 shakai-5-X-5
 心身の健康の保持増進	学級・学校での健康づくり	tokkatsu-123456-GK-2ア tokkatsu-123456-GK-2ウ tokkatsu-123456-GK-2エ tokkatsu-123456-JK-1 tokkatsu-123456-GG-3
 心身の健康の保持増進	健康の探究課題	sougou-3456-X-5
-食	食生活をつくる（家庭）	katei-56-A-3 katei-56-B-1 katei-56-B-2 katei-56-B-3
+食	食生活をつくる（家庭）	katei-56-B-1 katei-56-B-2 katei-56-B-3
 食	食事と健康（保健）	taiiku-3-G-1 taiiku-4-G-2 taiiku-6-G-3 plan:taiiku
 食	食べ物と体・生き物	rika-4-B-1 rika-5-B-1 rika-5-B-2 rika-6-B-1 rika-6-B-3
 食	食料生産	shakai-5-X-2
@@ -62,8 +62,8 @@
 食	給食と行事	tokkatsu-123456-GK-2エ tokkatsu-123456-GG-3 tokkatsu-123456-GG-5
 食	感謝・節度・伝統・生命を考える	doutoku-12-A-03 doutoku-34-A-03 doutoku-12-B-08 doutoku-34-B-08 doutoku-56-B-08 doutoku-12-C-17 doutoku-34-C-17 doutoku-56-C-17 doutoku-12-D-19 doutoku-34-D-19 doutoku-56-D-19
 食	食の探究課題	sougou-3456-X-5
-防災を含む安全	災害から身を守る（防災）	rika-4-B-3 rika-5-B-3 rika-5-B-4 rika-6-B-4 shakai-4-X-3 shakai-5-X-1 shakai-5-X-5 shakai-6-X-1 plan:rika
-防災を含む安全	事件や事故から身を守る（生活安全・交通安全）	shakai-3-X-1 shakai-3-X-3 seikatsu-12-S1-1 seikatsu-12-S1-3 seikatsu-12-S2-4 taiiku-5-G-2 tokkatsu-123456-GK-2ウ tokkatsu-123456-GG-3
+防災を含む安全	災害から身を守る（防災）	rika-4-B-3 rika-5-B-3 rika-5-B-4 rika-6-B-4 shakai-4-X-3 shakai-5-X-5 shakai-6-X-1 plan:rika
+防災を含む安全	事件や事故から身を守る（生活安全・交通安全）	shakai-3-X-3 seikatsu-12-S1-1 seikatsu-12-S1-3 seikatsu-12-S2-4 taiiku-5-G-2 tokkatsu-123456-GK-2ウ tokkatsu-123456-GG-3
 防災を含む安全	水の事故から身を守る	taiiku-56-D-0
 防災を含む安全	活動の場や用具の安全	taiiku-12-A-0 taiiku-12-B-0 taiiku-12-C-0 taiiku-12-D-0 taiiku-12-E-0 taiiku-12-F-0 taiiku-34-A-0 taiiku-34-B-0 taiiku-34-C-0 taiiku-34-D-0 taiiku-34-E-0 taiiku-34-F-0 taiiku-56-A-0 taiiku-56-B-0 taiiku-56-C-0 taiiku-56-E-0 taiiku-56-F-0 katei-56-B-2 katei-56-B-6 plan:katei plan:zuko
 防災を含む安全	安全なくらしを支える仕組み	shakai-4-X-2
