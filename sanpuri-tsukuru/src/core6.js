@@ -404,11 +404,20 @@ function genCircleMix(lv){
   if(lv === 0){
     const r1 = ri(4, 10), r2 = ri(2, r1 - 1); A = dmul(r1 * r1 - r2 * r2, "3.14"); shM = [`${r1}×${r1}×3.14－${r2}×${r2}×3.14`, `＝${A}`];
     draw = (G, x, y, w, h, fs) => {
-      const R_ = Math.min(w, h) / 2 - 4, cx = x + w / 2, cy = y + h / 2, rr = R_ * r2 / r1, ctx = G.ctx, k = G.k;
+      const R_ = Math.min(w, h) / 2 - 6, cx = x + w / 2 - 1.5, cy = y + h / 2 + 1, rr = R_ * r2 / r1, ctx = G.ctx, k = G.k, ls = fs * 0.8;
       ctx.beginPath(); ctx.arc(cx * k, cy * k, R_ * k, 0, 2 * Math.PI); ctx.arc(cx * k, cy * k, rr * k, 0, 2 * Math.PI, true); ctx.fillStyle = "#dddddd"; ctx.fill();
       G.arc(cx, cy, R_, 0, 2 * Math.PI, {w:0.4}); G.arc(cx, cy, rr, 0, 2 * Math.PI, {w:0.4}); G.dot(cx, cy, 0.35);
-      G.line(cx, cy, cx + R_ * 0.8, cy - R_ * 0.6, {w:0.3}); G.text(cm(r1), cx + R_ * 0.55, cy - R_ * 0.62, {size:fs * 0.75});
-      G.line(cx, cy, cx - rr, cy, {w:0.3}); G.text(cm(r2), cx - rr / 2, cy + 0.8 * fs, {size:fs * 0.75, align:"center"});
+      /* 外の円の半径：右上へ。数字は円の外に出して，半径の線（色のところ）と細い線でつなぐ */
+      const c1 = Math.cos(0.6), s1 = Math.sin(0.6), t1 = (rr + R_) / 2, w1 = 0;
+      G.line(cx, cy, cx + R_ * c1, cy - R_ * s1, {w:0.3});
+      const L1 = [cx + R_ + 2.2, cy - R_ * 0.2];
+      G.line(cx + t1 * c1, cy - t1 * s1, L1[0] - 0.5, L1[1], {w:0.2});
+      G.text(cm(r1), L1[0], L1[1], {size:ls});
+      /* 内の円の半径：左へ。入りきるときは線の上に，入らないときは左下の外に出して線でつなぐ */
+      const w2 = G.width(cm(r2), ls);
+      G.line(cx, cy, cx - rr, cy, {w:0.3});
+      if(rr >= w2 + 3) G.text(cm(r2), cx - rr / 2, cy - 0.65 * ls, {size:ls, align:"center"});
+      else { const L2 = [cx - R_ * 0.72 - 1.5, cy + R_ * 0.72 + 2.6]; G.line(cx - rr / 2, cy, L2[0] + 0.4, L2[1] - 0.9, {w:0.2}); G.text(cm(r2), L2[0], L2[1], {size:ls, align:"right"}); }
     };
   } else if(lv === 1){
     A = ds(s * s * 100 - s * s * 78.5, 2); shM = [`${s}×${s}－${s}×${s}×3.14÷4`, `＝${A}`];

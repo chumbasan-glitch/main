@@ -3,6 +3,10 @@
    o.curved[i]=true の辺は曲面（円柱など）として，つなぎ目の線をかかない。 */
 function drawPrismPoly(G, x, y, w, h, fs, base, Ldep, o){
   o = o || {};
+  const vd = o.vdims || [], laneW = [];
+  for(const d of vd){ const k = d.lane || 0; laneW[k] = Math.max(laneW[k] || 0, lineMetrics(G, parseMk(d.t), fs * 0.85).w); }
+  for(let k = 0; k < laneW.length; k++) laneW[k] = laneW[k] || 0;
+  const extraL = laneW.reduce((t, v) => t + v + 3.6, 0), sh = extraL ? extraL - 6 : 0; x += sh; w -= sh;
   const n = base.length, P3 = base.map(p => [p[0], p[1], 0]).concat(base.map(p => [p[0], p[1], Ldep]));
   const pr = P3.map(proj), xs = pr.map(p => p[0]), ys = pr.map(p => p[1]), pad = o.pad || 11;
   const s = Math.min((w - 2 * pad) / (Math.max(...xs) - Math.min(...xs)), (h - 2 * pad) / (Math.max(...ys) - Math.min(...ys)));
@@ -43,8 +47,35 @@ function drawPrismPoly(G, x, y, w, h, fs, base, Ldep, o){
     edge([...base[i], 0], [...base[i], Ldep]);
   }
   for(let i = 0; i < n; i++){ const j = (i + 1) % n; segs.push([F[i], F[j]]); G.line(...F[i], ...F[j], {w:0.4}); }
+  for(const [a, b] of o.solid || []){ segs.push([T(a), T(b)]); G.line(...T(a), ...T(b), {w:0.35}); }
   for(const [a, b] of o.inner || []){ segs.push([T(a), T(b), true]); G.line(...T(a), ...T(b), {w:0.3, dash:[1, 0.8]}); }
   for(const [p, a, b] of o.right || []) angleMark(G, T(p), T(a), T(b), "", fs, {right:true});
+  /* 寸法線（矢印つき）：高さなどを，どこからどこまでかがわかるようにかく */
+  const placed = [];
+  const arrow = (tip, from) => { const u = unit(sub(from, tip)), v = [-u[1], u[0]], ah = 1.1; G.line(...tip, ...add(add(tip, mul(u, ah)), mul(v, ah * 0.5)), {w:0.25}); G.line(...tip, ...add(add(tip, mul(u, ah)), mul(v, -ah * 0.5)), {w:0.25}); };
+  const dimLine = (A, Bb) => { G.line(...A, ...Bb, {w:0.25}); arrow(A, Bb); arrow(Bb, A); };
+  if(vd.length){
+    const fx = Math.min(...F.map(p => p[0]));
+    const laneX = k => { let xx = fx - 2.4; for(let j = 0; j < k; j++) xx -= laneW[j] + 3.6; return xx; };
+    for(const d of vd){
+      const k = d.lane || 0, lx = laneX(k), A = T(d.p0), Bb = T(d.p1);
+      for(const P of [A, Bb]) if(P[0] - 0.6 > lx - 0.8){ G.line(P[0] - 0.6, P[1], lx - 0.8, P[1], {w:0.2}); segs.push([[P[0] - 0.6, P[1]], [lx - 0.8, P[1]]]); }
+      dimLine([lx, A[1]], [lx, Bb[1]]); segs.push([[lx, A[1]], [lx, Bb[1]]]);
+      const toks = parseMk(d.t), lw = lineMetrics(G, toks, fs * 0.85).w, cy = (A[1] + Bb[1]) / 2;
+      drawToks(G, toks, lx - 0.9 - lw, cy, fs * 0.85, false);
+      placed.push([lx - 0.9 - lw - 0.3, cy - fs * 0.5, lx, cy + fs * 0.5]);
+    }
+  }
+  /* 下がわの寸法線 */
+  for(const d of o.bdims || []){
+    const A = T(d.p0), Bb = T(d.p1), ly = Math.max(...pr.map(q => oy + q[1] * s)) + 3;
+    for(const P of [A, Bb]){ G.line(P[0], P[1] + 0.6, P[0], ly + 0.8, {w:0.2}); segs.push([[P[0], P[1] + 0.6], [P[0], ly + 0.8]]); }
+    dimLine([A[0], ly], [Bb[0], ly]); segs.push([[A[0], ly], [Bb[0], ly]]);
+    const toks = parseMk(d.t), lw = lineMetrics(G, toks, fs * 0.85).w, cx = (A[0] + Bb[0]) / 2, cy = ly + fs * 0.62;
+    drawToks(G, toks, cx - lw / 2, cy, fs * 0.85, false);
+    placed.push([cx - lw / 2 - 0.3, cy - fs * 0.5, cx + lw / 2 + 0.3, cy + fs * 0.5]);
+  }
+  for(const d of o.idims || []){ const A = T(d.a), Bb = T(d.b); dimLine(A, Bb); segs.push([A, Bb]); }
   /* 長さの数字：線や図形の上にかからず，ほかの数字とも重ならない場所をさがしておく */
   const faces = [F, B];
   for(let i = 0; i < n; i++){ const j = (i + 1) % n; faces.push([F[i], F[j], B[j], B[i]]); }
@@ -56,10 +87,9 @@ function drawPrismPoly(G, x, y, w, h, fs, base, Ldep, o){
     const E = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]];
     return E.some(([a, b]) => cr(p, q, a, b));
   };
-  const placed = [];
-  for(const lb of o.labels || []){
+  for(const lb of (o.labels || []).concat((o.idims || []).map(d => Object.assign({c:d.c}, d)))){
     let la = lb.a, lbb = lb.b, useBack = false;
-    if(!lb.c && !lb.depth && (la.length === 2 || la[2] === 0) && (lbb.length === 2 || lbb[2] === 0)){
+    if(!lb.c && !lb.depth && !lb.dir && (la.length === 2 || la[2] === 0) && (lbb.length === 2 || lbb[2] === 0)){
       const bc = [base.reduce((t, p) => t + p[0], 0) / n, base.reduce((t, p) => t + p[1], 0) / n];
       const ex = lbb[0] - la[0], ey = lbb[1] - la[1]; let nx = ey, ny = -ex;
       if(nx * ((la[0] + lbb[0]) / 2 - bc[0]) + ny * ((la[1] + lbb[1]) / 2 - bc[1]) < 0){ nx = -nx; ny = -ny; }
@@ -71,7 +101,20 @@ function drawPrismPoly(G, x, y, w, h, fs, base, Ldep, o){
     if((m[0] - ref[0]) * nrm[0] + (m[1] - ref[1]) * nrm[1] < 0) nrm = mul(nrm, -1);
     const elen = len(sub(Bb, A));
     let best = null;
-    for(const side of [1, -1]) for(const [oi, offk] of [0.55, 0.9, 1.35, 1.9, 2.6].entries()) for(const sl of [0, -0.15, 0.15]){
+    if(lb.dir){
+      const u = unit(lb.dir);
+      for(let k = 3; k <= 24 && !(best && best.sc === 0); k += 0.5){
+        const ext = Math.abs(u[0]) * lw / 2 + Math.abs(u[1]) * lh / 2, c = add(m, mul(u, ext + k));
+        const bx = [c[0] - lw / 2 - 1.2, c[1] - lh / 2 - 1, c[0] + lw / 2 + 1.2, c[1] + lh / 2 + 1];
+        let sc = 0;
+        for(const [p, q] of segs) if(segHit(p, q, bx)) sc += 25;
+        for(const f of faces) for(const pt of [[c[0], c[1]], [bx[0], bx[1]], [bx[2], bx[1]], [bx[0], bx[3]], [bx[2], bx[3]]]) if(pip(pt, f)) sc += 6;
+        for(const pb of placed) if(!(bx[2] + 0.8 < pb[0] || bx[0] - 0.8 > pb[2] || bx[3] + 0.5 < pb[1] || bx[1] - 0.5 > pb[3])) sc += 300;
+        if(!best || sc < best.sc) best = {sc, c, bx, oi:3, sl:0, k};
+      }
+      const c2 = add(best.c, mul(u, 2)); best.c = c2; best.bx = [c2[0] - lw / 2 - 0.3, c2[1] - lh / 2 - 0.2, c2[0] + lw / 2 + 0.3, c2[1] + lh / 2 + 0.2];
+    }
+    if(!best) for(const side of [1, -1]) for(const [oi, offk] of [0.55, 0.9, 1.35, 1.9, 2.6].entries()) for(const sl of [0, -0.15, 0.15]){
       const nn = mul(nrm, side), ext = Math.abs(nn[0]) * lw / 2 + Math.abs(nn[1]) * lh / 2;
       const c = add(add(m, mul(dvec, sl * elen)), mul(nn, ext + offk * fs));
       const bx = [c[0] - lw / 2 - 0.3, c[1] - lh / 2 - 0.2, c[0] + lw / 2 + 0.3, c[1] + lh / 2 + 0.2];
@@ -87,6 +130,7 @@ function drawPrismPoly(G, x, y, w, h, fs, base, Ldep, o){
     }
     placed.push(best.bx);
     if(best.oi >= 3){ const tgt = add(m, mul(dvec, 0)), dir = unit(sub(best.c, tgt)), st = add(tgt, mul(dir, 0.6)), en = sub(best.c, mul(dir, Math.min(lw, lh) * 0.55 + 0.4)); if(len(sub(en, st)) > 1.2) G.line(...st, ...en, {w:0.2}); }
+    if(lb.knock) G.rect(best.bx[0], best.bx[1], best.bx[2] - best.bx[0], best.bx[3] - best.bx[1], {fill:"#fff", stroke:false});
     drawToks(G, toks, best.c[0] - lw / 2, best.c[1], fs * 0.85, false);
   }
   if(o.dot) G.dot(...T(o.dot), 0.35);
@@ -116,7 +160,7 @@ function volItem(fw, fh, drawFig, shiki, ans, o){
   }, o);
 }
 const volFig = (draw, V, lead, sig, pi, big, shiki, q) => volItem(FIGW + (big ? 26 : 18), FIGH + (big ? 24 : 16), draw, shiki || `＝${V}`, V + "cm^3", {inst:pi ? VOLIP : VOLI, lead, sig, q});
-const depthLab = (base, L, t) => { const i = base.reduce((bi, p, k) => p[0] - p[1] * 0.01 > base[bi][0] - base[bi][1] * 0.01 ? k : bi, 0), q = base[i]; return {a:[q[0], q[1], 0], b:[q[0], q[1], L], t, depth:true}; };
+const depthLab = (base, L, t) => { const y0 = Math.min(...base.map(p => p[1])), i = base.reduce((bi, p, k) => p[1] < y0 + 1e-9 && (base[bi][1] > y0 + 1e-9 || p[0] > base[bi][0]) ? k : bi, 0), q = base[i]; return {a:[q[0], q[1], 0], b:[q[0], q[1], L], t, depth:true}; };
 
 /* --- 角柱 --- */
 function prismBox(lv){
@@ -130,21 +174,21 @@ function prismRightTri(lv){
 function prismTri(lv){
   for(;;){ const B = ri(4, lv === 2 ? 14 : 10), H = ri(3, lv === 2 ? 10 : 8), L = ri(4, lv === 2 ? 15 : 12), px = B * pick([0.3, 0.4, 0.6, 0.7]); if((B * H * L) % 2) continue;
     const b = [[0, 0], [B, 0], [px, H]];
-    return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(B)}, {a:[px, H], b:[px, 0], t:cm(H), c:[0, H / 2]}, depthLab(b, L, cm(L))], inner:[[[px, H, 0], [px, 0, 0]]], right:[[[px, 0, 0], [px + 1, 0, 0], [px, 1, 0]]]}), B * H * L / 2, "三角柱の体積", "vg" + B + H + L, false, false, `${B}×${H}÷2×${L}＝${B * H * L / 2}`); }
+    return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(B)}, depthLab(b, L, cm(L))], vdims:[{p0:[0, 0], p1:[px, H], t:cm(H)}], inner:[[[px, H, 0], [px, 0, 0]]], right:[[[px, 0, 0], [px + 1, 0, 0], [px, 1, 0]]]}), B * H * L / 2, "三角柱の体積", "vg" + B + H + L, false, false, `${B}×${H}÷2×${L}＝${B * H * L / 2}`); }
 }
 function prismTrap(lv){
   for(;;){ const Bl = ri(6, lv === 2 ? 16 : 12), Bu = ri(2, Bl - 2), H = ri(3, lv === 2 ? 10 : 7), L = ri(4, lv === 2 ? 15 : 12); if(((Bu + Bl) * H * L) % 2 || (Bl - Bu) % 2) continue;
     const e = (Bl - Bu) / 2, b = [[0, 0], [Bl, 0], [e + Bu, H], [e, H]];
-    return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(Bl)}, {a:b[2], b:b[3], t:cm(Bu)}, {a:[e, H], b:[e, 0], t:cm(H), c:[e - 1, H / 2]}, depthLab(b, L, cm(L))], inner:[[[e, H, 0], [e, 0, 0]]], right:[[[e, 0, 0], [e + 1, 0, 0], [e, 1, 0]]]}), (Bu + Bl) * H * L / 2, "四角柱の体積", "vz" + Bl + Bu + H + L, false, false, `（${Bu}＋${Bl}）×${H}÷2×${L}＝${(Bu + Bl) * H * L / 2}`); }
+    return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(Bl)}, {a:b[2], b:b[3], t:cm(Bu)}, depthLab(b, L, cm(L))], vdims:[{p0:[0, 0], p1:[e, H], t:cm(H)}], inner:[[[e, H, 0], [e, 0, 0]]], right:[[[e, 0, 0], [e + 1, 0, 0], [e, 1, 0]]]}), (Bu + Bl) * H * L / 2, "四角柱の体積", "vz" + Bl + Bu + H + L, false, false, `（${Bu}＋${Bl}）×${H}÷2×${L}＝${(Bu + Bl) * H * L / 2}`); }
 }
 function prismPara(lv){
   const B = ri(4, 10), H = ri(3, 7), L = ri(4, 12), sft = Math.max(1, Math.round(B * 0.35)), b = [[0, 0], [B, 0], [B + sft, H], [sft, H]];
-  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(B)}, {a:[sft, H], b:[sft, 0], t:cm(H), c:[sft - 1, H / 2]}, depthLab(b, L, cm(L))], inner:[[[sft, H, 0], [sft, 0, 0]]], right:[[[sft, 0, 0], [sft + 1, 0, 0], [sft, 1, 0]]]}), B * H * L, "四角柱の体積", "vp" + B + H + L, false, false, `${B}×${H}×${L}＝${B * H * L}`);
+  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(B)}, depthLab(b, L, cm(L))], vdims:[{p0:[0, 0], p1:[sft, H], t:cm(H)}], inner:[[[sft, H, 0], [sft, 0, 0]]], right:[[[sft, 0, 0], [sft + 1, 0, 0], [sft, 1, 0]]]}), B * H * L, "四角柱の体積", "vp" + B + H + L, false, false, `${B}×${H}×${L}＝${B * H * L}`);
 }
 function prismHouse(lv){
   for(;;){ const W = ri(4, 10), H1 = ri(3, 7), H2 = ri(2, 5), L = ri(4, 12); if((W * H2 * L) % 2) continue;
     const b = [[0, 0], [W, 0], [W, H1], [W / 2, H1 + H2], [0, H1]];
-    return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(W)}, {a:b[4], b:b[0], t:cm(H1)}, {a:[W / 2, H1 + H2], b:[W / 2, H1], t:cm(H2), c:[W, H1 + H2 / 2]}, depthLab(b, L, cm(L))], inner:[[[W / 2, H1 + H2, 0], [W / 2, H1, 0]], [[0, H1, 0], [W, H1, 0]]], right:[[[0, 0, 0], [1, 0, 0], [0, 1, 0]]]}), W * H1 * L + W * H2 * L / 2, "五角柱の体積", "vh" + W + H1 + H2 + L, false, true, [`底面積　${W}×${H1}＋${W}×${H2}÷2＝${W * H1 + W * H2 / 2}`, `${W * H1 + W * H2 / 2}×${L}＝${W * H1 * L + W * H2 * L / 2}`]); }
+    return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(W)}, depthLab(b, L, cm(L))], vdims:[{p0:[0, 0], p1:[0, H1], t:cm(H1)}, {p0:[0, H1], p1:[W / 2, H1 + H2], t:cm(H2)}], inner:[[[W / 2, H1 + H2, 0], [W / 2, H1, 0]], [[0, H1, 0], [W, H1, 0]]], right:[[[0, 0, 0], [1, 0, 0], [0, 1, 0]]]}), W * H1 * L + W * H2 * L / 2, "五角柱の体積", "vh" + W + H1 + H2 + L, false, true, [`底面積　${W}×${H1}＋${W}×${H2}÷2＝${W * H1 + W * H2 / 2}`, `${W * H1 + W * H2 / 2}×${L}＝${W * H1 * L + W * H2 * L / 2}`]); }
 }
 /* --- 円柱 --- */
 function cylStand(lv){
@@ -153,7 +197,7 @@ function cylStand(lv){
 }
 function cylLying(lv){
   const r = ri(2, 6), L = ri(4, 12), V = dmul(r * r * L, "3.14"), b = arcPts(r, -0.96, 2 * Math.PI - 0.96, 36).slice(0, 36), cv = b.map(() => true);
-  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {curved:cv, labels:[{a:[0, 0], b:[r * Math.cos(2.3), r * Math.sin(2.3)], t:cm(r), c:[r, -r]}, {a:[r * Math.cos(-0.96), r * Math.sin(-0.96), 0], b:[r * Math.cos(-0.96), r * Math.sin(-0.96), L], t:cm(L), depth:true}], inner:[[[0, 0, 0], [r * Math.cos(2.3), r * Math.sin(2.3), 0]]], dot:[0, 0, 0]}), V, "円柱の体積", "cl" + r + L, true, false, `${r}×${r}×3.14×${L}＝${V}`);
+  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {curved:cv, labels:[{a:[0, 0], b:[r * Math.cos(2.3), r * Math.sin(2.3)], t:cm(r), c:[r, -r]}, {a:[r * Math.cos(-0.96), r * Math.sin(-0.96), 0], b:[r * Math.cos(-0.96), r * Math.sin(-0.96), L], t:cm(L), depth:true}], solid:[[[0, 0, 0], [r * Math.cos(2.3), r * Math.sin(2.3), 0]]], dot:[0, 0, 0]}), V, "円柱の体積", "cl" + r + L, true, false, `${r}×${r}×3.14×${L}＝${V}`);
 }
 function cylHalf(lv){
   const r = ri(2, 8), L = ri(4, 12), V = dmul(r * r * L, "1.57"), b = arcPts(r, 0, Math.PI, 18), cv = b.map((_, i) => i < 18);
@@ -161,7 +205,7 @@ function cylHalf(lv){
 }
 function cyl34(lv){
   const r = ri(2, 6), L = ri(4, 12), V = dmul(r * r * L, "2.355"), b = arcPts(r, 0, 1.5 * Math.PI, 27).concat([[0, 0]]), cv = b.map((_, i) => i < 27);
-  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {curved:cv, labels:[{a:[0, 0], b:[r, 0], t:cm(r), c:[0, r]}, depthLab(b, L, cm(L))], right:[[[0, 0, 0], [1, 0, 0], [0, -1, 0]]]}), V, "円柱の一部の体積", "c3" + r + L, true, false, `${r}×${r}×3.14×{3/4}×${L}＝${V}`);
+  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {curved:cv, labels:[{a:[0, 0], b:[0, -r], t:cm(r), dir:[1, 0.9]}, {a:[r, 0, 0], b:[r, 0, L], t:cm(L), depth:true}], dot:[0, 0, 0], right:[[[0, 0, 0], [1, 0, 0], [0, -1, 0]]]}), V, "円柱の一部の体積", "c3" + r + L, true, false, `${r}×${r}×3.14×{3/4}×${L}＝${V}`);
 }
 function dimArrow(G, x1, x2, yl, label, fs){
   const ah = 1, lo = Math.min(x1, x2), hi = Math.max(x1, x2);
@@ -201,16 +245,16 @@ function prismL(lv){
 }
 function prismStairs(lv){
   const sx = ri(2, 5), sy = ri(2, 5), L = ri(3, 8), b = [[0, 0], [3 * sx, 0], [3 * sx, sy], [2 * sx, sy], [2 * sx, 2 * sy], [sx, 2 * sy], [sx, 3 * sy], [0, 3 * sy]];
-  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(3 * sx)}, {a:b[7], b:b[0], t:cm(3 * sy)}, {a:b[1], b:b[2], t:cm(sy)}, {a:b[6], b:b[7], t:cm(sx)}, {a:[0, 3 * sy, 0], b:[0, 3 * sy, L], t:cm(L), depth:true}]}), 6 * sx * sy * L, "くふうして求める", "vs" + sx + sy + L, false, true, [`底面積　${sx}×${sy}×6＝${6 * sx * sy}`, `${6 * sx * sy}×${L}＝${6 * sx * sy * L}`], "どの段も，高さと横の長さは同じです。");
+  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(3 * sx)}, {a:b[7], b:b[0], t:cm(3 * sy)}, {a:b[1], b:b[2], t:cm(sy)}, {a:b[6], b:b[7], t:cm(sx)}, depthLab(b, L, cm(L))]}), 6 * sx * sy * L, "くふうして求める", "vs" + sx + sy + L, false, true, [`底面積　${sx}×${sy}×6＝${6 * sx * sy}`, `${6 * sx * sy}×${L}＝${6 * sx * sy * L}`], "どの段も，高さと横の長さは同じです。");
 }
 function prismNotch(lv){ /* 凹の形（まん中がへこんだ形） */
-  for(;;){ const a = ri(2, 4), m = ri(2, 4), H = ri(5, 8), d = ri(2, H - 2), L = ri(3, 8), W = 2 * a + m;
+  for(;;){ const a = ri(2, 4), m = ri(2, 4), H = ri(5, 8), d = ri(2, H - 2), L = ri(3, 8), W = 2 * a + m, f = H - d;
     const b = [[0, 0], [W, 0], [W, H], [a + m, H], [a + m, H - d], [a, H - d], [a, H], [0, H]];
-    return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(W)}, {a:b[7], b:b[0], t:cm(H)}, {a:b[6], b:b[7], t:cm(a)}, {a:b[4], b:b[5], t:cm(m)}, {a:b[5], b:b[6], t:cm(d)}, depthLab(b, L, cm(L))]}), (W * H - m * d) * L, "くふうして求める", "vn" + a + m + H + d + L, false, true, [`（${W}×${H}－${m}×${d}）×${L}`, `＝${(W * H - m * d) * L}`]); }
+    return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(W)}, {a:b[7], b:b[0], t:cm(H)}, {a:b[6], b:b[7], t:cm(a)}, {a:b[2], b:b[3], t:cm(a)}, depthLab(b, L, cm(L))], idims:[{a:[a + m / 2, 0, 0], b:[a + m / 2, f, 0], t:cm(f), c:[a, f / 2], knock:true}]}), (W * f + 2 * a * d) * L, "くふうして求める", "vn" + a + m + H + d + L, false, true, [`（${W}×${f}＋${a}×${d}×2）×${L}`, `＝${(W * f + 2 * a * d) * L}`]); }
 }
 function prismCross(lv){ /* 十字の形 */
   const a = ri(2, 4), L = ri(2, 6), b = [[a, 0], [2 * a, 0], [2 * a, a], [3 * a, a], [3 * a, 2 * a], [2 * a, 2 * a], [2 * a, 3 * a], [a, 3 * a], [a, 2 * a], [0, 2 * a], [0, a], [a, a]];
-  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(a)}, {a:b[4], b:b[5], t:cm(a)}, {a:b[3], b:b[4], t:cm(a)}, {a:b[6], b:b[7], t:cm(a)}, {a:b[9], b:b[10], t:cm(a)}, {a:[2 * a, 0, 0], b:[2 * a, 0, L], t:cm(L), depth:true}]}), 5 * a * a * L, "くふうして求める", "vx" + a + L, false, true, [`底面積　${a}×${a}×5＝${5 * a * a}`, `${5 * a * a}×${L}＝${5 * a * a * L}`]);
+  return volFig((G, x, y, w, h, fs) => drawPrismPoly(G, x, y, w, h, fs, b, L, {labels:[{a:b[0], b:b[1], t:cm(a)}, {a:b[9], b:b[10], t:cm(a)}, {a:[2 * a, 0, 0], b:[2 * a, 0, L], t:cm(L), depth:true}]}), 5 * a * a * L, "くふうして求める", "vx" + a + L, false, true, [`底面積　${a}×${a}×5＝${5 * a * a}`, `${5 * a * a}×${L}＝${5 * a * a * L}`], "底面は，同じ大きさの正方形を5つ組み合わせた形です。");
 }
 /* 立てた三角柱（直角三角形の底面）・立てた四角柱 */
 function prismStandTri(lv){
@@ -239,15 +283,15 @@ function drawTank(G, x, y, w, h, fs, W, H, D, d, hRight){
     G2.poly([T([W, 0, 0]), T([W, 0, D]), T([W, d, D]), T([W, d, 0])], {fill:WATER, stroke:false});
     G2.line(...T([0, d, 0]), ...T([W, d, 0]), {w:0.3}); G2.line(...T([W, d, 0]), ...T([W, d, D]), {w:0.3}); G2.line(...T([W, d, D]), ...T([0, d, D]), {w:0.25, dash:[1, 0.8]});
   } : null;
-  const L_ = [{a:b[0], b:b[1], t:cm(W)}, hRight ? {a:[W, 0, D], b:[W, H, D], t:cm(H), depth:true} : {a:b[3], b:b[0], t:cm(H)}, {a:[W, H, 0], b:[W, H, D], t:cm(D), depth:true}];
-  if(d) L_.push({a:[W, 0], b:[W, d], t:cm(d)});
-  drawPrismPoly(G, x, y, w, h, fs, b, D, {noFill:true, pre, labels:L_});
+  const L_ = [{a:b[0], b:b[1], t:cm(W)}, {a:[W, 0, 0], b:[W, 0, D], t:cm(D), depth:true}];
+  const V_ = d ? [{p0:[0, 0], p1:[0, d], t:cm(d), lane:0}, {p0:[0, 0], p1:[0, H], t:cm(H), lane:1}] : [{p0:[0, 0], p1:[0, H], t:cm(H)}];
+  drawPrismPoly(G, x, y, w, h, fs, b, D, {noFill:true, pre, labels:L_, vdims:V_});
 }
 function waterTurn(lv){
   for(;;){ const a = ri(2, 6) * 5, b = ri(10, 30), c = ri(10, 30), d = ri(3, c - 3), nd = b * d / c; if(b === c || !Number.isInteger(nd)) continue;
     const draw = (G, x, y, w, h, fs) => {
       const hw = w / 2;
-      drawTank(G, x, y + 4, hw, h - 4, fs, a, c, b, d); drawTank(G, x + hw + 4, y + 4, hw - 4, h - 4, fs, a, b, c, 0, true);
+      drawTank(G, x, y + 4, hw, h - 4, fs, a, c, b, d); drawTank(G, x + hw + 4, y + 4, hw - 4, h - 4, fs, a, b, c, 0);
       G.text("図1", x + 2, y + 2, {size:fs * 0.8}); G.text("図2", x + hw + 2, y + 2, {size:fs * 0.8});
     };
     return volItem(150, FIGH + 30, draw, [`水の体積　${a}×${b}×${d}＝${a * b * d}`, `${a * b * d}÷（${a}×${c}）＝${nd}`], `${nd}cm`,
