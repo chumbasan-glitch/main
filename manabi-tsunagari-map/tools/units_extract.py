@@ -171,7 +171,7 @@ for gr in range(1, 7):
                 add(f'ongaku-{band("ongaku", gr)}-{cols[sub[c]]}', unit, f'{gr}年', '教育芸術社 年間指導計画作成資料')
 
 # ---------- 図画工作（日本文教出版）：題材別カリキュラムの「分野」 ----------
-# 造（造形遊び）・絵・立（立体）・工（工作）はA表現の⑴発想や構想と⑵技能，鑑はB鑑賞。（ ）付きは関連付けて指導する場合なので入れない
+# 造（造形遊び）・絵・立（立体）・工（工作）はA表現の⑴発想や構想と⑵技能。B鑑賞は「鑑」から始まる（鑑賞が中心の）題材だけ。（ ）付きは関連付けて指導する場合なので入れない
 if os.path.exists(F('zuko.xlsx')):
     wb = openpyxl.load_workbook(F('zuko.xlsx'), data_only=True)
     for sh in ('１・２上', '１・２下', '３・４上', '３・４下', '５・６上', '５・６下'):
@@ -182,8 +182,9 @@ if os.path.exists(F('zuko.xlsx')):
             name = re.sub(r'\s*＊(～[^～]*～)?[^～]*', ' ', name).strip()   # 題材名に続く「＊…」の注は除く
             name = re.sub(r'～\s*～', '～ ～', name)
             main = [x for x in str(r[0]).split('・') if not x.startswith('（')]
-            for m in main:
-                for k in (['A-1', 'A-2'] if m in ('造', '絵', '立', '工') else ['B-1'] if m == '鑑' else []):
+            ks = (['A-1', 'A-2'] if any(m in ('造', '絵', '立', '工') for m in main) else []) + (['B-1'] if main and main[0] == '鑑' else [])
+            for m in main[:1]:
+                for k in ks:
                     add(f'zuko-{b}-{k}', name, sh.translate(ZEN).replace('・', '・'), '日本文教出版 評価規準の参考事例・年間指導計画作成資料')
 
 os.makedirs(os.path.join(ROOT, 'midashi', 'shinagawa'), exist_ok=True)
