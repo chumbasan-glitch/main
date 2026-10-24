@@ -199,7 +199,9 @@ def add_cross(tid, name, kind, rows, page=None, sosoku=(), F=None):
             it = BYID[i]
             it['themes'][tid] = it['head']
             hl = (F or {}).get('items', {}).get(i, {})
-            it.setdefault('cross', {})[tid] = {'cat': cat, 'lines': hl.get('lines', []), 'notes': hl.get('notes', [])}
+            # 1つの内容が2つの小見出しにまたがることがある（例：けがの防止 → 生活安全と交通安全）
+            c = it.setdefault('cross', {}).setdefault(tid, {'cats': [], 'lines': hl.get('lines', []), 'notes': hl.get('notes', [])})
+            c['cats'].append(cat)
     cross.append(T)
 rows = {}
 for r in read_tsv('furoku'):

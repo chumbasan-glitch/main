@@ -384,6 +384,7 @@ const CROSS = new Set(THEMES.filter(t => t.cross).map(t => t.id));
 const XDEF = CONTENT.cross, XBYID = Object.fromEntries(XDEF.map(x => [x.id, x]));
 const MARU = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫";
 const catNo = (x, cat) => MARU[x.cats.indexOf(cat)] || "";
+const catTags = (x, cats) => cats.map(c => '<span class="cattag">' + catNo(x, c) + esc(c) + '</span>').join(" ");
 const xSource = x => x.kind === "furoku" ? "解説 総則編 付録6（" + x.page + "ページ〜）" : "学校で決めたテーマ";
 const KANJI_G = ["","１","２","３","４","５","６"];
 const $ = id => document.getElementById(id);
@@ -488,7 +489,7 @@ function rowsFor(sid, m){
     const ti = its.filter(it => it.themes[t]);
     const xs = XBYID[t];
     return {name:THEME[t].name, sub:xs ? (xs.kind === "furoku" ? "教科横断（付録6）" : "教科横断（学校）") : "", cross:!!xs,
-      its:ti.map(it => ({it, label:it.themes[t] + (xs ? "〔" + it.cross[t].cat + "〕" : "")}))};
+      its:ti.map(it => ({it, label:it.themes[t] + (xs ? "〔" + it.cross[t].cats.join("・") + "〕" : "")}))};
   });
 }
 /* 1行ぶんのマス：学年のまとまりに合わせて横につなげる */
@@ -563,8 +564,8 @@ let curCross = XBYID.f13 ? "f13" : (XDEF[0] && XDEF[0].id), catSel = null;
 function crossRows(x){
   const rows = [];
   for(const s of SUBJECTS){
-    const its = ITEMS.filter(it => it.subject === s.id && it.cross && it.cross[x.id] && (!catSel || it.cross[x.id].cat === catSel))
-      .map(it => ({it, label:it.head, cat:it.cross[x.id].cat}));
+    const its = ITEMS.filter(it => it.subject === s.id && it.cross && it.cross[x.id] && (!catSel || it.cross[x.id].cats.includes(catSel)))
+      .map(it => ({it, label:it.head, cats:catSel ? [catSel] : it.cross[x.id].cats}));
     const plans = x.plans.map((p, k) => ({...p, k})).filter(p => p.subject === s.id && (!catSel || p.cat === catSel));
     if(its.length || plans.length) rows.push({s, its, plans});
   }
@@ -594,7 +595,7 @@ function renderCross(){
         const cs = c.gs.length > 1 ? ' colspan="' + c.gs.length + '"' : '';
         if(!c.its){ h += '<td class="cell"' + cs + '><div class="none' + (c.off ? ' off' : '') + '"></div></td>'; continue; }
         h += '<td class="cell"' + cs + '><div class="cellbox chips ' + gClass(c.gs) + '" style="--h:' + s.h + '">' +
-          c.its.map(y => '<button type="button" class="chip" data-item="' + y.it.id + '">' + show(y.label) + (y.it.g.length < c.gs.length ? '<small>' + gLabel(y.it.g) + '</small>' : '') + '<span class="cattag">' + catNo(x, y.cat) + esc(y.cat) + '</span></button>').join("") + '</div></td>';
+          c.its.map(y => '<button type="button" class="chip" data-item="' + y.it.id + '">' + show(y.label) + (y.it.g.length < c.gs.length ? '<small>' + gLabel(y.it.g) + '</small>' : '') + catTags(x, y.cats) + '</button>').join("") + '</div></td>';
       }
       h += '</tr>';
     }
@@ -656,10 +657,10 @@ function openItem(id){
   if(xids.length){
     h += '<div class="sec"><h3>教科横断のテーマ</h3><div class="xlist">' + xids.map(tid => {
       const x = XBYID[tid], c = it.cross[tid];
-      const mates = ITEMS.filter(y => y.id !== id && y.cross && y.cross[tid] && y.cross[tid].cat === c.cat).sort(byGrade);
-      return '<div class="xrow"><span class="xname">' + esc(x.name) + '</span><button type="button" class="golink" data-x="' + tid + '" data-cat="' + esc(c.cat) + '">表で見る</button><br>' +
-        '<span class="cattag">' + catNo(x, c.cat) + esc(c.cat) + '</span> <span class="note">（' + esc(xSource(x)) + '）</span>' +
-        (mates.length ? '<div class="others"><span class="note">同じ小見出し：</span>' + mates.map(y => '<button type="button" class="' + gClass(y.g) + '" style="--h:' + SUBJ[y.subject].h + '" data-item="' + y.id + '">' + esc(short(SUBJ[y.subject])) + ' ' + gLabel(y.g) + ' ' + show(y.head) + '</button>').join("") + '</div>' : '') + '</div>';
+      const mates = ITEMS.filter(y => y.id !== id && y.cross && y.cross[tid] && y.cross[tid].cats.some(k => c.cats.includes(k))).sort(byGrade);
+      return '<div class="xrow"><span class="xname">' + esc(x.name) + '</span><button type="button" class="golink" data-x="' + tid + '" data-cat="' + esc(c.cats.length === 1 ? c.cats[0] : '') + '">表で見る</button><br>' +
+        catTags(x, c.cats) + ' <span class="note">（' + esc(xSource(x)) + '）</span>' +
+        (mates.length ? '<div class="others"><span class="note">同じ小見出しの内容：</span>' + mates.map(y => '<button type="button" class="' + gClass(y.g) + '" style="--h:' + SUBJ[y.subject].h + '" data-item="' + y.id + '">' + esc(short(SUBJ[y.subject])) + ' ' + gLabel(y.g) + ' ' + show(y.head) + '</button>').join("") + '</div>' : '') + '</div>';
     }).join("") + '</div></div>';
   }
 
@@ -703,7 +704,7 @@ function openItem(id){
   $("sheet").hidden = false; $("sheetBack").hidden = false;
   $("sheet").scrollTop = 0;
   bindItems($("sheet"));
-  $("sheet").querySelectorAll("[data-x]").forEach(b => b.addEventListener("click", () => { curCross = b.dataset.x; catSel = b.dataset.cat; closeSheet(); go("cross"); }));
+  $("sheet").querySelectorAll("[data-x]").forEach(b => b.addEventListener("click", () => { curCross = b.dataset.x; catSel = b.dataset.cat || null; closeSheet(); go("cross"); }));
   $("closeSheet").addEventListener("click", closeSheet);
   $("closeSheet").focus();
 }
@@ -811,7 +812,7 @@ function buildA4Cross(){
       h += '<tr style="--h:' + s.h + '"><th class="rh">' + esc(s.name) + '</th>';
       for(const c of rowCells({its:r.its}, s.id, [1,2,3,4,5,6])){
         const cs = c.gs.length > 1 ? ' colspan="' + c.gs.length + '"' : '';
-        h += c.its ? '<td class="' + gClass(c.gs) + '"' + cs + '>' + c.its.map(y => '<div>' + show(y.label) + (y.it.g.length < c.gs.length ? '（' + gLabel(y.it.g) + '）' : '') + ' <span class="ct">' + catNo(x, y.cat) + '</span></div>').join("") + '</td>' : '<td class="empty"' + cs + '></td>';
+        h += c.its ? '<td class="' + gClass(c.gs) + '"' + cs + '>' + c.its.map(y => '<div>' + show(y.label) + (y.it.g.length < c.gs.length ? '（' + gLabel(y.it.g) + '）' : '') + ' <span class="ct">' + y.cats.map(c => catNo(x, c)).join("") + '</span></div>').join("") + '</td>' : '<td class="empty"' + cs + '></td>';
       }
       h += '</tr>';
     }

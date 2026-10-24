@@ -1,5 +1,6 @@
 # 解説 総則編 付録6「現代的な諸課題に関する教科等横断的な教育内容」の小見出し
 # 付録6が挙げている内容を，意味のちがいが分かるように分けたもの（小見出しの分け方はClaudeによる）
+# 1つの内容を複数の小見出しに入れてよい（「防災を含む安全」は学校安全の3領域：生活安全・交通安全・災害安全を土台にする）
 # テーマ	小見出し	内容（教科-学年-区分-番号。plan:教科 は指導計画の作成と内容の取扱い）
 伝統や文化	言葉と文学の伝統	kokugo-12-K3-ア kokugo-12-K3-イ kokugo-34-K3-ア kokugo-34-K3-イ kokugo-56-K3-ア kokugo-56-K3-イ
 伝統や文化	地域や我が国の歴史と伝統文化	shakai-4-X-4 shakai-4-X-5 shakai-6-X-2 shakai-6-X-3
@@ -62,10 +63,10 @@
 食	給食と行事	tokkatsu-123456-GK-2エ tokkatsu-123456-GG-3 tokkatsu-123456-GG-5
 食	感謝・節度・伝統・生命を考える	doutoku-12-A-03 doutoku-34-A-03 doutoku-12-B-08 doutoku-34-B-08 doutoku-56-B-08 doutoku-12-C-17 doutoku-34-C-17 doutoku-56-C-17 doutoku-12-D-19 doutoku-34-D-19 doutoku-56-D-19
 食	食の探究課題	sougou-3456-X-5
-防災を含む安全	災害から身を守る（防災）	rika-4-B-3 rika-5-B-3 rika-5-B-4 rika-6-B-4 shakai-4-X-3 shakai-5-X-5 shakai-6-X-1 plan:rika
-防災を含む安全	事件や事故から身を守る（生活安全・交通安全）	shakai-3-X-3 seikatsu-12-S1-1 seikatsu-12-S1-3 seikatsu-12-S2-4 taiiku-5-G-2 tokkatsu-123456-GK-2ウ tokkatsu-123456-GG-3
-防災を含む安全	水の事故から身を守る	taiiku-56-D-0
-防災を含む安全	活動の場や用具の安全	taiiku-12-A-0 taiiku-12-B-0 taiiku-12-C-0 taiiku-12-D-0 taiiku-12-E-0 taiiku-12-F-0 taiiku-34-A-0 taiiku-34-B-0 taiiku-34-C-0 taiiku-34-D-0 taiiku-34-E-0 taiiku-34-F-0 taiiku-56-A-0 taiiku-56-B-0 taiiku-56-C-0 taiiku-56-E-0 taiiku-56-F-0 katei-56-B-2 katei-56-B-6 plan:katei plan:zuko
-防災を含む安全	安全なくらしを支える仕組み	shakai-4-X-2
+防災を含む安全	災害安全（防災）	rika-4-B-3 rika-5-B-3 rika-5-B-4 rika-6-B-4 shakai-4-X-3 shakai-5-X-5 shakai-6-X-1 tokkatsu-123456-GK-2ウ tokkatsu-123456-GG-3 plan:rika
+防災を含む安全	生活安全	shakai-3-X-3 seikatsu-12-S1-1 seikatsu-12-S1-3 seikatsu-12-S2-4 taiiku-5-G-2 taiiku-56-D-0 tokkatsu-123456-GK-2ウ tokkatsu-123456-GG-3
+防災を含む安全	交通安全	shakai-3-X-3 seikatsu-12-S1-1 taiiku-5-G-2 tokkatsu-123456-GK-2ウ tokkatsu-123456-GG-3
+防災を含む安全	学習活動の中の安全（活動の場や用具）	taiiku-12-A-0 taiiku-12-B-0 taiiku-12-C-0 taiiku-12-D-0 taiiku-12-E-0 taiiku-12-F-0 taiiku-34-A-0 taiiku-34-B-0 taiiku-34-C-0 taiiku-34-D-0 taiiku-34-E-0 taiiku-34-F-0 taiiku-56-A-0 taiiku-56-B-0 taiiku-56-C-0 taiiku-56-D-0 taiiku-56-E-0 taiiku-56-F-0 katei-56-B-2 katei-56-B-6 plan:katei plan:zuko
+防災を含む安全	安全なくらしを支える社会の仕組み	shakai-4-X-2
 防災を含む安全	安全に気を付ける心	doutoku-12-A-03 doutoku-34-A-03 doutoku-56-A-03 doutoku-12-D-19 doutoku-34-D-19 doutoku-56-D-19
 防災を含む安全	安全の探究課題	sougou-3456-X-5
