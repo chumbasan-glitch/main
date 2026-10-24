@@ -193,6 +193,8 @@ def add_cross(tid, name, kind, rows, page=None, sosoku=(), F=None):
                 sub = i[5:]
                 texts = [p['text'] for p in (F or {}).get('plan', []) if p['subject'] == sub]
                 assert texts, (name, i)
+                # 表の罫線の記号や，行の折り返しで入った空白を取る
+                texts = [re.sub(r'(?<=[^\x00-\x7f]) +(?=[^\x00-\x7f])', '', re.sub(r'[⎧⎫⎨⎬⎩⎭⎜]', '', x)).strip() for x in texts]
                 T['plans'].append({'subject': sub, 'cat': cat, 'lines': list(dict.fromkeys(texts))})
                 continue
             assert i in BYID, (name, i)

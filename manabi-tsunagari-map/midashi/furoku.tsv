@@ -2,49 +2,48 @@
 # 付録6が挙げている内容を，意味のちがいが分かるように分けたもの（小見出しの分け方はClaudeによる）
 # 1つの内容を複数の小見出しに入れてよい（「防災を含む安全」は学校安全の3領域，「心身の健康」は保健の考え方，「食」は『食に関する指導の手引』の食育の視点，「環境」は環境教育の「環境の中で・について・のために」を土台にする）
 # テーマ	小見出し	内容（教科-学年-区分-番号。plan:教科 は指導計画の作成と内容の取扱い）
-伝統や文化	言葉と文学の伝統	kokugo-12-K3-ア kokugo-12-K3-イ kokugo-34-K3-ア kokugo-34-K3-イ kokugo-56-K3-ア kokugo-56-K3-イ
-伝統や文化	地域や我が国の歴史と伝統文化	shakai-4-X-4 shakai-4-X-5 shakai-6-X-2 shakai-6-X-3
-伝統や文化	我が国や郷土の音楽・美術	ongaku-12-B-1 ongaku-34-B-1 ongaku-56-B-1 zuko-34-B-1 zuko-56-B-1 plan:ongaku
-伝統や文化	衣食住の生活文化	katei-56-B-1 katei-56-B-2 katei-56-B-4 katei-56-B-5 katei-56-B-6
-伝統や文化	伝統と文化を尊重する心	doutoku-12-C-17 doutoku-34-C-17 doutoku-56-C-17
-伝統や文化	外国の文化との比べ合い	gaikokugokatsudo-34-K-1 plan:gaikokugokatsudo plan:gaikokugo
-伝統や文化	行事や探究的な学習	tokkatsu-123456-GG-2 tokkatsu-123456-GG-4 sougou-3456-X-5
-主権者	社会の仕組みと働き	shakai-3-X-3 shakai-3-X-4 shakai-4-X-2 shakai-4-X-3 shakai-5-X-2 shakai-5-X-3 shakai-5-X-4 shakai-5-X-5 shakai-6-X-1
-主権者	きまり・公正・社会への奉仕	doutoku-12-C-12 doutoku-34-C-12 doutoku-56-C-12 doutoku-12-C-13 doutoku-34-C-13 doutoku-56-C-13 doutoku-56-C-14 doutoku-56-C-16
-主権者	集団の一員として参画する	tokkatsu-123456-GK-1ア tokkatsu-123456-GK-1イ tokkatsu-123456-GK-3イ tokkatsu-123456-JK-1 tokkatsu-123456-GG-5 plan:tokkatsu
-主権者	消費者としての役割	katei-56-C-1
-消費者	生産と消費のつながり	shakai-3-X-2 shakai-4-X-2 shakai-5-X-2 shakai-5-X-3 shakai-5-X-4
-消費者	物や金銭の使い方と買物	katei-56-C-1
-消費者	環境に配慮した消費	katei-56-C-2
-消費者	物や金銭を大切にする心・きまり	doutoku-12-A-03 doutoku-34-A-03 doutoku-56-A-03 doutoku-12-C-12 doutoku-34-C-12 doutoku-56-C-12
-法	社会生活のきまり	shakai-3-X-3 shakai-4-X-2
+伝統や文化	伝統的な言語文化に親しむ	kokugo-12-K3-ア kokugo-12-K3-イ kokugo-34-K3-ア kokugo-34-K3-イ kokugo-56-K3-ア kokugo-56-K3-イ
+伝統や文化	我が国や郷土の音楽・美術に親しむ	ongaku-12-B-1 ongaku-34-B-1 ongaku-56-B-1 zuko-34-B-1 zuko-56-B-1 plan:ongaku
+伝統や文化	衣食住の中の生活文化	katei-56-B-1 katei-56-B-2 katei-56-B-4 katei-56-B-5 katei-56-B-6
+伝統や文化	歴史と文化遺産，地域の伝統を学ぶ	shakai-4-X-4 shakai-4-X-5 shakai-6-X-2
+伝統や文化	外国の文化と比べ，尊重し合う	shakai-6-X-3 gaikokugokatsudo-34-K-1 zuko-56-B-1 plan:gaikokugokatsudo plan:gaikokugo
+伝統や文化	伝統と文化を大切にする心	doutoku-12-C-17 doutoku-34-C-17 doutoku-56-C-17
+伝統や文化	行事や探究で文化にふれる	tokkatsu-123456-GG-2 tokkatsu-123456-GG-4 sougou-3456-X-5
+主権者	社会の仕組みと政治を知る	shakai-3-X-3 shakai-3-X-4 shakai-4-X-2 shakai-4-X-3 shakai-6-X-1
+主権者	社会の課題を考え，選択・判断する	shakai-3-X-3 shakai-4-X-2 shakai-5-X-2 shakai-5-X-3 shakai-5-X-4 shakai-5-X-5
+主権者	話し合って決め，参画する	tokkatsu-123456-GK-1ア tokkatsu-123456-GK-1イ tokkatsu-123456-JK-1 doutoku-56-C-16 plan:tokkatsu
+主権者	きまり・公正・公平	doutoku-12-C-12 doutoku-34-C-12 doutoku-56-C-12 doutoku-12-C-13 doutoku-34-C-13 doutoku-56-C-13
+主権者	働くこと・社会への奉仕	doutoku-56-C-14 tokkatsu-123456-GK-3イ tokkatsu-123456-GG-5
+主権者	消費者として選ぶ	katei-56-C-1
+消費者	生産・販売と消費者のつながり	shakai-3-X-2 shakai-5-X-2 shakai-5-X-3 shakai-5-X-4
+消費者	買物の仕組みと計画的な使い方	katei-56-C-1
+消費者	環境に配慮した消費	katei-56-C-2 shakai-4-X-2
+消費者	物や金銭を大切にする・きまりを守る	doutoku-12-A-03 doutoku-34-A-03 doutoku-56-A-03 doutoku-12-C-12 doutoku-34-C-12 doutoku-56-C-12
+法	きまりの意義を考える	doutoku-12-C-12 doutoku-34-C-12 doutoku-56-C-12 shakai-3-X-3 shakai-4-X-2
+法	自分たちできまりをつくる	tokkatsu-123456-GK-1ア
 法	日本国憲法と政治	shakai-6-X-1
-法	売買契約の基礎	katei-56-C-1
-法	法やきまりの意義を考える	doutoku-12-C-12 doutoku-34-C-12 doutoku-56-C-12
-法	学級や学校のきまりづくり	tokkatsu-123456-GK-1ア
-知的財産	引用と出典	kokugo-34-K2-イ
-知的財産	社会のきまりと権利	shakai-3-X-3 shakai-4-X-2 shakai-6-X-1 doutoku-12-C-12 doutoku-34-C-12 doutoku-56-C-12
-知的財産	著作者・創造性の尊重	plan:ongaku plan:zuko
-郷土や地域	郷土の伝統と特色ある地域	shakai-4-X-4 shakai-4-X-5
-郷土や地域	地域に親しむ	seikatsu-12-S1-3 seikatsu-12-S2-5 seikatsu-12-S2-8
-郷土や地域	方言と共通語	kokugo-56-K3-ウ
-郷土や地域	郷土の音楽・身近な美術	ongaku-34-B-1 zuko-34-B-1 zuko-56-B-1 plan:ongaku
-郷土や地域	家庭と地域の人々	katei-56-A-3 katei-56-A-4 plan:katei
-郷土や地域	地域の行事を英語で伝える	gaikokugokatsudo-34-H-1 gaikokugo-56-H-1
+法	契約の基礎	katei-56-C-1
+知的財産	引用と出典を示す	kokugo-34-K2-イ
+知的財産	著作者や創造性を尊重する	plan:ongaku plan:zuko
+知的財産	きまりや権利を大切にする	shakai-3-X-3 shakai-4-X-2 shakai-6-X-1 doutoku-12-C-12 doutoku-34-C-12 doutoku-56-C-12
+郷土や地域	地域の場所や人々とふれあう	seikatsu-12-S1-3 seikatsu-12-S2-5 katei-56-A-3 katei-56-A-4 plan:katei
+郷土や地域	郷土の伝統・文化・ことば	shakai-4-X-4 kokugo-56-K3-ウ ongaku-34-B-1 zuko-34-B-1 zuko-56-B-1 plan:ongaku
+郷土や地域	特色ある地域の様子を知る	shakai-4-X-5
+郷土や地域	地域のことを伝え合う	seikatsu-12-S2-8 gaikokugokatsudo-34-H-1 gaikokugo-56-H-1
 郷土や地域	地域の探究課題	sougou-3456-X-5
-海洋	海に囲まれた国土と産業	shakai-5-X-1 shakai-5-X-2 shakai-5-X-3 shakai-5-X-4
-海洋	自然の中での体験	tokkatsu-123456-GG-4
+海洋	海に囲まれた国土	shakai-5-X-1
+海洋	海と産業（水産業・貿易など）	shakai-5-X-2 shakai-5-X-3 shakai-5-X-4
+海洋	海や自然の中での体験	tokkatsu-123456-GG-4
 環境	環境の中で（自然にふれる体験）	seikatsu-12-S2-5 seikatsu-12-S2-6 rika-3-B-1 doutoku-12-D-20 plan:rika
 環境	環境について（しくみを知る）	rika-3-B-1 rika-6-B-3 shakai-4-X-2 shakai-4-X-5 shakai-5-X-1 shakai-5-X-5
 環境	環境のために（守る・行動する）	katei-56-C-2 shakai-4-X-2 shakai-4-X-5 shakai-5-X-5 doutoku-12-D-20 doutoku-34-D-20 doutoku-56-D-20
 環境	環境の探究課題	sougou-3456-X-5
-放射線	情報と情報との関係を捉える	kokugo-12-K2-ア kokugo-34-K2-ア kokugo-56-K2-ア
+放射線	情報を正しく捉える	kokugo-12-K2-ア kokugo-34-K2-ア kokugo-56-K2-ア
 放射線	電気を届ける事業	shakai-4-X-2
 放射線	偏見や差別をしない	doutoku-12-C-13 doutoku-34-C-13 doutoku-56-C-13
-生命の尊重	生き物を育てる	seikatsu-12-S2-7 plan:seikatsu
-生命の尊重	生命や自然を大切にする心	doutoku-12-D-19 doutoku-34-D-19 doutoku-56-D-19 doutoku-12-D-20 doutoku-34-D-20 doutoku-56-D-20
-生命の尊重	生命を尊重する態度（理科）	plan:rika
-生命の尊重	自然の中での体験	tokkatsu-123456-GG-4
+生命の尊重	生き物を育て，命にふれる	seikatsu-12-S2-7 plan:seikatsu
+生命の尊重	生命の尊さを考える	doutoku-12-D-19 doutoku-34-D-19 doutoku-56-D-19
+生命の尊重	自然や動植物を大切にする	doutoku-12-D-20 doutoku-34-D-20 doutoku-56-D-20 tokkatsu-123456-GG-4 plan:rika
 心身の健康の保持増進	体の健康（体のつくり・発育・病気の予防）	taiiku-4-G-2 taiiku-6-G-3 taiiku-5-G-2 rika-4-B-1 rika-5-B-2 rika-6-B-1
 心身の健康の保持増進	心の健康	taiiku-5-G-1 taiiku-56-A-0
 心身の健康の保持増進	健康な生活習慣（運動・食事・休養・睡眠，清潔）	taiiku-3-G-1 katei-56-B-1 katei-56-B-4 katei-56-B-6 seikatsu-12-S1-2 doutoku-12-A-03 doutoku-34-A-03 doutoku-56-A-03 tokkatsu-123456-GK-2ア tokkatsu-123456-GK-2エ
