@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const LEVEL_NAMES = {0:"きほん", 1:"ふつう", 2:"チャレンジ", mix:"まぜる"};
 try{ document.documentElement.lang = "ja"; }catch(e){}
-const state = {grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", hdr2:"on", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
+const state = {grade:5, units:[], subsOff:{}, subN:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", hdr2:"on", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
 let view = "q", items = [], groups = [], LAY = null, PAPER_NOW = "A4";
 
 function persist(){ try{ localStorage.setItem("smm-state", JSON.stringify(Object.assign({}, state, {seed:undefined}))); }catch(e){} }
@@ -19,11 +19,32 @@ function load(){
 
 /* ---------- 単元ごとの問題数 ---------- */
 function selUnits(){ return unitsOf(state.grade).filter(u => state.units.includes(u.id)); }
+/* 細かい内容ごとに問題数を決めた単元は，その合計のまま。のこりの問題数をほかの単元で分ける */
+const isCustom = u => !!(state.subN && state.subN[u.id]);
+const subSum = u => Object.values(state.subN[u.id] || {}).reduce((a, b) => a + b, 0);
 function autoSplit(){
-  const us = selUnits(), n = us.length; state.alloc = {};
-  if(!n) return;
-  const base = Math.floor(state.total / n); let r = state.total - base * n;
+  const all = selUnits(); state.alloc = {};
+  if(!all.length) return;
+  const cu = all.filter(isCustom), us = all.filter(u => !isCustom(u));
+  let fixed = 0; for(const u of cu){ state.alloc[u.id] = subSum(u); fixed += state.alloc[u.id]; }
+  if(!us.length){ state.total = Math.max(1, fixed); return; }
+  const rest = Math.max(us.length, state.total - fixed), n = us.length;
+  const base = Math.floor(rest / n); let r = rest - base * n;
   us.forEach(u => { state.alloc[u.id] = base + (r > 0 ? 1 : 0); if(r > 0) r--; });
+  state.total = fixed + rest;
+}
+function sumTotal(){ state.total = Math.max(1, selUnits().reduce((a, x) => a + (state.alloc[x.id] || 0), 0)); }
+function setCustom(u, on){
+  if(on){
+    const n = Math.max(1, state.alloc[u.id] || 0), subs = subsOn(state, u), m = {};
+    u.subs.forEach(s => m[s.id] = 0);
+    for(let i = 0; i < n; i++) m[subs[i % subs.length].id]++;
+    state.subN[u.id] = m;
+  } else {
+    delete state.subN[u.id];
+  }
+  state.alloc[u.id] = on ? subSum(u) : Math.max(1, state.alloc[u.id] || 0);
+  sumTotal(); update(true);
 }
 function defaultMeate(){
   const us = selUnits();
@@ -72,7 +93,31 @@ function renderSubs(){
   $("stepSubs").hidden = !us.length;
   for(const u of us){
     const grp = document.createElement("div"); grp.className = "subgrp";
-    const h = document.createElement("div"); h.className = "sub-h"; h.textContent = u.name;
+    const h = document.createElement("div"); h.className = "sub-h";
+    const hn = document.createElement("span"); hn.textContent = u.name;
+    const tg = document.createElement("button"); tg.type = "button"; tg.className = "link";
+    tg.textContent = isCustom(u) ? "おまかせにもどす" : "内容ごとに問題数を決める";
+    tg.addEventListener("click", () => setCustom(u, !isCustom(u)));
+    h.append(hn, tg);
+    if(isCustom(u)){
+      const list = document.createElement("div"); list.className = "subrows";
+      for(const s of u.subs){
+        const r = document.createElement("div"); r.className = "ar" + ((state.subN[u.id][s.id] || 0) ? "" : " zero");
+        const nm = document.createElement("span"); nm.textContent = s.name;
+        const st = document.createElement("div"); st.className = "stepper sm";
+        const m = document.createElement("button"); m.type = "button"; m.textContent = "−"; m.setAttribute("aria-label", s.name + "を1問へらす");
+        const inp = document.createElement("input"); inp.type = "number"; inp.min = "0"; inp.max = "40"; inp.value = state.subN[u.id][s.id] || 0; inp.setAttribute("aria-label", s.name + "の問題数");
+        const p = document.createElement("button"); p.type = "button"; p.textContent = "＋"; p.setAttribute("aria-label", s.name + "を1問ふやす");
+        const setS = v => { state.subN[u.id][s.id] = Math.max(0, Math.min(40, v | 0)); state.alloc[u.id] = subSum(u); sumTotal(); update(true); };
+        m.addEventListener("click", () => setS((state.subN[u.id][s.id] || 0) - 1));
+        p.addEventListener("click", () => setS((state.subN[u.id][s.id] || 0) + 1));
+        inp.addEventListener("change", () => setS(parseInt(inp.value, 10) || 0));
+        st.append(m, inp, p); r.append(nm, st); list.appendChild(r);
+      }
+      const sm = document.createElement("div"); sm.className = "subsum"; sm.textContent = "合計 " + subSum(u) + "問";
+      grp.append(h, list, sm); box.appendChild(grp);
+      continue;
+    }
     const chips = document.createElement("div"); chips.className = "chips";
     const off = state.subsOff[u.id] || [];
     for(const s of u.subs){
@@ -100,14 +145,18 @@ function renderCount(){
   const us = selUnits();
   $("allocBox").hidden = us.length < 2;
   const box = $("alloc"); box.innerHTML = "";
+  const allC = us.length > 0 && us.every(isCustom);
+  for(const id of ["cntMinus", "cntPlus", "cnt"]) $(id).disabled = allC;
+  for(const b of pr.querySelectorAll("button")) b.disabled = allC;
   if(us.length >= 2) for(const u of us){
     const r = document.createElement("div"); r.className = "ar";
     const s = document.createElement("span"); s.textContent = u.name;
+    if(isCustom(u)){ const t = document.createElement("span"); t.className = "fixed"; t.textContent = state.alloc[u.id] + "問（内容ごと）"; r.append(s, t); box.appendChild(r); continue; }
     const st = document.createElement("div"); st.className = "stepper sm";
     const m = document.createElement("button"); m.type = "button"; m.textContent = "−"; m.setAttribute("aria-label", u.name + "を1問へらす");
     const inp = document.createElement("input"); inp.type = "number"; inp.min = "0"; inp.max = "40"; inp.value = state.alloc[u.id] || 0; inp.id = "al-" + u.id; inp.setAttribute("aria-label", u.name + "の問題数");
     const p = document.createElement("button"); p.type = "button"; p.textContent = "＋"; p.setAttribute("aria-label", u.name + "を1問ふやす");
-    const setA = v => { state.alloc[u.id] = Math.max(0, Math.min(40, v | 0)); state.total = Math.max(1, us.reduce((a, x) => a + (state.alloc[x.id] || 0), 0)); update(true); };
+    const setA = v => { state.alloc[u.id] = Math.max(0, Math.min(40, v | 0)); sumTotal(); update(true); };
     m.addEventListener("click", () => setA((state.alloc[u.id] || 0) - 1));
     p.addEventListener("click", () => setA((state.alloc[u.id] || 0) + 1));
     inp.addEventListener("change", () => setA(parseInt(inp.value, 10) || 0));

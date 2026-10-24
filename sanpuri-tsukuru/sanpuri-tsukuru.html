@@ -50,7 +50,14 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
 .step-h .n{width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none}
 .step-h .aside{margin-left:auto;font-weight:500;font-size:12.5px;color:var(--ink-soft)}
 .hint{font-size:12.5px;color:var(--ink-soft);margin:0}
-.sub-h{font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-top:2px}
+.sub-h{font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-top:2px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.subrows{display:flex;flex-direction:column;gap:6px}
+.subrows .ar{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.subrows .ar span{font-size:13.5px;font-weight:700;min-width:0}
+.subrows .ar.zero span{color:var(--ink-soft);text-decoration:line-through;opacity:.75}
+.subsum{font-size:12.5px;font-weight:700;color:var(--ink-soft);text-align:right}
+.alloc .ar .fixed{font-weight:700;color:var(--ink-soft)}
+.stepper button:disabled,.stepper input:disabled,.presets button:disabled{opacity:.45;cursor:default}
 .seg{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:10px;flex-wrap:wrap}
 .seg button{flex:1 1 auto;min-width:0;border:none;background:transparent;color:var(--ink-soft);font:inherit;font-weight:700;font-size:14px;padding:8px 8px;border-radius:7px;cursor:pointer;white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.15)}
@@ -118,7 +125,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <header class="top">
     <h1>算プリツクール</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 3.9</span>
+    <span class="ver">ver. 4.0</span>
   </header>
 
   <div class="layout">
@@ -139,7 +146,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
 
       <div class="step" id="stepSubs">
         <div class="step-h"><span class="n">3</span>細かい内容</div>
-        <p class="hint">タップすると、出題から外したり戻したりできます。</p>
+        <p class="hint">タップすると、出題から外したり戻したりできます。「内容ごとに問題数を決める」を押すと、細かい内容ごとに問題数を選べます。</p>
         <div id="subs" class="step"></div>
       </div>
 
@@ -1960,7 +1967,10 @@ unit5(19, "立体", "2月", "角柱や円柱の見取図をかいて，形を調
   {id:"c", name:"展開図から長さを求める", gen(lv){ return genNetRead(lv); }},
   {id:"d", name:"側面の横の長さ（文章題）", gen(lv){
     const d = ri(2, 12), h = ri(3, 12);
-    return W_(`底面の直径が${d}cm，高さが${h}cmの円柱の【展|てん】開図をかきます。側面の長方形の横の長さは何cmですか。円周率は3.14とします。`, `${d}×3.14＝${dmul(d, "3.14")}`, `${dmul(d, "3.14")}cm`, "円柱");
+    return scene([
+      () => W_(`底面の直径が${d}cm，高さが${h}cmの円柱の【展|てん】開図をかきます。側面の長方形の横の長さは何cmですか。円周率は3.14とします。`, `${d}×3.14＝${dmul(d, "3.14")}`, `${dmul(d, "3.14")}cm`, "円柱"),
+      () => W_(`直径${d}cmの円柱の形をしたかんの側面に，すきまも重なりもなくラベルをまきます。ラベルの横の長さは何cmにすればよいですか。円周率は3.14とします。`, `${d}×3.14＝${dmul(d, "3.14")}`, `${dmul(d, "3.14")}cm`, "円柱"),
+      () => W_(`高さ${h}cm，底面の半径${d / 2}cmの円柱の【展|てん】開図で，側面の長方形のたてと横の長さはそれぞれ何cmですか。円周率は3.14とします。`, `横　${d / 2}×2×3.14＝${dmul(d, "3.14")}`, `たて${h}cm，横${dmul(d, "3.14")}cm`, "円柱")]);
   }}
 ]);
 
@@ -2906,8 +2916,8 @@ unitN(6, "図形の応用", "図形の性質を組み合わせて考えよう", 
     for(;;){
       const a = ri(10, 30), b = ri(10, 30), c = ri(3, 8), h = ri(c, 20), rise = c * c * c / (a * b);
       if(!Number.isInteger(rise * 10)) continue;
-      if(lv === 0){ const v = ri(2, 9) * 1000, d = v / (a * b); if(!Number.isInteger(d * 10)) continue; return WN(`内のりが，たて${a}cm，横${b}cmの直方体の形をした水そうに，${v / 1000}Lの水を入れると，水の深さは何cmになりますか。`, [`${v / 1000}L＝${v}cm^3`, `${v}÷（${a}×${b}）＝${ds(d * 10, 1)}`], `${ds(d * 10, 1)}cm`, "水の深さ"); }
-      return WN(`内のりが，たて${a}cm，横${b}cmの直方体の形をした水そうに，深さ${h}cmまで水が入っています。この中に1辺が${c}cmの立方体の石をしずめると，水面は何cm上がりますか。`, [`石の体積　${c}×${c}×${c}＝${c * c * c}`, `${c * c * c}÷（${a}×${b}）＝${ds(rise * 10, 1)}`], `${ds(rise * 10, 1)}cm`, "水の深さ");
+      if(lv === 0){ const v = ri(2, 9) * 1000, d = v / (a * b); if(!Number.isInteger(d * 10)) continue; return WN(scene([() => `${v / 1000}Lの水を，内のりが，たて${a}cm，横${b}cmの直方体の形をした水そうに入れると，水の深さは何cmになりますか。`, () => `内のりが，たて${a}cm，横${b}cmの直方体の形をした水そうがあります。この水そうに${v / 1000}Lの水を入れると，水の深さは何cmになりますか。`]), [`${v / 1000}L＝${v}cm^3`, `${v}÷（${a}×${b}）＝${ds(d * 10, 1)}`], `${ds(d * 10, 1)}cm`, "水の深さ"); }
+      return WN(scene([() => `内のりが，たて${a}cm，横${b}cmの直方体の形をした水そうに，深さ${h}cmまで水が入っています。この中に1辺が${c}cmの立方体の石をしずめると，水面は何cm上がりますか。`, () => `深さ${h}cmまで水が入った水そうがあります。水そうの内のりは，たて${a}cm，横${b}cmです。ここに1辺が${c}cmの立方体の鉄のおもりを入れると，水面は何cm上がりますか。`]), [`石の体積　${c}×${c}×${c}＝${c * c * c}`, `${c * c * c}÷（${a}×${b}）＝${ds(rise * 10, 1)}`], `${ds(rise * 10, 1)}cm`, "水の深さ");
     }
   }}
 ]);
@@ -3143,7 +3153,10 @@ U4.push({id:"4-x1", no:"○", name:"○倍の計算（１）", month:"7月", mea
 U4.push({id:"4-x2", no:"○", name:"○倍の計算（２）かんたんな割合", month:"9月", meate:"何倍かを使って，くらべ方を考えよう", subs:[
   {id:"a", name:"何倍で比べる", gen(lv){
     for(;;){ const a1 = ri(2, 6) * 10, k1 = ri(2, 5), a2 = ri(2, 6) * 10, k2 = ri(2, 5); if(k1 === k2 || a1 === a2) continue;
-      return W_(`白いゴムは${a1}cmが${a1 * k1}cmまでのび，黒いゴムは${a2}cmが${a2 * k2}cmまでのびました。もとの長さをもとにすると，よくのびるといえるのはどちらのゴムですか。`, [`白　${a1 * k1}÷${a1}＝${k1}`, `黒　${a2 * k2}÷${a2}＝${k2}`], k1 > k2 ? "白いゴム" : "黒いゴム", "何倍でくらべる"); }
+      return scene([
+        () => W_(`白いゴムは${a1}cmが${a1 * k1}cmまでのび，黒いゴムは${a2}cmが${a2 * k2}cmまでのびました。もとの長さをもとにすると，よくのびるといえるのはどちらのゴムですか。`, [`白　${a1 * k1}÷${a1}＝${k1}`, `黒　${a2 * k2}÷${a2}＝${k2}`], k1 > k2 ? "白いゴム" : "黒いゴム", "何倍でくらべる"),
+        () => W_(`もとのねだんが${a1}円のおかしAは${a1 * k1}円に，もとのねだんが${a2}円のおかしBは${a2 * k2}円にねあがりしました。もとのねだんをもとにすると，ねあがりしたといえるのはどちらですか。`, [`A　${a1 * k1}÷${a1}＝${k1}`, `B　${a2 * k2}÷${a2}＝${k2}`], k1 > k2 ? "おかしA" : "おかしB", "何倍でくらべる"),
+        () => W_(`ひまわりは${a1}cmから${a1 * k1}cmに，あさがおは${a2}cmから${a2 * k2}cmにのびました。もとの高さをもとにすると，よくのびたといえるのはどちらですか。`, [`ひまわり　${a1 * k1}÷${a1}＝${k1}`, `あさがお　${a2 * k2}÷${a2}＝${k2}`], k1 > k2 ? "ひまわり" : "あさがお", "何倍でくらべる")]); }
   }}
 ]});
 
@@ -4624,10 +4637,14 @@ override("5-16.d", function(lv){
   if(lv < 2){ const a = ri(2, 6) * 10, b = ri(2, 6) * 10, c = ri(1, 4) * 10 + (lv === 1 ? 5 : 0), v = a * b * c;
     return scene([
       () => W_(`内のりが，たて${a}cm，横${b}cm，深さ${c}cmの水そうがあります。この水そうの容積は何cm^3ですか。また，それは何Lですか。`, `${a}×${b}×${c}＝${v}`, `${v}cm^3，${ds(v, 3)}L`, "容積"),
-      () => W_(`内のりが，たて${a}cm，横${b}cm，高さ${c}cmの箱があります。この箱の容積は何cm^3ですか。また，それは何Lですか。`, `${a}×${b}×${c}＝${v}`, `${v}cm^3，${ds(v, 3)}L`, "容積"),
-      () => W_(`内のりが，たて${a}cm，横${b}cm，深さ${c}cmの入れ物に，水をいっぱいに入れました。水は何cm^3入っていますか。また，それは何Lですか。`, `${a}×${b}×${c}＝${v}`, `${v}cm^3，${ds(v, 3)}L`, "容積")]); }
+      () => W_(`箱の内のりをはかったら，たて${a}cm，横${b}cm，高さ${c}cmでした。この箱の容積は何cm^3ですか。また，それは何Lですか。`, `${a}×${b}×${c}＝${v}`, `${v}cm^3，${ds(v, 3)}L`, "容積"),
+      () => W_(`たて${a}cm，横${b}cm，深さ${c}cm（内のり）の入れ物に，水をいっぱいに入れました。水は何cm^3入っていますか。また，それは何Lですか。`, `${a}×${b}×${c}＝${v}`, `${v}cm^3，${ds(v, 3)}L`, "容積")]); }
   const A = ri(12, 30), B = ri(12, 30), C = ri(8, 20), v = (A - 2) * (B - 2) * (C - 1);
-  return W_(`厚さ1cmの板で，外のりが，たて${A}cm，横${B}cm，高さ${C}cmの直方体の形をした，ふたのない入れ物を作りました。この入れ物の容積は何cm^3ですか。`, [`内のり　たて${A - 2}cm，横${B - 2}cm，深さ${C - 1}cm`, `${A - 2}×${B - 2}×${C - 1}＝${v}`], `${v}cm^3`, "容積");
+  const v2 = (A - 2) * (B - 2) * (C - 2);
+  return scene([
+    () => W_(`厚さ1cmの板で，外のりが，たて${A}cm，横${B}cm，高さ${C}cmの直方体の形をした，ふたのない入れ物を作りました。この入れ物の容積は何cm^3ですか。`, [`内のり　たて${A - 2}cm，横${B - 2}cm，深さ${C - 1}cm`, `${A - 2}×${B - 2}×${C - 1}＝${v}`], `${v}cm^3`, "容積"),
+    () => W_(`外のりが，たて${A}cm，横${B}cm，高さ${C}cmの，ふたのある木の箱があります。板の厚さはどこも1cmです。この箱の容積は何cm^3ですか。`, [`内のり　たて${A - 2}cm，横${B - 2}cm，高さ${C - 2}cm`, `${A - 2}×${B - 2}×${C - 2}＝${v2}`], `${v2}cm^3`, "容積"),
+    () => W_(`ふたのない直方体の形をした水そうがあります。外のりは，たて${A}cm，横${B}cm，高さ${C}cmで，ガラスの厚さは1cmです。この水そうの容積は何cm^3ですか。`, [`内のり　たて${A - 2}cm，横${B - 2}cm，深さ${C - 1}cm`, `${A - 2}×${B - 2}×${C - 1}＝${v}`], `${v}cm^3`, "容積")]);
 });
 
 override("5-17.c", function(lv){
@@ -4941,7 +4958,7 @@ override("1-10.b", function(lv){
 });
 override("1-13.b", function(lv){
   for(;;){ const a = ri(4, 12), b = ri(4, 12); if(a === b) continue;
-    const pair = (x, y, cup, cnt) => W1(`みずを　${cup}で　はかったら，${x}は　${cup}　${a}${cnt}ぶん，${y}は　${cup}　${b}${cnt}ぶん　はいりました。どちらが　${cup}　なん${cnt}ぶん　おおく　はいりますか。`, `${Math.max(a, b)}－${Math.min(a, b)}＝${Math.abs(a - b)}`, `${a > b ? x : y}が　${Math.abs(a - b)}${cnt}ぶん　おおい`, "かさくらべ");
+    const pair = (x, y, cup, cnt) => W1(`${x}と　${y}に　はいる　みずを　${cup}で　はかったら，${x}は　${cup}　${a}${cnt}ぶん，${y}は　${cup}　${b}${cnt}ぶん　はいりました。どちらが　${cup}　なん${cnt}ぶん　おおく　はいりますか。`, `${Math.max(a, b)}－${Math.min(a, b)}＝${Math.abs(a - b)}`, `${a > b ? x : y}が　${Math.abs(a - b)}${cnt}ぶん　おおい`, "かさくらべ");
     return scene([
       () => pair("やかん", "ポット", "コップ", "はい"),
       () => pair("すいとう", "ペットボトル", "コップ", "はい"),
@@ -4952,14 +4969,17 @@ override("1-17.a", function(lv){
   const a = ri(3, 9), b = ri(2, 6);
   if(lv === 0) return scene([
     () => W1(`こどもが　1れつに　ならんで　います。ゆうたさんは　まえから　${a}ばんめです。ゆうたさんの　うしろに　${b}にん　います。みんなで　なんにん　いますか。`, `${a}＋${b}＝${a + b}`, `${a + b}にん`, "ずに　かいて"),
-    () => W1(`こどもが　1れつに　ならんで　います。はるとさんの　まえに　${a}にん，うしろに　${b}にん　います。みんなで　なんにん　いますか。`, `${a}＋1＋${b}＝${a + b + 1}`, `${a + b + 1}にん`, "ずに　かいて")]);
+    () => W1(`こどもが　1れつに　ならんで　います。はるとさんの　まえに　${a}にん，うしろに　${b}にん　います。みんなで　なんにん　いますか。`, `${a}＋1＋${b}＝${a + b + 1}`, `${a + b + 1}にん`, "ずに　かいて"),
+    () => W1(`バスを　まつ　ひとが　1れつに　ならんで　います。あおいさんは　まえから　${a}ばんめで，あおいさんの　うしろに　${b}にん　います。ぜんぶで　なんにん　ならんで　いますか。`, `${a}＋${b}＝${a + b}`, `${a + b}にん`, "ずに　かいて")]);
   if(lv === 1) return scene([
     () => W1(`こどもが　${a + b}にん　います。いすが　${a}こ　あります。いすに　1にんずつ　すわると，いすに　すわれない　こどもは　なんにんですか。`, `${a + b}－${a}＝${b}`, `${b}にん`, "ずに　かいて"),
-    () => W1(`あめが　${a}こ　あります。${a + b}にんに　1こずつ　くばると，なんこ　たりませんか。`, `${a + b}－${a}＝${b}`, `${b}こ`, "ずに　かいて")]);
+    () => W1(`あめが　${a}こ　あります。${a + b}にんに　1こずつ　くばると，なんこ　たりませんか。`, `${a + b}－${a}＝${b}`, `${b}こ`, "ずに　かいて"),
+    () => W1(`ケーキが　${a + b}こ　あります。おさらが　${a}まい　あります。1まいの　おさらに　ケーキを　1こずつ　のせると，のせられない　ケーキは　なんこですか。`, `${a + b}－${a}＝${b}`, `${b}こ`, "ずに　かいて")]);
   return scene([
     () => W1(`あかい　はなが　${hon(a)}　あります。しろい　はなは，あかい　はなより　${hon(b)}　おおいです。しろい　はなは　なんぼんですか。`, `${a}＋${b}＝${a + b}`, hon(a + b), "ずに　かいて"),
     () => W1(`あかい　はなが　${hon(a + b)}　あります。しろい　はなは，あかい　はなより　${hon(b)}　すくないです。しろい　はなは　なんぼんですか。`, `${a + b}－${b}＝${a}`, hon(a), "ずに　かいて"),
-    () => W1(`ぼくは　どんぐりを　${a}こ　ひろいました。いもうとは　ぼくより　${b}こ　おおく　ひろいました。いもうとは　なんこ　ひろいましたか。`, `${a}＋${b}＝${a + b}`, `${a + b}こ`, "ずに　かいて")]);
+    () => W1(`ぼくは　どんぐりを　${a}こ　ひろいました。いもうとは　ぼくより　${b}こ　おおく　ひろいました。いもうとは　なんこ　ひろいましたか。`, `${a}＋${b}＝${a + b}`, `${a + b}こ`, "ずに　かいて"),
+    () => W1(`シールを　あねは　${a + b}まい，わたしは　あねより　${b}まい　すくなく　もって　います。わたしは　なんまい　もって　いますか。`, `${a + b}－${b}＝${a}`, `${a}まい`, "ずに　かいて")]);
 });
 override("3-6.b", function(lv){
   const a = ri(3, 9) * 100 + ri(0, 9) * 10, b = ri(3, 9) * 100 + ri(0, 9) * 10, s = a + b, fmt = v => v >= 1000 ? `${Math.floor(v / 1000)}km${v % 1000 ? v % 1000 + "m" : ""}` : `${v}m`;
@@ -5627,22 +5647,34 @@ function buildItems(st){
   const out = [];
   for(const u of unitsOf(st.grade)){
     if(!st.units.includes(u.id)) continue;
-    const n = st.alloc[u.id] || 0, subs = subsOn(st, u);
-    if(!n || !subs.length) continue;
-    const k = Math.max(1, Math.min(subs.length, Math.ceil(n / 2.5)));
-    const use = k < subs.length ? shuffle(subs.map((s, i) => i)).slice(0, k).sort((a, b) => a - b).map(i => subs[i]) : subs;
-    const cnt = use.map(() => 0); for(let i = 0; i < n; i++) cnt[i % use.length]++;
+    let use, cnt;
+    const sn = st.subN && st.subN[u.id];
+    if(sn){ /* 細かい内容ごとに問題数を決めたとき */
+      use = u.subs.filter(s => (sn[s.id] || 0) > 0); cnt = use.map(s => sn[s.id]);
+      if(!use.length) continue;
+    } else {
+      const n = st.alloc[u.id] || 0, subs = subsOn(st, u);
+      if(!n || !subs.length) continue;
+      const k = Math.max(1, Math.min(subs.length, Math.ceil(n / 2.5)));
+      use = k < subs.length ? shuffle(subs.map((s, i) => i)).slice(0, k).sort((a, b) => a - b).map(i => subs[i]) : subs;
+      cnt = use.map(() => 0); for(let i = 0; i < n; i++) cnt[i % use.length]++;
+    }
     use.forEach((s, si) => {
-      let left = cnt[si], guard = 0; const got = [], seen = new Set();
-      while(left > 0 && guard++ < 50){
+      let left = cnt[si], guard = 0, tries = 0; const got = [], seen = new Set(), kseen = new Map();
+      while(left > 0 && guard++ < 50 + 40 * cnt[si]){
+        tries++;
         const lv = st.level === "mix" ? ri(0, 2) : st.level;
         let it; try{ it = s.gen(lv); }catch(e){ console.error(u.name, s.name, e); break; }
         if(!it) continue;
         const sig = it.sig || (it.toks && it.cat !== "fig" ? mkText(it.toks) : it.subs ? it.subs.map(mkText).join("|") : null);
-        if(sig && seen.has(sig) && guard < 40) continue;
+        if(sig && seen.has(sig) && tries < 30) continue;
+        /* 同じ場面（数だけちがう問題）は，ほかの場面を使いきるまで出さない */
+        const sk = sceneKey(it);
+        if(sk){ const m = Math.min(...kseen.values()), c = kseen.get(sk) || 0; if(c > 0 && ((c > m && tries < 24) || tries < 12)) continue; }
+        if(sk) kseen.set(sk, (kseen.get(sk) || 0) + 1);
         if(sig) seen.add(sig);
         if(it.n > left){ if(it.trim) it.trim(left); else continue; }
-        it.unit = u; it.sub = s; got.push(it); left -= it.n;
+        it.unit = u; it.sub = s; got.push(it); left -= it.n; tries = 0;
       }
       got.sort((a, b) => a.inst < b.inst ? -1 : a.inst > b.inst ? 1 : 0);
       out.push(...got);
@@ -5656,11 +5688,31 @@ function genericInst(cat){
   if(cat === "hissan") return knows("筆算") ? "筆算でしましょう。" : "ひっ算で　しましょう。";
   return q;
 }
-/* 文章題は、細かい内容（sub）が交互になるようにならべて、同じ種類の問題が続かないようにする */
+/* 場面の見分け：数字をのぞいた問題文の書き出し（ぽん・ぼん→ほん などもそろえる） */
+function sceneKey(it){
+  if(it.cat !== "word" || !it.toks) return null;
+  const t = mkText(it.toks).replace(/[0-9０-９.．]+/g, "").replace(/[ぱぽぴぷぺ]/g, c => "はほひふへ"["ぱぽぴぷぺ".indexOf(c)]).replace(/[ばぼびぶべ]/g, c => "はほひふへ"["ばぼびぶべ".indexOf(c)]).replace(/[\s　]/g, "");
+  return t.slice(0, 10);
+}
+/* 文章題は、細かい内容（sub）が交互になるようにならべて、同じ種類の問題が続かないようにする。
+   さらに，同じ場面の問題がとなりあったら，あとの問題と入れかえる */
 function spread(list){
   if(!list.length || list[0].cat !== "word") return list;
   const bk = []; for(const it of list){ let b = bk.find(x => x.s === it.sub); if(!b) bk.push(b = {s:it.sub, a:[]}); b.a.push(it); }
   const out = []; for(let k = 0; out.length < list.length; k++) for(const b of bk) if(b.a[k]) out.push(b.a[k]);
+  return unclump(out);
+}
+function unclump(list){
+  /* となりと同じ場面にならないものの中から，残りがいちばん多い場面を先に出す（同じなら元の順） */
+  const key = it => sceneKey(it) || it, rest = list.slice(), out = [];
+  while(rest.length){
+    const cnt = new Map(); for(const it of rest) cnt.set(key(it), (cnt.get(key(it)) || 0) + 1);
+    const last = out.length ? key(out[out.length - 1]) : null;
+    let bi = -1;
+    for(let i = 0; i < rest.length; i++){ const k = key(rest[i]); if(k === last) continue; if(bi < 0 || cnt.get(k) > cnt.get(key(rest[bi]))) bi = i; }
+    if(bi < 0) bi = 0;
+    out.push(rest.splice(bi, 1)[0]);
+  }
   return out;
 }
 function groupList(list){
@@ -5882,7 +5934,7 @@ async function makePdf(canvases, paper){
 const $ = id => document.getElementById(id);
 const LEVEL_NAMES = {0:"きほん", 1:"ふつう", 2:"チャレンジ", mix:"まぜる"};
 try{ document.documentElement.lang = "ja"; }catch(e){}
-const state = {grade:5, units:[], subsOff:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", hdr2:"on", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
+const state = {grade:5, units:[], subsOff:{}, subN:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", hdr2:"on", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
 let view = "q", items = [], groups = [], LAY = null, PAPER_NOW = "A4";
 
 function persist(){ try{ localStorage.setItem("smm-state", JSON.stringify(Object.assign({}, state, {seed:undefined}))); }catch(e){} }
@@ -5899,11 +5951,32 @@ function load(){
 
 /* ---------- 単元ごとの問題数 ---------- */
 function selUnits(){ return unitsOf(state.grade).filter(u => state.units.includes(u.id)); }
+/* 細かい内容ごとに問題数を決めた単元は，その合計のまま。のこりの問題数をほかの単元で分ける */
+const isCustom = u => !!(state.subN && state.subN[u.id]);
+const subSum = u => Object.values(state.subN[u.id] || {}).reduce((a, b) => a + b, 0);
 function autoSplit(){
-  const us = selUnits(), n = us.length; state.alloc = {};
-  if(!n) return;
-  const base = Math.floor(state.total / n); let r = state.total - base * n;
+  const all = selUnits(); state.alloc = {};
+  if(!all.length) return;
+  const cu = all.filter(isCustom), us = all.filter(u => !isCustom(u));
+  let fixed = 0; for(const u of cu){ state.alloc[u.id] = subSum(u); fixed += state.alloc[u.id]; }
+  if(!us.length){ state.total = Math.max(1, fixed); return; }
+  const rest = Math.max(us.length, state.total - fixed), n = us.length;
+  const base = Math.floor(rest / n); let r = rest - base * n;
   us.forEach(u => { state.alloc[u.id] = base + (r > 0 ? 1 : 0); if(r > 0) r--; });
+  state.total = fixed + rest;
+}
+function sumTotal(){ state.total = Math.max(1, selUnits().reduce((a, x) => a + (state.alloc[x.id] || 0), 0)); }
+function setCustom(u, on){
+  if(on){
+    const n = Math.max(1, state.alloc[u.id] || 0), subs = subsOn(state, u), m = {};
+    u.subs.forEach(s => m[s.id] = 0);
+    for(let i = 0; i < n; i++) m[subs[i % subs.length].id]++;
+    state.subN[u.id] = m;
+  } else {
+    delete state.subN[u.id];
+  }
+  state.alloc[u.id] = on ? subSum(u) : Math.max(1, state.alloc[u.id] || 0);
+  sumTotal(); update(true);
 }
 function defaultMeate(){
   const us = selUnits();
@@ -5952,7 +6025,31 @@ function renderSubs(){
   $("stepSubs").hidden = !us.length;
   for(const u of us){
     const grp = document.createElement("div"); grp.className = "subgrp";
-    const h = document.createElement("div"); h.className = "sub-h"; h.textContent = u.name;
+    const h = document.createElement("div"); h.className = "sub-h";
+    const hn = document.createElement("span"); hn.textContent = u.name;
+    const tg = document.createElement("button"); tg.type = "button"; tg.className = "link";
+    tg.textContent = isCustom(u) ? "おまかせにもどす" : "内容ごとに問題数を決める";
+    tg.addEventListener("click", () => setCustom(u, !isCustom(u)));
+    h.append(hn, tg);
+    if(isCustom(u)){
+      const list = document.createElement("div"); list.className = "subrows";
+      for(const s of u.subs){
+        const r = document.createElement("div"); r.className = "ar" + ((state.subN[u.id][s.id] || 0) ? "" : " zero");
+        const nm = document.createElement("span"); nm.textContent = s.name;
+        const st = document.createElement("div"); st.className = "stepper sm";
+        const m = document.createElement("button"); m.type = "button"; m.textContent = "−"; m.setAttribute("aria-label", s.name + "を1問へらす");
+        const inp = document.createElement("input"); inp.type = "number"; inp.min = "0"; inp.max = "40"; inp.value = state.subN[u.id][s.id] || 0; inp.setAttribute("aria-label", s.name + "の問題数");
+        const p = document.createElement("button"); p.type = "button"; p.textContent = "＋"; p.setAttribute("aria-label", s.name + "を1問ふやす");
+        const setS = v => { state.subN[u.id][s.id] = Math.max(0, Math.min(40, v | 0)); state.alloc[u.id] = subSum(u); sumTotal(); update(true); };
+        m.addEventListener("click", () => setS((state.subN[u.id][s.id] || 0) - 1));
+        p.addEventListener("click", () => setS((state.subN[u.id][s.id] || 0) + 1));
+        inp.addEventListener("change", () => setS(parseInt(inp.value, 10) || 0));
+        st.append(m, inp, p); r.append(nm, st); list.appendChild(r);
+      }
+      const sm = document.createElement("div"); sm.className = "subsum"; sm.textContent = "合計 " + subSum(u) + "問";
+      grp.append(h, list, sm); box.appendChild(grp);
+      continue;
+    }
     const chips = document.createElement("div"); chips.className = "chips";
     const off = state.subsOff[u.id] || [];
     for(const s of u.subs){
@@ -5980,14 +6077,18 @@ function renderCount(){
   const us = selUnits();
   $("allocBox").hidden = us.length < 2;
   const box = $("alloc"); box.innerHTML = "";
+  const allC = us.length > 0 && us.every(isCustom);
+  for(const id of ["cntMinus", "cntPlus", "cnt"]) $(id).disabled = allC;
+  for(const b of pr.querySelectorAll("button")) b.disabled = allC;
   if(us.length >= 2) for(const u of us){
     const r = document.createElement("div"); r.className = "ar";
     const s = document.createElement("span"); s.textContent = u.name;
+    if(isCustom(u)){ const t = document.createElement("span"); t.className = "fixed"; t.textContent = state.alloc[u.id] + "問（内容ごと）"; r.append(s, t); box.appendChild(r); continue; }
     const st = document.createElement("div"); st.className = "stepper sm";
     const m = document.createElement("button"); m.type = "button"; m.textContent = "−"; m.setAttribute("aria-label", u.name + "を1問へらす");
     const inp = document.createElement("input"); inp.type = "number"; inp.min = "0"; inp.max = "40"; inp.value = state.alloc[u.id] || 0; inp.id = "al-" + u.id; inp.setAttribute("aria-label", u.name + "の問題数");
     const p = document.createElement("button"); p.type = "button"; p.textContent = "＋"; p.setAttribute("aria-label", u.name + "を1問ふやす");
-    const setA = v => { state.alloc[u.id] = Math.max(0, Math.min(40, v | 0)); state.total = Math.max(1, us.reduce((a, x) => a + (state.alloc[x.id] || 0), 0)); update(true); };
+    const setA = v => { state.alloc[u.id] = Math.max(0, Math.min(40, v | 0)); sumTotal(); update(true); };
     m.addEventListener("click", () => setA((state.alloc[u.id] || 0) - 1));
     p.addEventListener("click", () => setA((state.alloc[u.id] || 0) + 1));
     inp.addEventListener("change", () => setA(parseInt(inp.value, 10) || 0));

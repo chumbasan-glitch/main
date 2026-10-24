@@ -9,22 +9,34 @@ function buildItems(st){
   const out = [];
   for(const u of unitsOf(st.grade)){
     if(!st.units.includes(u.id)) continue;
-    const n = st.alloc[u.id] || 0, subs = subsOn(st, u);
-    if(!n || !subs.length) continue;
-    const k = Math.max(1, Math.min(subs.length, Math.ceil(n / 2.5)));
-    const use = k < subs.length ? shuffle(subs.map((s, i) => i)).slice(0, k).sort((a, b) => a - b).map(i => subs[i]) : subs;
-    const cnt = use.map(() => 0); for(let i = 0; i < n; i++) cnt[i % use.length]++;
+    let use, cnt;
+    const sn = st.subN && st.subN[u.id];
+    if(sn){ /* 細かい内容ごとに問題数を決めたとき */
+      use = u.subs.filter(s => (sn[s.id] || 0) > 0); cnt = use.map(s => sn[s.id]);
+      if(!use.length) continue;
+    } else {
+      const n = st.alloc[u.id] || 0, subs = subsOn(st, u);
+      if(!n || !subs.length) continue;
+      const k = Math.max(1, Math.min(subs.length, Math.ceil(n / 2.5)));
+      use = k < subs.length ? shuffle(subs.map((s, i) => i)).slice(0, k).sort((a, b) => a - b).map(i => subs[i]) : subs;
+      cnt = use.map(() => 0); for(let i = 0; i < n; i++) cnt[i % use.length]++;
+    }
     use.forEach((s, si) => {
-      let left = cnt[si], guard = 0; const got = [], seen = new Set();
-      while(left > 0 && guard++ < 50){
+      let left = cnt[si], guard = 0, tries = 0; const got = [], seen = new Set(), kseen = new Map();
+      while(left > 0 && guard++ < 50 + 40 * cnt[si]){
+        tries++;
         const lv = st.level === "mix" ? ri(0, 2) : st.level;
         let it; try{ it = s.gen(lv); }catch(e){ console.error(u.name, s.name, e); break; }
         if(!it) continue;
         const sig = it.sig || (it.toks && it.cat !== "fig" ? mkText(it.toks) : it.subs ? it.subs.map(mkText).join("|") : null);
-        if(sig && seen.has(sig) && guard < 40) continue;
+        if(sig && seen.has(sig) && tries < 30) continue;
+        /* 同じ場面（数だけちがう問題）は，ほかの場面を使いきるまで出さない */
+        const sk = sceneKey(it);
+        if(sk){ const m = Math.min(...kseen.values()), c = kseen.get(sk) || 0; if(c > 0 && ((c > m && tries < 24) || tries < 12)) continue; }
+        if(sk) kseen.set(sk, (kseen.get(sk) || 0) + 1);
         if(sig) seen.add(sig);
         if(it.n > left){ if(it.trim) it.trim(left); else continue; }
-        it.unit = u; it.sub = s; got.push(it); left -= it.n;
+        it.unit = u; it.sub = s; got.push(it); left -= it.n; tries = 0;
       }
       got.sort((a, b) => a.inst < b.inst ? -1 : a.inst > b.inst ? 1 : 0);
       out.push(...got);
@@ -38,11 +50,31 @@ function genericInst(cat){
   if(cat === "hissan") return knows("筆算") ? "筆算でしましょう。" : "ひっ算で　しましょう。";
   return q;
 }
-/* 文章題は、細かい内容（sub）が交互になるようにならべて、同じ種類の問題が続かないようにする */
+/* 場面の見分け：数字をのぞいた問題文の書き出し（ぽん・ぼん→ほん などもそろえる） */
+function sceneKey(it){
+  if(it.cat !== "word" || !it.toks) return null;
+  const t = mkText(it.toks).replace(/[0-9０-９.．]+/g, "").replace(/[ぱぽぴぷぺ]/g, c => "はほひふへ"["ぱぽぴぷぺ".indexOf(c)]).replace(/[ばぼびぶべ]/g, c => "はほひふへ"["ばぼびぶべ".indexOf(c)]).replace(/[\s　]/g, "");
+  return t.slice(0, 10);
+}
+/* 文章題は、細かい内容（sub）が交互になるようにならべて、同じ種類の問題が続かないようにする。
+   さらに，同じ場面の問題がとなりあったら，あとの問題と入れかえる */
 function spread(list){
   if(!list.length || list[0].cat !== "word") return list;
   const bk = []; for(const it of list){ let b = bk.find(x => x.s === it.sub); if(!b) bk.push(b = {s:it.sub, a:[]}); b.a.push(it); }
   const out = []; for(let k = 0; out.length < list.length; k++) for(const b of bk) if(b.a[k]) out.push(b.a[k]);
+  return unclump(out);
+}
+function unclump(list){
+  /* となりと同じ場面にならないものの中から，残りがいちばん多い場面を先に出す（同じなら元の順） */
+  const key = it => sceneKey(it) || it, rest = list.slice(), out = [];
+  while(rest.length){
+    const cnt = new Map(); for(const it of rest) cnt.set(key(it), (cnt.get(key(it)) || 0) + 1);
+    const last = out.length ? key(out[out.length - 1]) : null;
+    let bi = -1;
+    for(let i = 0; i < rest.length; i++){ const k = key(rest[i]); if(k === last) continue; if(bi < 0 || cnt.get(k) > cnt.get(key(rest[bi]))) bi = i; }
+    if(bi < 0) bi = 0;
+    out.push(rest.splice(bi, 1)[0]);
+  }
   return out;
 }
 function groupList(list){
