@@ -301,6 +301,11 @@ k = next(i for i, x in enumerate(sc['subjects']) if x['id'] == 'tokkatsu') + 1
 sc['subjects'].insert(k, SH['subject'])
 sc['items'] += SH['items']
 sc['themes'] += SH['themes']
+EN = json.load(open(P('data', 'eigo_shinagawa.json')))
+k = next(i for i, x in enumerate(sc['subjects']) if x['id'] == 'gaikokugo') + 1
+sc['subjects'].insert(k, EN['subject'])
+sc['items'] += EN['items']
+sc['themes'] += EN['themes']
 sc['edition'] = {'name': '品川区版', 'sources': srcs,
                  'note': '品川区立学校が令和6〜9年度に使う教科書（品川区教育委員会の採択）の単元を添えています。'}
 st = open(P('template.html')).read()
