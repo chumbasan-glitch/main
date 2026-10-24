@@ -1,0 +1,309 @@
+<title>学習指導要領まとめツール</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* 紙の学習指導要領と解説を引く代わりの道具。上で選び、下に本文・解説・内容の取扱い・学年の目標を順に並べる */
+:root{
+  --bg:#f6f7f4; --panel:#ffffff; --ink:#1f2a2e; --ink2:#55626a; --line:#d9ded8; --accent:#2b5d8a; --mark:#ffe36b; --markInk:#1f2a2e;
+  --soft:#eef3f8; --quote:#f4f6f1;
+  --k:#2f7d5b; --kbg:#e6f4ec; --s:#2b5d8a; --sbg:#e5eef8; --m:#9a4f8c; --mbg:#f6e9f3;
+  --font-display:"Zen Maru Gothic","BIZ UDPGothic","Hiragino Maru Gothic ProN","Meiryo",sans-serif;
+  --font-body:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#161b1d; --panel:#1f2629; --ink:#e7ecea; --ink2:#a3afb3; --line:#36403f; --accent:#8cbbe6; --mark:#d9b800; --markInk:#111;
+  --soft:#22303a; --quote:#232b2d;
+  --k:#7fd3a8; --kbg:#1d3a2c; --s:#8cbbe6; --sbg:#1d2f42; --m:#e0a6d4; --mbg:#3a2336; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#161b1d; --panel:#1f2629; --ink:#e7ecea; --ink2:#a3afb3; --line:#36403f; --accent:#8cbbe6; --mark:#d9b800; --markInk:#111;
+  --soft:#22303a; --quote:#232b2d;
+  --k:#7fd3a8; --kbg:#1d3a2c; --s:#8cbbe6; --sbg:#1d2f42; --m:#e0a6d4; --mbg:#3a2336; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.75}
+button,input,select{font:inherit; color:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+a{color:var(--accent)}
+.wrap{max-width:1080px; margin:0 auto; padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky; top:0; z-index:20; background:var(--panel); border-bottom:1px solid var(--line)}
+.topin{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 16px; padding-block:10px}
+.brand{display:flex; align-items:center; gap:10px}
+.brand h1{font-family:var(--font-display); font-size:20px; margin:0; letter-spacing:.03em}
+.brand h1 .ed{font-size:.62em; margin-left:6px; padding:1px 7px; border-radius:999px; background:var(--accent); color:var(--panel); vertical-align:2px}
+.logo{width:26px; height:26px; flex:none}
+.tomap{font-size:13px; white-space:nowrap}
+main{padding-block:16px 40px}
+.lead{color:var(--ink2); margin:0 0 12px; max-width:62em}
+.panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:14px}
+.row{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:6px 0}
+.lbl{font-size:13px; color:var(--ink2); min-width:4.5em}
+.seg{display:inline-flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:10px; overflow:hidden}
+.seg button{border:0; background:var(--panel); padding:7px 14px; cursor:pointer; min-height:40px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent); color:var(--panel); font-weight:700}
+.gbtn{border:1px solid var(--line); background:var(--panel); border-radius:999px; padding:6px 14px; cursor:pointer; min-height:40px; min-width:52px}
+.gbtn[aria-pressed="true"]{background:var(--ink); color:var(--panel); border-color:var(--ink); font-weight:700}
+select{border:1px solid var(--line); border-radius:8px; padding:7px 10px; background:var(--panel); min-height:40px}
+.picks{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:8px; margin-top:8px}
+.pick{display:block; width:100%; text-align:left; border:1px solid var(--line); background:var(--panel); border-radius:10px; padding:8px 11px; cursor:pointer; line-height:1.45; min-height:44px}
+.pick:hover{border-color:var(--accent)}
+.pick[aria-pressed="true"]{border-color:var(--accent); box-shadow:inset 0 0 0 2px var(--accent); background:var(--soft)}
+.pick small{display:block; color:var(--ink2); font-size:12px}
+.areaH{font-size:13px; font-weight:700; color:var(--ink2); margin:12px 0 2px}
+.search{display:flex; gap:8px}
+.search input{flex:1; border:1px solid var(--line); border-radius:10px; padding:9px 12px; background:var(--panel); min-height:44px; font-size:16px}
+.hits{margin-top:8px}
+.hit{display:block; width:100%; text-align:left; border:0; border-top:1px solid var(--line); background:none; padding:8px 4px; cursor:pointer}
+.hit b{font-size:14px}
+.hit p{margin:2px 0 0; font-size:13px; color:var(--ink2)}
+mark{background:var(--mark); color:var(--markInk); border-radius:2px; padding:0 1px}
+.note{font-size:13px; color:var(--ink2)}
+
+/* 結果 */
+#result h2{font-family:var(--font-display); font-size:22px; margin:2px 0 4px; line-height:1.4}
+.meta{display:flex; flex-wrap:wrap; gap:6px; font-size:13px; margin-bottom:6px}
+.badge{border:1px solid var(--line); border-radius:999px; padding:1px 10px; background:var(--panel)}
+.units{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px}
+.unit{font-size:13px; background:var(--soft); border-radius:6px; padding:2px 8px}
+.kanbar{position:sticky; top:var(--hh,58px); z-index:10; background:var(--bg); padding:8px 0; display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.kanbar button{border:1px solid var(--line); background:var(--panel); border-radius:999px; padding:6px 14px; cursor:pointer; min-height:40px}
+.kanbar button[aria-pressed="true"]{color:var(--panel); font-weight:700; border-color:transparent; background:var(--ink)}
+.kanbar button[data-kan="k"][aria-pressed="true"]{background:var(--k)}
+.kanbar button[data-kan="s"][aria-pressed="true"]{background:var(--s)}
+.kanbar button[data-kan="m"][aria-pressed="true"]{background:var(--m)}
+.multi{display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 6px}
+.multi button{border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:4px 10px; cursor:pointer; font-size:13px}
+.multi button[aria-pressed="true"]{border-color:var(--accent); box-shadow:inset 0 0 0 2px var(--accent)}
+.sec{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 16px; margin:10px 0}
+.sec > h3{margin:0 0 6px; font-size:16px; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px}
+.sec > h3 .num{font-family:var(--font-display); color:var(--accent)}
+.src{font-size:12px; color:var(--ink2); margin:6px 0 0}
+.blk{border-left:4px solid var(--line); padding:4px 10px; margin:8px 0; border-radius:0 8px 8px 0}
+.blk[data-kan="k"]{border-color:var(--k); background:var(--kbg)}
+.blk[data-kan="s"]{border-color:var(--s); background:var(--sbg)}
+.blk[data-kan="m"]{border-color:var(--m); background:var(--mbg)}
+.blk .tag{display:inline-block; font-size:12px; font-weight:700; margin-bottom:2px}
+.blk[data-kan="k"] .tag{color:var(--k)} .blk[data-kan="s"] .tag{color:var(--s)} .blk[data-kan="m"] .tag{color:var(--m)}
+.quote{background:var(--quote); border-radius:8px; padding:6px 12px}
+.blk p,.quote p,.sec p{margin:4px 0}
+p.sub{font-weight:700; margin-top:10px}
+p.i1{padding-left:1em; text-indent:-1em}
+p.i2{padding-left:2em; text-indent:-1em}
+details.sec > summary{cursor:pointer; font-weight:700}
+body.only-k .blk:not([data-kan="k"]), body.only-s .blk:not([data-kan="s"]), body.only-m .blk:not([data-kan="m"]){display:none}
+body.only-k .sec[data-has]:not([data-has~="k"]), body.only-s .sec[data-has]:not([data-has~="s"]), body.only-m .sec[data-has]:not([data-has~="m"]){display:none}
+.empty{color:var(--ink2); font-size:14px; padding:6px 0}
+footer{color:var(--ink2); font-size:12px; text-align:center; padding:20px 16px 30px}
+@media (max-width:640px){
+  .brand h1{font-size:17px}
+  #result h2{font-size:19px}
+  .sec{padding:10px 12px}
+  .picks{grid-template-columns:1fr}
+}
+</style>
+
+<header class="top" id="hdr"><div class="wrap topin">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 26 26" aria-hidden="true"><rect x="3" y="3" width="17" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 9h9M7 13h9M7 17h6" stroke="currentColor" stroke-width="2"/><circle cx="19" cy="18" r="4" fill="none" stroke="#2b5d8a" stroke-width="2.2"/><path d="M22 21l2.5 2.5" stroke="#2b5d8a" stroke-width="2.4" stroke-linecap="round"/></svg>
+    <h1>学習指導要領まとめツール</h1>
+  </div>
+  <a class="tomap" id="toMap" href="#" hidden>学びのつながりマップへ →</a>
+</div></header>
+
+<main class="wrap">
+  <p class="lead">教科書の単元、学習指導要領の区分、または言葉から選ぶと、学習指導要領の本文、解説のその内容の説明、内容の取扱い、学年の目標をまとめて読めます。「知識及び技能」などのボタンで、その観点の部分だけにしぼれます。</p>
+
+  <div class="panel">
+    <div class="row"><span class="lbl">教科</span><select id="subjSel" aria-label="教科"></select><span class="note" id="subjNote"></span></div>
+    <div class="row"><span class="lbl">さがし方</span>
+      <div class="seg" role="group" aria-label="さがし方">
+        <button type="button" data-way="unit" aria-pressed="true">単元から</button>
+        <button type="button" data-way="area" aria-pressed="false">区分から</button>
+        <button type="button" data-way="word" aria-pressed="false">言葉で検索</button>
+      </div>
+    </div>
+    <div class="row" id="gradeRow"><span class="lbl">学年</span><div class="row" id="grades" style="margin:0"></div></div>
+    <div id="pickUnit"></div>
+    <div id="pickArea" hidden></div>
+    <div id="pickWord" hidden>
+      <div class="search"><input id="q" type="search" placeholder="例：概数、単位量あたり、筆算" aria-label="さがす言葉" autocomplete="off"></div>
+      <div class="hits" id="hits"></div>
+    </div>
+  </div>
+
+  <section id="result" aria-live="polite"><p class="empty">上で単元や内容を選んでください。</p></section>
+</main>
+<footer id="foot"></footer>
+
+<script>
+/*DATA*/
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const KAN = {k:"知識及び技能", s:"思考力、判断力、表現力等", m:"学びに向かう力、人間性等"};
+const S = DATA.subjects, SUB = Object.fromEntries(S.map(s => [s.id, s]));
+let cur = {subj:S[0].id, way:"unit", g:1, sel:null, part:0, kan:"all", q:""};
+const store = {get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }};
+
+/* 段落の字下げ：ア・（ア）などで始まる行は少し下げる */
+const pcls = t => /^（[ア-ン]）|^\([ア-ン]\)/.test(t) ? "i2" : /^[ア-ンⅠ-Ⅹ①-⑳][\s　]/.test(t) ? "i1" : "";
+const paras = (ls, q) => ls.map(t => '<p class="' + pcls(t) + '">' + hl(t, q) + '</p>').join("");
+const hl = (t, q) => { const e = esc(t); if(!q) return e; const qq = esc(q); return e.split(qq).join('<mark>' + qq + '</mark>'); };
+
+function renderSubjects(){
+  $("subjSel").innerHTML = S.map(s => '<option value="' + s.id + '"' + (s.id === cur.subj ? ' selected' : '') + '>' + esc(s.name) + '</option>').join("") +
+    DATA.coming.map(n => '<option disabled>' + esc(n) + '（準備中）</option>').join("");
+  const s = SUB[cur.subj];
+  $("subjNote").textContent = s.textbook ? "教科書：" + s.textbook : "";
+}
+function renderGrades(){
+  const s = SUB[cur.subj];
+  $("grades").innerHTML = s.grades.map(g => '<button type="button" class="gbtn" data-g="' + g + '" aria-pressed="' + (g === cur.g) + '">' + g + '年</button>').join("");
+  $("grades").querySelectorAll("button").forEach(b => b.onclick = () => { cur.g = +b.dataset.g; renderPicks(); });
+}
+function renderPicks(){
+  document.querySelectorAll("[data-way]").forEach(b => b.setAttribute("aria-pressed", b.dataset.way === cur.way));
+  $("pickUnit").hidden = cur.way !== "unit"; $("pickArea").hidden = cur.way !== "area"; $("pickWord").hidden = cur.way !== "word";
+  $("gradeRow").hidden = cur.way === "word";
+  renderGrades();
+  const s = SUB[cur.subj];
+  if(cur.way === "unit"){
+    const us = s.units.filter(u => u.g === cur.g);
+    $("pickUnit").innerHTML = us.length ? '<div class="picks">' + us.map((u, i) => '<button type="button" class="pick" data-u="' + i + '" aria-pressed="' + (cur.sel && cur.sel.t === "u" && cur.sel.name === u.u && cur.sel.g === u.g) + '">' + esc(u.u) + '<small>' + esc(u.b) + '・' + u.ids.length + 'つの内容</small></button>').join("") + '</div>'
+      : '<p class="empty">この学年の単元はありません。</p>';
+    $("pickUnit").querySelectorAll("[data-u]").forEach(b => b.onclick = () => { const u = us[+b.dataset.u]; select({t:"u", g:u.g, name:u.u, book:u.b, ids:u.ids}); });
+  }
+  if(cur.way === "area"){
+    let h = "";
+    for(const a of s.areas){
+      const its = s.items.filter(it => it.g.includes(cur.g) && it.area === a.key);
+      if(!its.length) continue;
+      h += '<div class="areaH">' + esc(a.name) + '</div><div class="picks">' + its.map(it => '<button type="button" class="pick" data-i="' + it.id + '" aria-pressed="' + (cur.sel && cur.sel.t === "i" && cur.sel.ids[0] === it.id) + '">' + esc(it.mark + " " + it.head) + '</button>').join("") + '</div>';
+    }
+    if(s.katsudo && s.katsudo[cur.g]) h += '<div class="areaH">' + esc(s.katsudoName) + '</div><div class="picks"><button type="button" class="pick" data-k="1">' + esc(s.katsudoName) + '（' + cur.g + '年）</button></div>';
+    $("pickArea").innerHTML = h;
+    $("pickArea").querySelectorAll("[data-i]").forEach(b => b.onclick = () => select({t:"i", g:cur.g, ids:[b.dataset.i]}));
+    $("pickArea").querySelectorAll("[data-k]").forEach(b => b.onclick = () => select({t:"k", g:cur.g, ids:[]}));
+  }
+}
+function select(sel){ cur.sel = sel; cur.part = 0; renderPicks(); renderResult(); location.hash = encodeURIComponent(cur.subj + ":" + (sel.t === "u" ? "u:" + sel.g + ":" + sel.name : sel.t === "k" ? "k:" + sel.g : "i:" + sel.ids[0])); scrollToResult(); }
+function scrollToResult(){ requestAnimationFrame(() => { const r = $("result"); const y = r.getBoundingClientRect().top + scrollY - $("hdr").offsetHeight - 6; if(y < scrollY || y > scrollY + innerHeight * .6) scrollTo({top:y, behavior:"smooth"}); }); }
+
+/* 検索：本文・解説・内容の取扱い・目標の文から */
+function doSearch(){
+  const q = $("q").value.trim(); cur.q = q;
+  if(!q){ $("hits").innerHTML = ""; return; }
+  const s = SUB[cur.subj], hits = [];
+  for(const it of s.items){
+    const K = s.kaisetsu.items[it.id] || {expl:{}};
+    const parts = [["本文", [it.title, ...it.lines]], ["内容の取扱い", it.notes || []], ["解説", [...(K.expl.intro || []), ...(K.expl.k || []), ...(K.expl.s || [])]]];
+    const found = [];
+    for(const [where, ls] of parts) for(const l of ls) if(l && l.includes(q)) found.push([where, l]);
+    if(found.length) hits.push({it, found});
+  }
+  const gh = [];
+  for(const g of s.grades){ const G = s.goals[g]; if(!G) continue; const ls = [...G.lines, ...Object.values(G.expl || {}).flat()]; const f = ls.filter(l => l.includes(q)); if(f.length) gh.push({g, f}); }
+  $("hits").innerHTML = '<p class="note">「' + esc(q) + '」は ' + hits.length + ' 件の内容' + (gh.length ? '、' + gh.length + ' 学年の目標' : '') + 'に出てきます。</p>' +
+    hits.map(({it, found}) => {
+      const snip = found.slice(0, 2).map(([w, l]) => { const i = l.indexOf(q); return '<p>' + esc(w) + '：…' + hl(l.slice(Math.max(0, i - 24), i + q.length + 30), q) + '…</p>'; }).join("");
+      return '<button type="button" class="hit" data-i="' + it.id + '"><b>' + it.g.join("・") + '年　' + esc(it.mark + " " + it.head) + '</b>（' + found.length + 'か所）' + snip + '</button>';
+    }).join("") +
+    gh.map(x => '<button type="button" class="hit" data-goal="' + x.g + '"><b>' + x.g + '年の目標</b>（' + x.f.length + 'か所）</button>').join("");
+  $("hits").querySelectorAll("[data-i]").forEach(b => b.onclick = () => select({t:"i", g:SUB[cur.subj].items.find(i => i.id === b.dataset.i).g[0], ids:[b.dataset.i]}));
+  $("hits").querySelectorAll("[data-goal]").forEach(b => b.onclick = () => { cur.kan = "m"; select({t:"g", g:+b.dataset.goal, ids:[]}); });
+}
+
+function kanBar(){
+  return '<div class="kanbar" role="group" aria-label="観点でしぼる"><span class="note">観点でしぼる：</span>' +
+    [["all","すべて"],["k",KAN.k],["s",KAN.s],["m",KAN.m]].map(([k, n]) => '<button type="button" data-kan="' + k + '" aria-pressed="' + (cur.kan === k) + '">' + n + '</button>').join("") + '</div>';
+}
+function blk(kan, title, inner){ return '<div class="blk" data-kan="' + kan + '"><span class="tag">' + esc(title) + '</span>' + inner + '</div>'; }
+
+/* 本文：ア（知識及び技能）とイ（思考力、判断力、表現力等）に分ける */
+function honbun(it, q){
+  const a = [], b = [], other = []; let to = other;
+  for(const l of it.lines){
+    if(/^ア[\s　]+次のような知識/.test(l)) to = a; else if(/^イ[\s　]+次のような思考/.test(l)) to = b;
+    to.push(l);
+  }
+  return '<div class="quote">' + (it.title ? '<p>' + esc(it.mark) + '　' + hl(it.title, q) + '</p>' : '') + paras(other, q) +
+    (a.length ? blk("k", KAN.k, paras(a, q)) : '') + (b.length ? blk("s", KAN.s, paras(b, q)) : '') + '</div>';
+}
+function itemSecs(it, q){
+  const s = SUB[cur.subj], K = s.kaisetsu.items[it.id], src = s.kaisetsu.source;
+  let h = '<section class="sec" data-has="k s"><h3><span class="num">1</span>学習指導要領の本文</h3>' + honbun(it, q) +
+    '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + '　第２ 各学年の目標及び内容〔第' + "〇一二三四五六"[it.g[0]] + '学年〕２ 内容</p></section>';
+  if(K){
+    const e = K.expl;
+    h += '<section class="sec" data-has="k s"><h3><span class="num">2</span>解説の説明<span class="note">' + esc(K.name) + '（p.' + K.page + '〜）</span></h3>' +
+      (e.intro.length ? '<div>' + paras(e.intro, q) + '</div>' : '') +
+      (e.k.length ? blk("k", "ア " + KAN.k, paras(e.k, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
+      (e.s.length ? blk("s", "イ " + KAN.s, paras(e.s, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
+      (!e.k.length && !e.s.length ? '<p class="note">この内容の解説は、「知識及び技能」「思考力、判断力、表現力等」に分けて書かれていません。上の説明に両方が含まれています。</p>' : '') +
+      '<p class="src">出典：' + esc(src) + '　p.' + K.page + '〜</p></section>';
+  }
+  if(it.notes && it.notes.length){
+    h += '<section class="sec" data-has="k s"><h3><span class="num">3</span>内容の取扱い</h3><div class="quote">' + paras(it.notes, q) + '</div>' +
+      '<p class="note">内容の取扱いについての説明は、上の「解説の説明」の中にあります（「内容の取扱い」の（n）では…と書かれているところ）。</p></section>';
+  }
+  return h;
+}
+function goalSec(g, q, n){
+  const G = SUB[cur.subj].goals[g]; if(!G) return "";
+  const L = G.lines, X = G.expl || {};
+  const kanOf = i => ["k","s","m"][i] || "m";
+  return '<section class="sec" data-has="k s m"><h3><span class="num">' + n + '</span>' + g + '年の目標</h3>' +
+    '<div class="quote">' + L.map((l, i) => blk(kanOf(i), "（" + (i + 1) + "）" + KAN[kanOf(i)], '<p>' + hl(l.replace(/^[⑴⑵⑶]\s*/, ""), q) + '</p>')).join("") + '</div>' +
+    '<h4 style="margin:12px 0 2px;font-size:14px">解説の説明（p.' + G.page + '〜）</h4>' + (X.intro && X.intro.length ? paras(X.intro, q) : '') +
+    ["1","2","3"].map((k, i) => X[k] && X[k].length ? blk(kanOf(i), "（" + k + "）" + KAN[kanOf(i)], paras(X[k], q)) : '').join("") +
+    '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(SUB[cur.subj].section) + ' 第２ 〔第' + "〇一二三四五六"[g] + '学年〕１ 目標／' + esc(SUB[cur.subj].kaisetsu.source) + '　p.' + G.page + '〜</p></section>';
+}
+function renderResult(){
+  const s = SUB[cur.subj], sel = cur.sel, q = cur.way === "word" ? cur.q : "";
+  document.body.classList.remove("only-k", "only-s", "only-m");
+  if(cur.kan !== "all") document.body.classList.add("only-" + cur.kan);
+  if(!sel){ $("result").innerHTML = '<p class="empty">上で単元や内容を選んでください。</p>'; return; }
+  let h = "";
+  if(sel.t === "k"){
+    const k = s.katsudo[sel.g];
+    h = '<div class="meta"><span class="badge">' + sel.g + '年</span><span class="badge">' + esc(s.name) + '</span></div><h2>' + esc(s.katsudoName) + '</h2>' + kanBar() +
+      '<section class="sec"><h3>本文と解説の説明（p.' + k.page + '〜）</h3>' + paras(k.paras, q) + '<p class="src">出典：' + esc(s.kaisetsu.source) + '　p.' + k.page + '〜</p></section>' + goalSec(sel.g, q, 2);
+  } else if(sel.t === "g"){
+    h = '<div class="meta"><span class="badge">' + esc(s.name) + '</span></div><h2>' + sel.g + '年の目標</h2>' + kanBar() + goalSec(sel.g, $("q").value.trim(), 1);
+  } else {
+    const its = sel.ids.map(id => s.items.find(i => i.id === id)).filter(Boolean);
+    const it = its[Math.min(cur.part, its.length - 1)];
+    const area = s.areas.find(a => a.key === it.area);
+    h = '<div class="meta"><span class="badge">' + it.g.join("・") + '年</span><span class="badge">' + esc(s.name) + '</span><span class="badge">' + esc(area ? area.name : it.areaName) + '</span>' + (sel.t === "u" ? '<span class="badge">単元：' + esc(sel.name) + '（' + esc(sel.book) + '）</span>' : '') + '</div>';
+    if(its.length > 1) h += '<p class="note" style="margin:4px 0 0">この単元には、学習指導要領の内容が ' + its.length + ' つ結び付いています。</p><div class="multi">' + its.map((x, i) => '<button type="button" data-part="' + i + '" aria-pressed="' + (x === it) + '">' + esc(x.mark + " " + x.head) + '</button>').join("") + '</div>';
+    h += '<h2>' + esc(it.mark + " " + (s.kaisetsu.items[it.id] ? s.kaisetsu.items[it.id].name : it.head)) + '</h2>';
+    if(it.units && it.units.length) h += '<div class="units">' + it.units.map(u => '<span class="unit">📖 ' + esc(u.u) + '（' + esc(u.b) + '）</span>').join("") + '</div>';
+    h += kanBar() + itemSecs(it, q) + goalSec(it.g[0], q, it.notes && it.notes.length ? 4 : 3);
+    if(s.katsudo && s.katsudo[it.g[0]]) h += '<details class="sec"><summary>' + esc(s.katsudoName) + '（' + it.g[0] + '年）の本文と解説</summary>' + paras(s.katsudo[it.g[0]].paras, q) + '<p class="src">出典：' + esc(s.kaisetsu.source) + '　p.' + s.katsudo[it.g[0]].page + '〜</p></details>';
+  }
+  $("result").innerHTML = h;
+  $("result").querySelectorAll("[data-kan]").forEach(b => { if(b.tagName === "BUTTON") b.onclick = () => { cur.kan = b.dataset.kan; store.set("matome-kan", cur.kan); renderResult(); }; });
+  $("result").querySelectorAll("[data-part]").forEach(b => b.onclick = () => { cur.part = +b.dataset.part; renderResult(); });
+}
+
+/* はじめ */
+document.querySelectorAll("[data-way]").forEach(b => b.onclick = () => { cur.way = b.dataset.way; renderPicks(); if(cur.way === "word") $("q").focus(); });
+$("subjSel").onchange = () => { cur.subj = $("subjSel").value; cur.sel = null; renderSubjects(); renderPicks(); renderResult(); };
+let qt; $("q").addEventListener("input", () => { clearTimeout(qt); qt = setTimeout(doSearch, 200); });
+if(DATA.mapUrl){ $("toMap").hidden = false; $("toMap").href = DATA.mapUrl; }
+if(DATA.edition){ document.querySelector(".brand h1").insertAdjacentHTML("beforeend", '<small class="ed">' + esc(DATA.edition) + '</small>'); }
+$("foot").textContent = DATA.footer;
+const hh = () => document.documentElement.style.setProperty("--hh", $("hdr").offsetHeight + "px"); hh(); addEventListener("resize", hh);
+const k0 = store.get("matome-kan"); if(k0 && (k0 === "all" || KAN[k0])) cur.kan = k0;
+(function fromHash(){
+  const h = decodeURIComponent(location.hash.slice(1)); if(!h) return;
+  const [sid, t, a, b] = h.split(":"); if(!SUB[sid]) return; cur.subj = sid; const s = SUB[sid];
+  if(t === "i"){ const it = s.items.find(i => i.id === a); if(it){ cur.way = "area"; cur.g = it.g[0]; cur.sel = {t:"i", g:it.g[0], ids:[a]}; } }
+  if(t === "u"){ const u = s.units.find(x => x.g === +a && x.u === b); if(u){ cur.way = "unit"; cur.g = u.g; cur.sel = {t:"u", g:u.g, name:u.u, book:u.b, ids:u.ids}; } }
+  if(t === "k"){ cur.way = "area"; cur.g = +a; cur.sel = {t:"k", g:+a, ids:[]}; }
+})();
+renderSubjects(); renderPicks(); renderResult();
+</script>
