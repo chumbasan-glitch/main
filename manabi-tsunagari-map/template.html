@@ -14,7 +14,7 @@
   --s1:55%; --s2:58%; --s3:58%; --s4:55%; --s5:55%; --s6:58%;
   --t1:#1f2a2e; --t2:#1f2a2e; --t3:#1f2a2e; --t4:#ffffff; --t5:#ffffff; --t6:#ffffff;
   --chip:rgba(255,255,255,.6); --chipInk:#1f2a2e; --chipD:rgba(0,0,0,.2); --chipDInk:#ffffff;
-  --empty:#eceeea;
+  --empty:#eceeea; --cite:#fff1a8; --citeLine:#d9a400;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#161b1d; --panel:#1f2629; --ink:#e7ecea; --ink2:#a3afb3; --line:#36403f; --accent:#8cbbe6; --mark:#d9b800; --markInk:#111;
@@ -22,7 +22,7 @@
   --s1:30%; --s2:36%; --s3:42%; --s4:48%; --s5:55%; --s6:62%;
   --t1:#e7ecea; --t2:#e7ecea; --t3:#ffffff; --t4:#ffffff; --t5:#111; --t6:#111;
   --chip:rgba(0,0,0,.3); --chipInk:#e7ecea; --chipD:rgba(255,255,255,.5); --chipDInk:#111;
-  --empty:#232b2d; color-scheme:dark;
+  --empty:#232b2d; --cite:#4a3f12; --citeLine:#d9b800; color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#161b1d; --panel:#1f2629; --ink:#e7ecea; --ink2:#a3afb3; --line:#36403f; --accent:#8cbbe6; --mark:#d9b800; --markInk:#111;
@@ -30,7 +30,7 @@
   --s1:30%; --s2:36%; --s3:42%; --s4:48%; --s5:55%; --s6:62%;
   --t1:#e7ecea; --t2:#e7ecea; --t3:#ffffff; --t4:#ffffff; --t5:#111; --t6:#111;
   --chip:rgba(0,0,0,.3); --chipInk:#e7ecea; --chipD:rgba(255,255,255,.5); --chipDInk:#111;
-  --empty:#232b2d; color-scheme:dark;
+  --empty:#232b2d; --cite:#4a3f12; --citeLine:#d9b800; color-scheme:dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -185,6 +185,31 @@ mark{background:var(--mark); color:var(--markInk); border-radius:3px; padding:0 
 .frac{display:inline-flex; flex-direction:column; vertical-align:middle; text-align:center; font-size:.78em; line-height:1.05; margin:0 1px}
 .frac span+span{border-top:1px solid currentColor}
 
+/* 教科横断 */
+.crosspick{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px}
+.crosspick button{border:1px solid var(--line); background:var(--panel); border-radius:999px; padding:5px 12px; cursor:pointer; font-size:13px}
+.crosspick button[aria-pressed="true"]{background:var(--ink); color:var(--panel); border-color:var(--ink); font-weight:700}
+.crosspick .grp{font-size:12px; color:var(--ink2); align-self:center; margin-right:2px}
+.crosshead{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin:0 0 12px}
+.crosshead h3{margin:0 0 4px; font-family:var(--font-display); font-size:19px}
+.crosshead p{margin:0; font-size:13px; color:var(--ink2)}
+.catfilter{display:flex; flex-wrap:wrap; gap:6px}
+.catfilter button{border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:4px 10px; cursor:pointer; font-size:13px}
+.catfilter button[aria-pressed="true"]{outline:2px solid var(--accent); font-weight:700}
+.cattag{display:inline-block; font-size:11px; line-height:1.4; border-radius:4px; padding:0 5px; margin-top:3px; background:var(--panel); color:var(--ink); border:1px solid var(--line)}
+.planchip{display:block; width:100%; text-align:left; border:1px dashed var(--line); border-radius:6px; padding:5px 7px; font-size:12px; line-height:1.45; cursor:pointer; background:var(--bg); color:var(--ink)}
+.text p.cite{background:var(--cite); box-shadow:inset 3px 0 0 var(--citeLine); border-radius:3px}
+.citenote{font-size:12px; color:var(--ink2); margin:6px 0 0}
+.citenote i{display:inline-block; width:22px; height:10px; background:var(--cite); box-shadow:inset 3px 0 0 var(--citeLine); vertical-align:middle; margin-right:4px}
+.xlist{display:flex; flex-direction:column; gap:10px}
+.xrow{border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13px}
+.xrow .xname{font-weight:700}
+.xrow .others{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; align-items:center}
+.xrow .others button{border:0; border-radius:6px; padding:2px 8px; font-size:12px; cursor:pointer}
+.xrow .golink{border:1px solid var(--line); background:var(--panel); border-radius:999px; padding:2px 10px; font-size:12px; cursor:pointer; margin-left:6px}
+#a4 .a4legend{font-size:10px; margin:0 0 6px; display:flex; flex-wrap:wrap; gap:4px 14px}
+#a4 td .ct{font-size:.85em; opacity:.85}
+
 /* A4 PDF用（画面外に置いて画像にする） */
 #a4{position:fixed; left:-5000px; top:0; width:1123px; height:794px; background:#fff; color:#1f2a2e; padding:26px 30px; font-family:var(--font-body); overflow:hidden}
 #a4 .a4head{display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid hsl(var(--h) 55% 40%); padding-bottom:5px; margin-bottom:7px}
@@ -240,6 +265,7 @@ mark{background:var(--mark); color:var(--markInk); border-radius:3px; padding:0 
       <button role="tab" id="tab-map" data-view="map">6年間マップ</button>
       <button role="tab" id="tab-grade" data-view="grade">学年別</button>
       <button role="tab" id="tab-table" data-view="table">教科の系統表</button>
+      <button role="tab" id="tab-cross" data-view="cross">教科横断</button>
       <button role="tab" id="tab-search" data-view="search">検索</button>
     </nav>
   </div>
@@ -290,6 +316,24 @@ mark{background:var(--mark); color:var(--markInk); border-radius:3px; padding:0 
     </details>
   </section>
 
+  <!-- 教科横断 -->
+  <section class="view" id="view-cross" aria-labelledby="tab-cross" hidden>
+    <h2>教科横断のつながり</h2>
+    <p class="lead">テーマを選ぶと、そのテーマに関係する内容が、教科ごと・学年ごとに並びます。テーマは、文部科学省「小学校学習指導要領（平成29年告示）解説 総則編」付録6「現代的な諸課題に関する教科等横断的な教育内容」に合わせています。付録6が挙げている内容だけを結んでいるので、言葉が同じだけの内容は入りません。</p>
+    <div class="crosspick" id="crossPick"></div>
+    <div class="crosshead" id="crossHead"></div>
+    <div class="tools">
+      <div class="catfilter" id="catFilter" role="group" aria-label="小見出しでしぼりこむ"></div>
+      <button type="button" class="btn primary" id="pdfCrossBtn">A4・1枚のPDFにする</button>
+      <span class="status" id="pdfCrossStatus"></span>
+    </div>
+    <div class="scroller"><table class="grid" id="crossTable"></table></div>
+    <details class="card" style="margin-top:16px" id="sosokuBox">
+      <summary>総則での位置付け（付録6より）</summary>
+      <div class="text" id="sosokuText" style="margin-top:10px"></div>
+    </details>
+  </section>
+
   <!-- 検索 -->
   <section class="view" id="view-search" aria-labelledby="tab-search" hidden>
     <h2>言葉でさがす</h2>
@@ -337,6 +381,10 @@ const THEMES = CONTENT.themes;
 const THEME = Object.fromEntries(THEMES.map(t => [t.id, t]));
 const TORDER = Object.fromEntries(THEMES.map((t, i) => [t.id, i]));
 const CROSS = new Set(THEMES.filter(t => t.cross).map(t => t.id));
+const XDEF = CONTENT.cross, XBYID = Object.fromEntries(XDEF.map(x => [x.id, x]));
+const MARU = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫";
+const catNo = (x, cat) => MARU[x.cats.indexOf(cat)] || "";
+const xSource = x => x.kind === "furoku" ? "解説 総則編 付録6（" + x.page + "ページ〜）" : "学校で決めたテーマ";
 const KANJI_G = ["","１","２","３","４","５","６"];
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -357,7 +405,7 @@ $("logoStack").innerHTML = [1,2,3,4,5,6].map(g => '<i class="g' + g + '" style="
 $("ramp").innerHTML = [1,2,3,4,5,6].map(g => '<i class="g' + g + '">' + g + '</i>').join("");
 
 /* ---------- 画面の切りかえ ---------- */
-const VIEWS = ["map","grade","table","search"];
+const VIEWS = ["map","grade","table","cross","search"];
 function go(view, opts){
   for(const v of VIEWS){
     $("view-" + v).hidden = v !== view;
@@ -365,6 +413,7 @@ function go(view, opts){
   }
   try{ localStorage.setItem("mtm-view", view); }catch(e){}
   if(view === "table") renderTable();
+  if(view === "cross") renderCross();
   if(view === "search") setTimeout(() => $("q").focus(), 0);
   window.scrollTo(0, 0);
   if(opts && opts.grade && view === "table") requestAnimationFrame(() => scrollToGrade(opts.grade));
@@ -437,7 +486,9 @@ function rowsFor(sid, m){
   const tids = [...new Set(its.flatMap(it => Object.keys(it.themes)))].sort((a, b) => (CROSS.has(a) - CROSS.has(b)) || TORDER[a] - TORDER[b]);
   return tids.map(t => {
     const ti = its.filter(it => it.themes[t]);
-    return {name:THEME[t].name, sub:CROSS.has(t) ? "教科をまたぐテーマ" : "", cross:CROSS.has(t), its:ti.map(it => ({it, label:it.themes[t]}))};
+    const xs = XBYID[t];
+    return {name:THEME[t].name, sub:xs ? (xs.kind === "furoku" ? "教科横断（付録6）" : "教科横断（学校）") : "", cross:!!xs,
+      its:ti.map(it => ({it, label:it.themes[t] + (xs ? "〔" + it.cross[t].cat + "〕" : "")}))};
   });
 }
 /* 1行ぶんのマス：学年のまとまりに合わせて横につなげる */
@@ -468,7 +519,7 @@ function renderTable(){
   $("tableTitle").textContent = s.name + "の系統表";
   $("tableLead").textContent = mode === "area"
     ? "学習指導要領の「内容」の区分で並べています。見出しはClaudeが指導要領の文言をもとに短くまとめたものです（理科・家庭・体育・道徳・特別活動などは指導要領の名称や文言そのままです）。タップすると、原文と前後の学年のつながりが見られます。"
-    : "同じテーマの学びを横1列にそろえました。左から右へ、どのように学びが積みあがるかを追えます。「教科をまたぐテーマ」は、ほかの教科ともつながっています（テーマの分け方はClaudeによるものです）。";
+    : "同じテーマの学びを横1列にそろえました。左から右へ、どのように学びが積みあがるかを追えます（テーマの分け方はClaudeによるものです）。下の「教科横断」の行は、解説 総則編 付録6で、この教科のその内容が挙げられているものです。";
   $("modeArea").setAttribute("aria-pressed", mode === "area");
   $("modeTheme").setAttribute("aria-pressed", mode === "theme");
   const rows = rowsFor(curSubj, mode);
@@ -507,6 +558,68 @@ $("modeTheme").addEventListener("click", () => { mode = "theme"; renderTable(); 
 
 function bindItems(root){ root.querySelectorAll("[data-item]").forEach(b => b.addEventListener("click", () => openItem(b.dataset.item))); }
 
+/* ---------- 教科横断 ---------- */
+let curCross = XBYID.f13 ? "f13" : (XDEF[0] && XDEF[0].id), catSel = null;
+function crossRows(x){
+  const rows = [];
+  for(const s of SUBJECTS){
+    const its = ITEMS.filter(it => it.subject === s.id && it.cross && it.cross[x.id] && (!catSel || it.cross[x.id].cat === catSel))
+      .map(it => ({it, label:it.head, cat:it.cross[x.id].cat}));
+    const plans = x.plans.map((p, k) => ({...p, k})).filter(p => p.subject === s.id && (!catSel || p.cat === catSel));
+    if(its.length || plans.length) rows.push({s, its, plans});
+  }
+  return rows;
+}
+function renderCross(){
+  if(!XDEF.length){ $("crossTable").innerHTML = ""; return; }
+  const x = XBYID[curCross];
+  if(catSel && !x.cats.includes(catSel)) catSel = null;
+  const fu = XDEF.filter(y => y.kind === "furoku"), sc = XDEF.filter(y => y.kind === "school");
+  const btn = y => '<button type="button" data-x="' + y.id + '" aria-pressed="' + (y.id === curCross) + '">' + esc(y.name.replace("に関する教育", "")) + '</button>';
+  $("crossPick").innerHTML = '<span class="grp">付録6：</span>' + fu.map(btn).join("") + (sc.length ? '<span class="grp">学校独自：</span>' + sc.map(btn).join("") : '');
+  $("crossPick").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { curCross = b.dataset.x; catSel = null; renderCross(); }));
+  const n = ITEMS.filter(it => it.cross && it.cross[x.id]).length, subs = new Set(ITEMS.filter(it => it.cross && it.cross[x.id]).map(it => it.subject));
+  x.plans.forEach(p => subs.add(p.subject));
+  $("crossHead").innerHTML = '<h3>' + esc(x.name) + '</h3><p>' + esc(xSource(x)) + '　／　' + subs.size + '教科等・' + n + 'の内容' + (x.plans.length ? '＋指導計画の作成と内容の取扱い' : '') + '</p>' +
+    '<p>小見出しは、付録6が挙げている内容を、意味のちがいが分かるようにClaudeが分けたものです。</p>';
+  $("catFilter").innerHTML = '<button type="button" data-c="" aria-pressed="' + !catSel + '">すべて</button>' +
+    x.cats.map(c => '<button type="button" data-c="' + esc(c) + '" aria-pressed="' + (catSel === c) + '">' + catNo(x, c) + esc(c) + '</button>').join("");
+  $("catFilter").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { catSel = b.dataset.c || null; renderCross(); }));
+  let h = '<thead><tr><th class="rowh">教科等</th>' + [1,2,3,4,5,6].map(g => '<th><div class="colh"><div class="bar g' + g + '" style="--h:212;height:' + (g * 5) + 'px"></div>' + g + '年</div></th>').join("") + '</tr></thead><tbody>';
+  for(const r of crossRows(x)){
+    const s = r.s;
+    if(r.its.length){
+      h += '<tr><th class="rowh" style="--h:' + s.h + '"><span class="rowname"><span class="dot"></span>' + esc(s.name) + '</span></th>';
+      for(const c of rowCells({its:r.its}, s.id, [1,2,3,4,5,6])){
+        const cs = c.gs.length > 1 ? ' colspan="' + c.gs.length + '"' : '';
+        if(!c.its){ h += '<td class="cell"' + cs + '><div class="none' + (c.off ? ' off' : '') + '"></div></td>'; continue; }
+        h += '<td class="cell"' + cs + '><div class="cellbox chips ' + gClass(c.gs) + '" style="--h:' + s.h + '">' +
+          c.its.map(y => '<button type="button" class="chip" data-item="' + y.it.id + '">' + show(y.label) + (y.it.g.length < c.gs.length ? '<small>' + gLabel(y.it.g) + '</small>' : '') + '<span class="cattag">' + catNo(x, y.cat) + esc(y.cat) + '</span></button>').join("") + '</div></td>';
+      }
+      h += '</tr>';
+    }
+    if(r.plans.length){
+      h += '<tr><th class="rowh" style="--h:' + s.h + '"><span class="rowname">' + (r.its.length ? '' : '<span class="dot"></span>' + esc(s.name)) + '</span><span class="note">指導計画の作成と内容の取扱い</span></th><td class="cell" colspan="6"><div class="chips">' +
+        r.plans.map(p => '<button type="button" class="planchip" data-plan="' + p.k + '">' + show(p.lines[0].slice(0, 70)) + (p.lines[0].length > 70 || p.lines.length > 1 ? '…' : '') + '<br><span class="cattag">' + catNo(x, p.cat) + esc(p.cat) + '</span></button>').join("") + '</div></td></tr>';
+    }
+  }
+  $("crossTable").innerHTML = h + '</tbody>';
+  bindItems($("crossTable"));
+  $("crossTable").querySelectorAll("[data-plan]").forEach(b => b.addEventListener("click", () => openPlan(x.id, +b.dataset.plan)));
+  $("sosokuBox").hidden = !x.sosoku.length;
+  $("sosokuText").innerHTML = textLines(x.sosoku) + '<p class="src">出典：' + esc(xSource(x)) + '（総則の欄）</p>';
+}
+function openPlan(tid, k){
+  const x = XBYID[tid], p = x.plans[k], s = SUBJ[p.subject];
+  if($("sheet").hidden) lastFocus = document.activeElement;
+  $("sheet").innerHTML = '<button type="button" class="close" id="closeSheet">閉じる</button>' +
+    '<div class="meta" style="--h:' + s.h + '"><span class="badge">' + esc(s.name) + '</span><span class="badge">指導計画の作成と内容の取扱い</span></div>' +
+    '<h2 id="dTitle">' + esc(x.name) + '</h2><p><span class="cattag">' + catNo(x, p.cat) + esc(p.cat) + '</span></p>' +
+    '<div class="sec"><h3>付録6に抜き出されている文言</h3><div class="text">' + textLines(p.lines, lineCls) + '<p class="src">出典：' + esc(xSource(x)) + '。もとは ' + esc(s.section) + ' の「指導計画の作成と内容の取扱い」</p></div></div>';
+  $("sheet").hidden = false; $("sheetBack").hidden = false; $("sheet").scrollTop = 0;
+  $("closeSheet").addEventListener("click", closeSheet); $("closeSheet").focus();
+}
+
 /* ---------- 詳しい画面 ---------- */
 let lastFocus = null;
 const stepLabel = (x, cur) => gLabel(x.g) + (x.subject !== cur.subject ? "・" + short(SUBJ[x.subject]) : "");
@@ -523,11 +636,11 @@ function openItem(id){
 
   /* 学びのつながり：テーマごとに1〜6年の流れ（ほかの教科もふくむ） */
   h += '<div class="sec"><h3>学びのつながり</h3>';
-  const tids = Object.keys(it.themes).sort((a, b) => (CROSS.has(a) - CROSS.has(b)) || TORDER[a] - TORDER[b]);
+  const tids = Object.keys(it.themes).filter(t => !CROSS.has(t)).sort((a, b) => TORDER[a] - TORDER[b]);
   for(const tid of tids){
     const line = ITEMS.filter(x => x.themes[tid]).sort(byGrade);
     const multi = new Set(line.map(x => x.subject)).size > 1;
-    h += '<div class="flow"><div class="tname">テーマ「' + esc(THEME[tid].name) + '」' + (multi ? '<span class="badge">教科をまたぐ</span>' : '') + '</div><div class="steps">' +
+    h += '<div class="flow"><div class="tname">テーマ「' + esc(THEME[tid].name) + '」' + (multi ? '<span class="badge">' + esc([...new Set(line.map(x => short(SUBJ[x.subject])))].join("→")) + 'の系統</span>' : '') + '</div><div class="steps">' +
       line.map(x => '<button type="button" class="step ' + gClass(x.g) + (x.id === id ? ' now' : '') + '" style="--h:' + SUBJ[x.subject].h + ';min-height:' + (40 + x.g[x.g.length - 1] * 9) + 'px" ' + (x.id === id ? 'aria-current="true"' : 'data-item="' + x.id + '"') + '><b>' + esc(stepLabel(x, it)) + (x.id === id ? '（いま）' : '') + '</b>' + show(x.themes[tid]) + '</button>').join("") + '</div>';
     const prev = line.filter(x => x.g[x.g.length - 1] < g0), next = line.filter(x => x.g[0] > gEnd);
     const same = line.filter(x => x.id !== id && !prev.includes(x) && !next.includes(x));
@@ -538,15 +651,30 @@ function openItem(id){
   }
   h += '</div>';
 
+  /* 教科横断のテーマ（付録6・学校独自） */
+  const xids = Object.keys(it.cross || {});
+  if(xids.length){
+    h += '<div class="sec"><h3>教科横断のテーマ</h3><div class="xlist">' + xids.map(tid => {
+      const x = XBYID[tid], c = it.cross[tid];
+      const mates = ITEMS.filter(y => y.id !== id && y.cross && y.cross[tid] && y.cross[tid].cat === c.cat).sort(byGrade);
+      return '<div class="xrow"><span class="xname">' + esc(x.name) + '</span><button type="button" class="golink" data-x="' + tid + '" data-cat="' + esc(c.cat) + '">表で見る</button><br>' +
+        '<span class="cattag">' + catNo(x, c.cat) + esc(c.cat) + '</span> <span class="note">（' + esc(xSource(x)) + '）</span>' +
+        (mates.length ? '<div class="others"><span class="note">同じ小見出し：</span>' + mates.map(y => '<button type="button" class="' + gClass(y.g) + '" style="--h:' + SUBJ[y.subject].h + '" data-item="' + y.id + '">' + esc(short(SUBJ[y.subject])) + ' ' + gLabel(y.g) + ' ' + show(y.head) + '</button>').join("") + '</div>' : '') + '</div>';
+    }).join("") + '</div></div>';
+  }
+
   /* 学習指導要領の文言 */
+  const citeL = new Set(xids.flatMap(t => it.cross[t].lines || [])), citeN = new Set(xids.flatMap(t => it.cross[t].notes || []));
+  const citeCls = (set) => (l, k) => (set.has(k) ? 'cite ' : '') + lineCls(l);
   const bandLbl = it.g.length > 1 ? '〔第' + KANJI_G[g0] + '学年及び第' + KANJI_G[gEnd] + '学年〕' : '〔第' + KANJI_G[g0] + '学年〕';
   h += '<div class="sec"><h3>学習指導要領の文言</h3><div class="text">' + (it.name ? '<p class="l1">' + show(it.name) + '</p>' : '') +
     (it.title ? '<p class="l2">' + (it.mark ? it.mark + '　' : '') + show(it.title) + '</p>' : '') +
-    textLines(it.lines, lineCls) +
+    it.lines.map((l, k) => '<p class="' + citeCls(citeL)(l, k) + '">' + show(l) + '</p>').join("") +
+    (citeL.size ? '<p class="citenote"><i></i>付録6（教科横断）に抜き出されている部分</p>' : '') +
     '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + ' ' + (["sougou","tokkatsu"].includes(it.subject) ? '' : bandLbl) + ' ' + esc(it.areaName || '') + '</p></div></div>';
   for(const e of it.extra || []) h += '<div class="sec"><h3>' + esc(e.label) + '</h3><div class="text">' + textLines(e.lines, lineCls) + '</div></div>';
   if(it.notes && it.notes.length){
-    h += '<div class="sec"><h3>内容の取扱い（この内容に関係するもの）</h3><div class="text">' + textLines(it.notes, lineCls) + '</div></div>';
+    h += '<div class="sec"><h3>内容の取扱い（この内容に関係するもの）</h3><div class="text">' + it.notes.map((l, k) => '<p class="' + citeCls(citeN)(l, k) + '">' + show(l) + '</p>').join("") + (citeN.size ? '<p class="citenote"><i></i>付録6（教科横断）に抜き出されている部分</p>' : '') + '</div></div>';
   }
 
   /* 同じ言葉が出てくる、ほかの教科の内容（言葉ごとに折りたたむ） */
@@ -556,7 +684,7 @@ function openItem(id){
     const others = ITEMS.filter(x => x.subject !== it.subject && re.test(itemText(x))).sort(byGrade);
     return others.length ? {name, others} : null;
   }).filter(Boolean);
-  h += '<div class="sec"><h3>同じ言葉が出てくる、ほかの教科の内容</h3>';
+  h += '<div class="sec"><h3>同じ言葉が出てくる、ほかの教科の内容（言葉が同じだけのもの）</h3><p class="note" style="margin:0 0 8px">文字が同じでも、意味がちがうことがあります（例：体育の「場の安全」と、社会の「地域の安全を守る働き」）。見比べて、つながりを考える手がかりにしてください。</p>';
   if(kws.length){
     h += '<div class="kw">' + kws.map(({name, others}) => {
       const bySubj = {};
@@ -575,6 +703,7 @@ function openItem(id){
   $("sheet").hidden = false; $("sheetBack").hidden = false;
   $("sheet").scrollTop = 0;
   bindItems($("sheet"));
+  $("sheet").querySelectorAll("[data-x]").forEach(b => b.addEventListener("click", () => { curCross = b.dataset.x; catSel = b.dataset.cat; closeSheet(); go("cross"); }));
   $("closeSheet").addEventListener("click", closeSheet);
   $("closeSheet").focus();
 }
@@ -671,6 +800,31 @@ function buildA4(){
   while(over() && fs > 5.5){ fs -= .25; tb.style.fontSize = fs + "px"; }
   return box;
 }
+function buildA4Cross(){
+  const x = XBYID[curCross], rows = crossRows(x);
+  let h = '<div class="a4head" style="--h:212"><h1>' + esc(x.name) + '　教科横断のつながり（1〜6年）</h1><div style="font-size:11px">' + esc(xSource(x)) + (catSel ? '／' + esc(catSel) + 'のみ' : '') + '</div></div>';
+  h += '<div class="a4legend"><b>小見出し</b>' + x.cats.filter(c => !catSel || c === catSel).map(c => '<span>' + catNo(x, c) + esc(c) + '</span>').join("") + '</div>';
+  h += '<table style="--h:212"><thead><tr><th class="rh">教科等</th>' + [1,2,3,4,5,6].map(g => '<th>' + g + '年</th>').join("") + '</tr></thead><tbody>';
+  for(const r of rows){
+    const s = r.s;
+    if(r.its.length){
+      h += '<tr style="--h:' + s.h + '"><th class="rh">' + esc(s.name) + '</th>';
+      for(const c of rowCells({its:r.its}, s.id, [1,2,3,4,5,6])){
+        const cs = c.gs.length > 1 ? ' colspan="' + c.gs.length + '"' : '';
+        h += c.its ? '<td class="' + gClass(c.gs) + '"' + cs + '>' + c.its.map(y => '<div>' + show(y.label) + (y.it.g.length < c.gs.length ? '（' + gLabel(y.it.g) + '）' : '') + ' <span class="ct">' + catNo(x, y.cat) + '</span></div>').join("") + '</td>' : '<td class="empty"' + cs + '></td>';
+      }
+      h += '</tr>';
+    }
+    if(r.plans.length) h += '<tr><th class="rh">' + (r.its.length ? '' : esc(s.name)) + '<br><span style="font-weight:400;font-size:.85em">指導計画・内容の取扱い</span></th><td colspan="6" class="empty">' + r.plans.map(p => '<div>' + show(p.lines.join(" ").slice(0, 110)) + (p.lines.join(" ").length > 110 ? '…' : '') + ' <span class="ct">' + catNo(x, p.cat) + '</span></div>').join("") + '</td></tr>';
+  }
+  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総則編 付録6。見出しと小見出しは「学びのつながりマップ」がまとめたもの。</span><span>学びのつながりマップ</span></div>';
+  const box = $("a4"); box.innerHTML = h;
+  const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 15;
+  const over = () => tb.getBoundingClientRect().bottom > foot.getBoundingClientRect().top - 6;
+  tb.style.fontSize = fs + "px";
+  while(over() && fs > 5.5){ fs -= .25; tb.style.fontSize = fs + "px"; }
+  return box;
+}
 let dl = null, dlChecked = false;
 const LOCAL = location.protocol === "file:";
 async function getDl(){
@@ -678,17 +832,15 @@ async function getDl(){
   try{ if(window.claude && typeof window.claude.use === "function") dl = await window.claude.use("downloads"); }catch(e){ dl = null; }
   dlChecked = true; return dl;
 }
-function pdfStatus(m){ $("pdfStatus").textContent = m; }
 async function loadLibs(){
   const add = src => new Promise((ok, ng) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = ng; document.head.appendChild(s); });
   if(!window.html2canvas) await add("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
   if(!(window.jspdf && window.jspdf.jsPDF)) await add("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
 }
-$("pdfBtn").addEventListener("click", async e => {
-  const btn = e.currentTarget; btn.disabled = true;
+async function makePdf(btn, build, name, pdfStatus, altName){
+  btn.disabled = true;
   try{
-    const box = buildA4();
-    const name = "学びのつながり_" + short(SUBJ[curSubj]) + "_" + (mode === "area" ? "区分" : "テーマ別") + ".pdf";
+    const box = build();
     /* ネットにつながっていないファイル版：印刷画面から「PDFに保存」を選ぶ */
     try{ pdfStatus("PDFを作っています…"); await loadLibs(); }
     catch(err){
@@ -716,11 +868,14 @@ $("pdfBtn").addEventListener("click", async e => {
     }
     /* 保存ができない画面：画像を出して、長押しや右クリックで保存してもらう */
     const ov = $("imgOverlay");
-    ov.innerHTML = '<p>この画面ではファイルを保存できません。画像を長押し（パソコンは右クリック）して保存し、A4横で印刷してください。</p><img alt="' + esc(SUBJ[curSubj].name) + 'の系統表 A4" src="' + canvas.toDataURL("image/jpeg", 0.92) + '"><button type="button" class="btn" id="ovClose">閉じる</button>';
+    ov.innerHTML = '<p>この画面ではファイルを保存できません。画像を長押し（パソコンは右クリック）して保存し、A4横で印刷してください。</p><img alt="' + esc(altName) + '" src="' + canvas.toDataURL("image/jpeg", 0.92) + '"><button type="button" class="btn" id="ovClose">閉じる</button>';
     ov.hidden = false; $("ovClose").addEventListener("click", () => { ov.hidden = true; });
     pdfStatus("");
   } finally { btn.disabled = false; }
-});
+}
+$("pdfBtn").addEventListener("click", e => makePdf(e.currentTarget, buildA4, "学びのつながり_" + short(SUBJ[curSubj]) + "_" + (mode === "area" ? "区分" : "テーマ別") + ".pdf", m => { $("pdfStatus").textContent = m; }, SUBJ[curSubj].name + "の系統表 A4"));
+$("pdfCrossBtn").addEventListener("click", e => makePdf(e.currentTarget, buildA4Cross, "教科横断_" + XBYID[curCross].name.replace("に関する教育", "") + (catSel ? "_" + catSel : "") + ".pdf", m => { $("pdfCrossStatus").textContent = m; }, XBYID[curCross].name + " A4"));
+
 
 /* ---------- はじめの表示 ---------- */
 renderMap(); renderGrade();
@@ -729,6 +884,7 @@ function fromHash(useSaved){
   const hv = location.hash.replace("#", "");
   if(VIEWS.includes(hv)) return go(hv);
   if(SUBJ[hv]){ curSubj = hv; return go("table"); }
+  if(XBYID[hv]){ curCross = hv; catSel = null; return go("cross"); }
   let v = "map";
   if(useSaved){ try{ const x = localStorage.getItem("mtm-view"); if(VIEWS.includes(x)) v = x; }catch(e){} }
   go(v);

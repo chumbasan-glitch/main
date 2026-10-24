@@ -1,7 +1,10 @@
 # 学びのつながりマップを組み立てる
 #   1. python3 tools/extract.py <学習指導要領PDF>   … src/*.txt をつくる（算数は src/sansu.txt を手で整えたもの）
 #   2. python3 tools/parse.py                        … data/parsed.json をつくる
-#   3. python3 build.py                              … page.html（アーティファクト用）と manabi-tsunagari-map.html（配布用）
+#   3. python3 build.py                              … data/items.json をつくる
+#   4. python3 tools/furoku.py <総則編解説PDF>         … 付録6の表を data/furoku_raw.json に
+#   5. python3 tools/furoku_match.py                 … 付録6の抜き出しと内容を結びつけ data/furoku.json に
+#   6. python3 build.py                              … page.html（アーティファクト用）と manabi-tsunagari-map.html（配布用）
 import json, re, os
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -101,14 +104,8 @@ def split_glued(text, head):
 
 data = json.load(open(P('data', 'parsed.json')))
 data['sansu'] = parse_sansu()
-# themes.tsv のはじめのまとまり（「# 算数」より前）は教科をまたぐテーマ
-THEMES, cross = [], True
-for l in open(P('midashi', 'themes.tsv')):
-    l = l.rstrip('\n')
-    if l.startswith('# 算数'): cross = False
-    if not l or l.startswith('#'): continue
-    tid, tname = l.split('\t')
-    THEMES.append({'id': tid, 'name': tname, **({'cross': True} if cross else {})})
+# 教科の中のテーマ（教科の系統のつながり）
+THEMES = [{'id': r[0], 'name': r[1]} for r in read_tsv('themes')]
 TID = {t['id'] for t in THEMES}
 items = []
 subjects = []
@@ -178,13 +175,53 @@ for s in subjects:
     if s['id'] == 'taiiku':
         s['spans'] = [[1, 2], [3, 4], [5, 6]]
 
+# 付録6と照らし合わせるための内容の一覧（tools/furoku_match.py が読む）
+json.dump({'items': items, 'subjects': [{'id': s['id'], 'plan': s['plan']} for s in subjects]},
+          open(P('data', 'items.json'), 'w'), ensure_ascii=False)
+
+# ---------- 教科横断のテーマ：解説 総則編 付録6 と 学校独自のテーマ ----------
+BYID = {it['id']: it for it in items}
+cross = []
+FU = json.load(open(P('data', 'furoku.json'))) if os.path.exists(P('data', 'furoku.json')) else {}
+def add_cross(tid, name, kind, rows, page=None, sosoku=(), F=None):
+    T = {'id': tid, 'name': name, 'kind': kind, 'page': page, 'sosoku': list(sosoku), 'cats': [], 'plans': []}
+    THEMES.append({'id': tid, 'name': name, 'cross': True})
+    for cat, ids in rows:
+        T['cats'].append(cat)
+        for i in ids:
+            if i.startswith('plan:'):
+                sub = i[5:]
+                texts = [p['text'] for p in (F or {}).get('plan', []) if p['subject'] == sub]
+                assert texts, (name, i)
+                T['plans'].append({'subject': sub, 'cat': cat, 'lines': list(dict.fromkeys(texts))})
+                continue
+            assert i in BYID, (name, i)
+            it = BYID[i]
+            it['themes'][tid] = it['head']
+            hl = (F or {}).get('items', {}).get(i, {})
+            it.setdefault('cross', {})[tid] = {'cat': cat, 'lines': hl.get('lines', []), 'notes': hl.get('notes', [])}
+    cross.append(T)
+rows = {}
+for r in read_tsv('furoku'):
+    rows.setdefault(r[0], []).append((r[1], r[2].split()))
+for k, (tp, F) in enumerate(FU.items()):
+    miss = [i for i in F['items'] if i not in {x for c, ids in rows[tp] for x in ids}]
+    assert not miss, (tp, miss)
+    sos = [s for s in F['sosoku'] if len(s) > 12]
+    add_cross('f%02d' % (k + 1), tp + 'に関する教育', 'furoku', rows[tp], F['page'], sos, F)
+srows = {}
+for r in read_tsv('school_themes'):
+    srows.setdefault(r[0], []).append((r[1], r[2].split()))
+for k, (name, rs) in enumerate(srows.items()):
+    add_cross('x%02d' % (k + 1), name, 'school', rs)
+
 used = {k for it in items for k in it['themes']}
 THEMES = [t for t in THEMES if t['id'] in used]
-print(len(items), 'items,', len(THEMES), 'themes')
+print(len(items), 'items,', len(THEMES), 'themes,', len(cross), 'cross themes')
 for s in subjects:
     print(' ', s['name'], sum(1 for it in items if it['subject'] == s['id']))
 
-content = {'subjects': subjects, 'themes': THEMES, 'items': items}
+content = {'subjects': subjects, 'themes': THEMES, 'items': items, 'cross': cross}
 t = open(P('template.html')).read()
 t = t.replace('/*DATA*/', 'const CONTENT = ' + json.dumps(content, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
 open(P('page.html'), 'w').write(t)
