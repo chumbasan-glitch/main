@@ -1,6 +1,6 @@
 # 解説 総則編 付録6「現代的な諸課題に関する教科等横断的な教育内容」の小見出し
 # 付録6が挙げている内容を，意味のちがいが分かるように分けたもの（小見出しの分け方はClaudeによる）
-# 1つの内容を複数の小見出しに入れてよい（「防災を含む安全」は学校安全の3領域，「心身の健康」は保健の考え方，「食」は『食に関する指導の手引』の食育の視点を土台にする）
+# 1つの内容を複数の小見出しに入れてよい（「防災を含む安全」は学校安全の3領域，「心身の健康」は保健の考え方，「食」は『食に関する指導の手引』の食育の視点，「環境」は環境教育の「環境の中で・について・のために」を土台にする）
 # テーマ	小見出し	内容（教科-学年-区分-番号。plan:教科 は指導計画の作成と内容の取扱い）
 伝統や文化	言葉と文学の伝統	kokugo-12-K3-ア kokugo-12-K3-イ kokugo-34-K3-ア kokugo-34-K3-イ kokugo-56-K3-ア kokugo-56-K3-イ
 伝統や文化	地域や我が国の歴史と伝統文化	shakai-4-X-4 shakai-4-X-5 shakai-6-X-2 shakai-6-X-3
@@ -34,11 +34,9 @@
 郷土や地域	地域の探究課題	sougou-3456-X-5
 海洋	海に囲まれた国土と産業	shakai-5-X-1 shakai-5-X-2 shakai-5-X-3 shakai-5-X-4
 海洋	自然の中での体験	tokkatsu-123456-GG-4
-環境	身近な自然とふれあう	seikatsu-12-S2-5 seikatsu-12-S2-6
-環境	くらしと環境を守る取組	shakai-4-X-2 shakai-4-X-5 shakai-5-X-1 shakai-5-X-5
-環境	生物と環境	rika-3-B-1 rika-6-B-3 plan:rika
-環境	環境に配慮した生活	katei-56-C-2
-環境	自然を大切にする心	doutoku-12-D-20 doutoku-34-D-20 doutoku-56-D-20
+環境	環境の中で（自然にふれる体験）	seikatsu-12-S2-5 seikatsu-12-S2-6 rika-3-B-1 doutoku-12-D-20 plan:rika
+環境	環境について（しくみを知る）	rika-3-B-1 rika-6-B-3 shakai-4-X-2 shakai-4-X-5 shakai-5-X-1 shakai-5-X-5
+環境	環境のために（守る・行動する）	katei-56-C-2 shakai-4-X-2 shakai-4-X-5 shakai-5-X-5 doutoku-12-D-20 doutoku-34-D-20 doutoku-56-D-20
 環境	環境の探究課題	sougou-3456-X-5
 放射線	情報と情報との関係を捉える	kokugo-12-K2-ア kokugo-34-K2-ア kokugo-56-K2-ア
 放射線	電気を届ける事業	shakai-4-X-2
