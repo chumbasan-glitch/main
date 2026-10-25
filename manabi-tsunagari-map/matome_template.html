@@ -217,9 +217,11 @@ function renderGrades(){
   $("grades").querySelectorAll("button").forEach(b => b.onclick = () => { cur.g = +b.dataset.g; renderPicks(); });
 }
 function renderPicks(){
+  const nu = !SUB[cur.subj].units.length; document.querySelector('[data-way="unit"]').hidden = nu;   /* 教科書のない教科等 */
+  const nk = SUB[cur.subj].noKeito; document.querySelector('[data-way="keito"]').hidden = !!nk;
+  if(nk && cur.way === "keito") cur.way = "unit";
+  if(nu && cur.way === "unit") cur.way = "area";
   document.querySelectorAll("[data-way]").forEach(b => b.setAttribute("aria-pressed", b.dataset.way === cur.way));
-  const nu = !SUB[cur.subj].units.length; document.querySelector('[data-way="unit"]').hidden = nu; if(nu && cur.way === "unit") cur.way = "area";   /* 教科書のない教科等 */
-  const nk = SUB[cur.subj].noKeito; document.querySelector('[data-way="keito"]').hidden = !!nk; if(nk && cur.way === "keito") cur.way = "unit";
   $("pickUnit").hidden = cur.way !== "unit"; $("pickArea").hidden = cur.way !== "area"; $("pickWord").hidden = cur.way !== "word"; $("pickKeito").hidden = cur.way !== "keito";
   $("gradeRow").hidden = cur.way === "word" || cur.way === "keito";
   if(cur.way === "keito"){ renderKeitoPick(); return; }
