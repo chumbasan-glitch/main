@@ -16,6 +16,7 @@ parts = {}   # (内容, 単元名, ア/イ) → [（ア）などの記号]
 def add(iid, unit, book, src):
     assert iid in IDS, (iid, unit)
     unit = re.sub(r'\s+', ' ', unit.replace('／', ' ')).strip()
+    unit = re.sub(r'^[○◯]\s*', '', unit)   # 教科書会社の一覧で小単元に付いている「○」は取る
     if (iid, unit) not in {(o[0], o[1]) for o in out}:
         out.append((iid, unit, book.translate(ZEN), src))
 
