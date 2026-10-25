@@ -360,6 +360,29 @@ for sid, (fn, kname) in KFILES.items():
                   'bandSecs': bandsecs, 'unitNote': UNIT_NOTE.get(sid, ''),
                   'items': [{k: it.get(k) for k in ('id', 'g', 'area', 'areaName', 'mark', 'head', 'title', 'lines', 'notes', 'units')} for it in its],
                   'kaisetsu': {'source': K['source'], 'items': K['items']}})
+# 体育「系統で比べる」の知識及び技能：解説 体育編 付録「領域別系統表」の並びに合わせて，同じ内容を横にそろえる行（Claudeが解説の小見出しから作成）
+# 各行：(行の名前, 低学年の小見出しの記号, 中学年, 高学年)。記号を2つ以上入れると同じマスに並べ，上下の行で同じなら1つのマスにまとめる
+KROWS = {'taiiku': {
+    'A': [('体ほぐし', 'ア', 'ア', 'ア'), ('多様な動き／体の動きを高める', 'イ', 'イ', 'イ')],
+    'B': [('固定施設', 'ア', '', ''), ('マット', 'イ', 'ア', 'ア'), ('鉄棒', 'ウ', 'イ', 'イ'), ('跳び箱', 'エ', 'ウ', 'ウ')],
+    'C': [('走・リレー', 'ア', 'ア', 'ア'), ('ハードル', 'ア', 'イ', 'イ'), ('幅跳び', 'イ', 'ウ', 'ウ'), ('高跳び', 'イ', 'エ', 'エ')],
+    'D': [('泳ぐ', 'ア', 'ア', 'アイ'), ('もぐる・浮く／安全確保', 'イ', 'イ', 'ウ')],
+    'E': [('ゴール型', 'アイ', 'ア', 'ア'), ('ネット型', 'アイ', 'イ', 'イ'), ('ベースボール型', 'アイ', 'ウ', 'ウ')],
+    'F': [('表現', 'ア', 'ア', 'ア'), ('リズム／フォークダンス', 'イ', 'イ', 'イ')]}}
+for ms in msubs:
+    rows = KROWS.get(ms['id'])
+    if not rows: continue
+    ms['krows'] = {a: [{'name': r[0], 'cells': list(r[1:])} for r in rs] for a, rs in rows.items()}
+    # 知識及び技能の解説を小見出し（ア 走の運動遊び など）で分けておく
+    for it in ms['items']:
+        K = ms['kaisetsu']['items'].get(it['id'])
+        if not K or it['area'] not in rows: continue
+        parts, cur = {'': []}, ''
+        for p in K['expl']['k']:
+            m = re.match(r'^([アイウエオ])\s+(\S.{0,24})$', p)
+            if m: cur = m.group(1); parts[cur] = [p]; continue
+            parts.setdefault(cur, []).append(p)
+        K['ksub'] = parts
 mdata = {'subjects': msubs, 'edition': '品川区版',
          'coming': [x['name'] for x in sc['subjects'] if x['id'] not in KFILES and x['id'] not in ('shiminka', 'eigoshina')],
          'mapUrl': 'https://claude.ai/artifact/QYpnoKHpv9sgD9Zskx6pZe',

@@ -43,7 +43,7 @@ def strip_quote(seg, official):
     """区切りの先頭にある学習指導要領の引用（本文そのままの行）を除く"""
     o = norm(''.join(official))
     k = 0
-    while k < len(seg) and len(norm(seg[k][1])) >= 2 and (norm(seg[k][1]) in o or isq(seg[k])):
+    while k < len(seg) and not seg[k][4] and len(norm(seg[k][1])) >= 2 and (norm(seg[k][1]) in o or isq(seg[k])):   # 見出し（ゴシック）は引用ではない
         k += 1
     return seg[k:]
 

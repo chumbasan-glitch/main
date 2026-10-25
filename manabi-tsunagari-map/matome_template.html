@@ -99,6 +99,15 @@ body.only-k .sec[data-has]:not([data-has~="k"]), body.only-s .sec[data-has]:not(
 .empty{color:var(--ink2); font-size:14px; padding:6px 0}
 .keito{display:grid; grid-template-columns:repeat(var(--n), minmax(260px, 1fr)); gap:10px; overflow-x:auto; padding-bottom:8px; margin-top:8px}
 .kcol{min-width:0}
+.ktab-wrap{overflow-x:auto; margin-top:8px}
+.ktab{border-collapse:separate; border-spacing:6px; width:100%; min-width:820px; table-layout:fixed}
+.ktab th{font-size:13px; text-align:left; vertical-align:top}
+.ktab thead th{background:var(--ink); color:var(--panel); border-radius:8px; padding:4px 10px; text-align:center}
+.ktab thead th small{font-weight:400; opacity:.85}
+.ktab thead th:first-child,.ktab tbody th{background:none; color:var(--ink2); width:110px; padding-top:10px}
+.ktab td{vertical-align:top; padding:0; height:1px}
+.ktab td .kcell{margin-bottom:0; height:100%}   /* まとめたマスは上下いっぱいに */
+.ktab td .kcell + .kcell{height:auto; margin-top:6px}
 .khead{background:var(--ink); color:var(--panel); border-radius:8px; padding:4px 10px; font-weight:700; text-align:center; margin-bottom:6px}
 .kcell{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:8px; font-size:14px}
 .kname{font-weight:700; margin-bottom:4px}
@@ -325,6 +334,7 @@ function renderKeito(){
       (expl.length ? '<details class="kexp"><summary>解説を開く（p.' + (kan === "m" && note ? s.goals[it.g[0]].page : K.page) + '〜）</summary>' + paras(expl).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ') + '</details>' : '') +
       '<button type="button" class="kopen" data-i="' + it.id + '">この内容をくわしく見る →</button></div>';
   };
+  if(kan === "k" && s.krows && s.krows[cur.kArea]) return renderKeitoRows(s, area, cols);
   let h = '<div class="meta"><span class="badge">' + esc(s.name) + '</span><span class="badge">' + esc(area.name) + '</span><span class="badge" style="border-color:var(--' + kan + ');color:var(--' + kan + ')">' + KAN[kan] + '</span></div>' +
     '<h2>系統で比べる：' + esc(area.name.replace(/^[Ａ-Ｚ]\s*/, "")) + '</h2>' +
     (kan === "m" && !hasM ? '<p class="note">この教科は内容ごとに「学びに向かう力、人間性等」が書かれていないため、各学年の目標の（3）を並べています。</p>' : '') +
@@ -334,6 +344,41 @@ function renderKeito(){
   $("result").innerHTML = h;
   $("openAll").onclick = () => { const ds = [...$("result").querySelectorAll(".kexp")], open = !ds.every(d => d.open); ds.forEach(d => d.open = open); $("openAll").textContent = open ? "解説をすべて閉じる" : "解説をすべて開く"; };
   $("result").querySelectorAll(".kopen").forEach(b => b.onclick = () => { const it = s.items.find(i => i.id === b.dataset.i); cur.way = "area"; cur.g = it.g[0]; cur.kan = kan; select({t:"i", g:it.g[0], ids:[it.id]}); });
+}
+/* 系統表の形：同じ内容（幅跳び・走り幅跳びなど）を横の行にそろえる */
+function renderKeitoRows(s, area, cols){
+  const rows = s.krows[cur.kArea];
+  const it3 = cols.map(c => c.its[0]);
+  const sub = (it, L) => {   /* 本文の⑴の中の「ア　…」と，解説の小見出し「ア …」の部分 */
+    const P = splitHonbun(it).k, i = P.findIndex(l => l.startsWith(L + "　") || l.startsWith(L + " "));
+    let line = i >= 0 ? [P[i]] : [];
+    for(let j = i + 1; i >= 0 && j < P.length && /^（/.test(P[j]); j++) line.push(P[j]);
+    const K = s.kaisetsu.items[it.id], ex = K && K.ksub ? K.ksub[L] || [] : [];
+    return '<div class="kcell">' + (line.length ? '<div class="blk" data-kan="k">' + paras(line) + '</div>' : '') +
+      (ex.length ? '<details class="kexp"><summary>解説を開く（' + esc(ex[0].replace(/^[アイウエオ]\s+/, "")) + '）</summary>' + paras(ex.slice(1)) + '</details>' : '') + '</div>';
+  };
+  let h = '<div class="meta"><span class="badge">' + esc(s.name) + '</span><span class="badge">' + esc(area.name) + '</span><span class="badge" style="border-color:var(--k);color:var(--k)">' + KAN.k + '</span></div>' +
+    '<h2>系統で比べる：' + esc(area.name.replace(/^[Ａ-Ｚ]\s*/, "")) + '</h2>' +
+    '<div class="row"><p class="note" style="margin:0">解説 体育編の付録「領域別系統表」の並びに合わせて、同じ内容を横の行にそろえています（行の分け方はClaudeによるものです）。</p><button type="button" class="gbtn" id="openAll">解説をすべて開く</button></div>' +
+    '<div class="ktab-wrap"><table class="ktab"><thead><tr><th></th>' + cols.map((c, i) => '<th>' + (c.g.length > 1 ? c.g[0] + '・' + c.g[c.g.length - 1] : c.g[0]) + '年<br><small>' + esc(s.kaisetsu.items[it3[i].id] ? s.kaisetsu.items[it3[i].id].name : it3[i].head) + '</small></th>').join("") + '</tr></thead><tbody>';
+  /* いちばん上の行：⑴の書き出しと，小見出しの前にある説明（「基本的な技とは」など） */
+  h += '<tr><th>全体</th>' + it3.map(it => { const P = splitHonbun(it).k, K = s.kaisetsu.items[it.id], pre = K && K.ksub ? K.ksub[""] || [] : [];
+    return '<td><div class="kcell"><div class="blk" data-kan="k">' + paras(P.slice(0, 1)) + '</div>' + (pre.length ? '<details class="kexp"><summary>解説を開く（全体）</summary>' + paras(pre) + '</details>' : '') + '</div></td>'; }).join("") + '</tr>';
+  const span = rows.map(() => cols.map(() => 1));
+  rows.forEach((r, ri) => cols.forEach((c, ci) => { if(ri > 0 && r.cells[ci] && r.cells[ci] === rows[ri - 1].cells[ci]){ let k = ri - 1; while(span[k][ci] === 0) k--; span[k][ci]++; span[ri][ci] = 0; } }));
+  rows.forEach((r, ri) => {
+    h += '<tr><th>' + esc(r.name) + '</th>';
+    cols.forEach((c, ci) => {
+      if(span[ri][ci] === 0) return;
+      const rs = span[ri][ci] > 1 ? ' rowspan="' + span[ri][ci] + '"' : '';
+      const L = r.cells[ci];
+      h += '<td' + rs + '>' + (L ? [...L].map(x => sub(it3[ci], x)).join("") : '<p class="note" style="text-align:center">―</p>') + '</td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table></div><p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + '／' + esc(s.kaisetsu.source) + '（行の並びは同書 付録「小学校及び中学校の領域別系統表」を参考にした）</p>';
+  $("result").innerHTML = h;
+  $("openAll").onclick = () => { const ds = [...$("result").querySelectorAll(".kexp")], open = !ds.every(d => d.open); ds.forEach(d => d.open = open); $("openAll").textContent = open ? "解説をすべて閉じる" : "解説をすべて開く"; };
 }
 function renderResult(){
   if(cur.way === "keito") return renderKeito();
