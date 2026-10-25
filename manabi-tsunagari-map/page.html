@@ -495,6 +495,9 @@ function matomeSec(it){
       blk("k", pre(1, "ア") + KANN.k, e.k) + blk("s", pre(2, "イ") + KANN.s, e.s) + (three ? blk("m", "(3) " + KANN.m, e.m) : '') +
       (kan ? '<p class="note">この指導事項は〔' + KANN[kan] + '〕の内容です。</p>' : '');
   }
+  if(K && K.expl.t && K.expl.t.length){   /* 社会：内容の取扱いの説明 */
+    h += '<details class="kmore"><summary>内容の取扱いの解説</summary>' + ps(K.expl.t) + '</details>';
+  }
   if(B){
     const key = (K && K.name || "").replace(/^保健：.*/, "保健"), rel = t => key && t.includes(key.slice(0, 4));
     h += '<h4>内容の取扱い（p.' + B.page + '〜）</h4><div class="text">' + B.quote.map(t => '<p' + (rel(t) ? ' style="font-weight:700"' : '') + '>' + show(t) + '</p>').join("") + '</div>' +

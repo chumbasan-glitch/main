@@ -310,10 +310,10 @@ sc['edition'] = {'name': '品川区版', 'sources': srcs,
                  'note': '品川区立学校が令和6〜9年度に使う教科書（品川区教育委員会の採択）の単元を添えています。',
                  # 詳しい画面から「学習指導要領まとめツール」の同じ内容を開く（入っている教科だけ）
                  'matome': {'url': 'https://claude.ai/artifact/71GrhgSpttBqp7UmwJZM3Q', 'file': 'gakushushidoyoryo-matome-shinagawa.html',
-                            'subjects': ['kokugo', 'sansu', 'rika', 'taiiku']}}
+                            'subjects': ['kokugo', 'shakai', 'sansu', 'rika', 'taiiku']}}
 
 # ---------- 学習指導要領まとめツール（品川区版）：本文・解説・内容の取扱い・学年の目標を内容ごとにまとめる ----------
-KFILES = {'kokugo': ('kaisetsu/kokugo.json', ''), 'sansu': ('kaisetsu/sansu.json', '〔数学的活動〕'), 'rika': ('kaisetsu/rika.json', ''), 'taiiku': ('kaisetsu/taiiku.json', '')}
+KFILES = {'kokugo': ('kaisetsu/kokugo.json', ''), 'shakai': ('kaisetsu/shakai.json', ''), 'sansu': ('kaisetsu/sansu.json', '〔数学的活動〕'), 'rika': ('kaisetsu/rika.json', ''), 'taiiku': ('kaisetsu/taiiku.json', '')}
 UNIT_NOTE = {'taiiku': '運動領域（Ａ〜Ｆ）は教科書がないため、領域の名前で並べています。保健は教科書（東京書籍）の単元です。',
              'rika': '教科書（学校図書）の単元と学習指導要領の内容の結び付けは、Claudeが考えた案を先生に確かめていただいたものです。',
              'kokugo': '光村図書の指導事項配列表で、その単元の重点（◎）と関連（☆）とされている指導事項を結び付けています。'}
@@ -393,12 +393,12 @@ for ms in msubs:
             if m: cur = m.group(1); parts[cur] = [p]; continue
             parts.setdefault(cur, []).append(p)
         K['ksub'] = parts
-# 算数・理科「系統で比べる」：つながりマップのテーマ（Claudeが作ったもの）を行にして，学年をまたいで同じ系統の内容をそろえる
+# 社会・算数・理科「系統で比べる」：つながりマップのテーマ（Claudeが作ったもの）を行にして，学年をまたいで同じ系統の内容をそろえる
 CROSS_IDS = {x['id'] for x in sc['cross']}
 TNAME = {t['id']: t['name'] for t in sc['themes']}
 TORD = [t['id'] for t in sc['themes']]
 for ms in msubs:
-    if ms['id'] not in ('sansu', 'rika'): continue
+    if ms['id'] not in ('shakai', 'sansu', 'rika'): continue
     ms['trowNote'] = '行は、つながりマップのテーマ（Claudeが学習指導要領の内容から作ったもの）です。ほかの領域の内容も、同じ系統なら同じ行に入れています。'
     its = {it['id']: it for it in sc['items'] if it['subject'] == ms['id']}
     trows = {}
@@ -434,7 +434,7 @@ print('品川区版', sum(len(it.get('units', [])) for it in sc['items']), 'unit
 mdata = {'subjects': msubs, 'edition': '品川区版',
          'coming': [x['name'] for x in sc['subjects'] if x['id'] not in KFILES and x['id'] not in ('shiminka', 'eigoshina')],
          'mapUrl': 'https://claude.ai/artifact/QYpnoKHpv9sgD9Zskx6pZe',
-         'footer': '学習指導要領まとめツール 品川区版　第1版（国語・算数・理科・体育）　出典：小学校学習指導要領（平成29年告示）、同解説（文部科学省）。教科書の単元：品川区が採択した教科書（令和6〜9年度）の会社の年間指導計画による。'}
+         'footer': '学習指導要領まとめツール 品川区版　第1版（国語・社会・算数・理科・体育）　出典：小学校学習指導要領（平成29年告示）、同解説（文部科学省）。教科書の単元：品川区が採択した教科書（令和6〜9年度）の会社の年間指導計画による。'}
 mt = open(P('matome_template.html')).read()
 mt = mt.replace('<title>学習指導要領まとめツール</title>', '<title>学習指導要領まとめツール 品川区版</title>')
 mt = mt.replace('/*DATA*/', 'const DATA = ' + json.dumps(mdata, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
