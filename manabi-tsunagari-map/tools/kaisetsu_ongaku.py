@@ -1,4 +1,4 @@
-# 学習指導要領まとめツール：『小学校学習指導要領（平成29年告示）解説 音楽編』から，内容ごとの説明を取り出す
+# 学習指導要領ナビ：『小学校学習指導要領（平成29年告示）解説 音楽編』から，内容ごとの説明を取り出す
 # 使い方: python3 tools/kaisetsu_ongaku.py <解説 音楽編のPDF>  → data/kaisetsu/ongaku.json
 # PDF: https://www.mext.go.jp/component/a_menu/education/micro_detail/__icsFiles/afieldfile/2019/03/18/1387017_007.pdf
 # 音楽の内容は，アが「思考力，判断力，表現力等」，イが「知識」，ウが「技能」（〔共通事項〕はアが思考力等，イが知識）。

@@ -308,11 +308,11 @@ sc['items'] += EN['items']
 sc['themes'] += EN['themes']
 sc['edition'] = {'name': '品川区版', 'sources': srcs,
                  'note': '品川区立学校が令和6〜9年度に使う教科書（品川区教育委員会の採択）の単元を添えています。',
-                 # 詳しい画面から「学習指導要領まとめツール」の同じ内容を開く（入っている教科だけ）
-                 'matome': {'url': 'https://claude.ai/artifact/71GrhgSpttBqp7UmwJZM3Q', 'file': 'gakushushidoyoryo-matome-shinagawa.html',
+                 # 詳しい画面から「学習指導要領ナビ」の同じ内容を開く（入っている教科だけ）
+                 'matome': {'url': 'https://claude.ai/artifact/71GrhgSpttBqp7UmwJZM3Q', 'file': 'gakushushidoyoryo-navi-shinagawa.html',
                             'subjects': ['kokugo', 'shakai', 'sansu', 'rika', 'seikatsu', 'ongaku', 'zuko', 'katei', 'taiiku', 'gaikokugokatsudo', 'gaikokugo', 'doutoku', 'sougou', 'tokkatsu']}}
 
-# ---------- 学習指導要領まとめツール（品川区版）：本文・解説・内容の取扱い・学年の目標を内容ごとにまとめる ----------
+# ---------- 学習指導要領ナビ（品川区版）：本文・解説・内容の取扱い・学年の目標を内容ごとにまとめる ----------
 KFILES = {
     'kokugo': ('kaisetsu/kokugo.json', ''),
     'shakai': ('kaisetsu/shakai.json', ''),
@@ -482,7 +482,7 @@ sfull = full.replace(t, st)
 open(P('shinagawa', 'manabi-tsunagari-map-shinagawa.html'), 'w').write(sfull)
 print('品川区版', sum(len(it.get('units', [])) for it in sc['items']), 'units,', len(sfull.encode()), 'bytes')
 # 「学びのつながり」（つながりマップの詳しい画面と同じ中身）：テーマごとの学年の流れと，教科横断（付録6など）のテーマ
-#（claude.ai ではまとめツールからマップの同じ内容へ移れないため，まとめツールの中でも見られるようにする）
+#（claude.ai では学習指導要領ナビからマップの同じ内容へ移れないため，学習指導要領ナビの中でも見られるようにする）
 SORD = {x['id']: i for i, x in enumerate(sc['subjects'])}
 SNAME = {x['id']: x['name'].replace('特別の教科 ', '').replace('総合的な学習の時間', '総合') for x in sc['subjects']}
 XNAME = {x['id']: x['name'] for x in sc['cross']}
@@ -508,12 +508,12 @@ mdata = {'subjects': msubs, 'edition': '品川区版',
          'coming': [x['name'] for x in sc['subjects'] if x['id'] not in KFILES and x['id'] not in ('shiminka', 'eigoshina')],
          'mapUrl': 'https://claude.ai/artifact/QYpnoKHpv9sgD9Zskx6pZe',
          'refs': REFS,
-         'footer': '学習指導要領まとめツール 品川区版　第1版（学習指導要領の全教科等）　2026年10月25日更新　出典：小学校学習指導要領（平成29年告示）（文部科学省）。「小学校学習指導要領（平成29年告示）解説」各教科編（文部科学省）を加工して作成。教科書の単元と学習指導要領の内容との結び付けは、品川区が採択した教科書（令和6〜9年度）の各社の公開資料（年間指導計画など）をもとにしたもの（一部はClaudeの案）。'}
+         'footer': '学習指導要領ナビ 品川区版　第1版（学習指導要領の全教科等）　2026年10月25日更新　出典：小学校学習指導要領（平成29年告示）（文部科学省）。「小学校学習指導要領（平成29年告示）解説」各教科編（文部科学省）を加工して作成。教科書の単元と学習指導要領の内容との結び付けは、品川区が採択した教科書（令和6〜9年度）の各社の公開資料（年間指導計画など）をもとにしたもの（一部はClaudeの案）。'}
 mt = open(P('matome_template.html')).read()
-mt = mt.replace('<title>学習指導要領まとめツール</title>', '<title>学習指導要領まとめツール 品川区版</title>')
+mt = mt.replace('<title>学習指導要領ナビ</title>', '<title>学習指導要領ナビ 品川区版</title>')
 mt = mt.replace('/*DATA*/', 'const DATA = ' + json.dumps(mdata, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
 open(P('shinagawa', 'matome.html'), 'w').write(mt)
 mfull = ('<!doctype html><html lang="ja"><head><meta charset="utf-8">'
          '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>' + mt + '</body></html>')
-open(P('shinagawa', 'gakushushidoyoryo-matome-shinagawa.html'), 'w').write(mfull)
-print('まとめツール', sum(len(x['items']) for x in msubs), 'items,', len(mfull.encode()), 'bytes')
+open(P('shinagawa', 'gakushushidoyoryo-navi-shinagawa.html'), 'w').write(mfull)
+print('学習指導要領ナビ', sum(len(x['items']) for x in msubs), 'items,', len(mfull.encode()), 'bytes')

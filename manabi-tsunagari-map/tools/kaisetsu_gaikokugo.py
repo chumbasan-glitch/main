@@ -1,4 +1,4 @@
-# 学習指導要領まとめツール：『小学校学習指導要領（平成29年告示）解説 外国語活動・外国語編』から，内容ごとの説明を取り出す
+# 学習指導要領ナビ：『小学校学習指導要領（平成29年告示）解説 外国語活動・外国語編』から，内容ごとの説明を取り出す
 # 使い方: python3 tools/kaisetsu_gaikokugo.py <解説 外国語活動・外国語編のPDF>  → data/kaisetsu/gaikokugokatsudo.json, gaikokugo.json
 # PDF: https://www.mext.go.jp/content/20220614-mxt_kyoiku02-100002607_11.pdf
 # 「２ 内容」の（1）英語の特徴等（知識及び技能），（2）情報を整理しながら考えなどを形成し…（思考力，判断力，表現力等），

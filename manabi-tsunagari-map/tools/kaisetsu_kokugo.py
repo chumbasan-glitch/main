@@ -1,4 +1,4 @@
-# 学習指導要領まとめツール：『小学校学習指導要領（平成29年告示）解説 国語編』から，指導事項ごとの説明を取り出す
+# 学習指導要領ナビ：『小学校学習指導要領（平成29年告示）解説 国語編』から，指導事項ごとの説明を取り出す
 # 使い方: python3 tools/kaisetsu_kokugo.py <解説 国語編のPDF>  → data/kaisetsu/kokugo.json
 # PDF: https://www.mext.go.jp/component/a_menu/education/micro_detail/__icsFiles/afieldfile/2019/03/18/1387017_002.pdf
 # 解説の第3章は，「〇言葉の働き」のような項目ごとに，各学年の指導事項の系統の表と，その学年の指導事項の説明が続く。

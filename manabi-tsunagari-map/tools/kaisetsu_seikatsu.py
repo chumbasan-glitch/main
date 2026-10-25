@@ -1,4 +1,4 @@
-# 学習指導要領まとめツール：『小学校学習指導要領（平成29年告示）解説 生活編』から，内容ごとの説明を取り出す
+# 学習指導要領ナビ：『小学校学習指導要領（平成29年告示）解説 生活編』から，内容ごとの説明を取り出す
 # 使い方: python3 tools/kaisetsu_seikatsu.py <解説 生活編のPDF>  → data/kaisetsu/seikatsu.json
 # PDF: https://www.mext.go.jp/component/a_menu/education/micro_detail/__icsFiles/afieldfile/2019/03/18/1387017_006.pdf
 # 生活科の内容は一文の中に「活動」「思考力，判断力，表現力等の基礎」「知識及び技能の基礎」「学びに向かう力，人間性等」が

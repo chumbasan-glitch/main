@@ -1,4 +1,4 @@
-# 学習指導要領まとめツール：『小学校学習指導要領（平成29年告示）解説 算数編』から，内容ごとの説明を取り出す
+# 学習指導要領ナビ：『小学校学習指導要領（平成29年告示）解説 算数編』から，内容ごとの説明を取り出す
 # 使い方: python3 tools/kaisetsu_sansu.py <解説 算数編のPDF>  → data/kaisetsu/sansu.json
 # PDF: https://www.mext.go.jp/component/a_menu/education/micro_detail/__icsFiles/afieldfile/2019/03/18/1387017_004.pdf
 import json, os, re, sys

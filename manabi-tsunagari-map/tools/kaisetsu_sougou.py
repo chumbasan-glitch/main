@@ -1,4 +1,4 @@
-# 学習指導要領まとめツール：『小学校学習指導要領（平成29年告示）解説 総合的な学習の時間編』から，内容ごとの説明を取り出す
+# 学習指導要領ナビ：『小学校学習指導要領（平成29年告示）解説 総合的な学習の時間編』から，内容ごとの説明を取り出す
 # 使い方: python3 tools/kaisetsu_sougou.py <解説 総合的な学習の時間編のPDF>  → data/kaisetsu/sougou.json
 # PDF: https://www.mext.go.jp/component/a_menu/education/micro_detail/__icsFiles/afieldfile/2019/03/18/1387017_013_1.pdf
 # 第３章第３節「各学校において定める目標及び内容の取扱い」の(1)〜(7)ごとに，引用のあとの説明を取り出す（観点で分けて示されていない）

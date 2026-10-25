@@ -1,4 +1,4 @@
-# 学習指導要領まとめツール：『小学校学習指導要領（平成29年告示）解説 図画工作編』から，内容ごとの説明を取り出す
+# 学習指導要領ナビ：『小学校学習指導要領（平成29年告示）解説 図画工作編』から，内容ごとの説明を取り出す
 # 使い方: python3 tools/kaisetsu_zuko.py <解説 図画工作編のPDF>  → data/kaisetsu/zuko.json
 # PDF: https://www.mext.go.jp/component/a_menu/education/micro_detail/__icsFiles/afieldfile/2019/03/18/1387017_008.pdf
 # 解説は「第１学年及び第２学年 『Ａ表現』(1)ア」のような見出しごとに，引用のあと「この事項は，…『思考力，判断力，表現力等』…」と続く。

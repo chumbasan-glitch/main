@@ -482,7 +482,7 @@ function unitSec(it){
     '<p class="src">' + (s.textbook ? '教科書：' + esc(s.textbook) + '。' : '') + '出典：' + esc(srcs.join("、")) + '。' +
     (srcs.some(x => x.startsWith("Claude")) ? '単元と学習指導要領の内容との結び付けは、教科書会社の資料に示されていないためClaudeが考えた案です。' : '単元と学習指導要領の内容との結び付けは、教科書会社の資料に示されているものです。') + '</p></div>';
 }
-/* 品川区版：その場で解説（学習指導要領解説）を開く。単元や系統から調べるときは「学習指導要領まとめツール」へ */
+/* 品川区版：その場で解説（学習指導要領解説）を開く。単元や系統から調べるときは「学習指導要領ナビ」へ */
 const KANN = {k:"知識及び技能", s:"思考力、判断力、表現力等", m:"学びに向かう力、人間性等"};
 function matomeSec(it){
   const M = ED && ED.matome, KS = ED && ED.kaisetsu && ED.kaisetsu[it.subject];
@@ -527,7 +527,7 @@ function matomeSec(it){
   if(!h) return "";
   return '<div class="sec"><details class="kaisetsu"><summary>📘 <span class="k-o">解説を開く</span><span class="k-c">解説を閉じる</span>（' + esc(KS.source.replace(/（文部科学省.*$/, "").replace(/^小学校学習指導要領（平成29年告示）/, "")) + '）</summary>' + h +
     '<p class="src">出典：' + esc(KS.source) + '</p>' +
-    '<p class="note">単元から探したり、学年をまたいで系統で比べたりするときは <a href="' + esc(location.protocol === "file:" ? M.file : M.url) + '" target="_blank" rel="noopener">学習指導要領まとめツール</a> へ。</p></details></div>';
+    '<p class="note">単元から探したり、学年をまたいで系統で比べたりするときは <a href="' + esc(location.protocol === "file:" ? M.file : M.url) + '" target="_blank" rel="noopener">学習指導要領ナビ</a> へ。</p></details></div>';
 }
 const THEMES = CONTENT.themes;
 const THEME = Object.fromEntries(THEMES.map(t => [t.id, t]));
