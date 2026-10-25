@@ -345,7 +345,7 @@ function goalParts(G){
   return G.lines.map((l, i) => ({kan:["k","s","m"][i] || "m", n:i + 1, text:l}));
 }
 function goalSec(g, q, n){
-  const G = SUB[cur.subj].goals[g]; if(!G) return "";
+  const G = SUB[cur.subj].goals[g]; if(!G || !G.lines.length) return "";   /* 家庭は学年の目標がない */
   const X = G.expl || {};
   const kanOf = i => ["k","s","m"][i] || "m";
   return '<section class="sec" data-has="k s m"><h3><span class="num">' + n + '</span>' + (G.band ? G.band : g + '年') + 'の目標</h3>' +
