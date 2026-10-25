@@ -104,6 +104,7 @@ td.cell{padding:4px}
 .units::before{content:"📖 "}
 .unitbox{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:14px}
 .unitbox p{margin:3px 0}
+.tomatome{display:inline-block; font-weight:700; padding:8px 14px; border:1px solid var(--line); border-radius:10px; background:var(--panel); text-decoration:none; min-height:44px}
 .brand h1 .ed{font-size:.62em; margin-left:6px; padding:1px 7px; border-radius:999px; background:var(--accent); color:var(--panel); vertical-align:2px; letter-spacing:0}
 .none{color:var(--ink2); font-size:12px; padding:6px; background:var(--empty); border-radius:8px; min-height:44px; height:100%}
 .none.off{background:repeating-linear-gradient(135deg,var(--empty) 0 6px,transparent 6px 12px)}
@@ -467,6 +468,14 @@ function unitSec(it){
     '<p class="src">' + (s.textbook ? '教科書：' + esc(s.textbook) + '。' : '') + '出典：' + esc(srcs.join("、")) + '。' +
     (srcs.some(x => x.startsWith("Claude")) ? '単元と学習指導要領の内容との結び付けは、教科書会社の資料に示されていないためClaudeが考えた案です。' : '単元と学習指導要領の内容との結び付けは、教科書会社の資料に示されているものです。') + '</p></div>';
 }
+/* 品川区版：学習指導要領まとめツールの同じ内容へ（配布用のファイルどうしなら隣のファイル、Webならまとめツールのページ） */
+function matomeSec(it){
+  const M = ED && ED.matome;
+  if(!M || !M.subjects.includes(it.subject)) return "";
+  const href = (location.protocol === "file:" ? M.file : M.url) + "#" + encodeURIComponent(it.subject + ":i:" + it.id);
+  return '<div class="sec"><a class="tomatome" href="' + esc(href) + '" target="_blank" rel="noopener">📘 この内容の解説を見る（学習指導要領まとめツール）→</a>' +
+    '<p class="note">学習指導要領の本文・解説・学年の目標をまとめて読めます。</p></div>';
+}
 const THEMES = CONTENT.themes;
 const THEME = Object.fromEntries(THEMES.map(t => [t.id, t]));
 const TORDER = Object.fromEntries(THEMES.map((t, i) => [t.id, i]));
@@ -795,6 +804,7 @@ function openItem(id){
   h += '<div class="meta" style="--h:' + s.h + '"><span class="gpill ' + gClass(it.g) + '">' + gLabel(it.g) + '</span><span class="badge">' + esc(s.name) + '</span>' + (area ? '<span class="badge">' + esc(area.name) + '</span>' : '') + '</div>';
   h += '<h2 id="dTitle">' + show(it.head) + '</h2>';
   h += unitSec(it);
+  h += matomeSec(it);
 
   /* 学びのつながり：テーマごとに1〜6年の流れ（ほかの教科もふくむ） */
   h += '<div class="sec"><h3>学びのつながり</h3>';
