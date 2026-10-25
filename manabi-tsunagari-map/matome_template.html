@@ -332,8 +332,8 @@ function itemSecs(it, q){
                      S1 = e.s.length ? blk("s", pre(2, "イ") + KAN.s, parasIt(e.s, q, it).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '';
                  return sFirst(it) ? S1 + K1 : K1 + S1; })() +
       (e.m && e.m.length ? blk("m", pre(3, "") + KAN.m, paras(e.m, q)) : '') +
-      (e.x && e.x.length ? '<h4 style="margin:12px 0 2px;font-size:14px">この内容の学習を行うに当たって</h4>' + paras(e.x, q) : '') +
-      (!e.k.length && !e.s.length ? '<p class="note">この内容の解説は、「知識及び技能」「思考力、判断力、表現力等」に分けて書かれていません。上の説明に両方が含まれています。</p>' : '') +
+      (e.x && e.x.length ? '<h4 style="margin:12px 0 2px;font-size:14px">' + esc(e.xh || 'この内容の学習を行うに当たって') + '</h4>' + paras(e.x, q) : '') +
+      (!e.k.length && !e.s.length && !s.noKan ? '<p class="note">この内容の解説は、「知識及び技能」「思考力、判断力、表現力等」に分けて書かれていません。上の説明に両方が含まれています。</p>' : '') +
       '<p class="src">出典：' + esc(src) + '　p.' + K.page + '〜</p></section>';
   }
   return h + itemTail(it, q, K);
@@ -370,7 +370,7 @@ function goalSec(g, q, n){
   const kanOf = i => ["k","s","m"][i] || "m";
   return '<section class="sec" data-has="k s m"><h3><span class="num">' + n + '</span>' + (G.band ? G.band : g + '年') + 'の目標</h3>' +
     '<div class="quote">' + goalParts(G).map(x => x.head ? '<p class="sub">' + hl(x.head, q) + '</p>' : blk(x.kan, "（" + x.n + "）" + KAN[x.kan], '<p>' + hl(x.text, q) + '</p>')).join("") + '</div>' +
-    '<h4 style="margin:12px 0 2px;font-size:14px">解説の説明（p.' + G.page + '〜）</h4>' + (X.intro && X.intro.length ? paras(X.intro, q) : '') +
+    (G.page ? '<h4 style="margin:12px 0 2px;font-size:14px">解説の説明（p.' + G.page + '〜）</h4>' : '') + (X.intro && X.intro.length ? paras(X.intro, q) : '') +
     ["1","2","3"].map((k, i) => X[k] && X[k].length ? blk(kanOf(i), "（" + k + "）" + KAN[kanOf(i)], paras(X[k], q)) : '').join("") +
     '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(SUB[cur.subj].section) + ' 第２ ' + gLabel(G.grades || [g]) + '１ 目標／' + esc(SUB[cur.subj].kaisetsu.source) + '　p.' + G.page + '〜</p></section>';
 }
@@ -546,7 +546,7 @@ function renderResult(){
     if(it.units && it.units.length) h += '<div class="units">' + it.units.map(u => '<span class="unit">📖 ' + esc(u.u) + '（' + esc(u.b) + '）</span>').join("") + '</div>';
     if(it.tsuna && (it.tsuna.flows.length || it.tsuna.cross.length)) h += '<button type="button" class="tsunaBtn" id="tsunaBtn" aria-expanded="' + !!cur.tsuna + '">🔗 ' + (cur.tsuna ? '学びのつながりを閉じる' : '学びのつながりを見る') + '</button>' + (cur.tsuna ? tsunaSec(it) : '');
     if(it.kan) h += '<p class="note" style="margin:4px 0">この指導事項は〔' + KAN[it.kan] + '〕の内容です。' + (it.kan === "k" ? '「思考力、判断力、表現力等」はＡ〜Ｃの指導事項にあります。' : '「知識及び技能」は⑴〜⑶の指導事項にあります。') + '「学びに向かう力、人間性等」は学年の目標の（3）を見てください。</p>';
-    h += kanBar() + itemSecs(it, q) + goalSec(it.g[0], q, (s.bandSecs && s.bandSecs[it.g[0]]) || (it.notes && it.notes.length) ? 4 : 3);
+    h += (s.noKan ? '' : kanBar()) + itemSecs(it, q) + goalSec(it.g[0], q, (s.bandSecs && s.bandSecs[it.g[0]]) || (it.notes && it.notes.length) ? 4 : 3);
     if(s.katsudo && s.katsudo[it.g[0]]) h += '<details class="sec"><summary>' + esc(s.katsudoName) + '（' + it.g[0] + '年）の本文と解説</summary>' + paras(s.katsudo[it.g[0]].paras, q) + '<p class="src">出典：' + esc(s.kaisetsu.source) + '　p.' + s.katsudo[it.g[0]].page + '〜</p></details>';
   }
   $("result").innerHTML = h;
