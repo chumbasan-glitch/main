@@ -105,9 +105,9 @@ body.only-k .sec[data-has]:not([data-has~="k"]), body.only-s .sec[data-has]:not(
 .ktab thead th{background:var(--ink); color:var(--panel); border-radius:8px; padding:4px 10px; text-align:center}
 .ktab thead th small{font-weight:400; opacity:.85}
 .ktab thead th:first-child,.ktab tbody th{background:none; color:var(--ink2); width:110px; padding-top:10px}
-.ktab td{vertical-align:top; padding:0; height:1px}
-.ktab td .kcell{margin-bottom:0; height:100%}   /* まとめたマスは上下いっぱいに */
-.ktab td .kcell + .kcell{height:auto; margin-top:6px}
+.ktab td{vertical-align:top; padding:0}
+.kstack{display:flex; flex-direction:column; gap:6px}   /* 1つのマスに2つ以上の内容（クロールと平泳ぎなど）を縦に積む。高さは指定しない */
+.ktab td .kcell{margin:0}
 .khead{background:var(--ink); color:var(--panel); border-radius:8px; padding:4px 10px; font-weight:700; text-align:center; margin-bottom:6px}
 .kcell{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:8px; font-size:14px}
 .kname{font-weight:700; margin-bottom:4px}
@@ -382,7 +382,7 @@ function renderKeitoRows(s, area, cols){
       if(span[ri][ci] === 0) return;
       const rs = span[ri][ci] > 1 ? ' rowspan="' + span[ri][ci] + '"' : '';
       const L = r.cells[ci];
-      h += '<td' + rs + '>' + (L ? [...L].map(x => sub(it3[ci], x)).join("") : '<p class="note" style="text-align:center">―</p>') + '</td>';
+      h += '<td' + rs + '>' + (L ? '<div class="kstack">' + [...L].map(x => sub(it3[ci], x)).join("") + '</div>' : '<p class="note" style="text-align:center">―</p>') + '</td>';
     });
     h += '</tr>';
   });
