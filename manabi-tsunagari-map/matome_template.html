@@ -112,6 +112,7 @@ body.only-k .sec[data-has]:not([data-has~="k"]), body.only-s .sec[data-has]:not(
 .kcell{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:8px; font-size:14px}
 .kname{font-weight:700; margin-bottom:4px}
 .kexp summary{cursor:pointer; color:var(--accent); font-size:13px; margin-top:4px}
+.kexp:not([open]) .k-c, .kexp[open] .k-o{display:none}   /* 開いているときは「解説を閉じる」 */
 .kopen{border:0; background:none; color:var(--accent); cursor:pointer; padding:4px 0 0; font-size:13px; text-decoration:underline}
 footer{color:var(--ink2); font-size:12px; text-align:center; padding:20px 16px 30px}
 @media (max-width:640px){
@@ -339,7 +340,7 @@ function renderKeito(){
     return '<div class="kcell"><div class="kname">' + esc(goalOnly ? "学年の目標（3）" : (it.mark ? it.mark + " " : "") + (K ? K.name : it.head)) + '</div>' +
       (body.length ? '<div class="blk" data-kan="' + kan + '">' + paras(body) + '</div>' : '<p class="note">この観点の本文はありません。</p>') +
       (note ? '<p class="note">' + esc(note) + '</p>' : '') +
-      (expl.length ? '<details class="kexp"><summary>解説を開く（p.' + (kan === "m" && note ? s.goals[it.g[0]].page : K.page) + '〜）</summary>' + paras(expl).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ') + '</details>' : '') +
+      (expl.length ? '<details class="kexp"><summary><span class="k-o">解説を開く</span><span class="k-c">解説を閉じる</span>（p.' + (kan === "m" && note ? s.goals[it.g[0]].page : K.page) + '〜）</summary>' + paras(expl).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ') + '</details>' : '') +
       (goalOnly ? '' : '<button type="button" class="kopen" data-i="' + it.id + '">この内容をくわしく見る →</button>') + '</div>';
   };
   if(kan === "k" && s.krows && s.krows[cur.kArea]) return renderKeitoRows(s, area, cols);
@@ -370,7 +371,7 @@ function renderKeitoRows(s, area, cols){
     for(let j = i + 1; i >= 0 && j < P.length && /^（/.test(P[j]); j++) line.push(P[j]);
     const K = s.kaisetsu.items[it.id], ex = K && K.ksub ? K.ksub[L] || [] : [];
     return '<div class="kcell">' + (line.length ? '<div class="blk" data-kan="k">' + paras(line) + '</div>' : '') +
-      (ex.length ? '<details class="kexp"><summary>解説を開く（' + esc(ex[0].replace(/^[アイウエオ]\s+/, "")) + '）</summary>' + paras(ex.slice(1)) + '</details>' : '') + '</div>';
+      (ex.length ? '<details class="kexp"><summary><span class="k-o">解説を開く</span><span class="k-c">解説を閉じる</span>（' + esc(ex[0].replace(/^[アイウエオ]\s+/, "")) + '）</summary>' + paras(ex.slice(1)) + '</details>' : '') + '</div>';
   };
   let h = '<div class="meta"><span class="badge">' + esc(s.name) + '</span><span class="badge">' + esc(area.name) + '</span><span class="badge" style="border-color:var(--k);color:var(--k)">' + KAN.k + '</span></div>' +
     '<h2>系統で比べる：' + esc(area.name.replace(/^[Ａ-Ｚ]\s*/, "")) + '</h2>' +
@@ -382,7 +383,7 @@ function renderKeitoRows(s, area, cols){
     '<div class="ktab-wrap"><table class="ktab"><thead><tr><th></th>' + cols.map((c, i) => '<th>' + (c.g.length > 1 ? c.g[0] + '・' + c.g[c.g.length - 1] : c.g[0]) + '年<br><small>' + esc(s.kaisetsu.items[it3[i].id] ? s.kaisetsu.items[it3[i].id].name : it3[i].head) + '</small></th>').join("") + '</tr></thead><tbody>';
   /* いちばん上の行：⑴の書き出しと，小見出しの前にある説明（「基本的な技とは」など） */
   if(want("全体")) h += '<tr><th>全体</th>' + it3.map(it => { const P = splitHonbun(it).k, K = s.kaisetsu.items[it.id], pre = K && K.ksub ? K.ksub[""] || [] : [];
-    return '<td><div class="kcell"><div class="blk" data-kan="k">' + paras(P.slice(0, 1)) + '</div>' + (pre.length ? '<details class="kexp"><summary>解説を開く（全体）</summary>' + paras(pre) + '</details>' : '') + '</div></td>'; }).join("") + '</tr>';
+    return '<td><div class="kcell"><div class="blk" data-kan="k">' + paras(P.slice(0, 1)) + '</div>' + (pre.length ? '<details class="kexp"><summary><span class="k-o">解説を開く</span><span class="k-c">解説を閉じる</span>（全体）</summary>' + paras(pre) + '</details>' : '') + '</div></td>'; }).join("") + '</tr>';
   const span = rows.map(() => cols.map(() => 1));
   rows.forEach((r, ri) => cols.forEach((c, ci) => { if(ri > 0 && r.cells[ci] && r.cells[ci] === rows[ri - 1].cells[ci]){ let k = ri - 1; while(span[k][ci] === 0) k--; span[k][ci]++; span[ri][ci] = 0; } }));
   rows.forEach((r, ri) => {
@@ -420,7 +421,7 @@ function renderKeitoThemes(s, area, kan){
     const other = it.area !== cur.kArea ? '<span class="note">（' + esc((s.areas.find(a => a.key === it.area) || {}).name || "") + '）</span>' : '';
     return '<div class="kcell"><div class="kname">' + esc(((it.mark || "") + " " + c.lab).trim()) + other + '</div>' +
       (body.length ? '<div class="blk" data-kan="' + kan + '">' + paras(body) + '</div>' : '') +
-      (expl.length ? '<details class="kexp"><summary>解説を開く（p.' + K.page + '〜）' + esc(note) + '</summary>' + paras(expl).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ') + '</details>' : '') +
+      (expl.length ? '<details class="kexp"><summary><span class="k-o">解説を開く</span><span class="k-c">解説を閉じる</span>（p.' + K.page + '〜）' + esc(note) + '</summary>' + paras(expl).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ') + '</details>' : '') +
       '<button type="button" class="kopen" data-i="' + it.id + '">くわしく見る →</button></div>';
   };
   let h = '<div class="meta"><span class="badge">' + esc(s.name) + '</span><span class="badge">' + esc(area.name) + '</span><span class="badge" style="border-color:var(--' + kan + ');color:var(--' + kan + ')">' + KAN[kan] + '</span></div>' +
