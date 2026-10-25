@@ -503,11 +503,12 @@ function matomeSec(it){
   const kan = KS.areaKan ? KS.areaKan[it.area] : null;
   let h = '';
   if(K){
-    const e = K.expl, three = e.m && e.m.length, pre = (n, L) => three ? "(" + n + ") " : kan ? "" : L + " ";
+    const e = K.expl, three = e.m && e.m.length, pre = (n, L) => it.subject === "seikatsu" ? "" : three ? "(" + n + ") " : kan ? "" : L + " ";
     const sl = L => { const i = it.lines.findIndex(l => l.startsWith("ア　")); for(let j = i + 1; i >= 0 && j < it.lines.length && !/^[ア-ン]　/.test(it.lines[j]); j++) if(it.lines[j].startsWith("（" + L + "）")) return it.lines[j]; return ""; };
     h += '<h4>解説の説明：' + esc(K.name) + '（p.' + K.page + '〜）</h4>' + (e.blocks
       ? e.blocks.map(b => '<p class="bhead">' + esc(b.letters ? [...b.letters].map(sl).join(" ") : "全体（どの時代にも共通すること）") + '</p>' + ps(b.intro) + blk("k", "ア " + KANN.k, b.k) + blk("s", "イ " + KANN.s, b.s)).join("")   /* 6年の歴史：時代ごと */
-      : (e.intro.length ? ps(e.intro) : '') + blk("k", pre(1, "ア") + KANN.k, e.k) + blk("s", pre(2, "イ") + KANN.s, e.s) + (three ? blk("m", "(3) " + KANN.m, e.m) : '')) +
+      : (e.intro.length ? ps(e.intro) : '') + blk("k", pre(1, "ア") + KANN.k, e.k) + blk("s", pre(2, "イ") + KANN.s, e.s) + (three ? blk("m", pre(3, "") + KANN.m, e.m) : '') +
+        (e.x && e.x.length ? '<h4>この内容の学習を行うに当たって</h4>' + ps(e.x) : '')) +
       (kan ? '<p class="note">この指導事項は〔' + KANN[kan] + '〕の内容です。</p>' : '');
   }
   if(K && K.expl.t && K.expl.t.length){   /* 社会：内容の取扱いの説明 */

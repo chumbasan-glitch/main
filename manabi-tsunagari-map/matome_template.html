@@ -202,6 +202,7 @@ function renderGrades(){
 }
 function renderPicks(){
   document.querySelectorAll("[data-way]").forEach(b => b.setAttribute("aria-pressed", b.dataset.way === cur.way));
+  const nk = SUB[cur.subj].noKeito; document.querySelector('[data-way="keito"]').hidden = !!nk; if(nk && cur.way === "keito") cur.way = "unit";
   $("pickUnit").hidden = cur.way !== "unit"; $("pickArea").hidden = cur.way !== "area"; $("pickWord").hidden = cur.way !== "word"; $("pickKeito").hidden = cur.way !== "keito";
   $("gradeRow").hidden = cur.way === "word" || cur.way === "keito";
   if(cur.way === "keito"){ renderKeitoPick(); return; }
@@ -237,7 +238,7 @@ function doSearch(){
   const s = SUB[cur.subj], hits = [];
   for(const it of s.items){
     const K = s.kaisetsu.items[it.id] || {expl:{}};
-    const parts = [["本文", [it.title, ...it.lines]], ["内容の取扱い", it.notes || []], ["解説", [...(K.expl.intro || []), ...(K.expl.k || []), ...(K.expl.s || []), ...(K.expl.m || []), ...(K.expl.t || [])]]];
+    const parts = [["本文", [it.title, ...it.lines]], ["内容の取扱い", it.notes || []], ["解説", [...(K.expl.intro || []), ...(K.expl.k || []), ...(K.expl.s || []), ...(K.expl.m || []), ...(K.expl.t || []), ...(K.expl.x || [])]]];
     const found = [];
     for(const [where, ls] of parts) for(const l of ls) if(l && l.includes(q)) found.push([where, l]);
     if(found.length) hits.push({it, found});
@@ -280,7 +281,7 @@ function honbun(it, q){
   const num = it.lines.some(l => /^⑴/.test(l));
   if(it.kan) to = {k:a, s:b, m:c}[it.kan];
   for(const l of lines){
-    if(it.kan);
+    if(it.kan || it.oneLine);   /* 生活：一文に観点が全部入っている */
     else if(num){ if(/^⑴/.test(l)) to = a; else if(/^⑵/.test(l)) to = b; else if(/^⑶/.test(l)) to = c; }
     else if(/^ア[\s　]/.test(l)) to = a; else if(/^イ[\s　]/.test(l)) to = b;
     to.push(l);
@@ -290,12 +291,12 @@ function honbun(it, q){
 }
 function itemSecs(it, q){
   const s = SUB[cur.subj], K = s.kaisetsu.items[it.id], src = s.kaisetsu.source;
-  const has = it.kan || (it.lines.some(l => /^⑶/.test(l)) ? "k s m" : "k s");
+  const has = it.kan || (it.oneLine || it.lines.some(l => /^⑶/.test(l)) ? "k s m" : "k s");
   let h = '<section class="sec" data-has="' + has + '"><h3><span class="num">1</span>学習指導要領の本文</h3>' + honbun(it, q) +
     '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + '　第２ 各学年の目標及び内容' + gLabel(it.g) + '２ 内容</p></section>';
   if(K){
     const e = K.expl;
-    const pre = (n, L) => e.m && e.m.length ? "(" + n + ") " : it.kan ? "" : L + " ";
+    const pre = (n, L) => it.oneLine ? "" : e.m && e.m.length ? "(" + n + ") " : it.kan ? "" : L + " ";
     const P = unitParts(it);
     if(P) h = h.replace('<section class="sec"', '<div class="partnote">単元「' + esc(cur.sel.name) + '」に当たる部分（' + Object.entries(P).map(([t, ls]) => t + "の" + [...ls].map(x => "（" + x + "）").join("")).join("、") + '）だけを出しています。<button type="button" class="gbtn" id="allParts">すべての部分を見る</button></div><section class="sec"');
     else if(cur.allParts && cur.sel && cur.sel.parts && cur.sel.parts[it.id]) h = h.replace('<section class="sec"', '<div class="partnote">すべての部分を出しています。<button type="button" class="gbtn" id="unitParts">単元「' + esc(cur.sel.name) + '」の部分だけにもどす</button></div><section class="sec"');
@@ -310,7 +311,8 @@ function itemSecs(it, q){
       (e.intro.length ? '<div>' + paras(e.intro, q) + '</div>' : '') +
       (e.k.length ? blk("k", pre(1, "ア") + KAN.k, parasIt(e.k, q, it).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
       (e.s.length ? blk("s", pre(2, "イ") + KAN.s, parasIt(e.s, q, it).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
-      (e.m && e.m.length ? blk("m", "(3) " + KAN.m, paras(e.m, q)) : '') +
+      (e.m && e.m.length ? blk("m", pre(3, "") + KAN.m, paras(e.m, q)) : '') +
+      (e.x && e.x.length ? '<h4 style="margin:12px 0 2px;font-size:14px">この内容の学習を行うに当たって</h4>' + paras(e.x, q) : '') +
       (!e.k.length && !e.s.length ? '<p class="note">この内容の解説は、「知識及び技能」「思考力、判断力、表現力等」に分けて書かれていません。上の説明に両方が含まれています。</p>' : '') +
       '<p class="src">出典：' + esc(src) + '　p.' + K.page + '〜</p></section>';
   }
@@ -336,6 +338,7 @@ function itemTail(it, q, K){
 const gLabel = gs => gs.length > 1 ? '〔第' + "〇一二三四五六"[gs[0]] + '学年及び第' + "〇一二三四五六"[gs[gs.length - 1]] + '学年〕' : '〔第' + "〇一二三四五六"[gs[0]] + '学年〕';
 /* 学年の目標の行を観点に分ける。ふつうは⑴⑵⑶の順。理科は「⑴ 物質・エネルギー」「⑵ 生命・地球」の中に①②③ */
 function goalParts(G){
+  if(SUB[cur.subj].goalPlain) return G.lines.map(l => ({head:l}));   /* 生活：⑴⑵⑶は観点ではなく内容のまとまり */
   let grp = -1;
   if(G.lines.some(l => /^①/.test(l))) return G.lines.map(l => { const i = "①②③".indexOf(l[0]); if(i < 0){ grp++; return {head:l}; } return {kan:"ksm"[i], n:i + 1, grp, text:l.replace(/^[①②③]\s*/, "")}; });
   if(G.lines.some(l => /^⑴/.test(l))) return G.lines.map(l => { const i = "⑴⑵⑶".indexOf(l[0]); return i < 0 ? {head:l} : {kan:"ksm"[i], n:i + 1, text:l.replace(/^[⑴⑵⑶]\s*/, "")}; });   /* 社会は目標の前文がある */
@@ -356,7 +359,7 @@ function splitHonbun(it){
   const out = {k:[], s:[], m:[], o:[]}; let to = it.kan || "o";
   const num = it.lines.some(l => /^⑴/.test(l));
   for(const l of it.lines){
-    if(it.kan);
+    if(it.kan || it.oneLine);
     else if(num){ if(/^⑴/.test(l)) to = "k"; else if(/^⑵/.test(l)) to = "s"; else if(/^⑶/.test(l)) to = "m"; }
     else if(/^ア[\s　]/.test(l)) to = "k"; else if(/^イ[\s　]/.test(l)) to = "s";
     out[to].push(l);
