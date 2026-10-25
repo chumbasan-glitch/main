@@ -99,7 +99,8 @@ for (k, kind, v), (k2, _, _) in zip(heads, heads[1:]):
             assert iid in ITEMS, iid
             it = ITEMS[iid]
             body = strip_quote(seg, [it.get('title', '')])
-            intro = [p for p in paras(body) if norm(p) != norm(it.get('title', ''))]   # 引用の「…について，次の事項を…指導する。」
+            # 引用の「…について，次の事項を…指導する。」（2行に折り返して2つの段落に分かれることがある）
+            intro = [p for p in paras(body) if not (len(norm(p)) >= 2 and norm(p) in norm(it.get('title', '')))]
             out['items'][iid] = {'page': page, 'name': area[1], 'expl': {'intro': intro, 'k': [], 's': [], 'm': []}}
         continue
     if kind == 'sub':

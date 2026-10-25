@@ -311,16 +311,6 @@ sc['edition'] = {'name': '品川区版', 'sources': srcs,
                  # 詳しい画面から「学習指導要領まとめツール」の同じ内容を開く（入っている教科だけ）
                  'matome': {'url': 'https://claude.ai/artifact/71GrhgSpttBqp7UmwJZM3Q', 'file': 'gakushushidoyoryo-matome-shinagawa.html',
                             'subjects': ['kokugo', 'sansu', 'taiiku']}}
-st = open(P('template.html')).read()
-st = st.replace('<title>学びのつながりマップ</title>', '<title>学びのつながりマップ 品川区版</title>')
-st = st.replace('<h1>学びのつながりマップ</h1>', '<h1>学びのつながりマップ<small class="ed">品川区版</small></h1>')
-st = st.replace('学びのつながりマップ　第1版', '学びのつながりマップ 品川区版　第1版')
-st = st.replace('/*DATA*/', 'const CONTENT = ' + json.dumps(sc, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
-os.makedirs(P('shinagawa'), exist_ok=True)
-open(P('shinagawa', 'page.html'), 'w').write(st)
-sfull = full.replace(t, st)
-open(P('shinagawa', 'manabi-tsunagari-map-shinagawa.html'), 'w').write(sfull)
-print('品川区版', sum(len(it.get('units', [])) for it in sc['items']), 'units,', len(sfull.encode()), 'bytes')
 
 # ---------- 学習指導要領まとめツール（品川区版）：本文・解説・内容の取扱い・学年の目標を内容ごとにまとめる ----------
 KFILES = {'kokugo': ('kaisetsu/kokugo.json', ''), 'sansu': ('kaisetsu/sansu.json', '〔数学的活動〕'), 'taiiku': ('kaisetsu/taiiku.json', '')}
@@ -421,6 +411,25 @@ for ms in msubs:
         for area in dict.fromkeys(its[i]['area'] for i in ids):
             trows.setdefault(area, []).append({'name': TNAME[tid], 'cells': cells})
     ms['trows'] = trows
+# つながりマップ（品川区版）の詳しい画面で，その場で解説を開けるように，解説の文を入れる
+#（claude.ai ではページをまたいで「どの内容か」を渡せないため）
+for ms in msubs:
+    gs = {it['g'][0] for it in ms['items']}
+    sc['edition'].setdefault('kaisetsu', {})[ms['id']] = {
+        'source': ms['kaisetsu']['source'],
+        'items': {i: {k: v for k, v in x.items() if k in ('name', 'page', 'expl')} for i, x in ms['kaisetsu']['items'].items()},
+        'goals': {g: v for g, v in ms['goals'].items() if g in gs},
+        'bandSecs': {g: v for g, v in ms['bandSecs'].items() if g in gs}, 'areaKan': ms.get('areaKan')}
+st = open(P('template.html')).read()
+st = st.replace('<title>学びのつながりマップ</title>', '<title>学びのつながりマップ 品川区版</title>')
+st = st.replace('<h1>学びのつながりマップ</h1>', '<h1>学びのつながりマップ<small class="ed">品川区版</small></h1>')
+st = st.replace('学びのつながりマップ　第1版', '学びのつながりマップ 品川区版　第1版')
+st = st.replace('/*DATA*/', 'const CONTENT = ' + json.dumps(sc, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
+os.makedirs(P('shinagawa'), exist_ok=True)
+open(P('shinagawa', 'page.html'), 'w').write(st)
+sfull = full.replace(t, st)
+open(P('shinagawa', 'manabi-tsunagari-map-shinagawa.html'), 'w').write(sfull)
+print('品川区版', sum(len(it.get('units', [])) for it in sc['items']), 'units,', len(sfull.encode()), 'bytes')
 mdata = {'subjects': msubs, 'edition': '品川区版',
          'coming': [x['name'] for x in sc['subjects'] if x['id'] not in KFILES and x['id'] not in ('shiminka', 'eigoshina')],
          'mapUrl': 'https://claude.ai/artifact/QYpnoKHpv9sgD9Zskx6pZe',

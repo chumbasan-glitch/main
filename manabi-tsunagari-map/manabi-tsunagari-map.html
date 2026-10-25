@@ -14,7 +14,7 @@
   --s1:55%; --s2:58%; --s3:58%; --s4:55%; --s5:55%; --s6:58%;
   --t1:#1f2a2e; --t2:#1f2a2e; --t3:#1f2a2e; --t4:#ffffff; --t5:#ffffff; --t6:#ffffff;
   --chip:rgba(255,255,255,.6); --chipInk:#1f2a2e; --chipD:rgba(0,0,0,.2); --chipDInk:#ffffff;
-  --empty:#eceeea; --cite:#fff1a8; --citeLine:#d9a400; --tk:#e2efff; --tkLine:#3a7bd5;
+  --empty:#eceeea; --kk:#2f7d5b; --kkbg:#e6f4ec; --ks:#2b5d8a; --ksbg:#e5eef8; --km:#9a4f8c; --kmbg:#f6e9f3; --cite:#fff1a8; --citeLine:#d9a400; --tk:#e2efff; --tkLine:#3a7bd5;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#161b1d; --panel:#1f2629; --ink:#e7ecea; --ink2:#a3afb3; --line:#36403f; --accent:#8cbbe6; --mark:#d9b800; --markInk:#111;
@@ -22,7 +22,7 @@
   --s1:30%; --s2:36%; --s3:42%; --s4:48%; --s5:55%; --s6:62%;
   --t1:#e7ecea; --t2:#e7ecea; --t3:#ffffff; --t4:#ffffff; --t5:#111; --t6:#111;
   --chip:rgba(0,0,0,.3); --chipInk:#e7ecea; --chipD:rgba(255,255,255,.5); --chipDInk:#111;
-  --empty:#232b2d; --cite:#4a3f12; --citeLine:#d9b800; --tk:#17324d; --tkLine:#6aa7ff; color-scheme:dark;
+  --empty:#232b2d; --kk:#7fd3a8; --kkbg:#1d3a2c; --ks:#8cbbe6; --ksbg:#1d2f42; --km:#e0a6d4; --kmbg:#3a2336; --cite:#4a3f12; --citeLine:#d9b800; --tk:#17324d; --tkLine:#6aa7ff; color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#161b1d; --panel:#1f2629; --ink:#e7ecea; --ink2:#a3afb3; --line:#36403f; --accent:#8cbbe6; --mark:#d9b800; --markInk:#111;
@@ -30,7 +30,7 @@
   --s1:30%; --s2:36%; --s3:42%; --s4:48%; --s5:55%; --s6:62%;
   --t1:#e7ecea; --t2:#e7ecea; --t3:#ffffff; --t4:#ffffff; --t5:#111; --t6:#111;
   --chip:rgba(0,0,0,.3); --chipInk:#e7ecea; --chipD:rgba(255,255,255,.5); --chipDInk:#111;
-  --empty:#232b2d; --cite:#4a3f12; --citeLine:#d9b800; --tk:#17324d; --tkLine:#6aa7ff; color-scheme:dark;
+  --empty:#232b2d; --kk:#7fd3a8; --kkbg:#1d3a2c; --ks:#8cbbe6; --ksbg:#1d2f42; --km:#e0a6d4; --kmbg:#3a2336; --cite:#4a3f12; --citeLine:#d9b800; --tk:#17324d; --tkLine:#6aa7ff; color-scheme:dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -104,7 +104,18 @@ td.cell{padding:4px}
 .units::before{content:"📖 "}
 .unitbox{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:14px}
 .unitbox p{margin:3px 0}
-.tomatome{display:inline-block; font-weight:700; padding:8px 14px; border:1px solid var(--line); border-radius:10px; background:var(--panel); text-decoration:none; min-height:44px}
+details.kaisetsu{border:1px solid var(--line); border-radius:10px; padding:8px 12px; background:var(--panel)}
+details.kaisetsu > summary{cursor:pointer; font-weight:700; color:var(--accent); min-height:32px}
+details.kaisetsu h4{font-size:14px; margin:12px 0 4px}
+details.kaisetsu p{margin:4px 0; font-size:14px; line-height:1.75}
+.kblk{border-left:4px solid var(--line); padding:4px 10px; margin:8px 0; border-radius:0 8px 8px 0}
+.kblk[data-kan="k"]{border-color:var(--kk); background:var(--kkbg)} .kblk[data-kan="s"]{border-color:var(--ks); background:var(--ksbg)} .kblk[data-kan="m"]{border-color:var(--km); background:var(--kmbg)}
+.ktag{display:block; font-size:12px}
+.kblk[data-kan="k"] .ktag{color:var(--kk)} .kblk[data-kan="s"] .ktag{color:var(--ks)} .kblk[data-kan="m"] .ktag{color:var(--km)}
+p.ksub{font-weight:700; margin-top:10px}
+p.krel{background:var(--bg); border-radius:4px}
+details.kaisetsu:not([open]) .k-c, details.kaisetsu[open] .k-o{display:none}   /* 開いているときは「解説を閉じる」 */
+details.kmore{margin-top:8px} details.kmore > summary{cursor:pointer; color:var(--accent); font-size:14px}
 .brand h1 .ed{font-size:.62em; margin-left:6px; padding:1px 7px; border-radius:999px; background:var(--accent); color:var(--panel); vertical-align:2px; letter-spacing:0}
 .none{color:var(--ink2); font-size:12px; padding:6px; background:var(--empty); border-radius:8px; min-height:44px; height:100%}
 .none.off{background:repeating-linear-gradient(135deg,var(--empty) 0 6px,transparent 6px 12px)}
@@ -468,13 +479,36 @@ function unitSec(it){
     '<p class="src">' + (s.textbook ? '教科書：' + esc(s.textbook) + '。' : '') + '出典：' + esc(srcs.join("、")) + '。' +
     (srcs.some(x => x.startsWith("Claude")) ? '単元と学習指導要領の内容との結び付けは、教科書会社の資料に示されていないためClaudeが考えた案です。' : '単元と学習指導要領の内容との結び付けは、教科書会社の資料に示されているものです。') + '</p></div>';
 }
-/* 品川区版：学習指導要領まとめツールの同じ内容へ（配布用のファイルどうしなら隣のファイル、Webならまとめツールのページ） */
+/* 品川区版：その場で解説（学習指導要領解説）を開く。単元や系統から調べるときは「学習指導要領まとめツール」へ */
+const KANN = {k:"知識及び技能", s:"思考力、判断力、表現力等", m:"学びに向かう力、人間性等"};
 function matomeSec(it){
-  const M = ED && ED.matome;
-  if(!M || !M.subjects.includes(it.subject)) return "";
-  const href = (location.protocol === "file:" ? M.file : M.url) + "#" + encodeURIComponent(it.subject + ":i:" + it.id);
-  return '<div class="sec"><a class="tomatome" href="' + esc(href) + '" target="_blank" rel="noopener">📘 この内容の解説を見る（学習指導要領まとめツール）→</a>' +
-    '<p class="note">学習指導要領の本文・解説・学年の目標をまとめて読めます。</p></div>';
+  const M = ED && ED.matome, KS = ED && ED.kaisetsu && ED.kaisetsu[it.subject];
+  if(!M || !KS) return "";
+  const K = KS.items[it.id], g = it.g[0], G = KS.goals[g], B = KS.bandSecs && KS.bandSecs[g];
+  const ps = ls => ls.map(t => '<p' + (/^[アイウエオ][\s　]/.test(t) ? ' class="ksub"' : '') + '>' + show(t) + '</p>').join("");
+  const blk = (kan, label, ls) => ls && ls.length ? '<div class="kblk" data-kan="' + kan + '"><b class="ktag">' + esc(label) + '</b>' + ps(ls) + '</div>' : '';
+  const kan = KS.areaKan ? KS.areaKan[it.area] : null;
+  let h = '';
+  if(K){
+    const e = K.expl, three = e.m && e.m.length, pre = (n, L) => three ? "(" + n + ") " : kan ? "" : L + " ";
+    h += '<h4>解説の説明：' + esc(K.name) + '（p.' + K.page + '〜）</h4>' + (e.intro.length ? ps(e.intro) : '') +
+      blk("k", pre(1, "ア") + KANN.k, e.k) + blk("s", pre(2, "イ") + KANN.s, e.s) + (three ? blk("m", "(3) " + KANN.m, e.m) : '') +
+      (kan ? '<p class="note">この指導事項は〔' + KANN[kan] + '〕の内容です。</p>' : '');
+  }
+  if(B){
+    const key = (K && K.name || "").replace(/^保健：.*/, "保健"), rel = t => key && t.includes(key.slice(0, 4));
+    h += '<h4>内容の取扱い（p.' + B.page + '〜）</h4><div class="text">' + B.quote.map(t => '<p' + (rel(t) ? ' style="font-weight:700"' : '') + '>' + show(t) + '</p>').join("") + '</div>' +
+      '<details class="kmore"><summary>内容の取扱いの解説</summary>' + B.paras.map(t => '<p' + (rel(t) ? ' class="krel"' : '') + '>' + show(t) + '</p>').join("") + '</details>';
+  }
+  if(G && G.expl){
+    const X = G.expl;
+    h += '<details class="kmore"><summary>' + (G.band || g + '年') + 'の目標の解説（p.' + G.page + '〜）</summary>' + (X.intro && X.intro.length ? ps(X.intro) : '') +
+      ["1","2","3"].map((n, i) => blk("ksm"[i], "（" + n + "）" + KANN["ksm"[i]], X[n])).join("") + '</details>';
+  }
+  if(!h) return "";
+  return '<div class="sec"><details class="kaisetsu"><summary>📘 <span class="k-o">解説を開く</span><span class="k-c">解説を閉じる</span>（' + esc(KS.source.replace(/（文部科学省.*$/, "").replace(/^小学校学習指導要領（平成29年告示）/, "")) + '）</summary>' + h +
+    '<p class="src">出典：' + esc(KS.source) + '</p>' +
+    '<p class="note">単元から探したり、学年をまたいで系統で比べたりするときは <a href="' + esc(location.protocol === "file:" ? M.file : M.url) + '" target="_blank" rel="noopener">学習指導要領まとめツール</a> へ。</p></details></div>';
 }
 const THEMES = CONTENT.themes;
 const THEME = Object.fromEntries(THEMES.map(t => [t.id, t]));
