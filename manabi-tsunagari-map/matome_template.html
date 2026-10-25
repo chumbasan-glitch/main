@@ -168,7 +168,7 @@ let cur = {subj:S[0].id, way:"unit", g:1, sel:null, part:0, kan:"all", q:""};
 const store = {get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }};
 
 /* 段落の字下げ：ア・（ア）などで始まる行は少し下げる */
-const pcls = t => /^（[ア-ン]）|^\([ア-ン]\)/.test(t) ? "i2" : /^[ア-ンⅠ-Ⅹ①-⑳][\s　]/.test(t) ? "i1" : "";
+const pcls = t => /^（内容の取扱い）|^\(\d\) 「.+」に関わる目標$/.test(t) ? "sub" : /^（[ア-ン]）|^\([ア-ン]\)/.test(t) ? "i2" : /^[ア-ンⅠ-Ⅹ①-⑳][\s　]/.test(t) ? "i1" : "";
 const paras = (ls, q) => ls.map(t => '<p class="' + pcls(t) + '">' + hl(t, q) + '</p>').join("");
 const hl = (t, q) => { const e = esc(t); if(!q) return e; const qq = esc(q); return e.split(qq).join('<mark>' + qq + '</mark>'); };
 
@@ -180,6 +180,7 @@ function renderSubjects(){
 }
 function renderGrades(){
   const s = SUB[cur.subj];
+  if(!s.grades.includes(cur.g)) cur.g = s.grades[0];   /* 理科・社会は3年から */
   $("grades").innerHTML = s.grades.map(g => '<button type="button" class="gbtn" data-g="' + g + '" aria-pressed="' + (g === cur.g) + '">' + g + '年</button>').join("");
   $("grades").querySelectorAll("button").forEach(b => b.onclick = () => { cur.g = +b.dataset.g; renderPicks(); });
 }
@@ -287,12 +288,18 @@ function itemSecs(it, q){
   return h;
 }
 const gLabel = gs => gs.length > 1 ? '〔第' + "〇一二三四五六"[gs[0]] + '学年及び第' + "〇一二三四五六"[gs[gs.length - 1]] + '学年〕' : '〔第' + "〇一二三四五六"[gs[0]] + '学年〕';
+/* 学年の目標の行を観点に分ける。ふつうは⑴⑵⑶の順。理科は「⑴ 物質・エネルギー」「⑵ 生命・地球」の中に①②③ */
+function goalParts(G){
+  let grp = -1;
+  if(G.lines.some(l => /^①/.test(l))) return G.lines.map(l => { const i = "①②③".indexOf(l[0]); if(i < 0){ grp++; return {head:l}; } return {kan:"ksm"[i], n:i + 1, grp, text:l.replace(/^[①②③]\s*/, "")}; });
+  return G.lines.map((l, i) => ({kan:["k","s","m"][i] || "m", n:i + 1, text:l.replace(/^[⑴⑵⑶]\s*/, "")}));
+}
 function goalSec(g, q, n){
   const G = SUB[cur.subj].goals[g]; if(!G) return "";
-  const L = G.lines, X = G.expl || {};
+  const X = G.expl || {};
   const kanOf = i => ["k","s","m"][i] || "m";
   return '<section class="sec" data-has="k s m"><h3><span class="num">' + n + '</span>' + (G.band ? G.band : g + '年') + 'の目標</h3>' +
-    '<div class="quote">' + L.map((l, i) => blk(kanOf(i), "（" + (i + 1) + "）" + KAN[kanOf(i)], '<p>' + hl(l.replace(/^[⑴⑵⑶]\s*/, ""), q) + '</p>')).join("") + '</div>' +
+    '<div class="quote">' + goalParts(G).map(x => x.head ? '<p class="sub">' + hl(x.head, q) + '</p>' : blk(x.kan, "（" + x.n + "）" + KAN[x.kan], '<p>' + hl(x.text, q) + '</p>')).join("") + '</div>' +
     '<h4 style="margin:12px 0 2px;font-size:14px">解説の説明（p.' + G.page + '〜）</h4>' + (X.intro && X.intro.length ? paras(X.intro, q) : '') +
     ["1","2","3"].map((k, i) => X[k] && X[k].length ? blk(kanOf(i), "（" + k + "）" + KAN[kanOf(i)], paras(X[k], q)) : '').join("") +
     '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(SUB[cur.subj].section) + ' 第２ ' + gLabel(G.grades || [g]) + '１ 目標／' + esc(SUB[cur.subj].kaisetsu.source) + '　p.' + G.page + '〜</p></section>';
@@ -328,13 +335,13 @@ function renderKeito(){
   const cols = [];
   for(const it of its){ const key = it.g.join(""); let c = cols.find(x => x.key === key); if(!c){ c = {key, g:it.g, its:[]}; cols.push(c); } c.its.push(it); }
   const hasM = its.some(it => it.lines.some(l => /^⑶/.test(l)));
-  const goalOnly = kan === "m" && !hasM && s.areaKan;   /* 国語：どの指導事項も同じ学年の目標になるので，列に1つだけ */
+  const goalOnly = kan === "m" && !hasM;   /* 内容に⑶がない教科は，どの内容も同じ学年の目標になるので，列に1つだけ */
   if(goalOnly) cols.forEach(c => c.its = c.its.slice(0, 1));
   const cell = it => {
     const K = s.kaisetsu.items[it.id], parts = splitHonbun(it);
     let body = parts[kan], expl = K ? (K.expl[kan] || []) : [], note = "";
     if(kan === "m" && !body.length){   /* 内容に⑶がない教科は，学年の目標の(3)を出す */
-      const G = s.goals[it.g[0]]; body = G && G.lines[2] ? [G.lines[2]] : []; expl = G && G.expl && G.expl["3"] || []; note = "内容には書かれていないため、学年の目標の（3）です。";
+      const G = s.goals[it.g[0]]; const ai = s.areas.findIndex(a => a.key === it.area); body = G ? goalParts(G).filter(x => x.kan === "m" && (x.grp === undefined || x.grp === ai)).map(x => x.text) : []; expl = G && G.expl && G.expl["3"] || []; note = "内容には書かれていないため、学年の目標の（3）です。";
     }
     if(kan !== "m" && !expl.length && K && K.expl.intro.length && !K.expl.k.length && !K.expl.s.length){ expl = K.expl.intro; note = "解説がア・イに分けて書かれていないため、説明全体です。"; }
     return '<div class="kcell"><div class="kname">' + esc(goalOnly ? "学年の目標（3）" : (it.mark ? it.mark + " " : "") + (K ? K.name : it.head)) + '</div>' +

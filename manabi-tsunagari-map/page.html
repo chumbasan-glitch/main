@@ -485,7 +485,7 @@ function matomeSec(it){
   const M = ED && ED.matome, KS = ED && ED.kaisetsu && ED.kaisetsu[it.subject];
   if(!M || !KS) return "";
   const K = KS.items[it.id], g = it.g[0], G = KS.goals[g], B = KS.bandSecs && KS.bandSecs[g];
-  const ps = ls => ls.map(t => '<p' + (/^[アイウエオ][\s　]/.test(t) ? ' class="ksub"' : '') + '>' + show(t) + '</p>').join("");
+  const ps = ls => ls.map(t => '<p' + (/^[アイウエオ][\s　]|^（内容の取扱い）|^\(\d\) 「.+」に関わる目標$/.test(t) ? ' class="ksub"' : '') + '>' + show(t) + '</p>').join("");
   const blk = (kan, label, ls) => ls && ls.length ? '<div class="kblk" data-kan="' + kan + '"><b class="ktag">' + esc(label) + '</b>' + ps(ls) + '</div>' : '';
   const kan = KS.areaKan ? KS.areaKan[it.area] : null;
   let h = '';
