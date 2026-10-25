@@ -29,7 +29,7 @@ def paras(seg):
     for L in seg:
         b, t, off, right, goth = L
         cont = prev is not None and prev[4] == goth and prev[3] >= 388
-        if not cont and (goth or near(off, 11) or off > 13 or t[:1] in '○◎・［'):
+        if t[:1] in '○◎・［' or (not cont and (goth or near(off, 11) or off > 13)):   # ○・◎［ で始まる行はいつも新しい段落
             if cur: out.append(cur)
             cur = ''
         cur += t
