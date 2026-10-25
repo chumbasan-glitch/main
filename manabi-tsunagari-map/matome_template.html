@@ -92,6 +92,10 @@ mark{background:var(--mark); color:var(--markInk); border-radius:2px; padding:0 
 .blk p,.quote p,.sec p{margin:4px 0}
 p.sub{font-weight:700; margin-top:10px}
 .kref{display:block; font-weight:400; font-size:12px; color:var(--ink2)}
+p.kmark{font-size:12px; color:var(--ink2); margin-top:10px}
+.bhead{font-weight:700; margin:16px 0 4px; padding-top:8px; border-top:1px dashed var(--line)}
+.bhead:first-child{border-top:0; margin-top:4px}
+.partnote{background:var(--soft); border-radius:8px; padding:6px 10px; font-size:13px; margin:6px 0; display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center}
 p.i1{padding-left:1em; text-indent:-1em}
 p.i2{padding-left:2em; text-indent:-1em}
 details.sec > summary{cursor:pointer; font-weight:700}
@@ -169,9 +173,9 @@ let cur = {subj:S[0].id, way:"unit", g:1, sel:null, part:0, kan:"all", q:""};
 const store = {get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }};
 
 /* 段落の字下げ：ア・（ア）などで始まる行は少し下げる */
-/* 「アは，『知識及び技能』に関わる事項である。」「アのイは，技能に関わる事項である。」（社会）などは小見出しにする */
+/* 「アは，『知識及び技能』に関わる事項である。」「アのイは，技能に関わる事項である。」（社会）などの区切りの文は，小さな灰色の文字にする */
 const KMARK = /^[アイ](の[ア-ン](及び[ア-ン])?|の前文及びアからサまで)?は，.{0,24}(に関わる)?事項であ(る|り)/;
-const pcls = t => /^（内容の取扱い）|^\(\d\) 「.+」に関わる目標$/.test(t) || (t.length < 60 && KMARK.test(t)) ? "sub" : /^（[ア-ン]）|^\([ア-ン]\)/.test(t) ? "i2" : /^[ア-ンⅠ-Ⅹ①-⑳][\s　]/.test(t) ? "i1" : "";
+const pcls = t => t.length < 60 && KMARK.test(t) ? "kmark" : /^（内容の取扱い）|^\(\d\) 「.+」に関わる目標$/.test(t) ? "sub" : /^（[ア-ン]）|^\([ア-ン]\)/.test(t) ? "i2" : /^[ア-ンⅠ-Ⅹ①-⑳][\s　]/.test(t) ? "i1" : "";
 const paras = (ls, q) => ls.map(t => '<p class="' + pcls(t) + '">' + hl(t, q) + '</p>').join("");
 /* 「アのアは，…」が本文のどこを指すかを小さく添える（社会の6年の歴史など，同じ書き出しがいくつも続くため） */
 function refOf(it, t){
@@ -208,7 +212,7 @@ function renderPicks(){
     $("pickUnit").innerHTML = us.length ? '<div class="picks">' + us.map((u, i) => '<button type="button" class="pick" data-u="' + i + '" aria-pressed="' + (cur.sel && cur.sel.t === "u" && cur.sel.name === u.u && cur.sel.g === u.g) + '">' + esc(u.u) + '<small>' + esc(u.b) + '・' + u.ids.length + 'つの内容</small></button>').join("") + '</div>'
       : '<p class="empty">この学年の単元はありません。</p>';
     if(s.unitNote) $("pickUnit").insertAdjacentHTML("afterbegin", '<p class="note">' + esc(s.unitNote) + '</p>');
-    $("pickUnit").querySelectorAll("[data-u]").forEach(b => b.onclick = () => { const u = us[+b.dataset.u]; select({t:"u", g:u.g, name:u.u, book:u.b, ids:u.ids}); });
+    $("pickUnit").querySelectorAll("[data-u]").forEach(b => b.onclick = () => { const u = us[+b.dataset.u]; select({t:"u", g:u.g, name:u.u, book:u.b, ids:u.ids, parts:u.parts}); });
   }
   if(cur.way === "area"){
     let h = "";
@@ -223,7 +227,7 @@ function renderPicks(){
     $("pickArea").querySelectorAll("[data-k]").forEach(b => b.onclick = () => select({t:"k", g:cur.g, ids:[]}));
   }
 }
-function select(sel){ cur.sel = sel; cur.part = 0; renderPicks(); renderResult(); location.hash = encodeURIComponent(cur.subj + ":" + (sel.t === "u" ? "u:" + sel.g + ":" + sel.name : sel.t === "k" ? "k:" + sel.g : "i:" + sel.ids[0])); scrollToResult(); }
+function select(sel){ cur.sel = sel; cur.part = 0; cur.allParts = false; renderPicks(); renderResult(); location.hash = encodeURIComponent(cur.subj + ":" + (sel.t === "u" ? "u:" + sel.g + ":" + sel.name : sel.t === "k" ? "k:" + sel.g : "i:" + sel.ids[0])); scrollToResult(); }
 function scrollToResult(){ requestAnimationFrame(() => { const r = $("result"); const y = r.getBoundingClientRect().top + scrollY - $("hdr").offsetHeight - 6; if(y < scrollY || y > scrollY + innerHeight * .6) scrollTo({top:y, behavior:"smooth"}); }); }
 
 /* 検索：本文・解説・内容の取扱い・目標の文から */
@@ -257,11 +261,25 @@ function kanBar(){
 function blk(kan, title, inner){ return '<div class="blk" data-kan="' + kan + '"><span class="tag">' + esc(title) + '</span>' + inner + '</div>'; }
 
 /* 本文：ア（知識及び技能）とイ（思考力、判断力、表現力等）に分ける */
+/* 単元から選んだときに，その単元に当たる部分（社会：東京書籍の「(2)ア-(ア)(シ)、イ-(ア)」）。なければ null */
+const unitParts = it => !cur.allParts && cur.sel && cur.sel.t === "u" && cur.sel.parts && cur.sel.parts[it.id] || null;
+function partLines(it, P){
+  if(!P) return it.lines;
+  let top = null;
+  return it.lines.filter(l => { const m = l.match(/^([ア-ン])　/); if(m){ top = m[1]; return true; } const s = l.match(/^（([ア-ン])）/); return !s || !top || !P[top] || P[top].includes(s[1]); });
+}
+/* 本文の「アの（ア）」の文（区切りの見出しに使う） */
+function subLine(it, top, L){
+  const i = it.lines.findIndex(l => l.startsWith(top + "　")); if(i < 0) return "";
+  for(let j = i + 1; j < it.lines.length && !/^[ア-ン]　/.test(it.lines[j]); j++) if(it.lines[j].startsWith("（" + L + "）")) return it.lines[j];
+  return "";
+}
 function honbun(it, q){
   const a = [], b = [], c = [], other = []; let to = other;
+  const lines = partLines(it, unitParts(it));
   const num = it.lines.some(l => /^⑴/.test(l));
   if(it.kan) to = {k:a, s:b, m:c}[it.kan];
-  for(const l of it.lines){
+  for(const l of lines){
     if(it.kan);
     else if(num){ if(/^⑴/.test(l)) to = a; else if(/^⑵/.test(l)) to = b; else if(/^⑶/.test(l)) to = c; }
     else if(/^ア[\s　]/.test(l)) to = a; else if(/^イ[\s　]/.test(l)) to = b;
@@ -278,6 +296,16 @@ function itemSecs(it, q){
   if(K){
     const e = K.expl;
     const pre = (n, L) => e.m && e.m.length ? "(" + n + ") " : it.kan ? "" : L + " ";
+    const P = unitParts(it);
+    if(P) h = h.replace('<section class="sec"', '<div class="partnote">単元「' + esc(cur.sel.name) + '」に当たる部分（' + Object.entries(P).map(([t, ls]) => t + "の" + [...ls].map(x => "（" + x + "）").join("")).join("、") + '）だけを出しています。<button type="button" class="gbtn" id="allParts">すべての部分を見る</button></div><section class="sec"');
+    else if(cur.allParts && cur.sel && cur.sel.parts && cur.sel.parts[it.id]) h = h.replace('<section class="sec"', '<div class="partnote">すべての部分を出しています。<button type="button" class="gbtn" id="unitParts">単元「' + esc(cur.sel.name) + '」の部分だけにもどす</button></div><section class="sec"');
+    if(e.blocks){   /* 6年の歴史：時代ごとの説明を，本文の記号（アの（ア）など）ごとに区切って出す */
+      const bs = e.blocks.filter(b => !P || !b.letters || [...b.letters].some(x => (P["ア"] || "").includes(x)));
+      return h + '<section class="sec" data-has="k s"><h3><span class="num">2</span>解説の説明<span class="note">' + esc(K.name) + '（p.' + K.page + '〜）</span></h3>' +
+        bs.map(b => '<div class="bhead">' + (b.letters ? esc([...b.letters].map(x => subLine(it, "ア", x)).join(" ")) : '全体（どの時代にも共通すること）') + '</div>' +
+          (b.intro.length ? paras(b.intro, q) : '') + (b.k.length ? blk("k", "ア " + KAN.k, parasIt(b.k, q, it)) : '') + (b.s.length ? blk("s", "イ " + KAN.s, parasIt(b.s, q, it)) : '')).join("") +
+        '<p class="src">出典：' + esc(src) + '　p.' + K.page + '〜</p></section>' + itemTail(it, q, K);
+    }
     h += '<section class="sec" data-has="' + (it.kan || (e.m && e.m.length ? 'k s m' : 'k s')) + '"><h3><span class="num">2</span>解説の説明<span class="note">' + esc(K.name) + '（p.' + K.page + '〜）</span></h3>' +
       (e.intro.length ? '<div>' + paras(e.intro, q) + '</div>' : '') +
       (e.k.length ? blk("k", pre(1, "ア") + KAN.k, parasIt(e.k, q, it).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
@@ -286,6 +314,10 @@ function itemSecs(it, q){
       (!e.k.length && !e.s.length ? '<p class="note">この内容の解説は、「知識及び技能」「思考力、判断力、表現力等」に分けて書かれていません。上の説明に両方が含まれています。</p>' : '') +
       '<p class="src">出典：' + esc(src) + '　p.' + K.page + '〜</p></section>';
   }
+  return h + itemTail(it, q, K);
+}
+function itemTail(it, q, K){
+  const s = SUB[cur.subj]; let h = '';
   const bs = s.bandSecs && s.bandSecs[it.g[0]];
   if(bs){
     const key = (K && K.name || "").replace(/^保健：.*/, "保健");
@@ -495,6 +527,8 @@ function renderResult(){
   $("result").innerHTML = h;
   $("result").querySelectorAll("[data-kan]").forEach(b => { if(b.tagName === "BUTTON") b.onclick = () => { cur.kan = b.dataset.kan; store.set("matome-kan", cur.kan); renderResult(); }; });
   $("result").querySelectorAll("[data-part]").forEach(b => b.onclick = () => { cur.part = +b.dataset.part; renderResult(); });
+  if($("allParts")) $("allParts").onclick = () => { cur.allParts = true; renderResult(); };
+  if($("unitParts")) $("unitParts").onclick = () => { cur.allParts = false; renderResult(); };
 }
 
 /* はじめ */
@@ -510,7 +544,7 @@ const k0 = store.get("matome-kan"); if(k0 && (k0 === "all" || KAN[k0])) cur.kan 
   const h = decodeURIComponent(location.hash.slice(1)); if(!h) return;
   const [sid, t, a, b] = h.split(":"); if(!SUB[sid]) return; cur.subj = sid; const s = SUB[sid];
   if(t === "i"){ const it = s.items.find(i => i.id === a); if(it){ cur.way = "area"; cur.g = it.g[0]; cur.sel = {t:"i", g:it.g[0], ids:[a]}; } }
-  if(t === "u"){ const u = s.units.find(x => x.g === +a && x.u === b); if(u){ cur.way = "unit"; cur.g = u.g; cur.sel = {t:"u", g:u.g, name:u.u, book:u.b, ids:u.ids}; } }
+  if(t === "u"){ const u = s.units.find(x => x.g === +a && x.u === b); if(u){ cur.way = "unit"; cur.g = u.g; cur.sel = {t:"u", g:u.g, name:u.u, book:u.b, ids:u.ids, parts:u.parts}; } }
   if(t === "k"){ cur.way = "area"; cur.g = +a; cur.sel = {t:"k", g:+a, ids:[]}; }
 })();
 renderSubjects(); renderPicks(); renderResult();

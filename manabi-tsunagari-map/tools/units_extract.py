@@ -11,6 +11,7 @@ F = lambda n: os.path.join(SRC, n)
 ZEN = str.maketrans('０１２３４５６７８９ＡＢＣＤ（）', '0123456789ABCD()')
 KANA = 'アイウエオカキクケコ'
 out = []   # (id, 単元名, 巻, 出典)
+parts = {}   # (内容, 単元名, ア/イ) → [（ア）などの記号]
 
 def add(iid, unit, book, src):
     assert iid in IDS, (iid, unit)
@@ -116,6 +117,15 @@ for gr in (3, 4, 5, 6):
             unit = re.sub(r'^\d+[\s　]*', '', unit)
             for n in sorted(set(re.findall(r'\((\d+)\)', ref))):
                 add(f'shakai-{gr}-X-{n}', unit, f'{gr}年', '東京書籍 年間指導計画（単元一覧表）')
+            # 「(2)ア-(ア)(シ)、イ-(ア)」：本文のどの部分（アの（ア）など）に当たるか
+            n = top = None
+            for mm in re.finditer(r'\((\d+)\)|([アイ])-|\(([ア-ン])\)', ref):
+                if mm.group(1): n, top = mm.group(1), None
+                elif mm.group(2): top = mm.group(2)
+                elif top and n:
+                    key = (f'shakai-{gr}-X-{n}', re.sub(r'\s+', ' ', unit.replace('／', ' ')).strip(), top)
+                    parts.setdefault(key, [])
+                    if mm.group(3) not in parts[key]: parts[key].append(mm.group(3))
 
 d = docx.Document(F('katei_daizai.docx'))
 for ti, t in enumerate(d.tables[:2]):
@@ -188,6 +198,11 @@ if os.path.exists(F('zuko.xlsx')):
                     add(f'zuko-{b}-{k}', name, sh.translate(ZEN).replace('・', '・'), '日本文教出版 評価規準の参考事例・年間指導計画作成資料')
 
 os.makedirs(os.path.join(ROOT, 'midashi', 'shinagawa'), exist_ok=True)
+with open(os.path.join(ROOT, 'midashi', 'shinagawa', 'units_parts.tsv'), 'w') as f:
+    f.write('# 単元が本文のどの部分に当たるか（東京書籍 社会の「学習指導要領の内容」の列）。tools/units_extract.py で取り出したもの\n')
+    f.write('# 内容\t単元名\tア/イ\t記号\n')
+    for (iid, unit, top), ls in parts.items():
+        f.write('\t'.join([iid, unit, top, ''.join(ls)]) + '\n')
 with open(os.path.join(ROOT, 'midashi', 'shinagawa', 'units_pub.tsv'), 'w') as f:
     f.write('# 教科書会社の年間指導計画（公開資料）から tools/units_extract.py で取り出したもの。手で直さない\n')
     f.write('# 内容\t単元名\t巻\t出典\n')

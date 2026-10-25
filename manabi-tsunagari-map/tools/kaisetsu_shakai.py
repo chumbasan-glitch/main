@@ -76,13 +76,24 @@ for k, L in enumerate(lines):
 heads.append((len(lines), 'end', None))
 
 def split_kan(ps, first_k):
-    """「アは，『知識及び技能』…」「イは，『思考力…』」「（内容の取扱い）」で分ける"""
+    """「アは，『知識及び技能』…」「イは，『思考力…』」「（内容の取扱い）」で分ける。
+    6年の歴史のように「この内容は，…」から時代ごとの説明がくり返されるときは，区切り（blocks）ごとにも分けておく"""
     part = {'intro': [], 'k': [], 's': [], 't': []}; cur = 'intro'
+    blocks = [{'intro': [], 'k': [], 's': []}]
     for p in ps:
         if re.match(r'^アは，「知識及び技能」に関わる', p): cur = 'k'
         elif re.match(r'^イ(のア)?は，「思考力，判断力，表現力等」に関わる', p): cur = 's'
         elif p.startswith('（内容の取扱い）'): cur = 't'; continue
-        part[cur].append(p)
+        elif p.startswith('この内容は，') and cur in ('k', 's'):
+            cur = 'intro'; blocks.append({'intro': [], 'k': [], 's': []})
+        if cur == 't': part['t'].append(p); continue
+        blocks[-1][cur].append(p)
+        if cur != 'intro' or len(blocks) == 1: part[cur].append(p)
+    if len(blocks) > 1:
+        for b in blocks:   # 区切りが本文のどの記号（アの（ア）など）の説明か
+            ls = [m.group(1) + (m.group(3) or '') for x in b['k'] for m in [re.match(r'^アの([ア-サ])(及び([ア-サ]))?は，', x)] if m]
+            b['letters'] = ''.join(dict.fromkeys(''.join(ls)))
+        part['blocks'] = blocks
     return part
 
 out = {'source': '小学校学習指導要領（平成29年告示）解説 社会編（文部科学省，平成29年7月）', 'grades': {}, 'items': {}}

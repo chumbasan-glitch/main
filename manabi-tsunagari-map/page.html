@@ -114,6 +114,8 @@ details.kaisetsu p{margin:4px 0; font-size:14px; line-height:1.75}
 .kblk[data-kan="k"] .ktag{color:var(--kk)} .kblk[data-kan="s"] .ktag{color:var(--ks)} .kblk[data-kan="m"] .ktag{color:var(--km)}
 p.ksub{font-weight:700; margin-top:10px}
 .kref{display:block; font-weight:400; font-size:12px; color:var(--ink2)}
+p.kmark{font-size:12px; color:var(--ink2); margin-top:10px}
+p.bhead{font-weight:700; margin-top:16px; padding-top:8px; border-top:1px dashed var(--line)}
 p.krel{background:var(--bg); border-radius:4px}
 details.kaisetsu:not([open]) .k-c, details.kaisetsu[open] .k-o{display:none}   /* 開いているときは「解説を閉じる」 */
 details.kmore{margin-top:8px} details.kmore > summary{cursor:pointer; color:var(--accent); font-size:14px}
@@ -494,15 +496,18 @@ function matomeSec(it){
       if(it.lines[j].startsWith("（" + m[2] + "）")){ const x = it.lines[j].replace(/^（.）　/, ""); return "（" + m[2] + "）" + (x.length > 34 ? x.slice(0, 34) + "…" : x); }
     return "";
   };
-  const sub = t => /^[アイウエオ][\s　]|^（内容の取扱い）|^\(\d\) 「.+」に関わる目標$/.test(t) || (t.length < 60 && /^[アイ](の[ア-ン](及び[ア-ン])?|の前文及びアからサまで)?は，.{0,24}(に関わる)?事項であ(る|り)/.test(t));
-  const ps = ls => ls.map(t => { const r = ref(t); return '<p' + (sub(t) ? ' class="ksub"' : '') + '>' + show(t) + (r ? '<span class="kref">本文：' + esc(r) + '</span>' : '') + '</p>'; }).join("");
+  const mark = t => t.length < 60 && /^[アイ](の[ア-ン](及び[ア-ン])?|の前文及びアからサまで)?は，.{0,24}(に関わる)?事項であ(る|り)/.test(t);   /* 区切りの文は小さな灰色 */
+  const sub = t => /^[アイウエオ][\s　]|^（内容の取扱い）|^\(\d\) 「.+」に関わる目標$/.test(t);
+  const ps = ls => ls.map(t => { const r = ref(t); return '<p' + (mark(t) ? ' class="kmark"' : sub(t) ? ' class="ksub"' : '') + '>' + show(t) + (r ? '<span class="kref">本文：' + esc(r) + '</span>' : '') + '</p>'; }).join("");
   const blk = (kan, label, ls) => ls && ls.length ? '<div class="kblk" data-kan="' + kan + '"><b class="ktag">' + esc(label) + '</b>' + ps(ls) + '</div>' : '';
   const kan = KS.areaKan ? KS.areaKan[it.area] : null;
   let h = '';
   if(K){
     const e = K.expl, three = e.m && e.m.length, pre = (n, L) => three ? "(" + n + ") " : kan ? "" : L + " ";
-    h += '<h4>解説の説明：' + esc(K.name) + '（p.' + K.page + '〜）</h4>' + (e.intro.length ? ps(e.intro) : '') +
-      blk("k", pre(1, "ア") + KANN.k, e.k) + blk("s", pre(2, "イ") + KANN.s, e.s) + (three ? blk("m", "(3) " + KANN.m, e.m) : '') +
+    const sl = L => { const i = it.lines.findIndex(l => l.startsWith("ア　")); for(let j = i + 1; i >= 0 && j < it.lines.length && !/^[ア-ン]　/.test(it.lines[j]); j++) if(it.lines[j].startsWith("（" + L + "）")) return it.lines[j]; return ""; };
+    h += '<h4>解説の説明：' + esc(K.name) + '（p.' + K.page + '〜）</h4>' + (e.blocks
+      ? e.blocks.map(b => '<p class="bhead">' + esc(b.letters ? [...b.letters].map(sl).join(" ") : "全体（どの時代にも共通すること）") + '</p>' + ps(b.intro) + blk("k", "ア " + KANN.k, b.k) + blk("s", "イ " + KANN.s, b.s)).join("")   /* 6年の歴史：時代ごと */
+      : (e.intro.length ? ps(e.intro) : '') + blk("k", pre(1, "ア") + KANN.k, e.k) + blk("s", pre(2, "イ") + KANN.s, e.s) + (three ? blk("m", "(3) " + KANN.m, e.m) : '')) +
       (kan ? '<p class="note">この指導事項は〔' + KANN[kan] + '〕の内容です。</p>' : '');
   }
   if(K && K.expl.t && K.expl.t.length){   /* 社会：内容の取扱いの説明 */

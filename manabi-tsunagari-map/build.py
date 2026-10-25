@@ -318,6 +318,12 @@ UNIT_NOTE = {'taiiku': '運動領域（Ａ〜Ｆ）は教科書がないため�
              'rika': '教科書（学校図書）の単元と学習指導要領の内容の結び付けは、Claudeが考えた案を先生に確かめていただいたものです。',
              'kokugo': '光村図書の指導事項配列表で、その単元の重点（◎）と関連（☆）とされている指導事項を結び付けています。'}
 UNIT_ROWS = [l.rstrip('\n').split('\t') for fn in ('units_pub', 'units_manual') for l in open(P('midashi', 'shinagawa', fn + '.tsv')) if l.strip() and not l.startswith('#')]
+# 単元が本文のどの部分（アの（ア）など）に当たるか（社会）
+UNIT_PARTS = {}
+for l in open(P('midashi', 'shinagawa', 'units_parts.tsv')):
+    if l.strip() and not l.startswith('#'):
+        iid, u, top, ls = l.rstrip('\n').split('\t')
+        UNIT_PARTS.setdefault((iid, u), {})[top] = ls
 assert list(KFILES) == sc['edition']['matome']['subjects'], 'つながりマップのリンク先の教科をそろえる'
 msubs = []
 for sid, (fn, kname) in KFILES.items():
@@ -350,6 +356,7 @@ for sid, (fn, kname) in KFILES.items():
         if key not in seen:
             seen[key] = {'g': g, 'u': u, 'b': bk, 'ids': []}; units.append(seen[key])
         if iid not in seen[key]['ids']: seen[key]['ids'].append(iid)
+        if (iid, u) in UNIT_PARTS: seen[key].setdefault('parts', {})[iid] = UNIT_PARTS[(iid, u)]
     msubs.append({'id': sid, 'name': s['name'], 'section': s['section'], 'textbook': s.get('textbook', ''), 'grades': grades,
                   'areas': s['areas'], 'goals': goals, 'units': units, 'katsudoName': kname,
                   'katsudo': {int(g): v['katsudo'] for g, v in K.get('grades', {}).items() if 'katsudo' in v},
