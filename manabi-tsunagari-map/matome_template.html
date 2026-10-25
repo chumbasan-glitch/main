@@ -244,8 +244,8 @@ function itemSecs(it, q){
     const e = K.expl;
     h += '<section class="sec" data-has="' + (e.m && e.m.length ? 'k s m' : 'k s') + '"><h3><span class="num">2</span>解説の説明<span class="note">' + esc(K.name) + '（p.' + K.page + '〜）</span></h3>' +
       (e.intro.length ? '<div>' + paras(e.intro, q) + '</div>' : '') +
-      (e.k.length ? blk("k", (e.m ? "(1) " : "ア ") + KAN.k, paras(e.k, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
-      (e.s.length ? blk("s", (e.m ? "(2) " : "イ ") + KAN.s, paras(e.s, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
+      (e.k.length ? blk("k", (e.m && e.m.length ? "(1) " : "ア ") + KAN.k, paras(e.k, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
+      (e.s.length ? blk("s", (e.m && e.m.length ? "(2) " : "イ ") + KAN.s, paras(e.s, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
       (e.m && e.m.length ? blk("m", "(3) " + KAN.m, paras(e.m, q)) : '') +
       (!e.k.length && !e.s.length ? '<p class="note">この内容の解説は、「知識及び技能」「思考力、判断力、表現力等」に分けて書かれていません。上の説明に両方が含まれています。</p>' : '') +
       '<p class="src">出典：' + esc(src) + '　p.' + K.page + '〜</p></section>';
@@ -254,7 +254,7 @@ function itemSecs(it, q){
   if(bs){
     const key = (K && K.name || "").replace(/^保健：.*/, "保健");
     const rel = t => key && t.includes(key.slice(0, 4));
-    h += '<section class="sec" data-has="k s m"><h3><span class="num">3</span>内容の取扱い<span class="note">' + gLabel(it.g) + '全体（p.' + bs.page + '〜）</span></h3><div class="quote">' + bs.quote.map(t => '<p' + (rel(t) ? ' style="font-weight:700"' : '') + '>' + hl(t, q) + '</p>').join("") + '</div>' +
+    h += '<section class="sec" data-has="k s m"><h3><span class="num">3</span>内容の取扱い<span class="note">' + gLabel((s.goals[it.g[0]] && s.goals[it.g[0]].grades) || it.g) + '全体（p.' + bs.page + '〜）</span></h3><div class="quote">' + bs.quote.map(t => '<p' + (rel(t) ? ' style="font-weight:700"' : '') + '>' + hl(t, q) + '</p>').join("") + '</div>' +
       '<h4 style="margin:10px 0 2px;font-size:14px">解説の説明</h4>' + bs.paras.map(t => '<p' + (rel(t) ? ' style="background:var(--soft);border-radius:4px"' : '') + '>' + hl(t, q) + '</p>').join("") +
       '<p class="note">この内容に関係するところを太字・色付きにしています。</p><p class="src">出典：' + esc(s.kaisetsu.source) + '　p.' + bs.page + '〜</p></section>';
   } else if(it.notes && it.notes.length){
