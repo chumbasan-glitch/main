@@ -320,7 +320,8 @@ open(P('shinagawa', 'manabi-tsunagari-map-shinagawa.html'), 'w').write(sfull)
 print('品川区版', sum(len(it.get('units', [])) for it in sc['items']), 'units,', len(sfull.encode()), 'bytes')
 
 # ---------- 学習指導要領まとめツール（品川区版）：本文・解説・内容の取扱い・学年の目標を内容ごとにまとめる ----------
-KFILES = {'sansu': ('kaisetsu/sansu.json', '〔数学的活動〕')}
+KFILES = {'sansu': ('kaisetsu/sansu.json', '〔数学的活動〕'), 'taiiku': ('kaisetsu/taiiku.json', '')}
+UNIT_NOTE = {'taiiku': '体育の運動領域（Ａ〜Ｆ）は教科書がないため、単元は保健だけです。運動領域は「区分から」選んでください。'}
 UNIT_ROWS = [l.rstrip('\n').split('\t') for fn in ('units_pub', 'units_manual') for l in open(P('midashi', 'shinagawa', fn + '.tsv')) if l.strip() and not l.startswith('#')]
 msubs = []
 for sid, (fn, kname) in KFILES.items():
@@ -329,10 +330,18 @@ for sid, (fn, kname) in KFILES.items():
     its = [it for it in sc['items'] if it['subject'] == sid]
     grades = sorted({g for it in its for g in it['g']})
     goals = {}
+    bandsecs = {}
     for b in s['bands']:
+        bkey = ''.join(str(g) for g in b['grades'])
         for g in b['grades']:
-            kg = K['grades'].get(str(g), {}).get('goal', {})
-            goals[g] = {'lines': b['goal'], 'page': kg.get('page'), 'expl': kg.get('expl', {})}
+            if 'bands' in K:   # 2学年まとめの教科（体育など）
+                kb = K['bands'][bkey]
+                goals[g] = {'lines': b['goal'], 'page': kb['goal']['page'], 'expl': kb['goal']['expl'], 'grades': b['grades'],
+                            'band': '%d・%d年' % (b['grades'][0], b['grades'][-1]) if len(b['grades']) > 1 else ''}
+                if 'toriatsukai' in kb: bandsecs[g] = kb['toriatsukai']
+            else:
+                kg = K['grades'].get(str(g), {}).get('goal', {})
+                goals[g] = {'lines': b['goal'], 'page': kg.get('page'), 'expl': kg.get('expl', {})}
     units, seen = [], {}
     for iid, u, bk, src in UNIT_ROWS:
         if not iid.startswith(sid + '-'): continue
@@ -342,13 +351,14 @@ for sid, (fn, kname) in KFILES.items():
         if iid not in seen[key]['ids']: seen[key]['ids'].append(iid)
     msubs.append({'id': sid, 'name': s['name'], 'section': s['section'], 'textbook': s.get('textbook', ''), 'grades': grades,
                   'areas': s['areas'], 'goals': goals, 'units': units, 'katsudoName': kname,
-                  'katsudo': {int(g): v['katsudo'] for g, v in K['grades'].items() if 'katsudo' in v},
+                  'katsudo': {int(g): v['katsudo'] for g, v in K.get('grades', {}).items() if 'katsudo' in v},
+                  'bandSecs': bandsecs, 'unitNote': UNIT_NOTE.get(sid, ''),
                   'items': [{k: it.get(k) for k in ('id', 'g', 'area', 'areaName', 'mark', 'head', 'title', 'lines', 'notes', 'units')} for it in its],
                   'kaisetsu': {'source': K['source'], 'items': K['items']}})
 mdata = {'subjects': msubs, 'edition': '品川区版',
          'coming': [x['name'] for x in sc['subjects'] if x['id'] not in KFILES and x['id'] not in ('shiminka', 'eigoshina')],
          'mapUrl': 'https://claude.ai/artifact/QYpnoKHpv9sgD9Zskx6pZe',
-         'footer': '学習指導要領まとめツール 品川区版　第1版（算数の見本）　出典：小学校学習指導要領（平成29年告示）、同解説（文部科学省）。教科書の単元：品川区が採択した教科書（令和6〜9年度）の会社の年間指導計画による。'}
+         'footer': '学習指導要領まとめツール 品川区版　第1版（算数・体育の見本）　出典：小学校学習指導要領（平成29年告示）、同解説（文部科学省）。教科書の単元：品川区が採択した教科書（令和6〜9年度）の会社の年間指導計画による。'}
 mt = open(P('matome_template.html')).read()
 mt = mt.replace('<title>学習指導要領まとめツール</title>', '<title>学習指導要領まとめツール 品川区版</title>')
 mt = mt.replace('/*DATA*/', 'const DATA = ' + json.dumps(mdata, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
