@@ -109,6 +109,9 @@ for L in lines:
             row['cells'].setdefault(band, [])
             if cur not in row['cells'][band]: row['cells'][band].append(cur)
             tail = None if t.endswith('。') else OFF[key][1]
+            if key.startswith('2'):   # 言語活動例は ア・イ・ウ ごとに説明が続くので，見出しを段落として入れる
+                full = next(l for l in ITEMS[cur]['lines'] if l.startswith(key[1]))
+                buf.append((b, full, 0, 0, True))
             continue   # 指導事項の本文（見出し）は本文の欄に出すので，解説には入れない
     if tail and len(norm(t)) >= 2 and norm(t) in tail:
         if t.endswith('。'): tail = None   # 見出しの終わり
