@@ -320,8 +320,9 @@ open(P('shinagawa', 'manabi-tsunagari-map-shinagawa.html'), 'w').write(sfull)
 print('品川区版', sum(len(it.get('units', [])) for it in sc['items']), 'units,', len(sfull.encode()), 'bytes')
 
 # ---------- 学習指導要領まとめツール（品川区版）：本文・解説・内容の取扱い・学年の目標を内容ごとにまとめる ----------
-KFILES = {'sansu': ('kaisetsu/sansu.json', '〔数学的活動〕'), 'taiiku': ('kaisetsu/taiiku.json', '')}
-UNIT_NOTE = {'taiiku': '運動領域（Ａ〜Ｆ）は教科書がないため、領域の名前で並べています。保健は教科書（東京書籍）の単元です。'}
+KFILES = {'kokugo': ('kaisetsu/kokugo.json', ''), 'sansu': ('kaisetsu/sansu.json', '〔数学的活動〕'), 'taiiku': ('kaisetsu/taiiku.json', '')}
+UNIT_NOTE = {'taiiku': '運動領域（Ａ〜Ｆ）は教科書がないため、領域の名前で並べています。保健は教科書（東京書籍）の単元です。',
+             'kokugo': '光村図書の指導事項配列表で、その単元の重点（◎）と関連（☆）とされている指導事項を結び付けています。'}
 UNIT_ROWS = [l.rstrip('\n').split('\t') for fn in ('units_pub', 'units_manual') for l in open(P('midashi', 'shinagawa', fn + '.tsv')) if l.strip() and not l.startswith('#')]
 msubs = []
 for sid, (fn, kname) in KFILES.items():
@@ -360,6 +361,20 @@ for sid, (fn, kname) in KFILES.items():
                   'bandSecs': bandsecs, 'unitNote': UNIT_NOTE.get(sid, ''),
                   'items': [{k: it.get(k) for k in ('id', 'g', 'area', 'areaName', 'mark', 'head', 'title', 'lines', 'notes', 'units')} for it in its],
                   'kaisetsu': {'source': K['source'], 'items': K['items']}})
+    if sid == 'kokugo':
+        # 国語の内容は1つの指導事項が1つの観点：〔知識及び技能〕の⑴〜⑶と，〔思考力，判断力，表現力等〕のＡ〜Ｃ
+        ms = msubs[-1]
+        ms['areaKan'] = {a['key']: 'k' if a['key'].startswith('K') else 's' for a in s['areas']}
+        for it in ms['items']:
+            it['kan'] = ms['areaKan'][it['area']]
+            L = it['id'].split('-')[-1]
+            it['mark'] = '' if L == '2' else L
+        # 「系統で比べる」：解説 国語編の「〇言葉の働き」などの項目を行にして，2学年ごとの指導事項を横にそろえる
+        heads = {it['id']: it['head'] for it in ms['items']}
+        ms['trows'] = {sec: [{'name': r['name'], 'cells': {b[0]: [{'id': i, 'lab': heads[i]} for i in ids] for b, ids in r['cells'].items()}} for r in rows]
+                       for sec, rows in K['topics'].items()}
+        ms['tcols'] = {'1': '1・2年', '3': '3・4年', '5': '5・6年'}
+        ms['trowNote'] = '行は、解説 国語編の第3章で指導事項の系統を示している項目（「言葉の働き」「構成の検討」など）です。'
 # 体育「系統で比べる」の知識及び技能：解説 体育編 付録「領域別系統表」の並びに合わせて，同じ内容を横にそろえる行（Claudeが解説の小見出しから作成）
 # 各行：(行の名前, 低学年の小見出しの記号, 中学年, 高学年)。記号を2つ以上入れると同じマスに並べ，上下の行で同じなら1つのマスにまとめる
 KROWS = {'taiiku': {
@@ -389,6 +404,7 @@ TNAME = {t['id']: t['name'] for t in sc['themes']}
 TORD = [t['id'] for t in sc['themes']]
 for ms in msubs:
     if ms['id'] != 'sansu': continue
+    ms['trowNote'] = '行は、つながりマップのテーマ（Claudeが学習指導要領の内容から作ったもの）です。ほかの領域の内容も、同じ系統なら同じ行に入れています。'
     its = {it['id']: it for it in sc['items'] if it['subject'] == 'sansu'}
     trows = {}
     for tid in TORD:
@@ -404,7 +420,7 @@ for ms in msubs:
 mdata = {'subjects': msubs, 'edition': '品川区版',
          'coming': [x['name'] for x in sc['subjects'] if x['id'] not in KFILES and x['id'] not in ('shiminka', 'eigoshina')],
          'mapUrl': 'https://claude.ai/artifact/QYpnoKHpv9sgD9Zskx6pZe',
-         'footer': '学習指導要領まとめツール 品川区版　第1版（算数・体育の見本）　出典：小学校学習指導要領（平成29年告示）、同解説（文部科学省）。教科書の単元：品川区が採択した教科書（令和6〜9年度）の会社の年間指導計画による。'}
+         'footer': '学習指導要領まとめツール 品川区版　第1版（国語・算数・体育）　出典：小学校学習指導要領（平成29年告示）、同解説（文部科学省）。教科書の単元：品川区が採択した教科書（令和6〜9年度）の会社の年間指導計画による。'}
 mt = open(P('matome_template.html')).read()
 mt = mt.replace('<title>学習指導要領まとめツール</title>', '<title>学習指導要領まとめツール 品川区版</title>')
 mt = mt.replace('/*DATA*/', 'const DATA = ' + json.dumps(mdata, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')

@@ -246,8 +246,10 @@ function blk(kan, title, inner){ return '<div class="blk" data-kan="' + kan + '"
 function honbun(it, q){
   const a = [], b = [], c = [], other = []; let to = other;
   const num = it.lines.some(l => /^⑴/.test(l));
+  if(it.kan) to = {k:a, s:b, m:c}[it.kan];
   for(const l of it.lines){
-    if(num){ if(/^⑴/.test(l)) to = a; else if(/^⑵/.test(l)) to = b; else if(/^⑶/.test(l)) to = c; }
+    if(it.kan);
+    else if(num){ if(/^⑴/.test(l)) to = a; else if(/^⑵/.test(l)) to = b; else if(/^⑶/.test(l)) to = c; }
     else if(/^ア[\s　]/.test(l)) to = a; else if(/^イ[\s　]/.test(l)) to = b;
     to.push(l);
   }
@@ -256,15 +258,16 @@ function honbun(it, q){
 }
 function itemSecs(it, q){
   const s = SUB[cur.subj], K = s.kaisetsu.items[it.id], src = s.kaisetsu.source;
-  const has = it.lines.some(l => /^⑶/.test(l)) ? "k s m" : "k s";
+  const has = it.kan || (it.lines.some(l => /^⑶/.test(l)) ? "k s m" : "k s");
   let h = '<section class="sec" data-has="' + has + '"><h3><span class="num">1</span>学習指導要領の本文</h3>' + honbun(it, q) +
     '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + '　第２ 各学年の目標及び内容' + gLabel(it.g) + '２ 内容</p></section>';
   if(K){
     const e = K.expl;
-    h += '<section class="sec" data-has="' + (e.m && e.m.length ? 'k s m' : 'k s') + '"><h3><span class="num">2</span>解説の説明<span class="note">' + esc(K.name) + '（p.' + K.page + '〜）</span></h3>' +
+    const pre = (n, L) => e.m && e.m.length ? "(" + n + ") " : it.kan ? "" : L + " ";
+    h += '<section class="sec" data-has="' + (it.kan || (e.m && e.m.length ? 'k s m' : 'k s')) + '"><h3><span class="num">2</span>解説の説明<span class="note">' + esc(K.name) + '（p.' + K.page + '〜）</span></h3>' +
       (e.intro.length ? '<div>' + paras(e.intro, q) + '</div>' : '') +
-      (e.k.length ? blk("k", (e.m && e.m.length ? "(1) " : "ア ") + KAN.k, paras(e.k, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
-      (e.s.length ? blk("s", (e.m && e.m.length ? "(2) " : "イ ") + KAN.s, paras(e.s, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
+      (e.k.length ? blk("k", pre(1, "ア") + KAN.k, paras(e.k, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
+      (e.s.length ? blk("s", pre(2, "イ") + KAN.s, paras(e.s, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
       (e.m && e.m.length ? blk("m", "(3) " + KAN.m, paras(e.m, q)) : '') +
       (!e.k.length && !e.s.length ? '<p class="note">この内容の解説は、「知識及び技能」「思考力、判断力、表現力等」に分けて書かれていません。上の説明に両方が含まれています。</p>' : '') +
       '<p class="src">出典：' + esc(src) + '　p.' + K.page + '〜</p></section>';
@@ -295,10 +298,11 @@ function goalSec(g, q, n){
 }
 /* ---------- 系統で比べる：同じ領域の内容を学年順に横に並べる ---------- */
 function splitHonbun(it){
-  const out = {k:[], s:[], m:[], o:[]}; let to = "o";
+  const out = {k:[], s:[], m:[], o:[]}; let to = it.kan || "o";
   const num = it.lines.some(l => /^⑴/.test(l));
   for(const l of it.lines){
-    if(num){ if(/^⑴/.test(l)) to = "k"; else if(/^⑵/.test(l)) to = "s"; else if(/^⑶/.test(l)) to = "m"; }
+    if(it.kan);
+    else if(num){ if(/^⑴/.test(l)) to = "k"; else if(/^⑵/.test(l)) to = "s"; else if(/^⑶/.test(l)) to = "m"; }
     else if(/^ア[\s　]/.test(l)) to = "k"; else if(/^イ[\s　]/.test(l)) to = "s";
     out[to].push(l);
   }
@@ -308,9 +312,11 @@ function renderKeitoPick(){
   const s = SUB[cur.subj];
   if(!cur.kArea || !s.areas.some(a => a.key === cur.kArea)) cur.kArea = s.areas[0].key;
   if(!cur.kKan || cur.kKan === "all") cur.kKan = cur.kan !== "all" ? cur.kan : "k";
+  const kans = s.areaKan ? [s.areaKan[cur.kArea], "m"] : ["k","s","m"];
+  if(!kans.includes(cur.kKan)) cur.kKan = kans[0];
   $("pickKeito").innerHTML = '<div class="row"><span class="lbl">領域</span><div class="row" style="margin:0">' + s.areas.map(a => '<button type="button" class="gbtn" data-ka="' + a.key + '" aria-pressed="' + (a.key === cur.kArea) + '">' + esc(a.name) + '</button>').join("") + '</div></div>' +
-    '<div class="row"><span class="lbl">観点</span><div class="seg" role="group" aria-label="観点">' + ["k","s","m"].map(k => '<button type="button" data-kk="' + k + '" aria-pressed="' + (k === cur.kKan) + '">' + KAN[k] + '</button>').join("") + '</div></div>';
-  $("pickKeito").querySelectorAll("[data-ka]").forEach(b => b.onclick = () => { cur.kArea = b.dataset.ka; renderKeitoPick(); renderKeito(); });
+    '<div class="row"><span class="lbl">観点</span><div class="seg" role="group" aria-label="観点">' + kans.map(k => '<button type="button" data-kk="' + k + '" aria-pressed="' + (k === cur.kKan) + '">' + KAN[k] + '</button>').join("") + '</div></div>';
+  $("pickKeito").querySelectorAll("[data-ka]").forEach(b => b.onclick = () => { cur.kArea = b.dataset.ka; if(s.areaKan && cur.kKan !== "m") cur.kKan = s.areaKan[cur.kArea]; renderKeitoPick(); });
   $("pickKeito").querySelectorAll("[data-kk]").forEach(b => b.onclick = () => { cur.kKan = b.dataset.kk; renderKeitoPick(); renderKeito(); });
   renderKeito();
 }
@@ -321,6 +327,8 @@ function renderKeito(){
   const cols = [];
   for(const it of its){ const key = it.g.join(""); let c = cols.find(x => x.key === key); if(!c){ c = {key, g:it.g, its:[]}; cols.push(c); } c.its.push(it); }
   const hasM = its.some(it => it.lines.some(l => /^⑶/.test(l)));
+  const goalOnly = kan === "m" && !hasM && s.areaKan;   /* 国語：どの指導事項も同じ学年の目標になるので，列に1つだけ */
+  if(goalOnly) cols.forEach(c => c.its = c.its.slice(0, 1));
   const cell = it => {
     const K = s.kaisetsu.items[it.id], parts = splitHonbun(it);
     let body = parts[kan], expl = K ? (K.expl[kan] || []) : [], note = "";
@@ -328,11 +336,11 @@ function renderKeito(){
       const G = s.goals[it.g[0]]; body = G && G.lines[2] ? [G.lines[2]] : []; expl = G && G.expl && G.expl["3"] || []; note = "内容には書かれていないため、学年の目標の（3）です。";
     }
     if(kan !== "m" && !expl.length && K && K.expl.intro.length && !K.expl.k.length && !K.expl.s.length){ expl = K.expl.intro; note = "解説がア・イに分けて書かれていないため、説明全体です。"; }
-    return '<div class="kcell"><div class="kname">' + esc((it.mark ? it.mark + " " : "") + (K ? K.name : it.head)) + '</div>' +
+    return '<div class="kcell"><div class="kname">' + esc(goalOnly ? "学年の目標（3）" : (it.mark ? it.mark + " " : "") + (K ? K.name : it.head)) + '</div>' +
       (body.length ? '<div class="blk" data-kan="' + kan + '">' + paras(body) + '</div>' : '<p class="note">この観点の本文はありません。</p>') +
       (note ? '<p class="note">' + esc(note) + '</p>' : '') +
       (expl.length ? '<details class="kexp"><summary>解説を開く（p.' + (kan === "m" && note ? s.goals[it.g[0]].page : K.page) + '〜）</summary>' + paras(expl).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ') + '</details>' : '') +
-      '<button type="button" class="kopen" data-i="' + it.id + '">この内容をくわしく見る →</button></div>';
+      (goalOnly ? '' : '<button type="button" class="kopen" data-i="' + it.id + '">この内容をくわしく見る →</button>') + '</div>';
   };
   if(kan === "k" && s.krows && s.krows[cur.kArea]) return renderKeitoRows(s, area, cols);
   if((kan === "k" || kan === "s") && s.trows && s.trows[cur.kArea]) return renderKeitoThemes(s, area, kan);
@@ -410,7 +418,7 @@ function renderKeitoThemes(s, area, kan){
     let expl = K ? K.expl[kan] || [] : [], note = "";
     if(K && !expl.length && K.expl.intro.length && !K.expl.k.length && !K.expl.s.length){ expl = K.expl.intro; note = "（ア・イに分けて書かれていないため説明全体）"; }
     const other = it.area !== cur.kArea ? '<span class="note">（' + esc((s.areas.find(a => a.key === it.area) || {}).name || "") + '）</span>' : '';
-    return '<div class="kcell"><div class="kname">' + esc(it.mark + " " + c.lab) + other + '</div>' +
+    return '<div class="kcell"><div class="kname">' + esc(((it.mark || "") + " " + c.lab).trim()) + other + '</div>' +
       (body.length ? '<div class="blk" data-kan="' + kan + '">' + paras(body) + '</div>' : '') +
       (expl.length ? '<details class="kexp"><summary>解説を開く（p.' + K.page + '〜）' + esc(note) + '</summary>' + paras(expl).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ') + '</details>' : '') +
       '<button type="button" class="kopen" data-i="' + it.id + '">くわしく見る →</button></div>';
@@ -419,9 +427,9 @@ function renderKeitoThemes(s, area, kan){
     '<h2>系統で比べる：' + esc(area.name.replace(/^[Ａ-Ｚ]\s*/, "")) + '</h2>' +
     '<div class="row"><span class="lbl">見たい内容</span><div class="row" style="margin:0" id="rowPick"><button type="button" class="gbtn" data-rp="" aria-pressed="' + showAll + '">すべて</button>' +
       all.map(r => '<button type="button" class="gbtn" data-rp="' + esc(r.name) + '" aria-pressed="' + (!showAll && pick.includes(r.name)) + '">' + esc(r.name) + '</button>').join("") + '</div></div>' +
-    '<p class="note" style="margin:2px 0">いくつでも選べます。選んだ内容は、解説を開いた状態で出ます。行は、つながりマップのテーマ（Claudeが学習指導要領の内容から作ったもの）です。ほかの領域の内容も、同じ系統なら同じ行に入れています。</p>' +
+    '<p class="note" style="margin:2px 0">いくつでも選べます。選んだ内容は、解説を開いた状態で出ます。' + esc(s.trowNote || "") + '</p>' +
     '<div class="row"><button type="button" class="gbtn" id="openAll">解説をすべて開く</button>' + (gs.length > 3 ? '<span class="note">横にスクロールすると' + gs[gs.length - 1] + '年まで見られます。</span>' : '') + '</div>' +
-    '<div class="ktab-wrap"><table class="ktab" style="min-width:' + (gs.length * 230 + 120) + 'px"><thead><tr><th></th>' + gs.map(g => '<th>' + g + '年</th>').join("") + '</tr></thead><tbody>';
+    '<div class="ktab-wrap"><table class="ktab" style="min-width:' + (gs.length * 230 + 120) + 'px"><thead><tr><th></th>' + gs.map(g => '<th>' + (s.tcols ? s.tcols[g] : g + '年') + '</th>').join("") + '</tr></thead><tbody>';
   for(const r of rows){
     h += '<tr><th>' + esc(r.name) + '</th>' + gs.map(g => { const cs = r.cells[g] || []; return '<td>' + (cs.length ? '<div class="kstack">' + cs.map(cell).join("") + '</div>' : '<p class="note" style="text-align:center">―</p>') + '</td>'; }).join("") + '</tr>';
   }
@@ -457,6 +465,7 @@ function renderResult(){
     if(its.length > 1) h += '<p class="note" style="margin:4px 0 0">この単元には、学習指導要領の内容が ' + its.length + ' つ結び付いています。</p><div class="multi">' + its.map((x, i) => '<button type="button" data-part="' + i + '" aria-pressed="' + (x === it) + '">' + esc((x.mark ? x.mark + " " : "") + x.head) + '</button>').join("") + '</div>';
     h += '<h2>' + esc((it.mark ? it.mark + " " : "") + (s.kaisetsu.items[it.id] ? s.kaisetsu.items[it.id].name : it.head)) + '</h2>';
     if(it.units && it.units.length) h += '<div class="units">' + it.units.map(u => '<span class="unit">📖 ' + esc(u.u) + '（' + esc(u.b) + '）</span>').join("") + '</div>';
+    if(it.kan) h += '<p class="note" style="margin:4px 0">この指導事項は〔' + KAN[it.kan] + '〕の内容です。' + (it.kan === "k" ? '「思考力、判断力、表現力等」はＡ〜Ｃの指導事項にあります。' : '「知識及び技能」は⑴〜⑶の指導事項にあります。') + '「学びに向かう力、人間性等」は学年の目標の（3）を見てください。</p>';
     h += kanBar() + itemSecs(it, q) + goalSec(it.g[0], q, (s.bandSecs && s.bandSecs[it.g[0]]) || (it.notes && it.notes.length) ? 4 : 3);
     if(s.katsudo && s.katsudo[it.g[0]]) h += '<details class="sec"><summary>' + esc(s.katsudoName) + '（' + it.g[0] + '年）の本文と解説</summary>' + paras(s.katsudo[it.g[0]].paras, q) + '<p class="src">出典：' + esc(s.kaisetsu.source) + '　p.' + s.katsudo[it.g[0]].page + '〜</p></details>';
   }
