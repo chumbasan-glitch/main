@@ -383,6 +383,24 @@ for ms in msubs:
             if m: cur = m.group(1); parts[cur] = [p]; continue
             parts.setdefault(cur, []).append(p)
         K['ksub'] = parts
+# 算数「系統で比べる」：つながりマップのテーマ（Claudeが作ったもの）を行にして，学年をまたいで同じ系統の内容をそろえる
+CROSS_IDS = {x['id'] for x in sc['cross']}
+TNAME = {t['id']: t['name'] for t in sc['themes']}
+TORD = [t['id'] for t in sc['themes']]
+for ms in msubs:
+    if ms['id'] != 'sansu': continue
+    its = {it['id']: it for it in sc['items'] if it['subject'] == 'sansu'}
+    trows = {}
+    for tid in TORD:
+        if tid in CROSS_IDS: continue
+        ids = [i for i, it in its.items() if tid in it['themes']]
+        if not ids: continue
+        cells = {}
+        for i in sorted(ids, key=lambda x: (its[x]['g'][0], x)):
+            cells.setdefault(str(its[i]['g'][0]), []).append({'id': i, 'lab': its[i]['themes'][tid]})
+        for area in dict.fromkeys(its[i]['area'] for i in ids):
+            trows.setdefault(area, []).append({'name': TNAME[tid], 'cells': cells})
+    ms['trows'] = trows
 mdata = {'subjects': msubs, 'edition': '品川区版',
          'coming': [x['name'] for x in sc['subjects'] if x['id'] not in KFILES and x['id'] not in ('shiminka', 'eigoshina')],
          'mapUrl': 'https://claude.ai/artifact/QYpnoKHpv9sgD9Zskx6pZe',

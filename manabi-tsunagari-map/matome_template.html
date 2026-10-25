@@ -335,6 +335,7 @@ function renderKeito(){
       '<button type="button" class="kopen" data-i="' + it.id + '">この内容をくわしく見る →</button></div>';
   };
   if(kan === "k" && s.krows && s.krows[cur.kArea]) return renderKeitoRows(s, area, cols);
+  if((kan === "k" || kan === "s") && s.trows && s.trows[cur.kArea]) return renderKeitoThemes(s, area, kan);
   let h = '<div class="meta"><span class="badge">' + esc(s.name) + '</span><span class="badge">' + esc(area.name) + '</span><span class="badge" style="border-color:var(--' + kan + ');color:var(--' + kan + ')">' + KAN[kan] + '</span></div>' +
     '<h2>系統で比べる：' + esc(area.name.replace(/^[Ａ-Ｚ]\s*/, "")) + '</h2>' +
     (kan === "m" && !hasM ? '<p class="note">この教科は内容ごとに「学びに向かう力、人間性等」が書かれていないため、各学年の目標の（3）を並べています。</p>' : '') +
@@ -396,6 +397,44 @@ function renderKeitoRows(s, area, cols){
     cur.kPick[cur.kArea] = p.length === names.length ? [] : p;
     renderKeito();
   });
+}
+/* 算数：テーマ（整数のしくみ・わり算など）を行，1〜6年を列にして，同じ系統の内容を横にそろえる */
+function renderKeitoThemes(s, area, kan){
+  const all = s.trows[cur.kArea];
+  cur.kPick = cur.kPick || {};
+  const key = cur.kArea + ":" + kan, pick = cur.kPick[key] || [], showAll = !pick.length;
+  const rows = all.filter(r => showAll || pick.includes(r.name));
+  const gs = s.grades.filter(g => rows.some(r => (r.cells[g] || []).length));   /* 内容のない学年の列は出さない */
+  const cell = (c) => {
+    const it = s.items.find(i => i.id === c.id), K = s.kaisetsu.items[it.id], body = splitHonbun(it)[kan];
+    let expl = K ? K.expl[kan] || [] : [], note = "";
+    if(K && !expl.length && K.expl.intro.length && !K.expl.k.length && !K.expl.s.length){ expl = K.expl.intro; note = "（ア・イに分けて書かれていないため説明全体）"; }
+    const other = it.area !== cur.kArea ? '<span class="note">（' + esc((s.areas.find(a => a.key === it.area) || {}).name || "") + '）</span>' : '';
+    return '<div class="kcell"><div class="kname">' + esc(it.mark + " " + c.lab) + other + '</div>' +
+      (body.length ? '<div class="blk" data-kan="' + kan + '">' + paras(body) + '</div>' : '') +
+      (expl.length ? '<details class="kexp"><summary>解説を開く（p.' + K.page + '〜）' + esc(note) + '</summary>' + paras(expl).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ') + '</details>' : '') +
+      '<button type="button" class="kopen" data-i="' + it.id + '">くわしく見る →</button></div>';
+  };
+  let h = '<div class="meta"><span class="badge">' + esc(s.name) + '</span><span class="badge">' + esc(area.name) + '</span><span class="badge" style="border-color:var(--' + kan + ');color:var(--' + kan + ')">' + KAN[kan] + '</span></div>' +
+    '<h2>系統で比べる：' + esc(area.name.replace(/^[Ａ-Ｚ]\s*/, "")) + '</h2>' +
+    '<div class="row"><span class="lbl">見たい内容</span><div class="row" style="margin:0" id="rowPick"><button type="button" class="gbtn" data-rp="" aria-pressed="' + showAll + '">すべて</button>' +
+      all.map(r => '<button type="button" class="gbtn" data-rp="' + esc(r.name) + '" aria-pressed="' + (!showAll && pick.includes(r.name)) + '">' + esc(r.name) + '</button>').join("") + '</div></div>' +
+    '<p class="note" style="margin:2px 0">いくつでも選べます。選んだ内容は、解説を開いた状態で出ます。行は、つながりマップのテーマ（Claudeが学習指導要領の内容から作ったもの）です。ほかの領域の内容も、同じ系統なら同じ行に入れています。</p>' +
+    '<div class="row"><button type="button" class="gbtn" id="openAll">解説をすべて開く</button>' + (gs.length > 3 ? '<span class="note">横にスクロールすると' + gs[gs.length - 1] + '年まで見られます。</span>' : '') + '</div>' +
+    '<div class="ktab-wrap"><table class="ktab" style="min-width:' + (gs.length * 230 + 120) + 'px"><thead><tr><th></th>' + gs.map(g => '<th>' + g + '年</th>').join("") + '</tr></thead><tbody>';
+  for(const r of rows){
+    h += '<tr><th>' + esc(r.name) + '</th>' + gs.map(g => { const cs = r.cells[g] || []; return '<td>' + (cs.length ? '<div class="kstack">' + cs.map(cell).join("") + '</div>' : '<p class="note" style="text-align:center">―</p>') + '</td>'; }).join("") + '</tr>';
+  }
+  h += '</tbody></table></div><p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + '／' + esc(s.kaisetsu.source) + '</p>';
+  $("result").innerHTML = h;
+  if(!showAll){ $("result").querySelectorAll(".kexp").forEach(d => d.open = true); $("openAll").textContent = "解説をすべて閉じる"; }
+  $("openAll").onclick = () => { const ds = [...$("result").querySelectorAll(".kexp")], open = !ds.every(d => d.open); ds.forEach(d => d.open = open); $("openAll").textContent = open ? "解説をすべて閉じる" : "解説をすべて開く"; };
+  $("rowPick").querySelectorAll("[data-rp]").forEach(b => b.onclick = () => {
+    const n = b.dataset.rp; let p = cur.kPick[key] || [];
+    p = !n ? [] : p.includes(n) ? p.filter(x => x !== n) : [...p, n];
+    cur.kPick[key] = p.length === all.length ? [] : p; renderKeito();
+  });
+  $("result").querySelectorAll(".kopen").forEach(b => b.onclick = () => { const it = s.items.find(i => i.id === b.dataset.i); cur.way = "area"; cur.g = it.g[0]; cur.kan = kan; select({t:"i", g:it.g[0], ids:[it.id]}); });
 }
 function renderResult(){
   if(cur.way === "keito") return renderKeito();
