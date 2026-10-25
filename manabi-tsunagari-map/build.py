@@ -310,10 +310,10 @@ sc['edition'] = {'name': '品川区版', 'sources': srcs,
                  'note': '品川区立学校が令和6〜9年度に使う教科書（品川区教育委員会の採択）の単元を添えています。',
                  # 詳しい画面から「学習指導要領まとめツール」の同じ内容を開く（入っている教科だけ）
                  'matome': {'url': 'https://claude.ai/artifact/71GrhgSpttBqp7UmwJZM3Q', 'file': 'gakushushidoyoryo-matome-shinagawa.html',
-                            'subjects': ['kokugo', 'shakai', 'sansu', 'rika', 'seikatsu', 'ongaku', 'zuko', 'katei', 'taiiku', 'doutoku']}}
+                            'subjects': ['kokugo', 'shakai', 'sansu', 'rika', 'seikatsu', 'ongaku', 'zuko', 'katei', 'taiiku', 'doutoku', 'tokkatsu']}}
 
 # ---------- 学習指導要領まとめツール（品川区版）：本文・解説・内容の取扱い・学年の目標を内容ごとにまとめる ----------
-KFILES = {'kokugo': ('kaisetsu/kokugo.json', ''), 'shakai': ('kaisetsu/shakai.json', ''), 'sansu': ('kaisetsu/sansu.json', '〔数学的活動〕'), 'rika': ('kaisetsu/rika.json', ''), 'seikatsu': ('kaisetsu/seikatsu.json', ''), 'ongaku': ('kaisetsu/ongaku.json', ''), 'zuko': ('kaisetsu/zuko.json', ''), 'katei': ('kaisetsu/katei.json', ''), 'taiiku': ('kaisetsu/taiiku.json', ''), 'doutoku': ('kaisetsu/doutoku.json', '')}
+KFILES = {'kokugo': ('kaisetsu/kokugo.json', ''), 'shakai': ('kaisetsu/shakai.json', ''), 'sansu': ('kaisetsu/sansu.json', '〔数学的活動〕'), 'rika': ('kaisetsu/rika.json', ''), 'seikatsu': ('kaisetsu/seikatsu.json', ''), 'ongaku': ('kaisetsu/ongaku.json', ''), 'zuko': ('kaisetsu/zuko.json', ''), 'katei': ('kaisetsu/katei.json', ''), 'taiiku': ('kaisetsu/taiiku.json', ''), 'doutoku': ('kaisetsu/doutoku.json', ''), 'tokkatsu': ('kaisetsu/tokkatsu.json', '')}
 UNIT_NOTE = {'taiiku': '運動領域（Ａ〜Ｆ）は教科書がないため、領域の名前で並べています。保健は教科書（東京書籍）の単元です。',
              'rika': '教科書（学校図書）の単元と学習指導要領の内容の結び付けは、Claudeが考えた案を先生に確かめていただいたものです。',
              'kokugo': '光村図書の指導事項配列表で、その単元の重点（◎）と関連（☆）とされている指導事項を結び付けています。'}
@@ -363,8 +363,8 @@ for sid, (fn, kname) in KFILES.items():
                   'bandSecs': bandsecs, 'unitNote': UNIT_NOTE.get(sid, ''),
                   'items': [{k: it.get(k) for k in ('id', 'g', 'area', 'areaName', 'mark', 'head', 'title', 'lines', 'notes', 'units')} for it in its],
                   'kaisetsu': {'source': K['source'], 'items': K['items']}})
-    if sid == 'doutoku':
-        # 道徳科は観点で分けて示されていない。内容項目の概要と，学年段階ごとの指導の要点を出す
+    if sid in ('doutoku', 'tokkatsu'):
+        # 道徳科・特別活動は観点で分けて示されていない。道徳は内容項目の概要と学年段階ごとの指導の要点，特別活動は内容ごとの説明を出す
         ms = msubs[-1]; ms['noKeito'] = True; ms['noKan'] = True
         for it in ms['items']: it['oneLine'] = True
     if sid == 'seikatsu':
@@ -487,7 +487,7 @@ mdata = {'subjects': msubs, 'edition': '品川区版',
          'coming': [x['name'] for x in sc['subjects'] if x['id'] not in KFILES and x['id'] not in ('shiminka', 'eigoshina')],
          'mapUrl': 'https://claude.ai/artifact/QYpnoKHpv9sgD9Zskx6pZe',
          'refs': REFS,
-         'footer': '学習指導要領まとめツール 品川区版　第1版（国語・社会・算数・理科・生活・音楽・図工・家庭・体育・道徳）　出典：小学校学習指導要領（平成29年告示）（文部科学省）。「小学校学習指導要領（平成29年告示）解説」各教科編（文部科学省）を加工して作成。教科書の単元と学習指導要領の内容との結び付けは、品川区が採択した教科書（令和6〜9年度）の各社の公開資料（年間指導計画など）をもとにしたもの（一部はClaudeの案）。'}
+         'footer': '学習指導要領まとめツール 品川区版　第1版（国語・社会・算数・理科・生活・音楽・図工・家庭・体育・道徳・特別活動）　出典：小学校学習指導要領（平成29年告示）（文部科学省）。「小学校学習指導要領（平成29年告示）解説」各教科編（文部科学省）を加工して作成。教科書の単元と学習指導要領の内容との結び付けは、品川区が採択した教科書（令和6〜9年度）の各社の公開資料（年間指導計画など）をもとにしたもの（一部はClaudeの案）。'}
 mt = open(P('matome_template.html')).read()
 mt = mt.replace('<title>学習指導要領まとめツール</title>', '<title>学習指導要領まとめツール 品川区版</title>')
 mt = mt.replace('/*DATA*/', 'const DATA = ' + json.dumps(mdata, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
