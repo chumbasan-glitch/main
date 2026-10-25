@@ -321,7 +321,7 @@ print('品川区版', sum(len(it.get('units', [])) for it in sc['items']), 'unit
 
 # ---------- 学習指導要領まとめツール（品川区版）：本文・解説・内容の取扱い・学年の目標を内容ごとにまとめる ----------
 KFILES = {'sansu': ('kaisetsu/sansu.json', '〔数学的活動〕'), 'taiiku': ('kaisetsu/taiiku.json', '')}
-UNIT_NOTE = {'taiiku': '体育の運動領域（Ａ〜Ｆ）は教科書がないため、単元は保健だけです。運動領域は「区分から」選んでください。'}
+UNIT_NOTE = {'taiiku': '運動領域（Ａ〜Ｆ）は教科書がないため、領域の名前で並べています。保健は教科書（東京書籍）の単元です。'}
 UNIT_ROWS = [l.rstrip('\n').split('\t') for fn in ('units_pub', 'units_manual') for l in open(P('midashi', 'shinagawa', fn + '.tsv')) if l.strip() and not l.startswith('#')]
 msubs = []
 for sid, (fn, kname) in KFILES.items():
@@ -343,6 +343,11 @@ for sid, (fn, kname) in KFILES.items():
                 kg = K['grades'].get(str(g), {}).get('goal', {})
                 goals[g] = {'lines': b['goal'], 'page': kg.get('page'), 'expl': kg.get('expl', {})}
     units, seen = [], {}
+    if sid == 'taiiku':   # 運動領域は教科書がないので，領域そのものを単元のように並べる
+        for it in its:
+            if it['area'] == 'G': continue
+            for g in it['g']:
+                units.append({'g': g, 'u': K['items'][it['id']]['name'], 'b': '運動領域（教科書なし）', 'ids': [it['id']]})
     for iid, u, bk, src in UNIT_ROWS:
         if not iid.startswith(sid + '-'): continue
         g = int(bk[0]); key = (g, u, bk)
