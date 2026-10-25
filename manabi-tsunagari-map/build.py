@@ -307,7 +307,10 @@ sc['subjects'].insert(k, EN['subject'])
 sc['items'] += EN['items']
 sc['themes'] += EN['themes']
 sc['edition'] = {'name': '品川区版', 'sources': srcs,
-                 'note': '品川区立学校が令和6〜9年度に使う教科書（品川区教育委員会の採択）の単元を添えています。'}
+                 'note': '品川区立学校が令和6〜9年度に使う教科書（品川区教育委員会の採択）の単元を添えています。',
+                 # 詳しい画面から「学習指導要領まとめツール」の同じ内容を開く（入っている教科だけ）
+                 'matome': {'url': 'https://claude.ai/artifact/71GrhgSpttBqp7UmwJZM3Q', 'file': 'gakushushidoyoryo-matome-shinagawa.html',
+                            'subjects': ['kokugo', 'sansu', 'taiiku']}}
 st = open(P('template.html')).read()
 st = st.replace('<title>学びのつながりマップ</title>', '<title>学びのつながりマップ 品川区版</title>')
 st = st.replace('<h1>学びのつながりマップ</h1>', '<h1>学びのつながりマップ<small class="ed">品川区版</small></h1>')
@@ -324,6 +327,7 @@ KFILES = {'kokugo': ('kaisetsu/kokugo.json', ''), 'sansu': ('kaisetsu/sansu.json
 UNIT_NOTE = {'taiiku': '運動領域（Ａ〜Ｆ）は教科書がないため、領域の名前で並べています。保健は教科書（東京書籍）の単元です。',
              'kokugo': '光村図書の指導事項配列表で、その単元の重点（◎）と関連（☆）とされている指導事項を結び付けています。'}
 UNIT_ROWS = [l.rstrip('\n').split('\t') for fn in ('units_pub', 'units_manual') for l in open(P('midashi', 'shinagawa', fn + '.tsv')) if l.strip() and not l.startswith('#')]
+assert list(KFILES) == sc['edition']['matome']['subjects'], 'つながりマップのリンク先の教科をそろえる'
 msubs = []
 for sid, (fn, kname) in KFILES.items():
     s = next(x for x in sc['subjects'] if x['id'] == sid)
