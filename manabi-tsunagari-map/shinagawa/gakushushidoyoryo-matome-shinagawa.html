@@ -91,6 +91,7 @@ mark{background:var(--mark); color:var(--markInk); border-radius:2px; padding:0 
 .quote{background:var(--quote); border-radius:8px; padding:6px 12px}
 .blk p,.quote p,.sec p{margin:4px 0}
 p.sub{font-weight:700; margin-top:10px}
+.kref{display:block; font-weight:400; font-size:12px; color:var(--ink2)}
 p.i1{padding-left:1em; text-indent:-1em}
 p.i2{padding-left:2em; text-indent:-1em}
 details.sec > summary{cursor:pointer; font-weight:700}
@@ -168,8 +169,19 @@ let cur = {subj:S[0].id, way:"unit", g:1, sel:null, part:0, kan:"all", q:""};
 const store = {get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }};
 
 /* 段落の字下げ：ア・（ア）などで始まる行は少し下げる */
-const pcls = t => /^（内容の取扱い）|^\(\d\) 「.+」に関わる目標$/.test(t) ? "sub" : /^（[ア-ン]）|^\([ア-ン]\)/.test(t) ? "i2" : /^[ア-ンⅠ-Ⅹ①-⑳][\s　]/.test(t) ? "i1" : "";
+/* 「アは，『知識及び技能』に関わる事項である。」「アのイは，技能に関わる事項である。」（社会）などは小見出しにする */
+const KMARK = /^[アイ](の[ア-ン](及び[ア-ン])?|の前文及びアからサまで)?は，.{0,24}(に関わる)?事項であ(る|り)/;
+const pcls = t => /^（内容の取扱い）|^\(\d\) 「.+」に関わる目標$/.test(t) || (t.length < 60 && KMARK.test(t)) ? "sub" : /^（[ア-ン]）|^\([ア-ン]\)/.test(t) ? "i2" : /^[ア-ンⅠ-Ⅹ①-⑳][\s　]/.test(t) ? "i1" : "";
 const paras = (ls, q) => ls.map(t => '<p class="' + pcls(t) + '">' + hl(t, q) + '</p>').join("");
+/* 「アのアは，…」が本文のどこを指すかを小さく添える（社会の6年の歴史など，同じ書き出しがいくつも続くため） */
+function refOf(it, t){
+  const m = t.length < 60 && t.match(/^([アイ])の([ア-ン])(?:及び([ア-ン]))?は，/); if(!m) return "";
+  const i = it.lines.findIndex(l => l.startsWith(m[1] + "　")); if(i < 0) return "";
+  for(let j = i + 1; j < it.lines.length && !/^[ア-ン]　/.test(it.lines[j]); j++)
+    if(it.lines[j].startsWith("（" + m[2] + "）")){ const x = it.lines[j].replace(/^（.）　/, ""); return "（" + m[2] + "）" + (x.length > 34 ? x.slice(0, 34) + "…" : x); }
+  return "";
+}
+const parasIt = (ls, q, it) => ls.map(t => { const r = refOf(it, t); return '<p class="' + pcls(t) + '">' + hl(t, q) + (r ? '<span class="kref">本文：' + esc(r) + '</span>' : '') + '</p>'; }).join("");
 const hl = (t, q) => { const e = esc(t); if(!q) return e; const qq = esc(q); return e.split(qq).join('<mark>' + qq + '</mark>'); };
 
 function renderSubjects(){
@@ -268,8 +280,8 @@ function itemSecs(it, q){
     const pre = (n, L) => e.m && e.m.length ? "(" + n + ") " : it.kan ? "" : L + " ";
     h += '<section class="sec" data-has="' + (it.kan || (e.m && e.m.length ? 'k s m' : 'k s')) + '"><h3><span class="num">2</span>解説の説明<span class="note">' + esc(K.name) + '（p.' + K.page + '〜）</span></h3>' +
       (e.intro.length ? '<div>' + paras(e.intro, q) + '</div>' : '') +
-      (e.k.length ? blk("k", pre(1, "ア") + KAN.k, paras(e.k, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
-      (e.s.length ? blk("s", pre(2, "イ") + KAN.s, paras(e.s, q).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
+      (e.k.length ? blk("k", pre(1, "ア") + KAN.k, parasIt(e.k, q, it).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
+      (e.s.length ? blk("s", pre(2, "イ") + KAN.s, parasIt(e.s, q, it).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
       (e.m && e.m.length ? blk("m", "(3) " + KAN.m, paras(e.m, q)) : '') +
       (!e.k.length && !e.s.length ? '<p class="note">この内容の解説は、「知識及び技能」「思考力、判断力、表現力等」に分けて書かれていません。上の説明に両方が含まれています。</p>' : '') +
       '<p class="src">出典：' + esc(src) + '　p.' + K.page + '〜</p></section>';

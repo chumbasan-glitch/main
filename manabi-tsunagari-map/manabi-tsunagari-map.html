@@ -113,6 +113,7 @@ details.kaisetsu p{margin:4px 0; font-size:14px; line-height:1.75}
 .ktag{display:block; font-size:12px}
 .kblk[data-kan="k"] .ktag{color:var(--kk)} .kblk[data-kan="s"] .ktag{color:var(--ks)} .kblk[data-kan="m"] .ktag{color:var(--km)}
 p.ksub{font-weight:700; margin-top:10px}
+.kref{display:block; font-weight:400; font-size:12px; color:var(--ink2)}
 p.krel{background:var(--bg); border-radius:4px}
 details.kaisetsu:not([open]) .k-c, details.kaisetsu[open] .k-o{display:none}   /* 開いているときは「解説を閉じる」 */
 details.kmore{margin-top:8px} details.kmore > summary{cursor:pointer; color:var(--accent); font-size:14px}
@@ -485,7 +486,16 @@ function matomeSec(it){
   const M = ED && ED.matome, KS = ED && ED.kaisetsu && ED.kaisetsu[it.subject];
   if(!M || !KS) return "";
   const K = KS.items[it.id], g = it.g[0], G = KS.goals[g], B = KS.bandSecs && KS.bandSecs[g];
-  const ps = ls => ls.map(t => '<p' + (/^[アイウエオ][\s　]|^（内容の取扱い）|^\(\d\) 「.+」に関わる目標$/.test(t) ? ' class="ksub"' : '') + '>' + show(t) + '</p>').join("");
+  /* 「アのアは，知識に関わる事項である。」（社会）などは小見出しにして，本文のどこかを小さく添える */
+  const ref = t => {
+    const m = t.length < 60 && t.match(/^([アイ])の([ア-ン])(?:及び([ア-ン]))?は，/); if(!m) return "";
+    const i = it.lines.findIndex(l => l.startsWith(m[1] + "　")); if(i < 0) return "";
+    for(let j = i + 1; j < it.lines.length && !/^[ア-ン]　/.test(it.lines[j]); j++)
+      if(it.lines[j].startsWith("（" + m[2] + "）")){ const x = it.lines[j].replace(/^（.）　/, ""); return "（" + m[2] + "）" + (x.length > 34 ? x.slice(0, 34) + "…" : x); }
+    return "";
+  };
+  const sub = t => /^[アイウエオ][\s　]|^（内容の取扱い）|^\(\d\) 「.+」に関わる目標$/.test(t) || (t.length < 60 && /^[アイ](の[ア-ン](及び[ア-ン])?|の前文及びアからサまで)?は，.{0,24}(に関わる)?事項であ(る|り)/.test(t));
+  const ps = ls => ls.map(t => { const r = ref(t); return '<p' + (sub(t) ? ' class="ksub"' : '') + '>' + show(t) + (r ? '<span class="kref">本文：' + esc(r) + '</span>' : '') + '</p>'; }).join("");
   const blk = (kan, label, ls) => ls && ls.length ? '<div class="kblk" data-kan="' + kan + '"><b class="ktag">' + esc(label) + '</b>' + ps(ls) + '</div>' : '';
   const kan = KS.areaKan ? KS.areaKan[it.area] : null;
   let h = '';
