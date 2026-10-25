@@ -95,6 +95,22 @@ p.sub{font-weight:700; margin-top:10px}
 p.kmark{font-size:12px; color:var(--ink2); margin-top:10px}
 .bhead{font-weight:700; margin:16px 0 4px; padding-top:8px; border-top:1px dashed var(--line)}
 .bhead:first-child{border-top:0; margin-top:4px}
+.tsunaBtn{border:1px solid var(--accent); color:var(--accent); background:var(--panel); border-radius:999px; padding:6px 14px; cursor:pointer; font-weight:700; min-height:40px; margin:4px 0}
+.tsunaBtn[aria-expanded="true"]{background:var(--accent); color:var(--panel)}
+.tsuna .tname{font-weight:700; margin:10px 0 4px}
+.tsteps{display:flex; gap:6px; overflow-x:auto; padding-bottom:4px}
+.tstep{flex:0 0 auto; width:136px; text-align:left; border:1px solid var(--line); border-radius:8px; padding:5px 7px; font-size:12px; line-height:1.4; background:var(--soft); color:var(--ink)}
+.tstep b{display:block; font-size:11px}
+button.tstep{cursor:pointer} button.tstep:hover{border-color:var(--accent)}
+.tstep.now{outline:3px solid var(--ink); outline-offset:-1px; background:var(--panel)}
+.tpn{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px}
+.tpn > div{border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-size:13px}
+.tpn b{display:block; font-size:12px; color:var(--ink2)}
+.tlink{display:block; border:0; background:none; padding:2px 0; text-align:left; cursor:pointer; color:var(--accent); text-decoration:underline; font-size:13px}
+.tpn span, .tmates span:not(.note){display:block; font-size:13px}
+.tmates summary{cursor:pointer; color:var(--accent)}
+.tcross{border:1px solid var(--line); border-radius:8px; padding:6px 8px; margin:6px 0; font-size:13px}
+@media (max-width:640px){ .tpn{grid-template-columns:1fr} }
 .partnote{background:var(--soft); border-radius:8px; padding:6px 10px; font-size:13px; margin:6px 0; display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center}
 p.i1{padding-left:1em; text-indent:-1em}
 p.i2{padding-left:2em; text-indent:-1em}
@@ -528,6 +544,7 @@ function renderResult(){
     if(its.length > 1) h += '<p class="note" style="margin:4px 0 0">この単元には、学習指導要領の内容が ' + its.length + ' つ結び付いています。</p><div class="multi">' + its.map((x, i) => '<button type="button" data-part="' + i + '" aria-pressed="' + (x === it) + '">' + esc((x.mark ? x.mark + " " : "") + x.head) + '</button>').join("") + '</div>';
     h += '<h2>' + esc((it.mark ? it.mark + " " : "") + (s.kaisetsu.items[it.id] ? s.kaisetsu.items[it.id].name : it.head)) + '</h2>';
     if(it.units && it.units.length) h += '<div class="units">' + it.units.map(u => '<span class="unit">📖 ' + esc(u.u) + '（' + esc(u.b) + '）</span>').join("") + '</div>';
+    if(it.tsuna && (it.tsuna.flows.length || it.tsuna.cross.length)) h += '<button type="button" class="tsunaBtn" id="tsunaBtn" aria-expanded="' + !!cur.tsuna + '">🔗 ' + (cur.tsuna ? '学びのつながりを閉じる' : '学びのつながりを見る') + '</button>' + (cur.tsuna ? tsunaSec(it) : '');
     if(it.kan) h += '<p class="note" style="margin:4px 0">この指導事項は〔' + KAN[it.kan] + '〕の内容です。' + (it.kan === "k" ? '「思考力、判断力、表現力等」はＡ〜Ｃの指導事項にあります。' : '「知識及び技能」は⑴〜⑶の指導事項にあります。') + '「学びに向かう力、人間性等」は学年の目標の（3）を見てください。</p>';
     h += kanBar() + itemSecs(it, q) + goalSec(it.g[0], q, (s.bandSecs && s.bandSecs[it.g[0]]) || (it.notes && it.notes.length) ? 4 : 3);
     if(s.katsudo && s.katsudo[it.g[0]]) h += '<details class="sec"><summary>' + esc(s.katsudoName) + '（' + it.g[0] + '年）の本文と解説</summary>' + paras(s.katsudo[it.g[0]].paras, q) + '<p class="src">出典：' + esc(s.kaisetsu.source) + '　p.' + s.katsudo[it.g[0]].page + '〜</p></details>';
@@ -535,8 +552,38 @@ function renderResult(){
   $("result").innerHTML = h;
   $("result").querySelectorAll("[data-kan]").forEach(b => { if(b.tagName === "BUTTON") b.onclick = () => { cur.kan = b.dataset.kan; store.set("matome-kan", cur.kan); renderResult(); }; });
   $("result").querySelectorAll("[data-part]").forEach(b => b.onclick = () => { cur.part = +b.dataset.part; renderResult(); });
+  if($("tsunaBtn")) $("tsunaBtn").onclick = () => { cur.tsuna = !cur.tsuna; renderResult(); if(cur.tsuna) document.querySelector(".tsuna").scrollIntoView({behavior:"smooth", block:"nearest"}); };
+  $("result").querySelectorAll("[data-go]").forEach(b => b.onclick = () => goItem(b.dataset.go));
   if($("allParts")) $("allParts").onclick = () => { cur.allParts = true; renderResult(); };
   if($("unitParts")) $("unitParts").onclick = () => { cur.allParts = false; renderResult(); };
+}
+
+/* ---------- 学びのつながり（つながりマップの詳しい画面と同じ中身） ---------- */
+function tsunaSec(it){
+  const R = DATA.refs, T = it.tsuna, g0 = it.g[0], gEnd = it.g[it.g.length - 1];
+  const name = id => { const r = R[id]; return r.gl + (r.s !== cur.subj ? '・' + r.sn : ''); };
+  const link = (id, lab) => { const r = R[id]; return SUB[r.s] && id !== it.id ? '<button type="button" class="tlink" data-go="' + id + '">' + esc(name(id)) + '：' + esc(lab || r.h) + '</button>' : '<span>' + esc(name(id)) + '：' + esc(lab || r.h) + '</span>'; };
+  let h = '<section class="sec tsuna"><h3>学びのつながり<span class="note">テーマ（Claudeが学習指導要領の内容から作ったもの）ごとの学年の流れと、教科横断のテーマです。つながりマップの詳しい画面と同じ中身です。</span></h3>';
+  for(const f of T.flows){
+    const st = f.steps.map(([id, lab]) => ({id, lab, r:R[id]}));
+    const prev = st.filter(x => x.r.g[x.r.g.length - 1] < g0), next = st.filter(x => x.r.g[0] > gEnd);
+    const pg = prev.length ? Math.max(...prev.map(x => x.r.g[x.r.g.length - 1])) : null, ng = next.length ? Math.min(...next.map(x => x.r.g[0])) : null;
+    h += '<div class="tflow"><div class="tname">テーマ「' + esc(f.name) + '」</div><div class="tsteps">' +
+      st.map(x => '<' + (SUB[x.r.s] && x.id !== it.id ? 'button type="button" data-go="' + x.id + '"' : 'div') + ' class="tstep' + (x.id === it.id ? ' now' : '') + '"><b>' + esc(name(x.id)) + (x.id === it.id ? '（いま）' : '') + '</b>' + esc(x.lab) + '</' + (SUB[x.r.s] && x.id !== it.id ? 'button' : 'div') + '>').join("") + '</div>' +
+      '<div class="tpn"><div><b>前の学年で学んだこと</b>' + (pg ? prev.filter(x => x.r.g[x.r.g.length - 1] === pg).map(x => link(x.id, x.lab)).join("") : '<span class="note">このテーマは、ここから始まります。</span>') + '</div>' +
+      '<div><b>次の学年で学ぶこと</b>' + (ng ? next.filter(x => x.r.g[0] === ng).map(x => link(x.id, x.lab)).join("") : '<span class="note">小学校では、ここがまとめになります（中学校へつながります）。</span>') + '</div></div></div>';
+  }
+  if(T.cross.length) h += '<h4 style="margin:12px 0 4px;font-size:14px">教科横断のテーマ</h4>' + T.cross.map(c => '<div class="tcross"><b>' + esc(c.name) + '</b> <span class="note">' + esc(c.cats.join("、")) + '</span>' +
+    (c.mates.length > 6 ? '<details class="tmates"><summary class="note">同じ小見出しの内容（' + c.mates.length + '）を見る</summary>' + c.mates.map(id => link(id)).join("") + '</details>'   /* 多いときはたたむ */
+      : c.mates.length ? '<div class="tmates"><span class="note">同じ小見出しの内容：</span>' + c.mates.map(id => link(id)).join("") + '</div>' : '') + '</div>').join("");
+  h += '<p class="note" style="margin-top:8px">ボタンになっている内容は、押すとこのツールで開きます。マップ全体で見るときは <a href="' + esc(DATA.mapUrl) + '" target="_blank" rel="noopener">学びのつながりマップ</a> へ。</p></section>';
+  return h;
+}
+function goItem(id){
+  const r = DATA.refs[id]; if(!SUB[r.s]) return;
+  if(cur.subj !== r.s){ cur.subj = r.s; renderSubjects(); }
+  cur.way = "area"; cur.g = r.g[0];
+  select({t:"i", g:r.g[0], ids:[id]});
 }
 
 /* はじめ */

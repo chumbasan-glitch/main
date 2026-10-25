@@ -456,9 +456,33 @@ open(P('shinagawa', 'page.html'), 'w').write(st)
 sfull = full.replace(t, st)
 open(P('shinagawa', 'manabi-tsunagari-map-shinagawa.html'), 'w').write(sfull)
 print('品川区版', sum(len(it.get('units', [])) for it in sc['items']), 'units,', len(sfull.encode()), 'bytes')
+# 「学びのつながり」（つながりマップの詳しい画面と同じ中身）：テーマごとの学年の流れと，教科横断（付録6など）のテーマ
+#（claude.ai ではまとめツールからマップの同じ内容へ移れないため，まとめツールの中でも見られるようにする）
+SORD = {x['id']: i for i, x in enumerate(sc['subjects'])}
+SNAME = {x['id']: x['name'].replace('特別の教科 ', '').replace('総合的な学習の時間', '総合') for x in sc['subjects']}
+XNAME = {x['id']: x['name'] for x in sc['cross']}
+byg = lambda x: (x['g'][0], len(x['g']), SORD[x['subject']])
+gl = lambda g: '%d・%d年' % (g[0], g[-1]) if len(g) > 1 else '%d年' % g[0]
+refs = {}
+for ms in msubs:
+    for mi in ms['items']:
+        it = next(x for x in sc['items'] if x['id'] == mi['id'])
+        flows = []
+        for tid in sorted((t for t in it['themes'] if t not in CROSS_IDS), key=TORD.index):
+            line = sorted((x for x in sc['items'] if tid in x['themes']), key=byg)
+            flows.append({'name': TNAME[tid], 'steps': [[x['id'], x['themes'][tid]] for x in line]})
+            for x in line: refs[x['id']] = x
+        cross = []
+        for tid, c in (it.get('cross') or {}).items():
+            mates = sorted((y for y in sc['items'] if y['id'] != it['id'] and tid in (y.get('cross') or {}) and set(y['cross'][tid]['cats']) & set(c['cats'])), key=byg)
+            cross.append({'name': XNAME[tid], 'cats': c['cats'], 'mates': [y['id'] for y in mates]})
+            for y in mates: refs[y['id']] = y
+        mi['tsuna'] = {'flows': flows, 'cross': cross}
+REFS = {i: {'s': x['subject'], 'sn': SNAME[x['subject']], 'g': x['g'], 'gl': gl(x['g']), 'h': x['head']} for i, x in refs.items()}
 mdata = {'subjects': msubs, 'edition': '品川区版',
          'coming': [x['name'] for x in sc['subjects'] if x['id'] not in KFILES and x['id'] not in ('shiminka', 'eigoshina')],
          'mapUrl': 'https://claude.ai/artifact/QYpnoKHpv9sgD9Zskx6pZe',
+         'refs': REFS,
          'footer': '学習指導要領まとめツール 品川区版　第1版（国語・社会・算数・理科・生活・音楽・図工・家庭・体育）　出典：小学校学習指導要領（平成29年告示）（文部科学省）。「小学校学習指導要領（平成29年告示）解説」各教科編（文部科学省）を加工して作成。教科書の単元と学習指導要領の内容との結び付けは、品川区が採択した教科書（令和6〜9年度）の各社の公開資料（年間指導計画など）をもとにしたもの（一部はClaudeの案）。'}
 mt = open(P('matome_template.html')).read()
 mt = mt.replace('<title>学習指導要領まとめツール</title>', '<title>学習指導要領まとめツール 品川区版</title>')
