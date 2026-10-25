@@ -97,6 +97,13 @@ details.sec > summary{cursor:pointer; font-weight:700}
 body.only-k .blk:not([data-kan="k"]), body.only-s .blk:not([data-kan="s"]), body.only-m .blk:not([data-kan="m"]){display:none}
 body.only-k .sec[data-has]:not([data-has~="k"]), body.only-s .sec[data-has]:not([data-has~="s"]), body.only-m .sec[data-has]:not([data-has~="m"]){display:none}
 .empty{color:var(--ink2); font-size:14px; padding:6px 0}
+.keito{display:grid; grid-template-columns:repeat(var(--n), minmax(260px, 1fr)); gap:10px; overflow-x:auto; padding-bottom:8px; margin-top:8px}
+.kcol{min-width:0}
+.khead{background:var(--ink); color:var(--panel); border-radius:8px; padding:4px 10px; font-weight:700; text-align:center; margin-bottom:6px}
+.kcell{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:8px; font-size:14px}
+.kname{font-weight:700; margin-bottom:4px}
+.kexp summary{cursor:pointer; color:var(--accent); font-size:13px; margin-top:4px}
+.kopen{border:0; background:none; color:var(--accent); cursor:pointer; padding:4px 0 0; font-size:13px; text-decoration:underline}
 footer{color:var(--ink2); font-size:12px; text-align:center; padding:20px 16px 30px}
 @media (max-width:640px){
   .brand h1{font-size:17px}
@@ -124,11 +131,13 @@ footer{color:var(--ink2); font-size:12px; text-align:center; padding:20px 16px 3
         <button type="button" data-way="unit" aria-pressed="true">単元から</button>
         <button type="button" data-way="area" aria-pressed="false">区分から</button>
         <button type="button" data-way="word" aria-pressed="false">言葉で検索</button>
+        <button type="button" data-way="keito" aria-pressed="false">系統で比べる</button>
       </div>
     </div>
     <div class="row" id="gradeRow"><span class="lbl">学年</span><div class="row" id="grades" style="margin:0"></div></div>
     <div id="pickUnit"></div>
     <div id="pickArea" hidden></div>
+    <div id="pickKeito" hidden></div>
     <div id="pickWord" hidden>
       <div class="search"><input id="q" type="search" placeholder="例：概数、単位量あたり、筆算" aria-label="さがす言葉" autocomplete="off"></div>
       <div class="hits" id="hits"></div>
@@ -166,8 +175,9 @@ function renderGrades(){
 }
 function renderPicks(){
   document.querySelectorAll("[data-way]").forEach(b => b.setAttribute("aria-pressed", b.dataset.way === cur.way));
-  $("pickUnit").hidden = cur.way !== "unit"; $("pickArea").hidden = cur.way !== "area"; $("pickWord").hidden = cur.way !== "word";
-  $("gradeRow").hidden = cur.way === "word";
+  $("pickUnit").hidden = cur.way !== "unit"; $("pickArea").hidden = cur.way !== "area"; $("pickWord").hidden = cur.way !== "word"; $("pickKeito").hidden = cur.way !== "keito";
+  $("gradeRow").hidden = cur.way === "word" || cur.way === "keito";
+  if(cur.way === "keito"){ renderKeitoPick(); return; }
   renderGrades();
   const s = SUB[cur.subj];
   if(cur.way === "unit"){
@@ -274,7 +284,59 @@ function goalSec(g, q, n){
     ["1","2","3"].map((k, i) => X[k] && X[k].length ? blk(kanOf(i), "（" + k + "）" + KAN[kanOf(i)], paras(X[k], q)) : '').join("") +
     '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(SUB[cur.subj].section) + ' 第２ ' + gLabel(G.grades || [g]) + '１ 目標／' + esc(SUB[cur.subj].kaisetsu.source) + '　p.' + G.page + '〜</p></section>';
 }
+/* ---------- 系統で比べる：同じ領域の内容を学年順に横に並べる ---------- */
+function splitHonbun(it){
+  const out = {k:[], s:[], m:[], o:[]}; let to = "o";
+  const num = it.lines.some(l => /^⑴/.test(l));
+  for(const l of it.lines){
+    if(num){ if(/^⑴/.test(l)) to = "k"; else if(/^⑵/.test(l)) to = "s"; else if(/^⑶/.test(l)) to = "m"; }
+    else if(/^ア[\s　]/.test(l)) to = "k"; else if(/^イ[\s　]/.test(l)) to = "s";
+    out[to].push(l);
+  }
+  return out;
+}
+function renderKeitoPick(){
+  const s = SUB[cur.subj];
+  if(!cur.kArea || !s.areas.some(a => a.key === cur.kArea)) cur.kArea = s.areas[0].key;
+  if(!cur.kKan || cur.kKan === "all") cur.kKan = cur.kan !== "all" ? cur.kan : "k";
+  $("pickKeito").innerHTML = '<div class="row"><span class="lbl">領域</span><div class="row" style="margin:0">' + s.areas.map(a => '<button type="button" class="gbtn" data-ka="' + a.key + '" aria-pressed="' + (a.key === cur.kArea) + '">' + esc(a.name) + '</button>').join("") + '</div></div>' +
+    '<div class="row"><span class="lbl">観点</span><div class="seg" role="group" aria-label="観点">' + ["k","s","m"].map(k => '<button type="button" data-kk="' + k + '" aria-pressed="' + (k === cur.kKan) + '">' + KAN[k] + '</button>').join("") + '</div></div>';
+  $("pickKeito").querySelectorAll("[data-ka]").forEach(b => b.onclick = () => { cur.kArea = b.dataset.ka; renderKeitoPick(); renderKeito(); });
+  $("pickKeito").querySelectorAll("[data-kk]").forEach(b => b.onclick = () => { cur.kKan = b.dataset.kk; renderKeitoPick(); renderKeito(); });
+  renderKeito();
+}
+function renderKeito(){
+  const s = SUB[cur.subj], kan = cur.kKan, area = s.areas.find(a => a.key === cur.kArea);
+  document.body.classList.remove("only-k", "only-s", "only-m");
+  const its = s.items.filter(it => it.area === cur.kArea).sort((a, b) => a.g[0] - b.g[0] || (+a.id.split("-").pop() || 0) - (+b.id.split("-").pop() || 0));
+  const cols = [];
+  for(const it of its){ const key = it.g.join(""); let c = cols.find(x => x.key === key); if(!c){ c = {key, g:it.g, its:[]}; cols.push(c); } c.its.push(it); }
+  const hasM = its.some(it => it.lines.some(l => /^⑶/.test(l)));
+  const cell = it => {
+    const K = s.kaisetsu.items[it.id], parts = splitHonbun(it);
+    let body = parts[kan], expl = K ? (K.expl[kan] || []) : [], note = "";
+    if(kan === "m" && !body.length){   /* 内容に⑶がない教科は，学年の目標の(3)を出す */
+      const G = s.goals[it.g[0]]; body = G && G.lines[2] ? [G.lines[2]] : []; expl = G && G.expl && G.expl["3"] || []; note = "内容には書かれていないため、学年の目標の（3）です。";
+    }
+    if(kan !== "m" && !expl.length && K && K.expl.intro.length && !K.expl.k.length && !K.expl.s.length){ expl = K.expl.intro; note = "解説がア・イに分けて書かれていないため、説明全体です。"; }
+    return '<div class="kcell"><div class="kname">' + esc((it.mark ? it.mark + " " : "") + (K ? K.name : it.head)) + '</div>' +
+      (body.length ? '<div class="blk" data-kan="' + kan + '">' + paras(body) + '</div>' : '<p class="note">この観点の本文はありません。</p>') +
+      (note ? '<p class="note">' + esc(note) + '</p>' : '') +
+      (expl.length ? '<details class="kexp"><summary>解説を開く（p.' + (kan === "m" && note ? s.goals[it.g[0]].page : K.page) + '〜）</summary>' + paras(expl).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ') + '</details>' : '') +
+      '<button type="button" class="kopen" data-i="' + it.id + '">この内容をくわしく見る →</button></div>';
+  };
+  let h = '<div class="meta"><span class="badge">' + esc(s.name) + '</span><span class="badge">' + esc(area.name) + '</span><span class="badge" style="border-color:var(--' + kan + ');color:var(--' + kan + ')">' + KAN[kan] + '</span></div>' +
+    '<h2>系統で比べる：' + esc(area.name.replace(/^[Ａ-Ｚ]\s*/, "")) + '</h2>' +
+    (kan === "m" && !hasM ? '<p class="note">この教科は内容ごとに「学びに向かう力、人間性等」が書かれていないため、各学年の目標の（3）を並べています。</p>' : '') +
+    '<div class="row"><p class="note" style="margin:0">横にスクロールすると、ほかの学年も見られます。解説は各列の下で開けます。</p><button type="button" class="gbtn" id="openAll">解説をすべて開く</button></div>' +
+    '<div class="keito" style="--n:' + cols.length + '">' + cols.map(c => '<div class="kcol"><div class="khead">' + (c.g.length > 1 ? c.g[0] + '・' + c.g[c.g.length - 1] : c.g[0]) + '年</div>' + c.its.map(cell).join("") + '</div>').join("") + '</div>' +
+    '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + '／' + esc(s.kaisetsu.source) + '</p>';
+  $("result").innerHTML = h;
+  $("openAll").onclick = () => { const ds = [...$("result").querySelectorAll(".kexp")], open = !ds.every(d => d.open); ds.forEach(d => d.open = open); $("openAll").textContent = open ? "解説をすべて閉じる" : "解説をすべて開く"; };
+  $("result").querySelectorAll(".kopen").forEach(b => b.onclick = () => { const it = s.items.find(i => i.id === b.dataset.i); cur.way = "area"; cur.g = it.g[0]; cur.kan = kan; select({t:"i", g:it.g[0], ids:[it.id]}); });
+}
 function renderResult(){
+  if(cur.way === "keito") return renderKeito();
   const s = SUB[cur.subj], sel = cur.sel, q = cur.way === "word" ? cur.q : "";
   document.body.classList.remove("only-k", "only-s", "only-m");
   if(cur.kan !== "all") document.body.classList.add("only-" + cur.kan);
