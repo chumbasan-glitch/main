@@ -275,6 +275,8 @@ function subLine(it, top, L){
   for(let j = i + 1; j < it.lines.length && !/^[ア-ン]　/.test(it.lines[j]); j++) if(it.lines[j].startsWith("（" + L + "）")) return it.lines[j];
   return "";
 }
+/* 音楽・図工のようにアが〔思考力，判断力，表現力等〕の内容は，本文の順に合わせて思考力等を先に出す */
+const sFirst = it => it.lineKan && it.lineKan["ア"] === "s";
 function honbun(it, q){
   const a = [], b = [], c = [], other = []; let to = other;
   const lines = partLines(it, unitParts(it));
@@ -282,12 +284,13 @@ function honbun(it, q){
   if(it.kan) to = {k:a, s:b, m:c}[it.kan];
   for(const l of lines){
     if(it.kan || it.oneLine);   /* 生活：一文に観点が全部入っている */
+    else if(it.lineKan){ const m = l.match(/^([ア-オ])[\s　]/); if(m) to = {k:a, s:b, m:c}[it.lineKan[m[1]] || "k"]; }   /* 音楽・図工：アが思考力等など，事項ごとに観点が決まっている */
     else if(num){ if(/^⑴/.test(l)) to = a; else if(/^⑵/.test(l)) to = b; else if(/^⑶/.test(l)) to = c; }
     else if(/^ア[\s　]/.test(l)) to = a; else if(/^イ[\s　]/.test(l)) to = b;
     to.push(l);
   }
   return '<div class="quote">' + (it.title ? '<p>' + esc(it.mark || '') + (it.mark ? '　' : '') + hl(it.title, q) + '</p>' : '') + paras(other, q) +
-    (a.length ? blk("k", KAN.k, paras(a, q)) : '') + (b.length ? blk("s", KAN.s, paras(b, q)) : '') + (c.length ? blk("m", KAN.m, paras(c, q)) : '') + '</div>';
+    (sFirst(it) ? (b.length ? blk("s", KAN.s, paras(b, q)) : '') + (a.length ? blk("k", KAN.k, paras(a, q)) : '') : (a.length ? blk("k", KAN.k, paras(a, q)) : '') + (b.length ? blk("s", KAN.s, paras(b, q)) : '')) + (c.length ? blk("m", KAN.m, paras(c, q)) : '') + '</div>';
 }
 function itemSecs(it, q){
   const s = SUB[cur.subj], K = s.kaisetsu.items[it.id], src = s.kaisetsu.source;
@@ -296,7 +299,7 @@ function itemSecs(it, q){
     '<p class="src">出典：小学校学習指導要領（平成29年告示）' + esc(s.section) + '　第２ 各学年の目標及び内容' + gLabel(it.g) + '２ 内容</p></section>';
   if(K){
     const e = K.expl;
-    const pre = (n, L) => it.oneLine ? "" : e.m && e.m.length ? "(" + n + ") " : it.kan ? "" : L + " ";
+    const pre = (n, L) => it.oneLine || it.lineKan ? "" : e.m && e.m.length ? "(" + n + ") " : it.kan ? "" : L + " ";
     const P = unitParts(it);
     if(P) h = h.replace('<section class="sec"', '<div class="partnote">単元「' + esc(cur.sel.name) + '」に当たる部分（' + Object.entries(P).map(([t, ls]) => t + "の" + [...ls].map(x => "（" + x + "）").join("")).join("、") + '）だけを出しています。<button type="button" class="gbtn" id="allParts">すべての部分を見る</button></div><section class="sec"');
     else if(cur.allParts && cur.sel && cur.sel.parts && cur.sel.parts[it.id]) h = h.replace('<section class="sec"', '<div class="partnote">すべての部分を出しています。<button type="button" class="gbtn" id="unitParts">単元「' + esc(cur.sel.name) + '」の部分だけにもどす</button></div><section class="sec"');
@@ -309,8 +312,9 @@ function itemSecs(it, q){
     }
     h += '<section class="sec" data-has="' + (it.kan || (e.m && e.m.length ? 'k s m' : 'k s')) + '"><h3><span class="num">2</span>解説の説明<span class="note">' + esc(K.name) + '（p.' + K.page + '〜）</span></h3>' +
       (e.intro.length ? '<div>' + paras(e.intro, q) + '</div>' : '') +
-      (e.k.length ? blk("k", pre(1, "ア") + KAN.k, parasIt(e.k, q, it).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
-      (e.s.length ? blk("s", pre(2, "イ") + KAN.s, parasIt(e.s, q, it).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '') +
+      (() => { const K1 = e.k.length ? blk("k", pre(1, "ア") + KAN.k, parasIt(e.k, q, it).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '',
+                     S1 = e.s.length ? blk("s", pre(2, "イ") + KAN.s, parasIt(e.s, q, it).replace(/<p class="i1">(ア|イ|ウ|エ|オ)[\s　]/g, '<p class="sub">$1 ')) : '';
+                 return sFirst(it) ? S1 + K1 : K1 + S1; })() +
       (e.m && e.m.length ? blk("m", pre(3, "") + KAN.m, paras(e.m, q)) : '') +
       (e.x && e.x.length ? '<h4 style="margin:12px 0 2px;font-size:14px">この内容の学習を行うに当たって</h4>' + paras(e.x, q) : '') +
       (!e.k.length && !e.s.length ? '<p class="note">この内容の解説は、「知識及び技能」「思考力、判断力、表現力等」に分けて書かれていません。上の説明に両方が含まれています。</p>' : '') +
@@ -360,6 +364,7 @@ function splitHonbun(it){
   const num = it.lines.some(l => /^⑴/.test(l));
   for(const l of it.lines){
     if(it.kan || it.oneLine);
+    else if(it.lineKan){ const m = l.match(/^([ア-オ])[\s　]/); if(m) to = it.lineKan[m[1]] || "k"; }
     else if(num){ if(/^⑴/.test(l)) to = "k"; else if(/^⑵/.test(l)) to = "s"; else if(/^⑶/.test(l)) to = "m"; }
     else if(/^ア[\s　]/.test(l)) to = "k"; else if(/^イ[\s　]/.test(l)) to = "s";
     out[to].push(l);
