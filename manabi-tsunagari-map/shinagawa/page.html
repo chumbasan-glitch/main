@@ -424,7 +424,7 @@ table.tksteps th.faded small::after{content:"（この学年ではまだ扱わ�
     <div class="results" id="results"></div>
   </section>
 </main>
-<footer class="verfoot">学びのつながりマップ 品川区版　第1版　2026年10月24日更新<br><span id="footSrc">出典：小学校学習指導要領（平成29年告示）（文部科学省）。「小学校学習指導要領（平成29年告示）解説」（文部科学省）を加工して作成。市民科・英語（品川区）は「品川区立学校教育要領」（品川区教育委員会）をもとに作成。教科書の単元と学習指導要領の内容との結び付けは、品川区が採択した教科書（令和6〜9年度）の各社の公開資料（年間指導計画など）をもとにしたもの（一部はClaudeの案）。</span></footer>
+<footer class="verfoot">学びのつながりマップ 品川区版　第1版　2026年10月25日更新<br><span id="footSrc">出典：小学校学習指導要領（平成29年告示）（文部科学省）。「小学校学習指導要領（平成29年告示）解説」（文部科学省）を加工して作成。市民科・英語（品川区）は「品川区立学校教育要領」（品川区教育委員会）をもとに作成。教科書の単元と学習指導要領の内容との結び付けは、品川区が採択した教科書（令和6〜9年度）の各社の公開資料（年間指導計画など）をもとにしたもの（一部はClaudeの案）。</span></footer>
 
 <div class="sheetBack" id="sheetBack" hidden></div>
 <aside class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="dTitle"></aside>
@@ -1028,7 +1028,7 @@ function buildA4(){
     }
     h += '</tr>';
   }
-  h += '</tbody></table><div class="a4foot"><span>出典：' + esc(SRC(s)) + '。目標は原文。見出し・テーマは「学びのつながりマップ」が原文をもとにまとめたもの。</span><span>学びのつながりマップ 品川区版　第1版　2026年10月24日更新</span></div>';
+  h += '</tbody></table><div class="a4foot"><span>出典：' + esc(SRC(s)) + '。目標は原文。見出し・テーマは「学びのつながりマップ」が原文をもとにまとめたもの。</span><span>学びのつながりマップ 品川区版　第1版　2026年10月25日更新</span></div>';
   const box = $("a4"); box.innerHTML = h;
   /* 1枚に収まるまで文字を小さくする */
   const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 16;
@@ -1054,7 +1054,7 @@ function buildA4X(st){
     }
     if(r.plans.length) h += '<tr><th class="rh">' + (r.its.length ? '' : esc(s.name)) + '<br><span style="font-weight:400;font-size:.85em">指導計画・内容の取扱い</span></th><td colspan="6" class="empty">' + r.plans.map(p => '<div>' + show(p.lines.join(" ").slice(0, 110)) + (p.lines.join(" ").length > 110 ? '…' : '') + ' <span class="ct">' + catNo(x, p.cat) + '</span></div>').join("") + '</td></tr>';
   }
-  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総則編 付録6・総合的な学習の時間編。見出しと小見出しは「学びのつながりマップ」がまとめたもの。</span><span>学びのつながりマップ 品川区版　第1版　2026年10月24日更新</span></div>';
+  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総則編 付録6・総合的な学習の時間編。見出しと小見出しは「学びのつながりマップ」がまとめたもの。</span><span>学びのつながりマップ 品川区版　第1版　2026年10月25日更新</span></div>';
   const box = $("a4"); box.innerHTML = h;
   const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 15;
   const over = () => tb.getBoundingClientRect().bottom > foot.getBoundingClientRect().top - 6;
@@ -1075,7 +1075,7 @@ function buildA4Tk(){
     }
     h += '</tr>';
   }
-  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総合的な学習の時間編。教科の内容と探究のステップとのつながりはClaudeの案。</span><span>学びのつながりマップ 品川区版　第1版　2026年10月24日更新</span></div>';
+  h += '</tbody></table><div class="a4foot"><span>出典：小学校学習指導要領（平成29年告示）、同解説 総合的な学習の時間編。教科の内容と探究のステップとのつながりはClaudeの案。</span><span>学びのつながりマップ 品川区版　第1版　2026年10月25日更新</span></div>';
   const box = $("a4"); box.innerHTML = h;
   const tb = box.querySelector("table"), foot = box.querySelector(".a4foot"); let fs = 13;
   const over = () => tb.getBoundingClientRect().bottom > foot.getBoundingClientRect().top - 6;

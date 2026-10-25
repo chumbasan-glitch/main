@@ -473,7 +473,7 @@ for ms in msubs:
 st = open(P('template.html')).read()
 st = st.replace('<title>学びのつながりマップ</title>', '<title>学びのつながりマップ 品川区版</title>')
 st = st.replace('<h1>学びのつながりマップ</h1>', '<h1>学びのつながりマップ<small class="ed">品川区版</small></h1>')
-st = st.replace('学びのつながりマップ　第1版', '学びのつながりマップ 品川区版　第1版')
+st = st.replace('学びのつながりマップ　第1版　2026年10月24日更新', '学びのつながりマップ 品川区版　第1版　2026年10月25日更新')
 st = st.replace('を加工して作成。</span></footer>', 'を加工して作成。市民科・英語（品川区）は「品川区立学校教育要領」（品川区教育委員会）をもとに作成。教科書の単元と学習指導要領の内容との結び付けは、品川区が採択した教科書（令和6〜9年度）の各社の公開資料（年間指導計画など）をもとにしたもの（一部はClaudeの案）。</span></footer>')
 st = st.replace('/*DATA*/', 'const CONTENT = ' + json.dumps(sc, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
 os.makedirs(P('shinagawa'), exist_ok=True)
@@ -508,7 +508,7 @@ mdata = {'subjects': msubs, 'edition': '品川区版',
          'coming': [x['name'] for x in sc['subjects'] if x['id'] not in KFILES and x['id'] not in ('shiminka', 'eigoshina')],
          'mapUrl': 'https://claude.ai/artifact/QYpnoKHpv9sgD9Zskx6pZe',
          'refs': REFS,
-         'footer': '学習指導要領まとめツール 品川区版　第1版（学習指導要領の全教科等）　出典：小学校学習指導要領（平成29年告示）（文部科学省）。「小学校学習指導要領（平成29年告示）解説」各教科編（文部科学省）を加工して作成。教科書の単元と学習指導要領の内容との結び付けは、品川区が採択した教科書（令和6〜9年度）の各社の公開資料（年間指導計画など）をもとにしたもの（一部はClaudeの案）。'}
+         'footer': '学習指導要領まとめツール 品川区版　第1版（学習指導要領の全教科等）　2026年10月25日更新　出典：小学校学習指導要領（平成29年告示）（文部科学省）。「小学校学習指導要領（平成29年告示）解説」各教科編（文部科学省）を加工して作成。教科書の単元と学習指導要領の内容との結び付けは、品川区が採択した教科書（令和6〜9年度）の各社の公開資料（年間指導計画など）をもとにしたもの（一部はClaudeの案）。'}
 mt = open(P('matome_template.html')).read()
 mt = mt.replace('<title>学習指導要領まとめツール</title>', '<title>学習指導要領まとめツール 品川区版</title>')
 mt = mt.replace('/*DATA*/', 'const DATA = ' + json.dumps(mdata, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c') + ';')
