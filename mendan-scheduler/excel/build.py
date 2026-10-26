@@ -46,6 +46,8 @@ def jc(j):                     # 計算A で枠 j の列
 JA, JZ = jc(1), jc(N)          # D 〜 DS
 HOPES = ["早い時刻", "遅い時刻", "早い日", "遅い日"]
 # 計算A の枠ごとの行（1〜8行目のほか）
+VERSION = "Ver.2.0（2026年10月26日）"   # 直したら番号と日付を上げる
+PS, PL, PV = CL(3 + D), CL(4 + D), CL(5 + D)   # 表の右の欄：すき間・見出し・中身
 ROW_NEXT = 106                 # 同じ日に次の枠がある
 ROW_AUTOBLK = 107              # 自動案Aで「後ろを空ける」枠になった
 ROW_AUTOBLK_B = 116            # 自動案Bで「後ろを空ける」枠になった
@@ -129,6 +131,37 @@ def hide_rules(ws, rng, unused, rules, frame=True):
     if frame:
         ws.conditional_formatting.add(rng, FormulaRule(formula=["TRUE"], border=box))
 
+
+
+def legend_image(items, w, h):
+    """色の見かたを3段に並べた画像（items：(色, 文字)、色が None なら斜線）。w×h はExcelでの大きさ（px）"""
+    import io
+    from PIL import Image as PImage, ImageDraw, ImageFont
+    from openpyxl.drawing.image import Image as XImage
+    S = 2                                         # 2倍の大きさで描いて、くっきり見せる
+    im = PImage.new("RGB", (w * S, h * S), "white")
+    d = ImageDraw.Draw(im)
+    font = None
+    for p in ("/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf", "C:/Windows/Fonts/meiryo.ttc", "C:/Windows/Fonts/msgothic.ttc",
+              "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc"):
+        try:
+            font = ImageFont.truetype(p, 13 * S); break
+        except OSError:
+            pass
+    font = font or ImageFont.load_default()
+    per = 3
+    cw, rh = w * S // per, h * S // 3
+    for k, (col, lab) in enumerate(items):
+        x0, y0 = (k % per) * cw + 2, (k // per) * rh + 2
+        x1, y1 = x0 + cw - 4, y0 + rh - 4
+        d.rectangle([x0, y0, x1, y1], fill="#" + (col or "FFFFFF"), outline="#9FB3D1", width=S)
+        if col is None:                           # 斜線（後ろを空ける枠）
+            for xx in range(x0 - (y1 - y0), x1, 6 * S):
+                d.line([max(xx, x0), y1 - max(0, x0 - xx), min(xx + (y1 - y0), x1), y0 + max(0, xx + (y1 - y0) - x1)], fill="#5B8BD0", width=S)
+        d.text(((x0 + x1) / 2, (y0 + y1) / 2), lab, font=font, anchor="mm", fill="#FFFFFF" if col == "B23A3A" else "#000000")
+    buf = io.BytesIO(); im.save(buf, "PNG"); buf.seek(0)
+    xi = XImage(buf); xi.width, xi.height = w, h
+    return xi
 
 def EXIST(jexpr):              # その枠が設定した日付・時間にあるか
     return f"INDEX({q(CA)}${JA}${ROW_EXIST}:${JZ}${ROW_EXIST},{jexpr})"
@@ -367,7 +400,7 @@ put(ws, "A1", "名簿・結果", font=f(size=16, bold=True))
 put(ws, "A2", "黄色の列（番号〜兄弟③との順番）を入力します。Excelの名簿から番号と名前を「番号」の列のいちばん上に貼り付けてください（最大45人）。行の並べ替えはしないでください。", font=f(size=10, color="444444"))
 put(ws, "A3", "兄弟クラス：例 2年1組（2人以上なら 1年2組・5年3組）。灰色の欄は、兄弟が〇の子だけ入力します。", font=f(size=10, color="444444"), alignment=Alignment(wrap_text=True, vertical="center"))
 ws.merge_cells("A3:F3")
-put(ws, "P3", "▲ 上の「＋」を押すと、兄弟①〜③の列（兄弟の担任から聞いた面談の日時と順番）が開きます。「−」でたたみます。", font=f(size=10, bold=True, color="9A6A00"), alignment=Alignment(wrap_text=True, vertical="center"))
+put(ws, "P3", "◀ 兄弟①〜③の列（兄弟の担任から聞いた面談の日時と順番）は、左上の「＋」で開き、「−」でたためます。", font=f(size=10, bold=True, color="9A6A00"), alignment=Alignment(wrap_text=True, vertical="center"))
 ws.merge_cells("P3:W3")
 ws.row_dimensions[3].height = 30
 dv_sib = DataValidation(type="list", formula1='"〇"', allow_blank=True)
@@ -413,6 +446,7 @@ ws.conditional_formatting.add("F5:O49", FormulaRule(formula=['$E5=""'], fill=fil
 for c in range(7, 16):
     ws.column_dimensions[CL(c)].outline_level = 1
     ws.column_dimensions[CL(c)].hidden = True
+ws.sheet_properties.outlinePr.summaryRight = False   # 「＋」ボタンを兄弟クラスの列の上に出す
 red_txt = Font(name=FONT, color="B23A3A", bold=True)
 ws.conditional_formatting.add("W5:W49", FormulaRule(formula=['OR(W5="未決定",LEFT(W5,6)="（出来れば）")'], font=Font(name=FONT, color="9A6A00", bold=True)))
 ws.conditional_formatting.add("W5:W49", FormulaRule(formula=['W5<>""'], font=red_txt))
@@ -489,7 +523,7 @@ ws.freeze_panes = "A5"
 def grid_frame(ws, title, note):
     ws.column_dimensions["A"].width = 2
     ws.column_dimensions["B"].width = 9
-    for d in range(10):
+    for d in range(D):
         ws.column_dimensions[CL(3 + d)].width = 15
     put(ws, "B1", title, font=f(size=16, bold=True))
     put(ws, "B2", note, font=f(size=10, color="444444"))
@@ -514,18 +548,18 @@ for t in range(1, T + 1):
     for d in range(1, D + 1):
         put(ws, f"{CL(2+d)}{5+t}", None, alignment=center)
 dv_name.add(f"C6:{LC}{GL}")
-ws.column_dimensions["M"].width = 3
-ws.column_dimensions["N"].width = 16
-ws.column_dimensions["O"].width = 40
-put(ws, "N4", "児童を選ぶ ▼", font=f(bold=True))
+ws.column_dimensions[PS].width = 3
+ws.column_dimensions[PL].width = 22
+ws.column_dimensions[PV].width = 40
+put(ws, f"{PL}4", "児童を選ぶ ▼", font=f(bold=True))
 arr(ws, "C4", f'=IF(SUMPRODUCT(_xlfn.ISFORMULA(C6:{LC}{GL})*1)>0,"⚠ ふつうの貼り付けになっています。すぐ Ctrl + Z で元に戻して、［値の貼り付け］（右クリック →「値」）をしてください。","")',
-    font=f(size=11, bold=True, color="B23A3A"), alignment=Alignment(vertical="center"))
-ws.merge_cells("C4:L4")
-ws.row_dimensions[4].height = 22
-paste_box(ws, 14, 18, 2)
-put(ws, "N5", None, fill=INPUT, border=box, font=f(size=12, bold=True))
-ws.merge_cells("N5:O5")
-dv_name.add("N5")
+    font=f(size=11, bold=True, color="B23A3A"), alignment=Alignment(vertical="center", wrap_text=True))
+ws.merge_cells(f"C4:{LC}4")
+ws.row_dimensions[4].height = 32
+paste_box(ws, 4 + D, 18, 2)
+put(ws, f"{PL}5", None, fill=INPUT, border=box, font=f(size=12, bold=True))
+ws.merge_cells(f"{PL}5:{PV}5")
+dv_name.add(f"{PL}5")
 info = [
     (7, "状況", f'=IF({q(CA)}$B$8=0,"",INDEX({q(ROS)}$Q$5:$Q$49,{q(CA)}$B$8))'),
     (8, "×の数", f'=IF({q(CA)}$B$8=0,"",INDEX({q(ROS)}$R$5:$R$49,{q(CA)}$B$8))'),
@@ -533,19 +567,18 @@ info = [
     (10, "兄弟", f'=IF({q(CA)}$B$8=0,"",IF(INDEX({q(ROS)}$E$5:$E$49,{q(CA)}$B$8)="","",INDEX({q(ROS)}$F$5:$F$49,{q(CA)}$B$8)&"　"&INDEX({q(ROS)}$G$5:$G$49,{q(CA)}$B$8)&" "&INDEX({q(ROS)}$H$5:$H$49,{q(CA)}$B$8)))'),
 ]
 for r, lab, fo in info:
-    put(ws, f"N{r}", lab, font=f(color="666666"))
-    put(ws, f"O{r}", fo, font=f(bold=True), alignment=Alignment(horizontal="left"))
-put(ws, "N11", "入れられる空き枠", font=f(color="666666"))
-arr(ws, "O11", f'=IFERROR(IF({q(CA)}$B$8=0,"",_xlfn.TEXTJOIN("、",TRUE,IF((INDEX({q(CA)}${JA}$60:${JZ}$104,{q(CA)}$B$8,0)=1)*({q(CA)}${JA}$7:${JZ}$7=0),{q(CA)}${JA}$8:${JZ}$8,""))),"")',
+    put(ws, f"{PL}{r}", lab, font=f(color="666666"))
+    put(ws, f"{PV}{r}", fo, font=f(bold=True), alignment=Alignment(horizontal="left"))
+put(ws, f"{PL}11", "入れられる空き枠", font=f(color="666666"))
+arr(ws, f"{PV}11", f'=IFERROR(IF({q(CA)}$B$8=0,"",_xlfn.TEXTJOIN("、",TRUE,IF((INDEX({q(CA)}${JA}$60:${JZ}$104,{q(CA)}$B$8,0)=1)*({q(CA)}${JA}$7:${JZ}$7=0),{q(CA)}${JA}$8:${JZ}$8,""))),"")',
     alignment=Alignment(wrap_text=True, vertical="top"))
-ws.merge_cells("O11:O16")
-legend = [("C3", "C5D7F4", "選んだ児童"), ("D3", "D6F0DF", "入れられる"), ("E3", "FBEFC9", "入れられる（他の人あり）"),
-          ("F3", "F6DEDB", "×の枠"), ("G3", "B23A3A", "×・使えない枠に入れた！"), ("H3", "F2B36B", "2か所に入っている"),
-          ("I3", "C9B3E6", "空けるはずの枠に人がいる"), ("K3", "D9D9D9", "先生の都合で使えない")]
-for ref, col, lab in legend:
-    put(ws, ref, lab, fill=fill(col), font=f(size=9, color="FFFFFF" if col == "B23A3A" else "000000", bold=True), alignment=center, border=box)
-put(ws, "J3", "後ろを空ける枠", fill=PatternFill("lightUp", fgColor="5B8BD0"), font=f(size=9, bold=True), alignment=center, border=box)
-ws.row_dimensions[3].height = 28
+ws.merge_cells(f"{PV}11:{PV}16")
+# 色の見かた：表のすぐ上（3行目）に、色見本の画像を貼る（9つあってセルには入りきらないため）
+legend = [("C5D7F4", "選んだ児童"), ("D6F0DF", "入れられる"), ("FBEFC9", "入れられる（他の人あり）"),
+          ("F6DEDB", "×の枠"), ("B23A3A", "×・使えない枠に入れた！"), ("F2B36B", "2か所に入っている"),
+          ("C9B3E6", "空けるはずの枠に人がいる"), (None, "後ろを空ける枠"), ("D9D9D9", "先生の都合で使えない")]
+ws.add_image(legend_image(legend, 100 * D, 72), "C3")
+ws.row_dimensions[3].height = 56
 # 色分け：各マスの「色の番号」を見えない列（AA〜AJ）にふつうの式で出し、条件付き書式はその番号だけを見る
 sel = f"{q(CA)}$B$8"
 HC = lambda d: CL(26 + d)       # 色の番号を置く列（C→AA、D→AB …）
@@ -560,7 +593,7 @@ for t in range(1, T + 1):
             f'=IF(AND({x}="",{A_(ROW_EXIST)}=0),0,IF(AND({x}<>"",{A_(4)}=0),1,IF({ngown}=1,2,'
             f'IF(AND({x}<>"",COUNTIF($C$6:${LC}${GL},{x})>1),3,IF({A_(4)}=0,4,'
             f'IF(AND({x}<>"",{A_(ROW_GAPBLK)}=1),5,IF(AND({x}="",{A_(ROW_GAPBLK)}=1),6,'
-            f'IF(AND({x}<>"",{x}=$N$5),7,IF({ngsel}=1,8,IF(AND({x}="",{oksel}=1),9,'
+            f'IF(AND({x}<>"",{x}=${PL}$5),7,IF({ngsel}=1,8,IF(AND({x}="",{oksel}=1),9,'
             f'IF(AND({x}<>"",{oksel}=1),10,IF(AND({x}="",{A_(5)}=1),11,12))))))))))))')
 RED_F = Font(name=FONT, color="FFFFFF", bold=True)
 hide_rules(ws, f"C6:{LC}{GL}", "AA6=0", [
@@ -635,25 +668,25 @@ def auto_sheet(name, title, note, eng, blk_row, slot_col, nofit_col, tname):
     put(ws, "E3", "なるべく空ける日・休憩", fill=PatternFill("lightUp", fgColor="BBBBBB"), font=f(size=9, bold=True), alignment=center, border=box)
     put(ws, "F3", "先生の都合で使えない", fill=fill("D9D9D9"), font=f(size=9, bold=True), alignment=center, border=box)
     ws.row_dimensions[3].height = 24
-    ws.column_dimensions["M"].width = 3
-    ws.column_dimensions["N"].width = 22
-    ws.column_dimensions["O"].width = 40
-    put(ws, "N5", "決定済み（調整・決定シート）", font=f(color="666666"))
-    put(ws, "O5", f'=SUMPRODUCT(({GRID}<>"")*1)&" 人"', font=f(bold=True))
-    put(ws, "N6", "自動で新しく入った", font=f(color="666666"))
-    put(ws, "O6", f'=SUMPRODUCT(({q(eng)}$B$3:$B$47>0)*({q(eng)}$C$3:$C$47>0))&" 人"', font=f(bold=True))
-    put(ws, "N8", "入る枠がない（×・必ず空けたい）", font=f(color="B23A3A", bold=True))
-    arr(ws, "O8", f'=_xlfn.TEXTJOIN("、",TRUE,IF({q(CA)}${nofit_col}$10:${nofit_col}$54=1,{q(CA)}$B$10:$B$54,""))', font=red_txt, alignment=Alignment(wrap_text=True, vertical="top"))
-    put(ws, "N10", "未入力・未提出で外した", font=f(color="9A6A00", bold=True))
-    arr(ws, "O10", f'=_xlfn.TEXTJOIN("、",TRUE,IF((({q(ROS)}$Q$5:$Q$49="未入力")+({q(ROS)}$Q$5:$Q$49="未提出"))*({q(CA)}$IO$10:$IO$54=0),{q(ROS)}$P$5:$P$49,""))', alignment=Alignment(wrap_text=True, vertical="top"))
-    put(ws, "N12", "なるべく空けたい枠を使った", font=f(color="666666"))
-    put(ws, "O12", f'=SUM({q(eng)}$D$3:$D$47)&" 枠"', font=f(bold=True))
-    paste_box(ws, 14, 25, 2)
-    put(ws, "N13", "日ごとの人数", font=f(color="666666"))
+    ws.column_dimensions[PS].width = 3
+    ws.column_dimensions[PL].width = 30
+    ws.column_dimensions[PV].width = 40
+    put(ws, f"{PL}5", "決定済み（調整・決定シート）", font=f(color="666666"))
+    put(ws, f"{PV}5", f'=SUMPRODUCT(({GRID}<>"")*1)&" 人"', font=f(bold=True))
+    put(ws, f"{PL}6", "自動で新しく入った", font=f(color="666666"))
+    put(ws, f"{PV}6", f'=SUMPRODUCT(({q(eng)}$B$3:$B$47>0)*({q(eng)}$C$3:$C$47>0))&" 人"', font=f(bold=True))
+    put(ws, f"{PL}8", "入る枠がない（×・必ず空けたい）", font=f(color="B23A3A", bold=True))
+    arr(ws, f"{PV}8", f'=_xlfn.TEXTJOIN("、",TRUE,IF({q(CA)}${nofit_col}$10:${nofit_col}$54=1,{q(CA)}$B$10:$B$54,""))', font=red_txt, alignment=Alignment(wrap_text=True, vertical="top"))
+    put(ws, f"{PL}10", "未入力・未提出で外した", font=f(color="9A6A00", bold=True))
+    arr(ws, f"{PV}10", f'=_xlfn.TEXTJOIN("、",TRUE,IF((({q(ROS)}$Q$5:$Q$49="未入力")+({q(ROS)}$Q$5:$Q$49="未提出"))*({q(CA)}$IO$10:$IO$54=0),{q(ROS)}$P$5:$P$49,""))', alignment=Alignment(wrap_text=True, vertical="top"))
+    put(ws, f"{PL}12", "なるべく空けたい枠を使った", font=f(color="666666"))
+    put(ws, f"{PV}12", f'=SUM({q(eng)}$D$3:$D$47)&" 枠"', font=f(bold=True))
+    paste_box(ws, 4 + D, 21, 2)
+    put(ws, f"{PL}13", "日ごとの人数", font=f(color="666666"))
     for d in range(1, D + 1):    # 日ごとの人数（使っている日だけ）
-        put(ws, f"N{13+d}", f'=IF({q(SET)}$E${10+d}="","",{q(SET)}$E${10+d})', font=f(size=10), alignment=Alignment(horizontal="right"))
-        put(ws, f"O{13+d}", f'=IF(N{13+d}="","",COUNTIF({CL(2+d)}6:{CL(2+d)}{GL},"?*")&" 人")', font=f(size=10, bold=True))
-    ws.merge_cells("O8:O9"); ws.merge_cells("O10:O11")
+        put(ws, f"{PL}{13+d}", f'=IF({q(SET)}$E${10+d}="","",{q(SET)}$E${10+d})', font=f(size=10), alignment=Alignment(horizontal="right"))
+        put(ws, f"{PV}{13+d}", f'=IF({PL}{13+d}="","",COUNTIF({CL(2+d)}6:{CL(2+d)}{GL},"?*")&" 人")', font=f(size=10, bold=True))
+    ws.merge_cells(f"{PV}8:{PV}9"); ws.merge_cells(f"{PV}10:{PV}11")
     ws.row_dimensions[8].height = 30; ws.row_dimensions[10].height = 30
     ws.freeze_panes = "C6"
     wb.defined_names[tname] = DefinedName(tname, attr_text=f"{q(name)}$C$6:${LC}${GL}")
@@ -670,14 +703,14 @@ auto_sheet(AUTB, "自動案B（散らす）",
 # ---------------------------------------------------------------- 印刷（兄弟確認）：予定表の形で、決めた日程を印刷する
 ws = sheet(SIB)
 grid_frame(ws, "印刷（兄弟確認）", "「調整・決定」で決めた日程を、予定表と同じ形で印刷します。兄弟がいる子は色付きで、名前の下に兄弟のクラス（名簿の兄弟メモ）が出ます。")
-put(ws, "B3", '="個人面談日程"&IF(O3="","","　"&O3)', font=f(size=14, bold=True, color=PRIMARY_D), alignment=Alignment(horizontal="left", vertical="center"))
-ws.merge_cells("B3:L3")
+put(ws, "B3", f'="個人面談日程"&IF({PV}3="","","　"&{PV}3)', font=f(size=14, bold=True, color=PRIMARY_D), alignment=Alignment(horizontal="left", vertical="center"))
+ws.merge_cells(f"B3:{LC}3")
 ws.row_dimensions[3].height = 28
-ws.column_dimensions["M"].width = 3
-ws.column_dimensions["N"].width = 20
-ws.column_dimensions["O"].width = 22
-put(ws, "N3", "クラス・担任など ▶", font=f(size=10, bold=True, color=PRIMARY_D), alignment=Alignment(horizontal="right", vertical="center"))
-put(ws, "O3", None, fill=INPUT, border=box)
+ws.column_dimensions[PS].width = 3
+ws.column_dimensions[PL].width = 20
+ws.column_dimensions[PV].width = 22
+put(ws, f"{PL}3", "クラス・担任など ▶", font=f(size=10, bold=True, color=PRIMARY_D), alignment=Alignment(horizontal="right", vertical="center"))
+put(ws, f"{PV}3", None, fill=INPUT, border=box)
 for t in range(1, T + 1):
     for d in range(1, D + 1):
         x = f"{q(ASG)}{CL(2+d)}{5+t}"
@@ -708,7 +741,7 @@ put(ws, "A2", "時間帯の枠数"); put(ws, "B3", "←時間帯1"); put(ws, "B4
 ok3 = "AND(ISNUMBER('設定'!$B$3),ISNUMBER('設定'!$D$3),ISNUMBER('設定'!$B$5))"
 put(ws, "A3", f"=IF({ok3},IF(AND('設定'!$B$5>0,'設定'!$D$3>='設定'!$B$3),ROUND(('設定'!$D$3-'設定'!$B$3)*1440/'設定'!$B$5,0)+1,0),0)")
 put(ws, "A4", "=IF(AND(A3>0,ISNUMBER('設定'!$B$4),ISNUMBER('設定'!$D$4)),IF(AND('設定'!$D$4>='設定'!$B$4,'設定'!$B$4>'設定'!$D$3),ROUND(('設定'!$D$4-'設定'!$B$4)*1440/'設定'!$B$5,0)+1,0),0)")
-put(ws, "A8", "選択中→"); put(ws, "B8", f'=IF({q(ASG)}$N$5="",0,IFERROR(MATCH({q(ASG)}$N$5,$B$10:$B$54,0),0))')
+put(ws, "A8", "選択中→"); put(ws, "B8", f'=IF({q(ASG)}${PL}$5="",0,IFERROR(MATCH({q(ASG)}${PL}$5,$B$10:$B$54,0),0))')
 for j in range(1, N + 1):
     c = jc(j); d = (j - 1) // T + 1; t = (j - 1) % T + 1
     ws[f"{c}1"] = j; ws[f"{c}2"] = d; ws[f"{c}3"] = t
@@ -902,16 +935,17 @@ engine(CC, True)
 
 MENU = [(HOME, "ホーム"), (SET, "① 設定"), (ROS, "② 名簿"), (INP, "③ ×入力"), (AUT, "④ 自動案A"), (AUTB, "④ 自動案B"), (ASG, "⑤ 調整・決定"), (SIB, "⑥ 印刷")]
 # シートごと：(タイトルのセル, 帯の右はしの列, メニューボタンの場所)
-GRID_MENU = ["F1", "G1", "H1", "I1", "J1", "K1", "L1", "N1"]
+INP_MENU = ["F1", "G1", "H1", "I1", "J1", "K1", "L1", "N1"]
+GRID_MENU = [CL(5 + d) + "1" for d in range(D - 2)] + [PL + "1", PV + "1", CL(6 + D) + "1", CL(7 + D) + "1"]   # 表のすぐ上と右の欄の上
 LAYOUT = {
     HOME: ("A1", 13, None),
     SET: ("A1", 22, ["D1", "E1", "F1:G1", "H1", "I1", "K1:L1", "M1", "N1"]),
-    ROS: ("A1", 26, ["C1", "D1", "E1:F1", "P1", "Q1:R1", "S1:T1", "U1", "W1"]),
-    INP: ("B1", 14, GRID_MENU),
-    SIB: ("B1", 15, GRID_MENU),
-    AUT: ("B1", 15, GRID_MENU),
-    AUTB: ("B1", 15, GRID_MENU),
-    ASG: ("B1", 15, GRID_MENU),
+    ROS: ("A1", 26, ["C1", "D1", "P1", "Q1:R1", "S1:T1", "U1", "W1", "X1"]),
+    INP: ("B1", 14, INP_MENU),
+    SIB: ("B1", 7 + D, GRID_MENU),
+    AUT: ("B1", 7 + D, GRID_MENU),
+    AUTB: ("B1", 7 + D, GRID_MENU),
+    ASG: ("B1", 7 + D, GRID_MENU),
 }
 TAB = {HOME: PRIMARY_D, SET: "7A8699", ROS: PRIMARY, INP: "B23A3A", AUT: ACCENT, AUTB: "5B8BD0", ASG: "C77D1A", SIB: "7A5BA8"}
 date_ref = f"={q(SET)}$E$"
@@ -949,6 +983,15 @@ for name, (tref, last, menu) in LAYOUT.items():
             v = cell.value
             if isinstance(v, str) and v.startswith(date_ref):
                 cell.fill = HEAD_D; cell.font = f(bold=True, color="FFFFFF")
+# ホームのタイトル帯の右はしにバージョン
+put(wb[HOME], "K1", VERSION, font=f(size=10, color="DDE6F5"), alignment=Alignment(horizontal="right", vertical="center"))
+wb[HOME].merge_cells("K1:M1")
+# 名簿：「＋」ボタンのすぐ下に目印
+put(wb[ROS], "F1", "▲ 上の「＋」で\n兄弟の列を開く", font=f(size=10, bold=True, color="5A3A00"), fill=fill("FFD966"),
+    alignment=Alignment(horizontal="center", vertical="center", wrap_text=True))
+for n in (SIB, AUT, AUTB, ASG):
+    wb[n].column_dimensions[CL(6 + D)].width = 14
+    wb[n].column_dimensions[CL(7 + D)].width = 14
 for c in range(1, 27):
     cell = wb[ROS].cell(4, c)
     if cell.value:
