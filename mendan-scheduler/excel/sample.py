@@ -14,7 +14,7 @@ mei = ["はると", "ゆい", "そうた", "めい", "ひなた", "さくら", "
        "たいが", "こはる", "れん", "みお", "かいと", "えま", "はやと", "つむぎ", "あさひ", "ここな", "ゆうま", "ほのか", "しょう",
        "あかり", "けんと", "ゆず", "だいち", "みゆ", "こうき", "さら", "りょう"]
 special = {
-    4: dict(sib="〇", memo="2年1組"), 11: dict(sib="〇", memo="5年3組", stime=("11月26日（木）", "15:00〜")), 19: dict(sib="〇", memo="1年2組"),
+    4: dict(sib="〇", memo="2年1組"), 11: dict(sib="〇", memo="5年3組", stimes=[("11月26日（木）", "15:00〜", "兄弟①の前")]), 19: dict(sib="〇", memo="1年2組・4年1組", stimes=[("11月25日（水）", "14:00〜", "どちらでも"), ("11月25日（水）", "14:30〜", "兄弟②の前")]),
     27: dict(sib="〇", memo="3年1組"),
     2: dict(hope="遅い時刻"), 8: dict(hope="早い時刻"), 15: dict(hope="早い日"), 23: dict(hope="遅い日"),
     30: dict(hope="遅い時刻"), 33: dict(hope="早い時刻"),
@@ -28,9 +28,11 @@ for i in range(1, 36):
     ros[f"B{r}"] = f"{sei[i-1]} {mei[i-1]}"
     sp = special.get(i, {})
     if "sib" in sp: ros[f"C{r}"], ros[f"D{r}"] = sp["sib"], sp["memo"]
-    if "hope" in sp: ros[f"G{r}"] = sp["hope"]
-    if "gap" in sp: ros[f"H{r}"] = sp["gap"]
-    if "stime" in sp: ros[f"E{r}"], ros[f"F{r}"] = sp["stime"]
+    if "hope" in sp: ros[f"N{r}"] = sp["hope"]
+    if "gap" in sp: ros[f"O{r}"] = sp["gap"]
+    for k, st in enumerate(sp.get("stimes", [])):      # 兄弟①〜③：日付・時刻・順番
+        for c, v in zip(range(5 + 3 * k, 8 + 3 * k), st):
+            ros.cell(r, c).value = v
     st = status.get(i)
     if st == "×なし": inp[f"F{b}"] = "×なし（どこでもOK）"; continue
     if st == "未提出": inp[f"F{b}"] = "未提出"; continue
