@@ -46,7 +46,7 @@ def jc(j):                     # 計算A で枠 j の列
 JA, JZ = jc(1), jc(N)          # D 〜 DS
 HOPES = ["早い時刻", "遅い時刻", "早い日", "遅い日"]
 # 計算A の枠ごとの行（1〜8行目のほか）
-VERSION = "Ver.2.0（2026年10月26日）"   # 直したら番号と日付を上げる
+VERSION = "Ver.2.1（2026年10月26日）"   # 直したら番号と日付を上げる
 PS, PL, PV = CL(3 + D), CL(4 + D), CL(5 + D)   # 表の右の欄：すき間・見出し・中身
 ROW_NEXT = 106                 # 同じ日に次の枠がある
 ROW_AUTOBLK = 107              # 自動案Aで「後ろを空ける」枠になった
@@ -385,7 +385,7 @@ hide_rules(ws, f"M11:{TC}{TL}", f'OR(INDEX($B$11:$B${DL},COLUMN(M11)-12)="",ROW(
 # A番号 B名前 C兄弟 D兄弟クラス  E〜M：兄弟①〜③の（日付・時刻・順番）  N希望 O後ろを空ける（ここまで入力）
 # P表示名 Q状況 R×の数 S入れられる空き枠 T決める順 U日付 V時刻 W注意 X自動案A Y自動案B Zリンク
 ws = sheet(ROS)
-heads = ["番号", "名前", "希望", "後ろを空ける", "兄弟", "兄弟クラス"]
+heads = ["番号", "名前", "希望", "後ろを空ける", "兄弟", "兄弟クラス\n日時は上の＋を押す"]
 for k in "①②③":
     heads += [f"兄弟{k}\n日付", f"兄弟{k}\n時刻", f"兄弟{k}\nとの順番"]
 heads += ["表示名", "状況", "×の数", "入れられる空き枠", "決める順",
@@ -409,14 +409,17 @@ dv_stime = DataValidation(type="list", formula1=f"={q(SET)}$I$11:$I${TL}", allow
 dv_ord = [DataValidation(type="list", formula1=f'"兄弟{k}の前,兄弟{k}の後,どちらでも"', allow_blank=True) for k in "①②③"]
 dv_hope = DataValidation(type="list", formula1='"' + ",".join(HOPES) + '"', allow_blank=True)
 dv_gap = DataValidation(type="list", formula1='"必ず空けたい,出来れば空けたい,空けない"', allow_blank=True)
-for dv_ in [dv_sib, dv_sday, dv_stime, dv_hope, dv_gap] + dv_ord:
+# 兄弟クラスのマスを選ぶと出る小さな説明（入力の制限はなし）
+dv_shint = DataValidation(allow_blank=True, showInputMessage=True, promptTitle="兄弟の面談の日時",
+                          prompt="兄弟の担任から聞いた日時は、いちばん上の「＋」を押すと出てくる「兄弟①〜③」の列に入れます。")
+for dv_ in [dv_sib, dv_sday, dv_stime, dv_hope, dv_gap, dv_shint] + dv_ord:
     ws.add_data_validation(dv_)
 for i in range(1, NS + 1):
     r, a = 4 + i, 9 + i          # a: 計算Aの行
     b = base(i)
     for c in "ABCDEFGHIJKLMNO":
         put(ws, f"{c}{r}", None, fill=INPUT, border=box, alignment=Alignment(vertical="center") if c in "BF" else Alignment(horizontal="center", vertical="center", shrink_to_fit=True))
-    dv_sib.add(f"E{r}"); dv_hope.add(f"C{r}"); dv_gap.add(f"D{r}")
+    dv_sib.add(f"E{r}"); dv_hope.add(f"C{r}"); dv_gap.add(f"D{r}"); dv_shint.add(f"F{r}")
     for k in range(3):
         dv_sday.add(f"{CL(7+3*k)}{r}"); dv_stime.add(f"{CL(8+3*k)}{r}"); dv_ord[k].add(f"{CL(9+3*k)}{r}")
     put(ws, f"P{r}", f'=IF(B{r}="","",IF(COUNTIF($B$5:$B$49,B{r})>1,IF(A{r}="","",A{r}&" ")&B{r},B{r}))', border=box)   # 同じ名前がいるときだけ番号をつける
@@ -935,17 +938,17 @@ engine(CC, True)
 
 MENU = [(HOME, "ホーム"), (SET, "① 設定"), (ROS, "② 名簿"), (INP, "③ ×入力"), (AUT, "④ 自動案A"), (AUTB, "④ 自動案B"), (ASG, "⑤ 調整・決定"), (SIB, "⑥ 印刷")]
 # シートごと：(タイトルのセル, 帯の右はしの列, メニューボタンの場所)
-INP_MENU = ["F1", "G1", "H1", "I1", "J1", "K1", "L1", "N1"]
-GRID_MENU = [CL(5 + d) + "1" for d in range(D - 2)] + [PL + "1", PV + "1", CL(6 + D) + "1", CL(7 + D) + "1"]   # 表のすぐ上と右の欄の上
+INP_MENU = ["F1", "G1", "H1", "I1", "J1", "K1", "L1", "M1"]   # どれも幅15
+GRID_MENU = [CL(5 + d) + "1" for d in range(D - 2)] + [CL(6 + D + k) + "1" for k in range(4)]   # どれも幅15（右の欄の見出し・中身の列はとばす）
 LAYOUT = {
     HOME: ("A1", 13, None),
-    SET: ("A1", 22, ["D1", "E1", "F1:G1", "H1", "I1", "K1:L1", "M1", "N1"]),
-    ROS: ("A1", 26, ["C1", "D1", "P1", "Q1:R1", "S1:T1", "U1", "W1", "X1"]),
+    SET: ("A1", 22, ["E1", "F1:G1", "H1", "I1:J1", "K1:L1", "M1", "N1", "O1"]),   # 幅12〜20
+    ROS: ("A1", 27, ["D1", "P1", "Q1:R1", "S1:T1", "U1", "X1", "Y1", "Z1:AA1"]),   # 幅15〜22（兄弟の列をたたんだとき）
     INP: ("B1", 14, INP_MENU),
-    SIB: ("B1", 7 + D, GRID_MENU),
-    AUT: ("B1", 7 + D, GRID_MENU),
-    AUTB: ("B1", 7 + D, GRID_MENU),
-    ASG: ("B1", 7 + D, GRID_MENU),
+    SIB: ("B1", 9 + D, GRID_MENU),
+    AUT: ("B1", 9 + D, GRID_MENU),
+    AUTB: ("B1", 9 + D, GRID_MENU),
+    ASG: ("B1", 9 + D, GRID_MENU),
 }
 TAB = {HOME: PRIMARY_D, SET: "7A8699", ROS: PRIMARY, INP: "B23A3A", AUT: ACCENT, AUTB: "5B8BD0", ASG: "C77D1A", SIB: "7A5BA8"}
 date_ref = f"={q(SET)}$E$"
@@ -990,13 +993,15 @@ wb[HOME].merge_cells("K1:M1")
 put(wb[ROS], "F1", "▲ 上の「＋」で\n兄弟の列を開く", font=f(size=10, bold=True, color="5A3A00"), fill=fill("FFD966"),
     alignment=Alignment(horizontal="center", vertical="center", wrap_text=True))
 for n in (SIB, AUT, AUTB, ASG):
-    wb[n].column_dimensions[CL(6 + D)].width = 14
-    wb[n].column_dimensions[CL(7 + D)].width = 14
+    for c in range(6 + D, 10 + D):
+        wb[n].column_dimensions[CL(c)].width = 15
+wb[INP].column_dimensions["M"].width = 15
 for c in range(1, 27):
     cell = wb[ROS].cell(4, c)
     if cell.value:
         cell.fill = fill("B7791F") if c <= 15 else HEAD_D    # 入力する列は茶色、計算の列は青
         cell.font = f(bold=True, color="FFFFFF", size=10)
+wb[ROS]["F4"].font = f(bold=True, color="FFFFFF", size=9)
 for ref in ["B10", "C10", "D10", "E10", "G10", "H10", "I10"]:
     wb[SET][ref].fill = HEAD_D; wb[SET][ref].font = f(bold=True, color="FFFFFF")
 for ref in ["A3", "A4", "A5", "A6", "A8"]:
