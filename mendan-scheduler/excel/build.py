@@ -352,20 +352,24 @@ hide_rules(ws, f"M11:{TC}{TL}", f'OR(INDEX($B$11:$B${DL},COLUMN(M11)-12)="",ROW(
 # A番号 B名前 C兄弟 D兄弟クラス  E〜M：兄弟①〜③の（日付・時刻・順番）  N希望 O後ろを空ける（ここまで入力）
 # P表示名 Q状況 R×の数 S入れられる空き枠 T決める順 U日付 V時刻 W注意 X自動案A Y自動案B Zリンク
 ws = sheet(ROS)
-heads = ["番号", "名前", "兄弟", "兄弟クラス"]
+heads = ["番号", "名前", "希望", "後ろを空ける", "兄弟", "兄弟クラス"]
 for k in "①②③":
     heads += [f"兄弟{k}\n日付", f"兄弟{k}\n時刻", f"兄弟{k}\nとの順番"]
-heads += ["希望", "後ろを空ける", "表示名", "状況", "×の数", "入れられる空き枠", "決める順",
+heads += ["表示名", "状況", "×の数", "入れられる空き枠", "決める順",
           "日付", "時刻", "注意", "自動案A（詰める）", "自動案B（散らす）", ""]
-widths = [6, 16, 6, 16] + [15, 9, 11] * 3 + [10, 16, 18, 10, 7, 9, 7, 15, 8, 30, 22, 22, 9]
+widths = [6, 16, 10, 16, 6, 16] + [15, 9, 11] * 3 + [18, 10, 7, 9, 7, 15, 8, 30, 22, 22, 9]
 for i, (h, w) in enumerate(zip(heads, widths), start=1):
     ws.column_dimensions[CL(i)].width = w
     if h:
         put(ws, f"{CL(i)}4", h, font=f(bold=True), fill=HEAD, border=box, alignment=center)
 ws.row_dimensions[4].height = 32
 put(ws, "A1", "名簿・結果", font=f(size=16, bold=True))
-put(ws, "A2", "黄色の列（番号〜後ろを空ける）を入力します。Excelの名簿から番号と名前を「番号」の列のいちばん上に貼り付けてください（最大45人）。行の並べ替えはしないでください。", font=f(size=10, color="444444"))
-put(ws, "A3", "兄弟クラス：例 2年1組（2人以上なら 1年2組・5年3組）。兄弟①〜③の日付・時刻：兄弟の担任から聞いた面談の日時。との順番：兄弟①の前＝兄弟のすぐ前、兄弟①の後＝兄弟のすぐ後。", font=f(size=10, color="444444"))
+put(ws, "A2", "黄色の列（番号〜兄弟③との順番）を入力します。Excelの名簿から番号と名前を「番号」の列のいちばん上に貼り付けてください（最大45人）。行の並べ替えはしないでください。", font=f(size=10, color="444444"))
+put(ws, "A3", "兄弟クラス：例 2年1組（2人以上なら 1年2組・5年3組）。灰色の欄は、兄弟が〇の子だけ入力します。", font=f(size=10, color="444444"), alignment=Alignment(wrap_text=True, vertical="center"))
+ws.merge_cells("A3:F3")
+put(ws, "P3", "▲ 上の「＋」を押すと、兄弟①〜③の列（兄弟の担任から聞いた面談の日時と順番）が開きます。「−」でたたみます。", font=f(size=10, bold=True, color="9A6A00"), alignment=Alignment(wrap_text=True, vertical="center"))
+ws.merge_cells("P3:W3")
+ws.row_dimensions[3].height = 30
 dv_sib = DataValidation(type="list", formula1='"〇"', allow_blank=True)
 dv_sday = DataValidation(type="list", formula1=f"={q(SET)}$E$11:$E${DL}", allow_blank=True)
 dv_stime = DataValidation(type="list", formula1=f"={q(SET)}$I$11:$I${TL}", allow_blank=True)
@@ -378,10 +382,10 @@ for i in range(1, NS + 1):
     r, a = 4 + i, 9 + i          # a: 計算Aの行
     b = base(i)
     for c in "ABCDEFGHIJKLMNO":
-        put(ws, f"{c}{r}", None, fill=INPUT, border=box, alignment=Alignment(vertical="center") if c in "BD" else Alignment(horizontal="center", vertical="center", shrink_to_fit=True))
-    dv_sib.add(f"C{r}"); dv_hope.add(f"N{r}"); dv_gap.add(f"O{r}")
+        put(ws, f"{c}{r}", None, fill=INPUT, border=box, alignment=Alignment(vertical="center") if c in "BF" else Alignment(horizontal="center", vertical="center", shrink_to_fit=True))
+    dv_sib.add(f"E{r}"); dv_hope.add(f"C{r}"); dv_gap.add(f"D{r}")
     for k in range(3):
-        dv_sday.add(f"{CL(5+3*k)}{r}"); dv_stime.add(f"{CL(6+3*k)}{r}"); dv_ord[k].add(f"{CL(7+3*k)}{r}")
+        dv_sday.add(f"{CL(7+3*k)}{r}"); dv_stime.add(f"{CL(8+3*k)}{r}"); dv_ord[k].add(f"{CL(9+3*k)}{r}")
     put(ws, f"P{r}", f'=IF(B{r}="","",IF(COUNTIF($B$5:$B$49,B{r})>1,IF(A{r}="","",A{r}&" ")&B{r},B{r}))', border=box)   # 同じ名前がいるときだけ番号をつける
     stt = f"{q(INP)}F{b}"     # 提出状況
     put(ws, f"Q{r}", f'=IF(B{r}="","",IF({stt}="未提出","未提出",IF(R{r}>0,"入力済み",IF({stt}="×なし（どこでもOK）","×なし","未入力"))))', border=box, alignment=center)
@@ -390,19 +394,25 @@ for i in range(1, NS + 1):
     put(ws, f"T{r}", f'=IF({q(CA)}C{a}=1,COUNTIFS({q(CA)}$C$10:$C$54,1,{q(CA)}$IM$10:$IM$54,"<"&{q(CA)}IM{a})+1,"")', border=box, alignment=center)
     put(ws, f"U{r}", f'=IF({q(CA)}IO{a}=0,"",INDEX({q(SET)}$E$11:$E${DL},INDEX({q(CA)}$D$2:${JZ}$2,{q(CA)}IO{a})))', border=box)
     put(ws, f"V{r}", f'=IF({q(CA)}IO{a}=0,"",INDEX({q(SET)}$I$11:$I${TL},INDEX({q(CA)}$D$3:${JZ}$3,{q(CA)}IO{a})))', border=box, alignment=center)
-    gapng = (f'AND(RIGHT(O{r},4)="空けたい",INDEX({q(CA)}${JA}${ROW_NEXT}:${JZ}${ROW_NEXT},{q(CA)}IO{a})=1,'
+    gapng = (f'AND(RIGHT(D{r},4)="空けたい",INDEX({q(CA)}${JA}${ROW_NEXT}:${JZ}${ROW_NEXT},{q(CA)}IO{a})=1,'
              f'INDEX({q(CA)}${JA}${ROW_OCC}:${JZ}${ROW_OCC},{q(CA)}IO{a}+1)=1)')
-    nogapng = (f'IF(AND(O{r}="空けない",INDEX({q(CA)}${JA}${ROW_NEXT}:${JZ}${ROW_NEXT},{q(CA)}IO{a})=1,'
+    nogapng = (f'IF(AND(D{r}="空けない",INDEX({q(CA)}${JA}${ROW_NEXT}:${JZ}${ROW_NEXT},{q(CA)}IO{a})=1,'
                f'INDEX({q(CA)}${JA}${ROW_OCC}:${JZ}${ROW_OCC},{q(CA)}IO{a}+1)=0),"（出来れば）すぐ後が空いています","")')
     put(ws, f"W{r}", f'=IF(P{r}="","",IF({q(CA)}JG{a}=1,"兄弟の日付・時刻が表にありません",IF(COUNTIF({GRID},P{r})>1,"2か所以上に入っています",IF({q(CA)}IO{a}>0,'
                      f'IF(INDEX({q(CA)}$D$4:${JZ}$4,{q(CA)}IO{a})=0,"使えない枠に入っています",IF(INDEX({q(CA)}$D${a}:${JZ}${a},{q(CA)}IO{a})=1,"×の枠に入っています",'
-                     f'IF({q(CA)}IV{a}=0,"（出来れば）兄弟の前後ではありません",IF({gapng},IF(O{r}="必ず空けたい","後ろの枠が空いていません","（出来れば）後ろが空いていません"),{nogapng})))),'
+                     f'IF({q(CA)}IV{a}=0,"（出来れば）兄弟の前後ではありません",IF({gapng},IF(D{r}="必ず空けたい","後ろの枠が空いていません","（出来れば）後ろが空いていません"),{nogapng})))),'
                      f'IF(OR(Q{r}="入力済み",Q{r}="×なし"),"未決定","")))))', border=box)
     put(ws, f"X{r}", f'=IF({q(CA)}IK{a}=0,IF({q(CA)}IL{a}=1,"入る枠がありません",""),INDEX({q(CA)}$D$8:${JZ}$8,{q(CA)}IK{a}))', border=box)
     put(ws, f"Y{r}", f'=IF({q(CA)}IR{a}=0,IF({q(CA)}IS{a}=1,"入る枠がありません",""),INDEX({q(CA)}$D$8:${JZ}$8,{q(CA)}IR{a}))', border=box)
     put(ws, f"Z{r}", f'=HYPERLINK("#\'{INP}\'!B{b}","×入力へ")', font=f(color="2D5FA8", underline="single"), alignment=center)
 ws.freeze_panes = "C5"
 ws.auto_filter.ref = "A4:Y49"
+# 兄弟が〇でない子は、兄弟の欄を灰色に
+ws.conditional_formatting.add("F5:O49", FormulaRule(formula=['$E5=""'], fill=fill("E3E3E3"), border=box))
+# 兄弟①〜③の9列は「たたむ」（グループ化）。最初はたたんだ状態
+for c in range(7, 16):
+    ws.column_dimensions[CL(c)].outline_level = 1
+    ws.column_dimensions[CL(c)].hidden = True
 red_txt = Font(name=FONT, color="B23A3A", bold=True)
 ws.conditional_formatting.add("W5:W49", FormulaRule(formula=['OR(W5="未決定",LEFT(W5,6)="（出来れば）")'], font=Font(name=FONT, color="9A6A00", bold=True)))
 ws.conditional_formatting.add("W5:W49", FormulaRule(formula=['W5<>""'], font=red_txt))
@@ -520,7 +530,7 @@ info = [
     (7, "状況", f'=IF({q(CA)}$B$8=0,"",INDEX({q(ROS)}$Q$5:$Q$49,{q(CA)}$B$8))'),
     (8, "×の数", f'=IF({q(CA)}$B$8=0,"",INDEX({q(ROS)}$R$5:$R$49,{q(CA)}$B$8))'),
     (9, "今の枠", f'=IF({q(CA)}$B$8=0,"",INDEX({q(ROS)}$U$5:$U$49,{q(CA)}$B$8)&" "&INDEX({q(ROS)}$V$5:$V$49,{q(CA)}$B$8))'),
-    (10, "兄弟", f'=IF({q(CA)}$B$8=0,"",IF(INDEX({q(ROS)}$C$5:$C$49,{q(CA)}$B$8)="","",INDEX({q(ROS)}$D$5:$D$49,{q(CA)}$B$8)&"　"&INDEX({q(ROS)}$E$5:$E$49,{q(CA)}$B$8)&" "&INDEX({q(ROS)}$F$5:$F$49,{q(CA)}$B$8)))'),
+    (10, "兄弟", f'=IF({q(CA)}$B$8=0,"",IF(INDEX({q(ROS)}$E$5:$E$49,{q(CA)}$B$8)="","",INDEX({q(ROS)}$F$5:$F$49,{q(CA)}$B$8)&"　"&INDEX({q(ROS)}$G$5:$G$49,{q(CA)}$B$8)&" "&INDEX({q(ROS)}$H$5:$H$49,{q(CA)}$B$8)))'),
 ]
 for r, lab, fo in info:
     put(ws, f"N{r}", lab, font=f(color="666666"))
@@ -671,8 +681,8 @@ put(ws, "O3", None, fill=INPUT, border=box)
 for t in range(1, T + 1):
     for d in range(1, D + 1):
         x = f"{q(ASG)}{CL(2+d)}{5+t}"
-        sib = f'IFERROR(INDEX({q(ROS)}$C$5:$C$49,MATCH({x},{q(ROS)}$P$5:$P$49,0))<>"",FALSE)'
-        memo = f'INDEX({q(ROS)}$D$5:$D$49,MATCH({x},{q(ROS)}$P$5:$P$49,0))'
+        sib = f'IFERROR(INDEX({q(ROS)}$E$5:$E$49,MATCH({x},{q(ROS)}$P$5:$P$49,0))<>"",FALSE)'
+        memo = f'INDEX({q(ROS)}$F$5:$F$49,MATCH({x},{q(ROS)}$P$5:$P$49,0))'
         put(ws, f"{CL(2+d)}{5+t}", f'=IF({x}="","",{x}&IF({sib},CHAR(10)&{memo},""))',
             alignment=Alignment(horizontal="center", vertical="center", wrap_text=True))
         # 見えない列（AA〜）：色の番号 0=ない枠 1=兄弟あり 2=ふつう
@@ -711,13 +721,13 @@ for j in range(1, N + 1):
     ws[f"{c}{ROW_OCC}"] = f'=IF(INDEX({GRID},{c}3,{c}2)<>"",1,0)'
     if t > 1:   # 前の枠の人が「後ろを空ける」なら、この枠は空ける（昼休みをはさむときは空けない）
         prev = f"INDEX({GRID},{c}3-1,{c}2)"
-        ws[f"{c}{ROW_GAPBLK}"] = f'=IF(OR({jc(j-1)}{ROW_NEXT}=0,{prev}=""),0,IF(RIGHT(IFERROR(INDEX({q(ROS)}$O$5:$O$49,MATCH({prev},{q(ROS)}$P$5:$P$49,0)),""),4)="空けたい",1,0))'
+        ws[f"{c}{ROW_GAPBLK}"] = f'=IF(OR({jc(j-1)}{ROW_NEXT}=0,{prev}=""),0,IF(RIGHT(IFERROR(INDEX({q(ROS)}$D$5:$D$49,MATCH({prev},{q(ROS)}$P$5:$P$49,0)),""),4)="空けたい",1,0))'
     else:
         ws[f"{c}{ROW_GAPBLK}"] = 0
     ws[f"{c}{ROW_NEXT}"] = (f"=IF(AND({jc(j+1)}4=1,OR({c}3<>$A$3,$A$4=0)),1,0)" if t < T else 0)
     ws[f"{c}{ROW_AUTOBLK}"] = f"=IF(COUNTIF({q(CB)}$G$3:$G$47,{j})>0,1,0)"
     cur = f"INDEX({GRID},{c}3,{c}2)"
-    ws[f"{c}{ROW_NOGAP}"] = f'=IF({cur}="",0,IF(IFERROR(INDEX({q(ROS)}$O$5:$O$49,MATCH({cur},{q(ROS)}$P$5:$P$49,0)),"")="空けない",1,0))'
+    ws[f"{c}{ROW_NOGAP}"] = f'=IF({cur}="",0,IF(IFERROR(INDEX({q(ROS)}$D$5:$D$49,MATCH({cur},{q(ROS)}$P$5:$P$49,0)),"")="空けない",1,0))'
     ws[f"{c}{ROW_NB}"] = (f"=IF(AND({c}{ROW_EXIST}=1,{jc(j+1)}{ROW_EXIST}=1,OR({c}3<>$A$3,$A$4=0)),1,0)" if t < T else 0)
     ws[f"{c}{ROW_AUTOBLK_B}"] = f"=IF(COUNTIF({q(CC)}$G$3:$G$47,{j})>0,1,0)"
     ws[f"{c}{ROW_PRIO}"] = f"={c}6"
@@ -749,19 +759,19 @@ for i in range(1, NS + 1):
     ws[f"IS{r}"] = f"=IF(AND(C{r}=1,IR{r}=0),1,0)"
     ws[f"IM{r}"] = f"=SUMPRODUCT({JA}{o}:{JZ}{o}*(1-${JA}$7:${JZ}$7))"
     ws[f"IN{r}"] = f"=SUM({JA}{r}:{JZ}{r})"
-    ws[f"IP{r}"] = f'=IFERROR(MATCH({q(ROS)}N{ro},{{"' + '","'.join(HOPES) + f'"}},0),0)'
-    ws[f"IQ{r}"] = f'=IF({q(ROS)}O{ro}="必ず空けたい",2,IF({q(ROS)}O{ro}="出来れば空けたい",1,0))'
+    ws[f"IP{r}"] = f'=IFERROR(MATCH({q(ROS)}C{ro},{{"' + '","'.join(HOPES) + f'"}},0),0)'
+    ws[f"IQ{r}"] = f'=IF({q(ROS)}D{ro}="必ず空けたい",2,IF({q(ROS)}D{ro}="出来れば空けたい",1,0))'
     # 兄弟①〜③の面談の枠（0=なし、-1=表にない日時）と順番（1=この子が前、2=この子が後、0=どちらでも）
     SLOT, PREF = ["IT", "IY", "IZ"], ["JC", "JD", "JE"]
     for k in range(3):
-        dc, tc, oc = CL(5 + 3 * k), CL(6 + 3 * k), CL(7 + 3 * k)
+        dc, tc, oc = CL(7 + 3 * k), CL(8 + 3 * k), CL(9 + 3 * k)
         ws[f"{SLOT[k]}{r}"] = (f'=IF(OR({q(ROS)}{dc}{ro}="",{q(ROS)}{tc}{ro}=""),0,IFERROR((MATCH({q(ROS)}{dc}{ro},{q(SET)}$E$11:$E${DL},0)-1)*{T}'
                                f'+MATCH({q(ROS)}{tc}{ro},{q(SET)}$I$11:$I${TL},0),-1))')
         ws[f"{PREF[k]}{r}"] = f'=IF(RIGHT({q(ROS)}{oc}{ro},2)="の前",1,IF(RIGHT({q(ROS)}{oc}{ro},2)="の後",2,0))'
     ws[f"JF{r}"] = f"=IF(OR(IT{r}>0,IY{r}>0,IZ{r}>0),1,0)"         # 兄弟の時間が入っている
     ws[f"JG{r}"] = f"=IF(OR(IT{r}<0,IY{r}<0,IZ{r}<0),1,0)"         # 表にない日時がある
-    ws[f"IW{r}"] = f'=IF(AND({q(ROS)}C{ro}<>"",JF{r}=0),1,0)'     # 兄弟あり（兄弟の時間はまだ）
-    ws[f"IX{r}"] = f'=IF({q(ROS)}O{ro}="空けない",1,0)'                # 後ろを空けない
+    ws[f"IW{r}"] = f'=IF(AND({q(ROS)}E{ro}<>"",JF{r}=0),1,0)'     # 兄弟あり（兄弟の時間はまだ）
+    ws[f"IX{r}"] = f'=IF({q(ROS)}D{ro}="空けない",1,0)'                # 後ろを空けない
     # 決めた枠が、どれかの兄弟のすぐ前・すぐ後か
     R2, R3 = f"${JA}$2:${JZ}$2", f"${JA}$3:${JZ}$3"
     adj = lambda S: (f"IF({S}{r}>0,AND(INDEX({R2},IO{r})=INDEX({R2},{S}{r}),OR(AND(IO{r}={S}{r}+1,OR(INDEX({R3},{S}{r})<>$A$3,$A$4=0)),"
@@ -896,7 +906,7 @@ GRID_MENU = ["F1", "G1", "H1", "I1", "J1", "K1", "L1", "N1"]
 LAYOUT = {
     HOME: ("A1", 13, None),
     SET: ("A1", 22, ["D1", "E1", "F1:G1", "H1", "I1", "K1:L1", "M1", "N1"]),
-    ROS: ("A1", 26, ["E1", "F1:G1", "H1", "I1:J1", "K1", "L1:M1", "N1:O1", "P1"]),
+    ROS: ("A1", 26, ["C1", "D1", "E1:F1", "P1", "Q1:R1", "S1:T1", "U1", "W1"]),
     INP: ("B1", 14, GRID_MENU),
     SIB: ("B1", 15, GRID_MENU),
     AUT: ("B1", 15, GRID_MENU),

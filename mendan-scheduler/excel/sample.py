@@ -27,11 +27,11 @@ for i in range(1, 36):
     ros[f"A{r}"] = i
     ros[f"B{r}"] = f"{sei[i-1]} {mei[i-1]}"
     sp = special.get(i, {})
-    if "sib" in sp: ros[f"C{r}"], ros[f"D{r}"] = sp["sib"], sp["memo"]
-    if "hope" in sp: ros[f"N{r}"] = sp["hope"]
-    if "gap" in sp: ros[f"O{r}"] = sp["gap"]
+    if "sib" in sp: ros[f"E{r}"], ros[f"F{r}"] = sp["sib"], sp["memo"]
+    if "hope" in sp: ros[f"C{r}"] = sp["hope"]
+    if "gap" in sp: ros[f"D{r}"] = sp["gap"]
     for k, st in enumerate(sp.get("stimes", [])):      # 兄弟①〜③：日付・時刻・順番
-        for c, v in zip(range(5 + 3 * k, 8 + 3 * k), st):
+        for c, v in zip(range(7 + 3 * k, 10 + 3 * k), st):
             ros.cell(r, c).value = v
     st = status.get(i)
     if st == "×なし": inp[f"F{b}"] = "×なし（どこでもOK）"; continue
