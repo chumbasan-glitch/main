@@ -822,8 +822,8 @@ def engine(name, spread):
         ws[f"E{r}"] = f"=IF(B{r}=0,0,INDEX({q(CA)}$IQ$10:$IQ$54,B{r}))"
         ws[f"F{r}"] = f"=IF(B{r}=0,0,INDEX({q(CA)}$IP$10:$IP$54,B{r}))"
         ws[f"H{r}"] = f"=IF(B{r}=0,0,INDEX({q(CA)}$IW$10:$IW$54,B{r}))"
-        for k, (sc_, pc_) in enumerate(zip(["IT", "IY", "IZ"], ["JC", "JD", "JE"])):   # 兄弟①〜③の枠・順番・日・時
-            S_, P_, D_, T_ = CL(9 + k), CL(12 + k), CL(15 + k), CL(18 + k)
+        for kk, (sc_, pc_) in enumerate(zip(["IT", "IY", "IZ"], ["JC", "JD", "JE"])):   # 兄弟①〜③の枠・順番・日・時
+            S_, P_, D_, T_ = CL(9 + kk), CL(12 + kk), CL(15 + kk), CL(18 + kk)
             ws[f"{S_}{r}"] = f"=IF(B{r}=0,0,MAX(0,INDEX({q(CA)}${sc_}$10:${sc_}$54,B{r})))"
             ws[f"{P_}{r}"] = f"=IF(B{r}=0,0,INDEX({q(CA)}${pc_}$10:${pc_}$54,B{r}))"
             ws[f"{D_}{r}"] = f"=IF({S_}{r}=0,0,INDEX({CAr(2)},{S_}{r}))"
@@ -867,8 +867,8 @@ def engine(name, spread):
             #   兄弟2人のあいだの1枠は、両方の前後になるのでいちばんよい。兄弟と同じ時刻はいちばん後
             nob = f"OR({t}<>{q(CA)}$A$3,{q(CA)}$A$4=0)"                 # この枠のすぐ後が昼休みではない
             cks, same, adjn = [], [], []
-            for k in range(3):
-                S_, P_, D_, T_ = (f"${CL(9 + k)}{r}", f"${CL(12 + k)}{r}", f"${CL(15 + k)}{r}", f"${CL(18 + k)}{r}")
+            for kk in range(3):
+                S_, P_, D_, T_ = (f"${CL(9 + kk)}{r}", f"${CL(12 + kk)}{r}", f"${CL(15 + kk)}{r}", f"${CL(18 + kk)}{r}")
                 before = f"AND({j}={S_}-1,{nob})"                                          # この子が兄弟の前
                 after = f"AND({j}={S_}+1,OR({T_}<>{q(CA)}$A$3,{q(CA)}$A$4=0))"             # この子が兄弟の後
                 cks.append(f"IF({S_}=0,999999,IF({d}={D_},IF({before},IF({P_}=2,30,0),IF({after},IF({P_}=1,30,0),ABS({t}-{T_})*100)),"
@@ -896,7 +896,7 @@ GRID_MENU = ["F1", "G1", "H1", "I1", "J1", "K1", "L1", "N1"]
 LAYOUT = {
     HOME: ("A1", 13, None),
     SET: ("A1", 22, ["D1", "E1", "F1:G1", "H1", "I1", "K1:L1", "M1", "N1"]),
-    ROS: ("A1", 19, ["E1", "F1:G1", "H1", "I1", "J1:K1", "L1:M1", "N1:O1", "P1"]),
+    ROS: ("A1", 26, ["E1", "F1:G1", "H1", "I1:J1", "K1", "L1:M1", "N1:O1", "P1"]),
     INP: ("B1", 14, GRID_MENU),
     SIB: ("B1", 15, GRID_MENU),
     AUT: ("B1", 15, GRID_MENU),
@@ -939,10 +939,10 @@ for name, (tref, last, menu) in LAYOUT.items():
             v = cell.value
             if isinstance(v, str) and v.startswith(date_ref):
                 cell.fill = HEAD_D; cell.font = f(bold=True, color="FFFFFF")
-for c in range(1, 20):
+for c in range(1, 27):
     cell = wb[ROS].cell(4, c)
     if cell.value:
-        cell.fill = fill("B7791F") if c <= 8 else HEAD_D    # 入力する列は茶色、計算の列は青
+        cell.fill = fill("B7791F") if c <= 15 else HEAD_D    # 入力する列は茶色、計算の列は青
         cell.font = f(bold=True, color="FFFFFF", size=10)
 for ref in ["B10", "C10", "D10", "E10", "G10", "H10", "I10"]:
     wb[SET][ref].fill = HEAD_D; wb[SET][ref].font = f(bold=True, color="FFFFFF")
