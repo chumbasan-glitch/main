@@ -62,9 +62,11 @@ inp.cell(base(7) + 2 + 2, 1).value = "×"      # 7番：13:45 全部×
 inp.cell(base(20) + 1, 2 + 5).value = "×"     # 20番：11/30 全部×
 for t in (7, 8, 9):
     wb["設定"].cell(10 + t, 12 + 4).value = "×"  # 先生：11/27 15:00〜 出張
-# 読み込み直すと消えてしまう「印刷の範囲（日数・枠数に合わせて変わる）」を付け直す
-PS = "印刷（兄弟確認）"
-wb[PS].defined_names["_xlnm.Print_Area"] = DefinedName("_xlnm.Print_Area", localSheetId=wb.sheetnames.index(PS),
-    attr_text="OFFSET('印刷（兄弟確認）'!$B$3,0,0,3+'設定'!$B$6,1+COUNT('設定'!$B$11:$B$20))")
+# 読み込み直すと消えてしまう「印刷の範囲（日数・枠数に合わせて変わる）」を、元のファイルから付け直す
+import re, zipfile, html
+src_xml = zipfile.ZipFile(src).read("xl/workbook.xml").decode("utf-8")
+for sid, txt in re.findall(r'<definedName name="_xlnm.Print_Area" localSheetId="(\d+)">(.*?)</definedName>', src_xml):
+    ws_ = wb.worksheets[int(sid)]
+    ws_.defined_names["_xlnm.Print_Area"] = DefinedName("_xlnm.Print_Area", localSheetId=int(sid), attr_text=html.unescape(txt))
 wb.save(out)
 print("saved", out)

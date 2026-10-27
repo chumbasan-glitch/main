@@ -24,7 +24,9 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール.xlsx"
 
 SET, ROS, INP, ASG, AUT, CA, CB = "設定", "名簿", "×入力", "調整・決定", "自動案A", "計算A", "計算B"
 AUTB, CC = "自動案B", "計算C"      # 自動案B（散らす）とその計算
-SIB = "印刷（兄弟確認）"
+SIB = "兄弟確認用"
+LET = "お手紙（秋）"
+LES = "お手紙（夏）"
 q = lambda s: "'" + s + "'!"   # シート参照
 GL = 5 + T                       # 調整・決定／自動案の表の最後の行
 GRID = q(ASG) + f"$C$6:${LC}${GL}"   # 調整・決定の表
@@ -46,7 +48,7 @@ def jc(j):                     # 計算A で枠 j の列
 JA, JZ = jc(1), jc(N)          # D 〜 DS
 HOPES = ["早い時刻", "遅い時刻", "早い日", "遅い日"]
 # 計算A の枠ごとの行（1〜8行目のほか）
-VERSION = "Ver.2.1（2026年10月26日）"   # 直したら番号と日付を上げる
+VERSION = "Ver.2.2（2026年10月27日）"   # 直したら番号と日付を上げる
 PS, PL, PV = CL(3 + D), CL(4 + D), CL(5 + D)   # 表の右の欄：すき間・見出し・中身
 ROW_NEXT = 106                 # 同じ日に次の枠がある
 ROW_AUTOBLK = 107              # 自動案Aで「後ろを空ける」枠になった
@@ -206,10 +208,11 @@ lines = [
     ("・赤い枠は「×の枠に入れてしまった」、オレンジの枠は「同じ人が2か所に入っている」です。", None),
     ("・青い斜線の枠は「前の人の後ろを空ける枠」です。紫の枠は、空けるはずの枠に人が入っています。", None),
     ("・下の「候補」の表には、その枠に入れられる、まだ決まっていない児童が表示されます。「1人」の枠は先に決めると楽です。", None),
-    ("6. 「印刷（兄弟確認）」シート", f(bold=True, size=12)),
+    ("6. 「兄弟確認用」シート", f(bold=True, size=12)),
     ("・調整・決定で決めた日程が、予定表と同じ形で出ます。兄弟がいる子は色付きで、名前の下に兄弟のクラスが出ます（名簿の「兄弟メモ」にはクラス名だけを書きます。例：2年1組）。", None),
     ("・兄弟の担任から面談の日時を聞いたら、名簿の「兄弟の日付」「兄弟の時刻」を選びます。自動案では、できるだけ兄弟のすぐ前かすぐ後に入れます。", None),
-    ("・Word の表に名前を入れるときは、「調整・決定」の名前のマスを選んでコピーし、Word の表の左上のマスで右クリック →「セルの上書き」で貼り付けます。", None),
+    ("・表の上の黄色の欄には、「組んでみました。都合が悪ければお知らせください」など、自由に書けます（書いたことも印刷されます）。", None),
+    ("・保護者へのお手紙は「お手紙（夏）」「お手紙（秋）」シートでそのまま印刷できます（夏は午前・午後の枠が多いときの形、秋は枠が少ないときの形。宛名・日付・本文などは設定のいちばん下で決めます）。", None),
     ("7. 結果", f(bold=True, size=12)),
     ("・「名簿」シートの右側に、決まった日時・注意（×の枠／2か所／後ろが空いていない／使えない枠／未決定）・自動案が表示されます。", None),
     ("・CSVが必要なときは「名簿」シートを開いて［ファイル］→［名前を付けて保存］→ 種類を「CSV UTF-8」にします。", None),
@@ -253,6 +256,7 @@ steps = [
     (AUT, "自動案を見る（A：詰める／B：散らす）", "入れられる枠が少ない家庭から順に自動で組んだ案が2つ。よいほうを調整・決定に貼り付けます。調整・決定に入れた人は、自動案では動きません。"),
     (ASG, "調整して決定する", "プルダウンで手直しして日程を決めます。児童を選ぶと、入れられる枠に色がつきます。"),
     (SIB, "印刷して兄弟を確認する", "決めた日程を予定表の形で印刷。兄弟がいる子は色付きで、兄弟のクラスも出ます。"),
+    (LES, "お手紙を印刷する", "保護者へのお知らせ（夏用・秋用）。宛名・日付・学校名・担任名・本文は設定で決めます。6年は「進路面談」になります。"),
 ]
 for k, (sh, title, desc) in enumerate(steps):
     r = 9 + 3 * k
@@ -265,6 +269,10 @@ for k, (sh, title, desc) in enumerate(steps):
         put(ws, f"K{r}", f'=HYPERLINK("#\'{AUT}\'!A1","案A ▶")', font=f(size=12, bold=True, color="FFFFFF"), fill=fill(ACCENT), alignment=center)
         put(ws, f"L{r}", f'=HYPERLINK("#\'{AUTB}\'!A1","案B ▶")', font=f(size=12, bold=True, color="FFFFFF"), fill=fill("5B8BD0"), alignment=center)
         ws.merge_cells(f"K{r}:K{r+1}"); ws.merge_cells(f"L{r}:L{r+1}")
+    elif sh == LES:   # お手紙は夏・秋の2つ
+        put(ws, f"K{r}", f'=HYPERLINK("#\'{LES}\'!A1","夏 ▶")', font=f(size=12, bold=True, color="FFFFFF"), fill=fill("1E90A0"), alignment=center)
+        put(ws, f"L{r}", f'=HYPERLINK("#\'{LET}\'!A1","秋 ▶")', font=f(size=12, bold=True, color="FFFFFF"), fill=fill("2E8B57"), alignment=center)
+        ws.merge_cells(f"K{r}:K{r+1}"); ws.merge_cells(f"L{r}:L{r+1}")
     else:
         put(ws, f"K{r}", f'=HYPERLINK("#\'{sh}\'!A1","開く ▶")', font=f(size=12, bold=True, color="FFFFFF"), fill=fill(ACCENT), alignment=center)
         ws.merge_cells(f"K{r}:L{r+1}")
@@ -272,7 +280,7 @@ for k, (sh, title, desc) in enumerate(steps):
     for cc in "CDEFGHIJ":
         ws[f"{cc}{r+1}"].border = Border(bottom=Side(style="thin", color="D3DEEC"))
 # くわしい使い方
-r0 = 29
+r0 = 32
 put(ws, f"B{r0}", "くわしい使い方", font=f(size=13, bold=True, color=PRIMARY_D))
 for k, (t, fo) in enumerate(lines[3:]):
     r = r0 + 1 + k
@@ -381,6 +389,49 @@ hide_rules(ws, f"L11:L{TL}", '$L11=""', [], frame=False)
 hide_rules(ws, f"M11:{TC}{TL}", f'OR(INDEX($B$11:$B${DL},COLUMN(M11)-12)="",ROW(M11)-10>$B$6)',
            [('OR(M11<>"",M$9<>"",$K11<>"")', fill("F6DEDB"), None)])
 
+# お手紙（お知らせ）に入れること
+LR = 30                          # お手紙の欄の先頭行
+put(ws, f"A{LR}", "お手紙（お知らせ）", font=f(size=13, bold=True, color=PRIMARY_D))
+put(ws, f"B{LR}", "「お手紙（夏）」「お手紙（秋）」シートに出ます。", font=f(size=9, color="666666"))
+KINDS = ["学年に合わせる（6年は進路面談）", "個人面談", "進路面談"]
+letter_in = [("学年", 6, "B", '0"年"'), ("組", 1, "B", '0"組"'), ("担任名", None, "B:E", None), ("学校名", None, "B:E", None),
+             ("お手紙の日付", datetime.date(2026, 10, 30), "B", "m/d"), ("面談の種類", KINDS[0], "B:E", None)]
+for k, (lab, v, span, nf) in enumerate(letter_in):
+    r = LR + 1 + k
+    put(ws, f"A{r}", lab, font=f(bold=True, color=PRIMARY_D))
+    put(ws, f"B{r}", v, fill=INPUT, border=box, alignment=Alignment(horizontal="center" if span == "B" else "left", vertical="center"), **({"number_format": nf} if nf else {}))
+    if span != "B":
+        ws.merge_cells(f"B{r}:E{r}")
+L_GRADE, L_CLASS, L_TEACH, L_SCHOOL, L_DATE, L_KIND = (f"{q(SET)}$B${LR+1+k}" for k in range(6))
+dv_grade = DataValidation(type="list", formula1='"1,2,3,4,5,6"', allow_blank=True); ws.add_data_validation(dv_grade); dv_grade.add(f"B{LR+1}")
+dv_kind = DataValidation(type="list", formula1='"' + ",".join(KINDS) + '"', allow_blank=False); ws.add_data_validation(dv_kind); dv_kind.add(f"B{LR+6}")
+dv_ldate = DataValidation(type="date", operator="greaterThan", formula1="36526"); dv_ldate.error = "日付を「10/30」のように入れてください。"; dv_ldate.showErrorMessage = True
+ws.add_data_validation(dv_ldate); dv_ldate.add(f"B{LR+5}")
+put(ws, f"C{LR+1}", f'=IF(B{LR+6}="{KINDS[0]}","→ "&IF(B{LR+1}=6,"進路面談","個人面談")&"のお知らせになります","")', font=f(size=9, color="666666"))
+put(ws, f"A{LR+7}", "秋の本文", font=f(bold=True, color=PRIMARY_D), alignment=Alignment(vertical="top"))
+put(ws, f"B{LR+7}", "【面談】の希望調査へのご協力ありがとうございました。下記の日程で予定を組ませていただきました。短い時間ですが、有意義な話し合いとし、日々の学級生活に生かしたいと思います。どうぞ、よろしくお願いいたします。",
+    fill=INPUT, border=box, alignment=Alignment(wrap_text=True, vertical="top"))
+ws.merge_cells(f"B{LR+7}:I{LR+9}")
+put(ws, f"A{LR+10}", "秋の注意（表の下・3行）", font=f(bold=True, color=PRIMARY_D))
+for k, v in enumerate(["〇来校の際には、名札・上履きをお持ちください。", None, None]):
+    put(ws, f"B{LR+10+k}", v, fill=INPUT, border=box)
+    ws.merge_cells(f"B{LR+10+k}:I{LR+10+k}")
+put(ws, f"A{LR+13}", "夏の本文", font=f(bold=True, color=PRIMARY_D), alignment=Alignment(vertical="top"))
+put(ws, f"B{LR+13}", "下記の日程で予定を組ませていただきました。どうぞ、よろしくお願いいたします。", fill=INPUT, border=box, alignment=Alignment(wrap_text=True, vertical="top"))
+ws.merge_cells(f"B{LR+13}:I{LR+14}")
+put(ws, f"A{LR+15}", "夏の注意（表の上・3行）", font=f(bold=True, color=PRIMARY_D))
+for k, v in enumerate(["〇来校の際には、名札・上履きをお持ちください。", None, None]):
+    put(ws, f"B{LR+15+k}", v, fill=INPUT, border=box)
+    ws.merge_cells(f"B{LR+15+k}:I{LR+15+k}")
+put(ws, f"A{LR+18}", "※ 本文の「【面談】」のところは、「個人面談」か「進路面談」に自動で変わります。", font=f(color="666666", size=9))
+put(ws, f"A{LR+19}", "※ 本文は、秋は4行（140字）、夏は2行（82字）まで印刷されます。", font=f(color="666666", size=9))
+L_BODY = f"{q(SET)}$B${LR+7}"
+L_NOTES = [f"{q(SET)}$B${LR+10+k}" for k in range(3)]
+S_BODY = f"{q(SET)}$B${LR+13}"
+S_NOTES = [f"{q(SET)}$B${LR+15+k}" for k in range(3)]
+KIND = f'IF({L_KIND}="個人面談","個人面談",IF({L_KIND}="進路面談","進路面談",IF({L_GRADE}=6,"進路面談","個人面談")))'
+GR = f'IF({L_GRADE}="","　",{L_GRADE})&"年"&IF({L_CLASS}="","　",{L_CLASS})&"組"'
+
 # ---------------------------------------------------------------- 名簿
 # A番号 B名前 C兄弟 D兄弟クラス  E〜M：兄弟①〜③の（日付・時刻・順番）  N希望 O後ろを空ける（ここまで入力）
 # P表示名 Q状況 R×の数 S入れられる空き枠 T決める順 U日付 V時刻 W注意 X自動案A Y自動案B Zリンク
@@ -398,7 +449,7 @@ for i, (h, w) in enumerate(zip(heads, widths), start=1):
 ws.row_dimensions[4].height = 32
 put(ws, "A1", "名簿・結果", font=f(size=16, bold=True))
 put(ws, "A2", "黄色の列（番号〜兄弟③との順番）を入力します。Excelの名簿から番号と名前を「番号」の列のいちばん上に貼り付けてください（最大45人）。行の並べ替えはしないでください。", font=f(size=10, color="444444"))
-put(ws, "A3", "兄弟クラス：例 2年1組（2人以上なら 1年2組・5年3組）。灰色の欄は、兄弟が〇の子だけ入力します。", font=f(size=10, color="444444"), alignment=Alignment(wrap_text=True, vertical="center"))
+put(ws, "A3", "兄弟クラス：書き方は自由です（例：2年1組、2-1、兄 5年 など）。10字くらいまでが見やすいです。灰色の欄は、兄弟が〇の子だけ入力します。", font=f(size=10, color="444444"), alignment=Alignment(wrap_text=True, vertical="center"))
 ws.merge_cells("A3:F3")
 put(ws, "P3", "◀ 兄弟①〜③の列（兄弟の担任から聞いた面談の日時と順番）は、左上の「＋」で開き、「−」でたためます。", font=f(size=10, bold=True, color="9A6A00"), alignment=Alignment(wrap_text=True, vertical="center"))
 ws.merge_cells("P3:W3")
@@ -520,6 +571,19 @@ hide_rules(ws, " ".join(day_r), f'INDEX({q(SET)}$B$11:$B${DL},COLUMN(C{b1+1})-2)
 hide_rules(ws, " ".join(time_r), f'$B{b1+3}=""', [])
 hide_rules(ws, " ".join(lab_r), f'B{b1+3}=""', [], frame=False)
 ws.freeze_panes = "A5"
+# 使わない時刻の行は、フィルターで隠す（S列：表示／隠す。設定で枠の数を変えたら Ctrl＋Alt＋L で隠し直す）
+IEND = base(NS) + BLK - 1
+ws["S4"] = "表示"
+for r in range(5, IEND + 1):
+    t = (r - 5) % BLK - 2
+    ws[f"S{r}"] = f'=IF({t}<={q(SET)}$B$6,"表示","隠す")' if 1 <= t <= T else "表示"
+ws.column_dimensions["S"].hidden = True
+INP_FILTER = (f"A4:S{IEND}", 18, 4, IEND)
+REFILTER = ('"⚠ 設定で枠の数が変わりました。このシートで Ctrl＋Alt＋L を押してください（押すと時刻の行が合います）"')
+REFILTER2 = ('"⚠ 設定で枠の数が変わりました。このシートで Ctrl＋Alt＋L を押してください"&CHAR(10)&"（押さないと、増えた時刻の行が印刷されません）"')
+put(ws, "B4", f'=IF(SUBTOTAL(103,S5:S{IEND})<>COUNTIF(S5:S{IEND},"表示"),{REFILTER},"")', font=f(size=14, bold=True, color="FFFFFF"), alignment=Alignment(horizontal="center", vertical="center"))
+ws.merge_cells("B4:L4"); ws.row_dimensions[4].height = 34
+ws.conditional_formatting.add("B4:L4", FormulaRule(formula=['$B$4<>""'], fill=fill("D62828")))
 
 
 # ---------------------------------------------------------------- 調整・決定・自動案 共通の表
@@ -705,15 +769,22 @@ auto_sheet(AUTB, "自動案B（散らす）",
 
 # ---------------------------------------------------------------- 印刷（兄弟確認）：予定表の形で、決めた日程を印刷する
 ws = sheet(SIB)
-grid_frame(ws, "印刷（兄弟確認）", "「調整・決定」で決めた日程を、予定表と同じ形で印刷します。兄弟がいる子は色付きで、名前の下に兄弟のクラス（名簿の兄弟メモ）が出ます。")
-put(ws, "B3", f'="個人面談日程"&IF({PV}3="","","　"&{PV}3)', font=f(size=14, bold=True, color=PRIMARY_D), alignment=Alignment(horizontal="left", vertical="center"))
+grid_frame(ws, "兄弟確認用", "「調整・決定」で決めた日程を、予定表と同じ形で印刷します（A4たて）。兄弟がいる子は色付きで、名前の下に兄弟のクラスが出ます。表の上の黄色の欄は自由に書けます。")
+# 見出し：面談の種類・クラス・担任名は設定から（設定のいちばん下の「お手紙」の欄）
+put(ws, "B3", f'={KIND}&"日程　"&{GR}&"　担任　"&{L_TEACH}', font=f(size=14, bold=True, color=PRIMARY_D), alignment=Alignment(horizontal="left", vertical="center"))
 ws.merge_cells(f"B3:{LC}3")
 ws.row_dimensions[3].height = 28
+# 自由に書く欄（何か書くと白くなって、そのまま印刷される。空のときだけ黄色）
+put(ws, "B4", None, font=f(size=11), alignment=Alignment(wrap_text=True, vertical="center", indent=1))
+ws.merge_cells(f"B4:{LC}4")
+ws.row_dimensions[4].height = 48
+ws.conditional_formatting.add(f"B4:{LC}4", FormulaRule(formula=['$B$4=""'], fill=INPUT))
+ws.conditional_formatting.add(f"B4:{LC}4", FormulaRule(formula=["TRUE"], border=box))
+put(ws, f"{PL}4", "◀ 自由に書けます（例：組んでみました。都合が悪ければお知らせください。）", font=f(size=10, bold=True, color="9A6A00"), alignment=Alignment(vertical="center", wrap_text=True))
+ws.merge_cells(f"{PL}4:{PV}4")
 ws.column_dimensions[PS].width = 3
 ws.column_dimensions[PL].width = 20
 ws.column_dimensions[PV].width = 22
-put(ws, f"{PL}3", "クラス・担任など ▶", font=f(size=10, bold=True, color=PRIMARY_D), alignment=Alignment(horizontal="right", vertical="center"))
-put(ws, f"{PV}3", None, fill=INPUT, border=box)
 for t in range(1, T + 1):
     for d in range(1, D + 1):
         x = f"{q(ASG)}{CL(2+d)}{5+t}"
@@ -728,11 +799,162 @@ hide_rules(ws, f"C6:{LC}{GL}", "AA6=0", [("AA6=1", fill("E3D7F2"), Font(name=FON
 for d in range(1, D + 1):
     ws.column_dimensions[CL(26 + d)].hidden = True
 # 印刷の範囲は、設定した日数・枠の数に合わせて変わる（下の「見た目の仕上げ」で名前を付ける）
-ws.page_setup.orientation = "landscape"
+SIB_WS = ws
+# お手紙と同じく A4たて・表の幅はページいっぱい（時刻2.22cm＋日付2.99cm×5＝17.17cm。6日・枠が多いときだけ縮小）
+CM = lambda cm: round((cm / 2.54 * 96 - 5) / 7, 2)       # cm → Excelの列幅
+ws.column_dimensions["B"].width = CM(2.22)
+for d in range(D):
+    ws.column_dimensions[CL(3 + d)].width = CM(2.99)
+ws.page_setup.orientation = "portrait"; ws.page_setup.paperSize = 9
+ws.page_margins.left = ws.page_margins.right = 0.75; ws.print_options.horizontalCentered = True
 ws.sheet_properties.pageSetUpPr.fitToPage = True
 ws.page_setup.fitToWidth = 1
 ws.page_setup.fitToHeight = 1
 ws.freeze_panes = "C6"
+
+# ---------------------------------------------------------------- お手紙（秋）：保護者へのお知らせ（A4たて・枠が少ないとき）
+ws = sheet(LET)
+# Wordのお手紙と同じ寸法（A4、左右の余白3cm・上3.5cm、表は幅17.19cmでページの中央、本文は1行35字・行の間隔18pt）
+CM = lambda cm: round((cm / 2.54 * 96 - 5) / 7, 2)       # cm → Excelの列幅
+for col, cm in zip("ABCDEFGHIJ", [0.3, 1.095, 1.125, 2.99, 2.99, 2.99, 2.99, 1.895, 1.095, 2.99]):
+    ws.column_dimensions[col].width = CM(cm)
+DCOL = ["D", "E", "F", "G", "H", "J"]                       # 日付の列（5日目は H:I をつなげる）
+put(ws, "B1", "お手紙（秋）", font=f(size=16, bold=True))
+put(ws, "B2", "保護者へのお知らせです。宛名・日付・本文などは「設定」のいちばん下で決めます。このまま印刷できます（A4たて）。", font=f(size=10, color="444444"))
+MIN_ = lambda sz=12: Font(name="ＭＳ 明朝", size=sz)
+MARU = lambda sz: Font(name="HG丸ｺﾞｼｯｸM-PRO", size=sz)
+KIND = f'IF({L_KIND}="個人面談","個人面談",IF({L_KIND}="進路面談","進路面談",IF({L_GRADE}=6,"進路面談","個人面談")))'
+GR = f'IF({L_GRADE}="","　",{L_GRADE})&"年"&IF({L_CLASS}="","　",{L_CLASS})&"組"'
+R_ = Alignment(horizontal="right", vertical="center")
+L_ = Alignment(horizontal="left", vertical="center")
+for r, h in ((4, 23.8), (5, 18), (6, 18), (7, 18), (8, 36), (9, 18), (10, 18), (11, 18), (12, 18), (13, 18), (14, 18), (15, 11.2)):
+    ws.row_dimensions[r].height = h
+put(ws, "C5", f'={GR}&"　保護者様"', font=MIN_(), alignment=L_)
+put(ws, "H5", f'=IF({L_DATE}="","","令和"&(YEAR({L_DATE})-2018)&"年"&MONTH({L_DATE})&"月"&DAY({L_DATE})&"日（"&CHOOSE(WEEKDAY({L_DATE}),"日","月","火","水","木","金","土")&"）")', font=MIN_(), alignment=R_)
+put(ws, "H6", f'=IF({L_SCHOOL}="","",{L_SCHOOL})', font=MIN_(), alignment=R_)
+put(ws, "H7", f'={GR}&"　担任　"&{L_TEACH}', font=MIN_(), alignment=R_)
+put(ws, "C8", f'={KIND}&"のお知らせ"', font=Font(name="ＭＳ ゴシック", size=24), alignment=center)
+ws.merge_cells("C8:H8")
+BODY = f'SUBSTITUTE({L_BODY},"【面談】",{KIND})'
+for k in range(4):                                       # 本文は1行35字で4行まで（Wordと同じ折り返し）
+    put(ws, f"C{10+k}", f'=MID({BODY},{1+35*k},35)', font=MIN_(), alignment=L_)
+put(ws, "C14", "記", font=MIN_(), alignment=center)
+ws.merge_cells("C14:H14")
+LH = 16                          # 表の見出しの行
+ws.row_dimensions[LH].height = 17.3
+ws.merge_cells(f"B{LH}:C{LH}"); ws.merge_cells(f"H{LH}:I{LH}")
+for d in range(1, D + 1):
+    put(ws, f"{DCOL[d-1]}{LH}", f'=JIS({q(SET)}$E${10+d})', font=MARU(8), alignment=center)
+for t in range(1, T + 1):
+    r = LH + t
+    ws.row_dimensions[r].height = 33.5
+    ws.merge_cells(f"B{r}:C{r}"); ws.merge_cells(f"H{r}:I{r}")
+    tm = f"{q(SET)}$I${10+t}"
+    put(ws, f"B{r}", f'=IF({tm}="","",JIS(SUBSTITUTE({tm},"〜",""))&"～")', font=MARU(9), alignment=center)
+    for d in range(1, D + 1):
+        g = f"{q(ASG)}{CL(2+d)}{5+t}"
+        put(ws, f"{DCOL[d-1]}{r}", f'=IF({g}="","",{g})', font=MARU(10.5), alignment=center)
+# 表の線：使う日・時刻のところだけ（使わない日は線も消える）
+BLK_SIDE = Side(style="thin", color="000000")
+BLACK = Border(left=BLK_SIDE, right=BLK_SIDE, top=BLK_SIDE, bottom=BLK_SIDE)     # Wordと同じ黒い線
+ws.conditional_formatting.add(f"B{LH}:C{LH}", FormulaRule(formula=["TRUE"], border=BLACK))
+for d in range(1, D + 1):
+    c = DCOL[d - 1]; c2 = "I" if c == "H" else c
+    ws.conditional_formatting.add(f"{c}{LH}:{c2}{LH+T}", FormulaRule(formula=[f'${c}${LH}<>""'], border=BLACK))
+ws.conditional_formatting.add(f"B{LH+1}:C{LH+T}", FormulaRule(formula=[f'$B{LH+1}<>""'], border=BLACK))
+LF = LH + T + 1                  # 表の下
+ws.row_dimensions[LF].height = 18
+for r in range(LF + 1, LF + 6):
+    ws.row_dimensions[r].height = 18
+put(ws, f"H{LF+1}", "（敬称略）", font=MIN_(), alignment=R_)
+for k in range(3):
+    put(ws, f"C{LF+3+k}", f'=IF({L_NOTES[k]}="","",{L_NOTES[k]})', font=MIN_(), alignment=L_)
+LEND = LF + 5
+# 使わない時刻の行は、フィルターで隠す（K列：表示／隠す。設定を変えたら Ctrl＋Alt＋L で隠し直す）
+for r in range(LH, LEND + 1):
+    t = r - LH
+    ws[f"K{r}"] = f'=IF({t}<={q(SET)}$B$6,"表示","隠す")' if 1 <= t <= T else "表示"
+ws.column_dimensions["K"].hidden = True
+ws.page_setup.orientation = "portrait"; ws.page_setup.paperSize = 9
+ws.sheet_properties.pageSetUpPr.fitToPage = True          # 6日のとき・枠が多いときだけ縮小（ふだんは100%）
+ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 1
+ws.print_options.horizontalCentered = True
+ws.page_margins.left = ws.page_margins.right = 0.75; ws.page_margins.top = 3.5 / 2.54; ws.page_margins.bottom = 3.0 / 2.54
+ws.page_margins.header = ws.page_margins.footer = 0
+LET_FILTER = (f"B{LH}:K{LEND}", 9, LH, LEND)
+put(ws, "B3", f'=IF(SUBTOTAL(103,K{LH+1}:K{LEND})<>COUNTIF(K{LH+1}:K{LEND},"表示"),{REFILTER2},"")', font=f(size=13, bold=True, color="FFFFFF"), alignment=Alignment(horizontal="center", vertical="center", wrap_text=True))
+ws.merge_cells("B3:J3"); ws.row_dimensions[3].height = 48
+ws.conditional_formatting.add("B3:J3", FormulaRule(formula=['$B$3<>""'], fill=fill("D62828")))
+
+# ---------------------------------------------------------------- お手紙（夏）：午前・午後の枠が多いとき（Wordの夏用と同じ寸法）
+# A4たて・余白1.27cm、表は幅17.75cm（時刻2.66cm＋日付3.09・3.0cm）、行の高さ0.72cm、注意は表の上、午前と午後のあいだに太い線
+ws = sheet(LES)
+for col, cm in zip("ABCDEFGH", [0.3, 2.66, 3.09, 3.0, 3.0, 3.0, 3.0, 3.0]):
+    ws.column_dimensions[col].width = CM(cm)
+SCOL = ["C", "D", "E", "F", "G", "H"]
+put(ws, "B1", "お手紙（夏）", font=f(size=16, bold=True))
+put(ws, "B2", "保護者へのお知らせ（夏用：午前・午後の枠が多いときの形）。宛名・日付・本文などは「設定」のいちばん下で決めます。このまま印刷できます（A4たて）。", font=f(size=10, color="444444"))
+for r, h in ((4, 26.1), (5, 18), (6, 18), (7, 18), (8, 36), (9, 18), (10, 18), (11, 18), (12, 18), (13, 18), (14, 18), (15, 18), (16, 18), (17, 13.7)):
+    ws.row_dimensions[r].height = h
+put(ws, "B5", f'={GR}&"　保護者様"', font=MIN_(), alignment=L_)
+put(ws, "G5", f'=IF({L_DATE}="","","令和"&(YEAR({L_DATE})-2018)&"年"&MONTH({L_DATE})&"月"&DAY({L_DATE})&"日（"&CHOOSE(WEEKDAY({L_DATE}),"日","月","火","水","木","金","土")&"）")', font=MIN_(), alignment=R_)
+put(ws, "G6", f'=IF({L_SCHOOL}="","",{L_SCHOOL})', font=MIN_(), alignment=R_)
+put(ws, "G7", f'={GR}&"　担任　"&{L_TEACH}', font=MIN_(), alignment=R_)
+put(ws, "B8", f'={KIND}&"のお知らせ"', font=Font(name="ＭＳ ゴシック", size=20), alignment=center)
+ws.merge_cells("B8:G8")
+SB = f'SUBSTITUTE({S_BODY},"【面談】",{KIND})'
+for k in range(2):                                       # 本文は1行41字で2行まで
+    put(ws, f"B{10+k}", f'=MID({SB},{1+41*k},41)', font=MIN_(), alignment=L_)
+put(ws, "B12", "記", font=MIN_(), alignment=center)
+ws.merge_cells("B12:G12")
+for k in range(3):                                       # 表の上の注意（空の行はフィルターで隠す）
+    put(ws, f"B{14+k}", f'=IF({S_NOTES[k]}="","",{S_NOTES[k]})', font=MIN_(), alignment=L_)
+SH = 18                                                  # 表の見出しの行
+ws.row_dimensions[SH].height = 23.5
+for d in range(1, D + 1):
+    put(ws, f"{SCOL[d-1]}{SH}", f'=JIS({q(SET)}$E${10+d})', font=MARU(9), alignment=center)
+AM0, SEP, PM0 = SH + 1, SH + 1 + T, SH + 2 + T          # 午前の行・太い線の行・午後の行
+NA = f"MIN({N1},{q(SET)}$B$6)"                           # 午前（時間帯1）の枠の数
+for k in range(1, T + 1):
+    for r, t in ((AM0 + k - 1, f"{k}"), (PM0 + k - 1, f"{NA}+{k}")):
+        ws.row_dimensions[r].height = 20.9
+        tm = f"INDEX({q(SET)}$I$11:$I${TL},{t})"
+        put(ws, f"B{r}", f'=IFERROR(IF({tm}="","",JIS(SUBSTITUTE({tm},"〜",""))),"")', font=MARU(9), alignment=center)
+        for d in range(1, D + 1):
+            g = f"INDEX({q(ASG)}${CL(2+d)}$6:${CL(2+d)}${GL},{t})"
+            put(ws, f"{SCOL[d-1]}{r}", f'=IFERROR(IF({g}="","",{g}),"")', font=MARU(10.5), alignment=center)
+ws.row_dimensions[SEP].height = 2.5
+for c in ["B"] + SCOL:                                   # 午前と午後のあいだの太い線（黒くぬった細い行）
+    ws.conditional_formatting.add(f"{c}{SEP}", FormulaRule(formula=["TRUE" if c == "B" else f'{c}${SH}<>""'], fill=fill("000000")))
+ws.conditional_formatting.add(f"B{SH}", FormulaRule(formula=["TRUE"], border=BLACK))
+ws.conditional_formatting.add(f"B{AM0}:B{PM0+T-1}", FormulaRule(formula=[f'$B{AM0}<>""'], border=BLACK))
+for c in SCOL:
+    ws.conditional_formatting.add(f"{c}{SH}:{c}{PM0+T-1}", FormulaRule(formula=[f'AND({c}${SH}<>"",OR(ROW()={SH},$B{SH}<>""))'], border=BLACK))
+SEND = PM0 + T - 1
+# 隠す行：使わない時刻の行・午後がないときの太い線・空の注意の行（M列：表示／隠す）
+for r in range(SH, SEND + 1):
+    if AM0 <= r < SEP:
+        fo = f'=IF({r - AM0 + 1}<={NA},"表示","隠す")'
+    elif r == SEP:
+        fo = f'=IF({q(SET)}$B$6>{NA},"表示","隠す")'
+    elif r >= PM0:
+        fo = f'=IF({NA}+{r - PM0 + 1}<={q(SET)}$B$6,"表示","隠す")'
+    else:
+        fo = "表示"
+    ws[f"M{r}"] = fo
+for k in range(3):
+    ws[f"M{14+k}"] = f'=IF(B{14+k}="","隠す","表示")'
+ws["M13"] = ws["M17"] = "表示"
+ws.column_dimensions["M"].hidden = True
+ws.page_setup.orientation = "portrait"; ws.page_setup.paperSize = 9
+ws.sheet_properties.pageSetUpPr.fitToPage = True
+ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 1
+ws.page_margins.left = ws.page_margins.right = ws.page_margins.top = ws.page_margins.bottom = 0.5
+ws.page_margins.header = ws.page_margins.footer = 0
+LES_FILTER = ("B13:M" + str(SEND), 11, 13, SEND)
+put(ws, "B3", f'=IF(SUBTOTAL(103,M14:M{SEND})<>COUNTIF(M14:M{SEND},"表示"),{REFILTER2},"")', font=f(size=13, bold=True, color="FFFFFF"), alignment=Alignment(horizontal="center", vertical="center", wrap_text=True))
+ws.merge_cells("B3:H3"); ws.row_dimensions[3].height = 48
+ws.conditional_formatting.add("B3:H3", FormulaRule(formula=['$B$3<>""'], fill=fill("D62828")))
 
 # ---------------------------------------------------------------- 計算A（×・入れられる枠・児童ごとの集計）
 ws = sheet(CA)
@@ -936,21 +1158,23 @@ engine(CC, True)
 
 # ---------------------------------------------------------------- 見た目の仕上げ（タイトル帯・メニュー・見出しの色）
 
-MENU = [(HOME, "ホーム"), (SET, "① 設定"), (ROS, "② 名簿"), (INP, "③ ×入力"), (AUT, "④ 自動案A"), (AUTB, "④ 自動案B"), (ASG, "⑤ 調整・決定"), (SIB, "⑥ 印刷")]
+MENU = [(HOME, "ホーム"), (SET, "① 設定"), (ROS, "② 名簿"), (INP, "③ ×入力"), (AUT, "④ 自動案A"), (AUTB, "④ 自動案B"), (ASG, "⑤ 調整・決定"), (SIB, "⑥ 兄弟確認"), (LES, "⑦ お手紙 夏"), (LET, "⑧ お手紙 秋")]
 # シートごと：(タイトルのセル, 帯の右はしの列, メニューボタンの場所)
-INP_MENU = ["F1", "G1", "H1", "I1", "J1", "K1", "L1", "M1"]   # どれも幅15
-GRID_MENU = [CL(5 + d) + "1" for d in range(D - 2)] + [CL(6 + D + k) + "1" for k in range(4)]   # どれも幅15（右の欄の見出し・中身の列はとばす）
+INP_MENU = ["F1", "G1", "H1", "I1", "J1", "K1", "L1", "M1", "N1", "O1"]   # どれも幅15
+GRID_MENU = [CL(5 + d) + "1" for d in range(D - 2)] + [CL(6 + D + k) + "1" for k in range(6)]   # どれも幅15（右の欄の見出し・中身の列はとばす）
 LAYOUT = {
     HOME: ("A1", 13, None),
-    SET: ("A1", 22, ["E1", "F1:G1", "H1", "I1:J1", "K1:L1", "M1", "N1", "O1"]),   # 幅12〜20
-    ROS: ("A1", 27, ["D1", "P1", "Q1:R1", "S1:T1", "U1", "X1", "Y1", "Z1:AA1"]),   # 幅15〜22（兄弟の列をたたんだとき）
-    INP: ("B1", 14, INP_MENU),
-    SIB: ("B1", 9 + D, GRID_MENU),
-    AUT: ("B1", 9 + D, GRID_MENU),
-    AUTB: ("B1", 9 + D, GRID_MENU),
-    ASG: ("B1", 9 + D, GRID_MENU),
+    SET: ("A1", 22, ["E1", "F1:G1", "H1", "I1:J1", "K1:L1", "M1", "N1", "O1", "P1", "Q1"]),   # 幅12〜20
+    ROS: ("A1", 31, ["D1", "P1", "Q1:R1", "S1:T1", "U1", "X1", "Y1", "Z1:AA1", "AB1:AC1", "AD1:AE1"]),   # 幅15〜22（兄弟の列をたたんだとき）
+    INP: ("B1", 15, INP_MENU),
+    SIB: ("B1", 11 + D, GRID_MENU),
+    AUT: ("B1", 11 + D, GRID_MENU),
+    AUTB: ("B1", 11 + D, GRID_MENU),
+    ASG: ("B1", 11 + D, GRID_MENU),
+    LES: ("B1", 11 + D, GRID_MENU),
+    LET: ("B1", 11 + D, GRID_MENU),
 }
-TAB = {HOME: PRIMARY_D, SET: "7A8699", ROS: PRIMARY, INP: "B23A3A", AUT: ACCENT, AUTB: "5B8BD0", ASG: "C77D1A", SIB: "7A5BA8"}
+TAB = {HOME: PRIMARY_D, SET: "7A8699", ROS: PRIMARY, INP: "B23A3A", AUT: ACCENT, AUTB: "5B8BD0", ASG: "C77D1A", SIB: "7A5BA8", LES: "1E90A0", LET: "2E8B57"}
 date_ref = f"={q(SET)}$E$"
 for name, (tref, last, menu) in LAYOUT.items():
     ws = wb[name]
@@ -992,10 +1216,12 @@ wb[HOME].merge_cells("K1:M1")
 # 名簿：「＋」ボタンのすぐ下に目印
 put(wb[ROS], "F1", "▲ 上の「＋」で\n兄弟の列を開く", font=f(size=10, bold=True, color="5A3A00"), fill=fill("FFD966"),
     alignment=Alignment(horizontal="center", vertical="center", wrap_text=True))
-for n in (SIB, AUT, AUTB, ASG):
-    for c in range(6 + D, 10 + D):
+for n in (SIB, AUT, AUTB, ASG, LET, LES):
+    for c in range(6 + D, 12 + D):
         wb[n].column_dimensions[CL(c)].width = 15
 wb[INP].column_dimensions["M"].width = 15
+wb[INP].column_dimensions["N"].width = 15
+wb[INP].column_dimensions["O"].width = 15
 for c in range(1, 27):
     cell = wb[ROS].cell(4, c)
     if cell.value:
@@ -1022,13 +1248,32 @@ for sh, rng, tl in hdr:
 for i in range(1, NS + 1):
     wb[ROS].row_dimensions[4 + i].height = 19
 # シートの順番：ホーム・設定・名簿・×入力・自動案・調整・決定・計算
-order = [HOME, SET, ROS, INP, AUT, AUTB, ASG, SIB, CA, CB, CC]
+order = [HOME, SET, ROS, INP, AUT, AUTB, ASG, SIB, LES, LET, CA, CB, CC]
 wb._sheets = [wb[n] for n in order]
 sib_idx = order.index(SIB)
 wb[SIB].defined_names["_xlnm.Print_Area"] = DefinedName("_xlnm.Print_Area", localSheetId=sib_idx,
     attr_text=f"OFFSET({q(SIB)}$B$3,0,0,3+{q(SET)}$B$6,1+COUNT({q(SET)}$B$11:$B${DL}))")
+wb[LES].defined_names["_xlnm.Print_Area"] = DefinedName("_xlnm.Print_Area", localSheetId=order.index(LES),
+    attr_text=f"OFFSET({q(LES)}$B$4,0,0,{SEND - 3},IF(COUNT({q(SET)}$B$11:$B${DL})>5,7,6))")
+wb[LET].defined_names["_xlnm.Print_Area"] = DefinedName("_xlnm.Print_Area", localSheetId=order.index(LET),
+    attr_text=f"OFFSET({q(LET)}$B$4,0,0,{LEND - 3},IF(COUNT({q(SET)}$B$11:$B${DL})>5,9,8))")
 wb.defined_names["決定の表"] = DefinedName("決定の表", attr_text=f"{q(ASG)}$C$6:${LC}${GL}")
 
+# 使わない時刻の行をフィルターで隠す（最初の設定のぶんは、ここで隠しておく）
+from openpyxl.worksheet.filters import FilterColumn, Filters
+N0 = 9                                   # 最初の設定（13:30〜15:30、15分）の1日の枠の数
+for ws_, (ref, colid, hrow, last) in ((wb[INP], INP_FILTER), (wb[LET], LET_FILTER), (wb[LES], LES_FILTER)):
+    ws_.auto_filter.ref = ref
+    ncol = ord(ref.split(":")[1][0]) - ord(ref[0]) + 1
+    for k in range(ncol):
+        ws_.auto_filter.filterColumn.append(FilterColumn(colId=k, hiddenButton=True, filters=Filters(filter=["表示"]) if k == colid else None))
+for i in range(1, NS + 1):
+    for t in range(N0 + 1, T + 1):
+        wb[INP].row_dimensions[base(i) + 2 + t].hidden = True
+for t in range(N0 + 1, T + 1):
+    wb[LET].row_dimensions[LH + t].hidden = True
+for r in list(range(AM0 + N0, SEP + 1)) + list(range(PM0, SEND + 1)) + [15, 16]:   # 夏：午後なし・注意は1行
+    wb[LES].row_dimensions[r].hidden = True
 wb[CA].sheet_state = "hidden"
 wb[CB].sheet_state = "hidden"
 wb[CC].sheet_state = "hidden"
