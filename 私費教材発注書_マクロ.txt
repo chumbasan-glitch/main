@@ -1,0 +1,185 @@
+' ===== ここから下を全部コピーして貼り付ける =====
+Option Explicit
+
+Private Const FIRST_ROW As Long = 21   ' 発注書の教材1行目
+Private Const ROWS_PER_PAGE As Long = 7 ' 発注書1枚に入る教材の数
+
+Sub 発注書をつくる()
+    Dim wsIn As Worksheet, wsSet As Worksheet, wsList As Worksheet, wsTmp As Worksheet
+    Set wsIn = ThisWorkbook.Worksheets("発注")
+    Set wsSet = ThisWorkbook.Worksheets("設定")
+    Set wsList = ThisWorkbook.Worksheets("教材リスト")
+    Set wsTmp = ThisWorkbook.Worksheets("発注書ひな形")
+
+    ' --- 発注シートの入力を読む ---
+    Dim company As String, kai As Long, isTennyu As Boolean
+    Dim orderDate As Date, deliver As String
+    company = Trim(CStr(wsIn.Range("C4").Value))
+    kai = Val(Left(CStr(wsIn.Range("C5").Value), 1))
+    isTennyu = (Trim(CStr(wsIn.Range("C6").Value)) = "転入")
+    If IsDate(wsIn.Range("C7").Value) Then
+        orderDate = CDate(wsIn.Range("C7").Value)
+    Else
+        orderDate = Date
+    End If
+    deliver = CStr(wsIn.Range("C8").Value)
+
+    If company = "" Then
+        MsgBox "「会社名」を選んでください。", vbExclamation
+        Exit Sub
+    End If
+    If kai < 1 Or kai > 3 Then
+        MsgBox "「何回目」を選んでください。", vbExclamation
+        Exit Sub
+    End If
+
+    ' --- 組の名前と人数 ---
+    Dim clsName(1 To 5) As String, clsNum(1 To 5) As Double, j As Long
+    For j = 1 To 5
+        clsName(j) = Trim(CStr(wsSet.Cells(6 + j, 2).Value))
+        clsNum(j) = Val(wsSet.Cells(6 + j, 3).Value)
+    Next j
+
+    Dim tClass As Long, tNum As Double
+    If isTennyu Then
+        tNum = Val(wsIn.Range("C12").Value)
+        For j = 1 To 5
+            If clsName(j) <> "" And clsName(j) = Trim(CStr(wsIn.Range("C11").Value)) Then tClass = j
+        Next j
+        If tClass = 0 Or tNum <= 0 Then
+            MsgBox "転入のときは「転入の組」と「転入の人数」を入れてください。", vbExclamation
+            Exit Sub
+        End If
+    End If
+
+    ' --- 教材リストから、今回頼む教材を集める ---
+    Dim lastRow As Long, r As Long, n As Long
+    lastRow = wsList.Cells(wsList.Rows.Count, 3).End(xlUp).Row
+    Dim itName() As String, itSubj() As String, itPer() As Double, itPrice() As Variant, itNote() As Variant
+    ReDim itName(1 To lastRow), itSubj(1 To lastRow), itPer(1 To lastRow), itPrice(1 To lastRow), itNote(1 To lastRow)
+
+    Dim nm As String
+    For r = 4 To lastRow
+        If Trim(CStr(wsList.Cells(r, 2).Value)) = company And Trim(CStr(wsList.Cells(r, 3).Value)) <> "" Then
+            nm = ItemName(Trim(CStr(wsList.Cells(r, 3).Value)), Trim(CStr(wsList.Cells(r, 5).Value)), kai, isTennyu)
+            If nm <> "" Then
+                n = n + 1
+                itName(n) = nm
+                itSubj(n) = CStr(wsList.Cells(r, 4).Value)
+                itPer(n) = Val(wsList.Cells(r, 6).Value)
+                If itPer(n) <= 0 Then itPer(n) = 1
+                itPrice(n) = wsList.Cells(r, 7).Value
+                itNote(n) = wsList.Cells(r, 8).Value
+            End If
+        End If
+    Next r
+
+    If n = 0 Then
+        MsgBox "「" & company & "」の" & kai & "回目に頼む教材が、教材リストにありません。", vbExclamation
+        Exit Sub
+    End If
+
+    ' --- 発注書をつくる（7つごとに1枚） ---
+    Dim pages As Long, p As Long, k As Long, rw As Long, idx As Long
+    Dim ws As Worksheet, firstWs As Worksheet, baseName As String, colLetters As Variant
+    colLetters = Array("AA", "AD", "AG", "AJ", "AM")
+    pages = (n + ROWS_PER_PAGE - 1) \ ROWS_PER_PAGE
+    baseName = "R" & (Year(orderDate) - 2018) & "、" & Month(orderDate) & "月 " & CleanName(company)
+
+    Application.ScreenUpdating = False
+    For p = 1 To pages
+        wsTmp.Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
+        Set ws = ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
+        If pages = 1 Then
+            ws.Name = UniqueName(baseName, "")
+        Else
+            ws.Name = UniqueName(baseName, " " & p & "枚目")
+        End If
+        If p = 1 Then Set firstWs = ws
+
+        ws.Range("G6").Value = company
+        ws.Range("AZ6").Value = Month(orderDate)
+        ws.Range("BD6").Value = Day(orderDate)
+        ws.Range("AU10").Value = wsSet.Range("C4").Value
+        ws.Range("D12").Value = wsSet.Range("C3").Value
+        ws.Range("O14").Value = pages
+        ws.Range("AF14").Value = deliver
+        For j = 1 To 5
+            ws.Range(colLetters(j - 1) & "20").Value = clsName(j)
+        Next j
+
+        For k = 1 To ROWS_PER_PAGE
+            rw = FIRST_ROW + (k - 1) * 2
+            idx = (p - 1) * ROWS_PER_PAGE + k
+            If idx <= n Then
+                ws.Range("C" & rw).Value = itName(idx)
+                ws.Range("V" & rw).Value = itSubj(idx)
+                For j = 1 To 5
+                    If isTennyu Then
+                        If j = tClass Then ws.Range(colLetters(j - 1) & rw).Value = tNum * itPer(idx)
+                    ElseIf clsName(j) <> "" And clsNum(j) > 0 Then
+                        ws.Range(colLetters(j - 1) & rw).Value = clsNum(j) * itPer(idx)
+                    End If
+                Next j
+                ws.Range("AV" & rw).Value = itPrice(idx)
+                ws.Range("BB" & rw).Value = itNote(idx)
+            End If
+        Next k
+    Next p
+    Application.ScreenUpdating = True
+
+    firstWs.Activate
+    MsgBox pages & "枚の発注書をつくりました。" & vbCrLf & _
+           "教師用冊数は、発注書に直接入れてください。", vbInformation
+End Sub
+
+' 頼み方と回数から、教材名の後ろに「上刊」「一学期」などをつける。今回頼まないものは "" を返す
+Private Function ItemName(ByVal baseName As String, ByVal howTo As String, ByVal kai As Long, ByVal isTennyu As Boolean) As String
+    ItemName = ""
+    Select Case howTo
+        Case "上刊・下刊"
+            If kai = 1 Then
+                ItemName = baseName & " 上刊"
+            ElseIf kai = 2 Or isTennyu Then
+                ItemName = baseName & " 下刊"
+            End If
+        Case "一学期・二学期・三学期"
+            ItemName = baseName & " " & Choose(kai, "一学期", "二学期", "三学期")
+        Case Else ' 年1回（空欄も年1回として扱う）
+            If kai = 1 Or isTennyu Then ItemName = baseName
+    End Select
+End Function
+
+' シート名に使えない文字を取る
+Private Function CleanName(ByVal s As String) As String
+    Dim c As Variant
+    For Each c In Array(":", "\", "/", "?", "*", "[", "]")
+        s = Replace(s, c, "")
+    Next c
+    CleanName = s
+End Function
+
+' 同じ名前のシートがあれば (2)(3)… をつける
+Private Function UniqueName(ByVal baseName As String, ByVal suffix As String) As String
+    Dim nm As String, i As Long
+    i = 1
+    Do
+        If i = 1 Then
+            nm = baseName & suffix
+        Else
+            nm = baseName & suffix & "(" & i & ")"
+        End If
+        If Len(nm) > 31 Then nm = Left(baseName, 31 - Len(nm) + Len(baseName)) & Mid(nm, Len(baseName) + 1)
+        If Not SheetExists(nm) Then Exit Do
+        i = i + 1
+    Loop
+    UniqueName = nm
+End Function
+
+Private Function SheetExists(ByVal nm As String) As Boolean
+    Dim ws As Object
+    For Each ws In ThisWorkbook.Sheets
+        If ws.Name = nm Then SheetExists = True: Exit Function
+    Next ws
+End Function
+' ===== ここまで =====
