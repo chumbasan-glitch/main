@@ -62,7 +62,6 @@ inp.cell(base(7) + 2 + 2, 1).value = "×"      # 7番：13:45 全部×
 inp.cell(base(20) + 1, 2 + 5).value = "×"     # 20番：11/30 全部×
 for t in (7, 8, 9):
     wb["設定"].cell(10 + t, 12 + 4).value = "×"  # 先生：11/27 15:00〜 出張
-wb["自動案A"]["K3"] = "自動案を出す"            # テストデータは自動案を出した状態にする
 # 読み込み直すと消えてしまう「印刷の範囲（日数・枠数に合わせて変わる）」を、元のファイルから付け直す
 import re, zipfile, html
 src_xml = zipfile.ZipFile(src).read("xl/workbook.xml").decode("utf-8")

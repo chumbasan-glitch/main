@@ -20,7 +20,7 @@ TC = CL(12 + D)                # 設定シート「先生の都合」の表の�
 N = D * T                      # 枠の総数
 BLK = T + 4                    # ×入力シートの1人分の行数
 FONT = "BIZ UDPゴシック"
-OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール_Ver2.5.xlsx"
+OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール_Ver3.0.xlsx"
 OUT_DEFAULT_OFF = True             # 配るファイルは「止める（×の入力中）」から始める
 
 SET, ROS, INP, ASG, AUT, CA, CB = "設定", "名簿", "×入力", "調整・決定", "自動案A", "calcA", "calcB"   # 計算用の隠しシートは短い英字の名前（式が短くなり、ファイルが軽くなる）
@@ -49,7 +49,7 @@ def jc(j):                     # 計算A で枠 j の列
 JA, JZ = jc(1), jc(N)          # D 〜 DS
 HOPES = ["早い時刻", "遅い時刻", "早い日", "遅い日"]
 # 計算A の枠ごとの行（1〜8行目のほか）
-VERSION = "Ver.2.5"   # 直したら番号を上げる（ファイル名にも入る）
+VERSION = "Ver.3.0"   # 直したら番号を上げる（ファイル名にも入る）
 PS, PL, PV = CL(3 + D), CL(4 + D), CL(5 + D)   # 表の右の欄：すき間・見出し・中身
 ROW_NEXT = 106                 # 同じ日に次の枠がある
 ROW_AUTOBLK = 107              # 自動案Aで「後ろを空ける」枠になった
@@ -67,7 +67,7 @@ TDAY = f"'設定'!$M$9:${TC}$9"           # この日は組まない
 TTIME = f"'設定'!$K$11:$K${TL}"     # この時間は組まない
 AUTO_ON_OPT, AUTO_OFF_OPT = "自動案を出す", "止める（×の入力中）"
 SWITCH = "'自動案A'!$K$3"
-SWON = "calcA!$A$6"               # 1＝自動案を出す、0＝止める（SWITCH を1回だけ見て、ほかの式はこれを見る）          # 自動案を出すかどうか（自動案Aのシートの右上。A・B 両方に効く）
+SWON = "calcA!$A$6"               # 自動案　0：まだ　1：作った　2：作ったあとに入力が変わった               # 1＝自動案を出す、0＝止める（SWITCH を1回だけ見て、ほかの式はこれを見る）          # 自動案を出すかどうか（自動案Aのシートの右上。A・B 両方に効く）
 N1, N2 = "calcA!$A$3", "calcA!$A$4"   # 時間帯1・2の枠の数
 
 f = lambda **k: Font(name=FONT, **k)
@@ -129,6 +129,21 @@ def paste_box(ws, col, row, width_cols):
 ALLX = fill("FDECEA")          # まとめて×の入力欄
 
 
+def button(ws, ref, text, color="2F6CC4", size=12, merge=None):
+    """マクロ版のボタン：自分のマスへのリンク。押すと ThisWorkbook のマクロが動く（貼り付ける前は何も起きない）"""
+    from openpyxl.worksheet.hyperlink import Hyperlink
+    c = ws[ref]
+    c.value = text
+    c.hyperlink = Hyperlink(ref=ref, location=f"'{ws.title}'!{ref}", display=text)
+    c.font = f(size=size, bold=True, color="FFFFFF")
+    c.fill = fill(color)
+    c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    sd = Side(style="medium", color="1F3F7A")
+    c.border = Border(left=sd, right=sd, top=sd, bottom=sd)
+    if merge:
+        ws.merge_cells(f"{ref}:{merge}")
+
+
 def hide_rules(ws, rng, unused, rules, frame=True):
     """使わない枠は白く（見えなく）し、使う枠には線を引いて色分けする条件付き書式"""
     ws.conditional_formatting.add(rng, FormulaRule(formula=[unused], fill=WHITE, stopIfTrue=True))
@@ -187,7 +202,7 @@ for c in range(2, 14):
     ws.column_dimensions[CL(c)].width = 11
 lines = [
     ("面談日程ツール（Excel版）", f(size=18, bold=True)),
-    ("マクロは使っていません。ふつうのExcelファイルとして開けます。黄色のセルが入力する場所です。", f(size=11)),
+    ("マクロ版です（.xlsm で保存し、開いたら［コンテンツの有効化］）。黄色のセルが入力する場所、青いマスはボタンです。", f(size=11)),
     ("", None),
     ("1. 「設定」シート", f(bold=True, size=12)),
     ("・面談の日付（上から順に、最大6日）、時間帯（午前と午後に分けるときは2つ）と1枠の長さを入れます（1日最大24枠）。", None),
@@ -201,21 +216,24 @@ lines = [
     ("・名簿の行は並べ替えないでください（×入力の内容とずれてしまいます）。絞り込み（フィルター）は使えます。", None),
     ("・自動案や調整・決定には名前だけが出ます。同じ名前の児童がいるときだけ、「番号 名前」で区別して表示します。", None),
     ("3. 「×入力」シート", f(bold=True, size=12)),
-    ("・1人ずつ、予定表と同じ形の表があります。名簿の「×入力へ」をクリックすると、その人の表に移動します。", None),
-    ("・都合の悪い枠に「×」を入れます（何か文字が入っていれば×として扱います）。消すときは Delete キー。", None),
+    ("・1人ずつ、予定表と同じ形の表があります。上の「児童を選ぶ」で名前を選ぶか、名簿の「×入力へ」をクリックすると、その人の表に移動します。「次の未入力の子へ」で、×がまだの子に進めます。", None),
+    ("・都合の悪い枠をダブルクリックすると「×」が付き、もう一度ダブルクリックすると消えます（何か文字が入っていれば×として扱います。Delete キーでも消せます）。", None),
     ("・まとめて入れるとき：マウスでなぞって範囲を選び、「×」と打って Ctrl + Enter を押すと、選んだ枠が全部×になります。", None),
-    ("・その日全部：日付の上の「この日全部」の欄で「×」を選びます。その時間全部：時刻の左の「この時間全部」の欄で「×」を選びます（表のマスはピンクになります）。", None),
+    ("・その日全部：日付の上の「この日全部」の欄、その時間全部：時刻の左の「この時間全部」の欄を、ダブルクリック（またはプルダウンで「×」）（表のマスはピンクになります）。", None),
     ("・×が1つもない家庭は「提出状況」で「×なし（どこでもOK）」、提出していない家庭は「未提出」を選びます。", None),
     ("4. 「自動案A」「自動案B」シート", f(bold=True, size=12)),
-    ("・自動で組んだ案が2つ出ます（どちらも、入れられる枠が少ない家庭から先に決めます。未入力・未提出の家庭は外れます）。", None),
+    ("・［自動案を作る（A・B両方）］を押すと、自動で組んだ案が2つできます（入れられる枠が少ない家庭から先に決めます。未入力・未提出の家庭は外れます）。集まった分だけで作って大丈夫です。", None),
+    ("・作ったあとに×・名簿・設定・調整・決定を変えると、表の上が赤くなります。もう一度［自動案を作る］を押してください。", None),
+    ("・入る枠がない子が出たときは、ほかの子を動かして入れ直します。それでも入らない子は、右の「入る枠がない」に名前が出ます。", None),
     ("・自動案A（詰める）：設定の「詰め方」に従って、早い時間や前の日から詰めて組みます。", None),
     ("・自動案B（散らす）：日ごとの人数がそろい、面談と面談のあいだがなるべく空くように組みます（希望がある家庭は希望を優先）。", None),
-    ("・よいほうの表をコピーして、「調整・決定」シートの表の左上（いちばん早い日・時刻のマス）に［値の貼り付け］（右クリック →「値」、または Ctrl + Shift + V）をします。左上の名前ボックスで「自動案Aの表」「自動案Bの表」を選ぶと、表全体をまとめて選べます。", None),
-    ("・ふつうの貼り付け（Ctrl + V）は使わないでください。計算式ごと貼り付けられて「循環参照」の注意が出て、色分けも消えます。出てしまったら、すぐ Ctrl + Z で元に戻します。", f(size=10.5, bold=True, color="B23A3A")),
+    ("・よいほうのシートで［この案を調整・決定へ写す］を押すと、「調整・決定」の表に入ります。", None),
     ("・「調整・決定」シートですでに決めた人はそのまま残り、残りの人だけで案が作られます。やり直したいときは調整・決定の表を消します。", None),
     ("5. 「調整・決定」シート", f(bold=True, size=12)),
     ("・各枠のセルで、プルダウンから児童を選びます。", None),
-    ("・右の「児童を選ぶ」で児童を選ぶと、表の色が変わります：緑＝入れられる空き枠／黄＝入れられる（ほかの人がいる）／ピンク＝×の枠／青＝今いる枠。", None),
+    ("・表の名前をクリック（または右の「児童を選ぶ」で選ぶ）と、表の色が変わります：緑＝入れられる空き枠／黄＝入れられる（ほかの人がいる）／ピンク＝×の枠／青＝今いる枠。", None),
+    ("・入れ替え：1人目の名前をダブルクリック（オレンジの枠になる）→ 入れ替える相手をダブルクリック。空いたマスをダブルクリックすると、そこへ移動します。やめるときは、同じマスをもう一度ダブルクリック。", None),
+    ("・［ひとつ前に戻す］で、写す・入れ替え・書きかえの前に戻せます（10回まで）。マクロのあとは Ctrl + Z が効かないので、こちらを使ってください。", None),
     ("・赤い枠は「×の枠に入れてしまった」、オレンジの枠は「同じ人が2か所に入っている」です。", None),
     ("・青い斜線の枠は「前の人の後ろを空ける枠」です。紫の枠は、空けるはずの枠に人が入っています。", None),
     ("・下の「候補」の表には、その枠に入れられる、まだ決まっていない児童が表示されます。「1人」の枠は先に決めると楽です。", None),
@@ -223,16 +241,17 @@ lines = [
     ("・調整・決定で決めた日程が、予定表と同じ形で出ます。兄弟がいる子は色付きで、名前の下に兄弟のクラスが出ます（名簿の「兄弟メモ」にはクラス名だけを書きます。例：2年1組）。", None),
     ("・兄弟の担任から面談の日時を聞いたら、名簿の「兄弟の日付」「兄弟の時刻」を選びます。自動案では、できるだけ兄弟のすぐ前かすぐ後に入れます。", None),
     ("・表の上の黄色の欄には、「組んでみました。都合が悪ければお知らせください」など、自由に書けます（書いたことも印刷されます）。", None),
-    ("・保護者へのお手紙は「お手紙（夏）」「お手紙（秋）」シートでそのまま印刷できます（夏は午前・午後の枠が多いときの形、秋は枠が少ないときの形。宛名・日付・本文などは設定のいちばん下で決めます）。", None),
+    ("・保護者へのお手紙は「お手紙（夏）」「お手紙（秋）」シートで印刷できます（宛名・日付・本文などは設定のいちばん下で決めます）。［印刷プレビュー］［PDFで保存］は、1日の枠が13以上なら夏の形、12以下なら秋の形を自動で選びます。", None),
+    ("・［PDFで保存］は、このファイルと同じ場所に「6年1組_進路面談のお知らせ.pdf」のような名前で保存します。", None),
     ("7. 結果", f(bold=True, size=12)),
     ("・「名簿」シートの右側に、決まった日時・注意（×の枠／2か所／後ろが空いていない／使えない枠／未決定）・自動案が表示されます。", None),
     ("・CSVが必要なときは「名簿」シートを開いて［ファイル］→［名前を付けて保存］→ 種類を「CSV UTF-8」にします。", None),
-    ("・兄弟ありの家庭だけ見たいときは、名簿の「兄弟」の列でフィルターをかけます。", None),
+    ("・兄弟ありの家庭だけ見たいときは、名簿の「兄弟」の列でフィルターをかけます。兄弟が〇の子がいると、兄弟①〜③の列は自動で開きます。", None),
     ("", None),
     ("※ 「calcA」「calcB」「calcC」は計算用の隠しシートです。さわらないでください。", f(color="9A6A00")),
 ]
 put(ws, "A1", "面談日程ツール")
-put(ws, "A2", "×のついた予定表から、個人面談の日程を組むツールです（マクロなし）。黄色のマスが入力する場所です。")
+put(ws, "A2", "×のついた予定表から、個人面談の日程を組むツールです（マクロ版）。黄色のマスが入力する場所、青いマスはボタンです。")
 # いまの状況
 put(ws, "B4", "いまの状況", font=f(size=13, bold=True, color=PRIMARY_D))
 R = q(ROS)
@@ -264,8 +283,8 @@ steps = [
     (SET, "日付と時間枠を決める", "面談する日付、時間帯（2つまで）、1枠の長さ。出張などで組まない日・時間もここで止めます。"),
     (ROS, "名簿を貼り付ける", "番号と名前を貼り付けます。兄弟・希望の時間・後ろを空けるもここで選びます。"),
     (INP, "×を入力する", "予定表と同じ形の表に「×」。日付の上・時刻の左の欄で、1日全部・その時間全部も一度に×にできます。"),
-    (AUT, "自動案を見る（A：詰める／B：散らす）", "集まった分で作るときは、自動案Aのシートの右上を「自動案を出す」に。入れられる枠が少ない家庭から順に組んだ案が2つ出ます。よいほうを調整・決定に貼り付けます。"),
-    (ASG, "調整して決定する", "プルダウンで手直しして日程を決めます。児童を選ぶと、入れられる枠に色がつきます。"),
+    (AUT, "自動案を見る（A：詰める／B：散らす）", "［自動案を作る］を押すと、入れられる枠が少ない家庭から順に組んだ案が2つできます。よいほうで［調整・決定へ写す］を押します。"),
+    (ASG, "調整して決定する", "名前をクリックすると入れられる枠に色がつきます。ダブルクリック2回で入れ替え。［ひとつ前に戻す］もあります。"),
     (SIB, "印刷して兄弟を確認する", "決めた日程を予定表の形で印刷。兄弟がいる子は色付きで、兄弟のクラスも出ます。"),
     (LES, "お手紙を印刷する", "保護者へのお知らせ（夏用・秋用）。宛名・日付・学校名・担任名・本文は設定で決めます。6年は「進路面談」になります。"),
 ]
@@ -529,8 +548,16 @@ ws.column_dimensions["B"].width = 9
 for d in range(10):             # 列幅は10日分そろえる（見出しの行の文字が詰まらないように）
     ws.column_dimensions[CL(3 + d)].width = 15
 put(ws, "B1", "×入力", font=f(size=16, bold=True))
-put(ws, "B2", "都合の悪い枠に「×」。日付の上の欄で「×」→その日全部、時刻の左の欄で「×」→その時間全部が×になります。消すときは Delete。", font=f(size=10, color="444444"))
-put(ws, "B3", "×が1つもない家庭は「提出状況」で「×なし（どこでもOK）」、出していない家庭は「未提出」を選びます。右上の「次の人へ ▼」で次の児童に移れます。", font=f(size=10, color="444444"))
+put(ws, "B2", "都合の悪い枠をダブルクリック→「×」（もう一度で消える）。日付の上の欄→その日全部、時刻の左の欄→その時間全部。×が1つもない家庭は「提出状況」で「×なし（どこでもOK）」、出していない家庭は「未提出」。", font=f(size=10, color="444444"))
+put(ws, "B3", "児童を選ぶ ▼", font=f(size=11, bold=True, color=PRIMARY_D), alignment=Alignment(horizontal="right", vertical="center"))
+ws.merge_cells("B3:C3")
+put(ws, "D3", None, fill=INPUT, border=box, font=f(size=12, bold=True), alignment=Alignment(vertical="center"))
+ws.merge_cells("D3:E3")
+dv_jump = DataValidation(type="list", formula1=f"={q(ROS)}$P$5:$P${4 + NS}", allow_blank=True)
+ws.add_data_validation(dv_jump); dv_jump.add("D3")
+button(ws, "G3", "▶ 次の未入力の子へ", size=11)
+ws.merge_cells("G3:H3")
+ws.row_dimensions[3].height = 30
 dv_st = DataValidation(type="list", formula1='"×なし（どこでもOK）,未提出"', allow_blank=True)
 dv_x = DataValidation(type="list", formula1='"×"', allow_blank=True)
 dv_x.error = "「×」を選んでください（消すときは Delete）。"; dv_x.showErrorMessage = True
@@ -620,7 +647,7 @@ def grid_frame(ws, title, note):
 
 # ---------------------------------------------------------------- 調整・決定
 ws = sheet(ASG)
-jexpr = grid_frame(ws, "調整・決定", "ここに入れた人は、自動案では動きません（固定）。自動案を貼り付けたあと、プルダウンで手直しして日程を決めます。右の「児童を選ぶ」で選んだ児童の入れられる枠に色がつきます。")
+jexpr = grid_frame(ws, "調整・決定", "ここに入れた人は、自動案では動きません（固定）。名前をクリック→入れられる枠に色。ダブルクリック2回で入れ替え（空いたマスなら移動）。プルダウンでも手直しできます。")
 dv_name = DataValidation(type="list", formula1=f"={q(ROS)}$P$5:$P$49", allow_blank=True)
 dv_name.error = "名簿にある児童を選んでください。"
 dv_name.showErrorMessage = True
@@ -633,11 +660,15 @@ ws.column_dimensions[PS].width = 3
 ws.column_dimensions[PL].width = 22
 ws.column_dimensions[PV].width = 40
 put(ws, f"{PL}4", "児童を選ぶ ▼", font=f(bold=True))
-arr(ws, "C4", f'=IF(SUMPRODUCT(_xlfn.ISFORMULA(C6:{LC}{GL})*1)>0,"⚠ ふつうの貼り付けになっています。すぐ Ctrl + Z で元に戻して、［値の貼り付け］（右クリック →「値」）をしてください。","")',
+arr(ws, "C4", f'=IF({q(CA)}$A$5<>"","入れ替え：「"&{q(CA)}$B$5&"」を選んでいます。入れ替える相手（空いたマスなら移動先）をダブルクリック。やめるときは同じマスをもう一度ダブルクリック。",IF(SUMPRODUCT(_xlfn.ISFORMULA(C6:{LC}{GL})*1)>0,"⚠ ふつうの貼り付けになっています。［ひとつ前に戻す］を押すか、［値の貼り付け］（右クリック →「値」）をしてください。",""))',
     font=f(size=11, bold=True, color="B23A3A"), alignment=Alignment(vertical="center", wrap_text=True))
 ws.merge_cells(f"C4:{LC}4")
 ws.row_dimensions[4].height = 32
-paste_box(ws, 4 + D, 18, 2)
+button(ws, f"{PL}3", "▶ ひとつ前に戻す", color="7A8699")
+ws.conditional_formatting.add("C4", FormulaRule(formula=[f'{q(CA)}$A$5<>""'], fill=fill("FFE4C2"), font=Font(name=FONT, size=11, bold=True, color="7A3D00")))
+# 入れ替えで1人目に選んだマス（オレンジ）：ほかの色より先に
+ws.conditional_formatting.add(f"C6:{LC}{GL}", FormulaRule(formula=[f'ADDRESS(ROW(),COLUMN())={q(CA)}$A$5'], fill=fill("FFE4C2"),
+    font=Font(name=FONT, bold=True, color="7A3D00"), border=Border(left=Side(style="thin", color="E07A00"), right=Side(style="thin", color="E07A00"), top=Side(style="thin", color="E07A00"), bottom=Side(style="thin", color="E07A00")), stopIfTrue=True))
 put(ws, f"{PL}5", None, fill=INPUT, border=box, font=f(size=12, bold=True))
 ws.merge_cells(f"{PL}5:{PV}5")
 dv_name.add(f"{PL}5")
@@ -739,21 +770,16 @@ def auto_sheet(name, title, note, eng, blk_row, slot_col, nofit_col, tname):
         (f'AND(C6="",INDEX({q(CA)}${JA}${blk_row}:${JZ}${blk_row},{jexpr})+INDEX({q(CA)}${JA}${ROW_GAPBLK}:${JZ}${ROW_GAPBLK},{jexpr})>0)', PatternFill("lightUp", fgColor="5B8BD0"), None),
         (f'AND(C6="",INDEX({q(CA)}${JA}$5:${JZ}$5,{jexpr})=1)', PatternFill("lightUp", fgColor="BBBBBB"), None),
     ])
-    put(ws, "C4", f'=IF({SWON}=1,"⚠ 「調整・決定」に入れた人は、自動案では動きません（その枠に固定されます）。自動案は、まだ入れていない人だけで作り直されます。全部作り直したいときは、「調整・決定」の表の名前を消してください。","⏸ いまは自動案を止めています（×の入力が軽くなります）。集まっている分で自動案を作るときは、{'右上の黄色い欄' if name == AUT else '「自動案A」のシートの右上の黄色い欄'}を「自動案を出す」に変えてください。あとから届いた分も、×を入れれば作り直されます。")',
+    put(ws, "C4", f'=IF({SWON}=0,"まだ自動案を作っていません。集まった分で作るときは、右上の［自動案を作る］を押してください（未提出の家庭がいても大丈夫です）。",'
+                  f'IF({SWON}=2,"⚠ 自動案を作ったあとに、×・名簿・設定・調整・決定が変わりました。もう一度［自動案を作る］を押してください（いまの表は前に作ったときの案です）。",'
+                  f'"最後に作った時："&TEXT({q(CB)}$D$1,"m/d h:mm")&"　「調整・決定」に入れた人は、自動案では動きません（その枠に固定）。全部作り直したいときは、調整・決定の表の名前を消してください。"))',
         font=f(size=10, bold=True, color="8A4B00"), fill=fill("FFF4D6"), alignment=Alignment(wrap_text=True, vertical="center", indent=1),
         border=Border(left=Side(style="medium", color="C77D1A"), right=Side(style="medium", color="C77D1A"), top=Side(style="medium", color="C77D1A"), bottom=Side(style="medium", color="C77D1A")))
     ws.merge_cells(f"C4:{LC}4")
     ws.row_dimensions[4].height = 56
-    ws.conditional_formatting.add(f"C4:{LC}4", FormulaRule(formula=[f'{SWON}=0'], fill=fill("D62828"), font=Font(name=FONT, size=12, bold=True, color="FFFFFF")))
-    if name == AUT:                  # スイッチ（×の入力が終わったら「自動案を出す」に）
-        put(ws, f"{PL}3", "集まった分で自動案を作るときは ▶\nここを「自動案を出す」に", font=f(size=10, bold=True, color="B23A3A"), alignment=Alignment(horizontal="right", vertical="center", wrap_text=True))
-        put(ws, f"{PV}3", AUTO_OFF_OPT if OUT_DEFAULT_OFF else AUTO_ON_OPT, font=f(size=14, bold=True), fill=INPUT, alignment=center,
-            border=Border(left=Side(style="medium", color="C77D1A"), right=Side(style="medium", color="C77D1A"), top=Side(style="medium", color="C77D1A"), bottom=Side(style="medium", color="C77D1A")))
-        dv_sw = DataValidation(type="list", formula1=f'"{AUTO_OFF_OPT},{AUTO_ON_OPT}"', allow_blank=False)
-        ws.add_data_validation(dv_sw); dv_sw.add(f"{PV}3")
-    else:                            # 自動案B：切り替えは自動案Aのシート
-        put(ws, f"{PL}3", f'=HYPERLINK("#\'{AUT}\'!{PV}3","自動案を出す・止めるの切り替えは「自動案A」のシートの右上です ▶")', font=f(size=10, bold=True, color="2D5FA8", underline="single"), alignment=Alignment(vertical="center", wrap_text=True))
-        ws.merge_cells(f"{PL}3:{PV}3")
+    ws.conditional_formatting.add(f"C4:{LC}4", FormulaRule(formula=[f'{SWON}<>1'], fill=fill("D62828"), font=Font(name=FONT, size=11, bold=True, color="FFFFFF")))
+    button(ws, f"{PL}3", "▶ 自動案を作る（A・B両方）")
+    button(ws, f"{PV}3", "▶ この案を「調整・決定」へ写す", color="3C8D3C")
     put(ws, "C3", "新しく入った人", fill=fill("D6F0DF"), font=f(size=9, bold=True), alignment=center, border=box)
     put(ws, "D3", "後ろを空ける枠", fill=PatternFill("lightUp", fgColor="5B8BD0"), font=f(size=9, bold=True), alignment=center, border=box)
     put(ws, "E3", "なるべく空ける日・休憩", fill=PatternFill("lightUp", fgColor="BBBBBB"), font=f(size=9, bold=True), alignment=center, border=box)
@@ -772,7 +798,6 @@ def auto_sheet(name, title, note, eng, blk_row, slot_col, nofit_col, tname):
     arr(ws, f"{PV}10", f'=_xlfn.TEXTJOIN("、",TRUE,IF((({q(ROS)}$Q$5:$Q$49="未入力")+({q(ROS)}$Q$5:$Q$49="未提出"))*({q(CA)}$IO$10:$IO$54=0),{q(ROS)}$P$5:$P$49,""))', alignment=Alignment(wrap_text=True, vertical="top"))
     put(ws, f"{PL}12", "なるべく空けたい枠を使った", font=f(color="666666"))
     put(ws, f"{PV}12", f'=SUM({q(eng)}$D$3:$D$47)&" 枠"', font=f(bold=True))
-    paste_box(ws, 4 + D, 21, 2)
     put(ws, f"{PL}13", "日ごとの人数", font=f(color="666666"))
     for d in range(1, D + 1):    # 日ごとの人数（使っている日だけ）
         put(ws, f"{PL}{13+d}", f'=IF({q(SET)}$E${10+d}="","",{q(SET)}$E${10+d})', font=f(size=10), alignment=Alignment(horizontal="right"))
@@ -785,10 +810,10 @@ def auto_sheet(name, title, note, eng, blk_row, slot_col, nofit_col, tname):
 
 from openpyxl.workbook.defined_name import DefinedName
 auto_sheet(AUT, "自動案A（詰める）",
-           "入れられる枠が少ない家庭から順に、設定の「詰め方」で詰めて組んだ案です。緑が新しく入った人。よければ表をコピーし（名前ボックスで「自動案Aの表」）、「調整・決定」の表の左上に［値の貼り付け］をします。",
+           "入れられる枠が少ない家庭から順に、設定の「詰め方」で詰めて組んだ案です。緑が新しく入った人。よければ［この案を「調整・決定」へ写す］を押します。",
            CB, ROW_AUTOBLK, "IK", "IL", "自動案Aの表")
 auto_sheet(AUTB, "自動案B（散らす）",
-           "日ごとの人数がそろい、面談と面談のあいだがなるべく空くように組んだ案です（希望がある家庭は希望を優先）。よければ表をコピーし（名前ボックスで「自動案Bの表」）、「調整・決定」の表の左上に［値の貼り付け］をします。",
+           "日ごとの人数がそろい、面談と面談のあいだがなるべく空くように組んだ案です（希望がある家庭は希望を優先）。よければ［この案を「調整・決定」へ写す］を押します。",
            CC, ROW_AUTOBLK_B, "IR", "IS", "自動案Bの表")
 
 # ---------------------------------------------------------------- 印刷（兄弟確認）：予定表の形で、決めた日程を印刷する
@@ -809,6 +834,8 @@ ws.merge_cells(f"{PL}4:{PV}4")
 ws.column_dimensions[PS].width = 3
 ws.column_dimensions[PL].width = 20
 ws.column_dimensions[PV].width = 22
+button(ws, f"{PL}3", "▶ 印刷プレビュー")
+button(ws, f"{PV}3", "▶ PDFで保存", color="D9822B")
 for t in range(1, T + 1):
     for d in range(1, D + 1):
         x = f"{q(ASG)}{CL(2+d)}{5+t}"
@@ -908,6 +935,12 @@ ws.print_options.horizontalCentered = True
 ws.page_margins.left = ws.page_margins.right = 0.75; ws.page_margins.top = 3.5 / 2.54; ws.page_margins.bottom = 3.0 / 2.54
 ws.page_margins.header = ws.page_margins.footer = 0
 LET_FILTER = (f"B{LH}:L{LEND}", 10, LH, LEND)
+button(ws, "M4", "▶ 印刷プレビュー")
+button(ws, "M6", "▶ PDFで保存", color="D9822B")
+put(ws, "M8", "1日の枠が13以上なら夏の形、12以下なら秋の形で印刷・保存します", font=f(size=9, color="666666"), alignment=Alignment(wrap_text=True, vertical="top"))
+ws.merge_cells("M8:M11")
+for r_ in (4, 6):
+    ws.merge_cells(f"M{r_}:M{r_+1}")
 put(ws, "B3", f'=IF(SUBTOTAL(103,L{LH+1}:L{LEND})<>COUNTIF(L{LH+1}:L{LEND},"表示"),{REFILTER2},"")', font=f(size=13, bold=True, color="FFFFFF"), alignment=Alignment(horizontal="center", vertical="center", wrap_text=True))
 ws.merge_cells("B3:K3"); ws.row_dimensions[3].height = 48
 ws.conditional_formatting.add("B3:K3", FormulaRule(formula=['$B$3<>""'], fill=fill("D62828")))
@@ -978,6 +1011,13 @@ ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 1
 ws.page_margins.left = ws.page_margins.right = ws.page_margins.top = ws.page_margins.bottom = 0.5
 ws.page_margins.header = ws.page_margins.footer = 0
 LES_FILTER = ("B13:M" + str(SEND), 11, 13, SEND)
+ws.column_dimensions["J"].width = 20
+button(ws, "J4", "▶ 印刷プレビュー")
+button(ws, "J6", "▶ PDFで保存", color="D9822B")
+put(ws, "J8", "1日の枠が13以上なら夏の形、12以下なら秋の形で印刷・保存します", font=f(size=9, color="666666"), alignment=Alignment(wrap_text=True, vertical="top"))
+ws.merge_cells("J8:J11")
+for r_ in (4, 6):
+    ws.merge_cells(f"J{r_}:J{r_+1}")
 put(ws, "B3", f'=IF(SUBTOTAL(103,M14:M{SEND})<>COUNTIF(M14:M{SEND},"表示"),{REFILTER2},"")', font=f(size=13, bold=True, color="FFFFFF"), alignment=Alignment(horizontal="center", vertical="center", wrap_text=True))
 ws.merge_cells("B3:H3"); ws.row_dimensions[3].height = 48
 ws.conditional_formatting.add("B3:H3", FormulaRule(formula=['$B$3<>""'], fill=fill("D62828")))
@@ -989,7 +1029,14 @@ labels = {1: "枠番号", 2: "日", 3: "時", 4: "使える", 5: "空けたい",
 for r, lab in labels.items():
     put(ws, f"C{r}", lab)
 put(ws, "A2", "時間帯の枠数"); put(ws, "B3", "←時間帯1"); put(ws, "B4", "←時間帯2")
-ws["A6"] = f'=IF({SWITCH}="{AUTO_ON_OPT}",1,0)'; put(ws, "B6", "←自動案を出す（1）／止める（0）")
+ws["A6"] = f"=IF({q(CB)}$B$1<>1,0,IF(ABS(A7-{q(CB)}$C$1)<0.5,1,2))"; put(ws, "B6", "←自動案　0：まだ　1：作った　2：作ったあとに入力が変わった")
+# 入力の合計（入れられる枠・決めた枠・後ろを空ける・希望・兄弟など）。自動案を作ったときと変わったら知らせる
+FPR = lambda rng, w: f"SUMPRODUCT({rng}*(ROW({rng})*{w}+COLUMN({rng})))"
+ws["A7"] = ("=" + "+".join([FPR(f"${JA}$60:${JZ}${59 + NS}", 1000), FPR(f"${JA}${ROW_GAPBLK}:${JZ}${ROW_NOGAP}", 7),
+                              FPR(f"${JA}$5:${JZ}$7", 3), FPR(f"$C$10:$C${9 + NS}", 11), FPR(f"$IO$10:$IQ${9 + NS}", 13),
+                              FPR(f"$IW$10:$IX${9 + NS}", 17), FPR(f"$JC$10:$JF${9 + NS}", 19), FPR(f"$HA$10:$HO${9 + NS}", 23)]))
+put(ws, "B7", "←入力の合計")
+put(ws, "A5", None); put(ws, "B5", None)      # 入れ替えで選んだマス（マクロが書く）
 ok3 = "AND(ISNUMBER('設定'!$B$3),ISNUMBER('設定'!$D$3),ISNUMBER('設定'!$B$5))"
 put(ws, "A3", f"=IF({ok3},IF(AND('設定'!$B$5>0,'設定'!$D$3>='設定'!$B$3),ROUND(('設定'!$D$3-'設定'!$B$3)*1440/'設定'!$B$5,0)+1,0),0)")
 put(ws, "A4", "=IF(AND(A3>0,ISNUMBER('設定'!$B$4),ISNUMBER('設定'!$D$4)),IF(AND('設定'!$D$4>='設定'!$B$4,'設定'!$B$4>'設定'!$D$3),ROUND(('設定'!$D$4-'設定'!$B$4)*1440/'設定'!$B$5,0)+1,0),0)")
@@ -1039,9 +1086,9 @@ for i in range(1, NS + 1):
         ws[f"{c}{r}"] = f'=IF({c}$4=1,IF(OR({cells(INPR)}),1,0),0)'
         ws[f"{c}{o}"] = f"=IF(AND({c}$4=1,{c}{r}=0),1,0)"
     ws[f"IK{r}"] = f"=IFERROR(INDEX({q(CB)}$C$3:$C$47,MATCH(A{r},{q(CB)}$B$3:$B$47,0)),0)"
-    ws[f"IL{r}"] = f'=IF(AND(C{r}=1,IK{r}=0,{SWON}=1),1,0)'
+    ws[f"IL{r}"] = f'=IF(AND(C{r}=1,IK{r}=0,{SWON}>0),1,0)'
     ws[f"IR{r}"] = f"=IFERROR(INDEX({q(CC)}$C$3:$C$47,MATCH(A{r},{q(CC)}$B$3:$B$47,0)),0)"
-    ws[f"IS{r}"] = f'=IF(AND(C{r}=1,IR{r}=0,{SWON}=1),1,0)'
+    ws[f"IS{r}"] = f'=IF(AND(C{r}=1,IR{r}=0,{SWON}>0),1,0)'
     ws[f"IM{r}"] = f"=SUMPRODUCT({JA}{o}:{JZ}{o}*(1-${JA}$7:${JZ}$7))"
     ws[f"IN{r}"] = f"=SUM({JA}{r}:{JZ}{r})"
     ws[f"IP{r}"] = f'=IFERROR(MATCH({q(ROS)}C{ro},{{"' + '","'.join(HOPES) + f'"}},0),0)'
@@ -1099,37 +1146,6 @@ OKM = f"{q(CA)}${JA}$60:${JZ}${59 + NS}"      # 児童×枠：入れられる
 CAr = lambda row: f"{q(CA)}${JA}${row}:${JZ}${row}"
 
 
-ROW_SIBC = 130                # 130〜174：兄弟の時間がある子の、枠ごとの点数（自動案A・Bで共通）
-ROW_NBX = 180                 # 180〜224：兄弟がいる子の、枠のすぐ前・すぐ後の×の数
-cws = wb[CA]
-cws[f"A{ROW_SIBC - 1}"] = "兄弟の時間がある子の枠の点数"
-cws[f"A{ROW_NBX - 1}"] = "兄弟がいる子：すぐ前・すぐ後の×"
-for i in range(1, NS + 1):
-    a = 9 + i                                          # 児童の行（10〜54）
-    rs, rn = ROW_SIBC - 1 + i, ROW_NBX - 1 + i
-    for j in range(1, N + 1):
-        d, t = (j - 1) // T + 1, (j - 1) % T + 1
-        c = jc(j)
-        cks, same, adjn = [], [], []
-        for kk in range(3):
-            S_, D_, T_ = f"${CL(209 + 3 * kk)}{a}", f"${CL(210 + 3 * kk)}{a}", f"${CL(211 + 3 * kk)}{a}"
-            PRE, POST = f"${CL(218 + 2 * kk)}{a}", f"${CL(219 + 2 * kk)}{a}"
-            P_ = f"${['JC', 'JD', 'JE'][kk]}{a}"
-            # 兄弟のすぐ前（順番の希望が「後」なら少しだけ悪く）→ すぐ後 → 同じ日の近い時間 → ほかの日
-            cks.append(f"IF({S_}=0,999999,IF({d}={D_},IF({j}={PRE},IF({P_}=2,30,0),IF({j}={POST},IF({P_}=1,30,0),ABS({t}-{T_})*100)),"
-                       f"100000+ABS({d}-{D_})*1000+{t*10}))")
-            same.append(f"{j}={S_}")
-            adjn += [f"({j}={PRE})", f"({j}={POST})"]
-        cws[f"{c}{rs}"] = (f"=IF(OR($JF{a}=0,{SWON}=0),0,IF(OR({','.join(same)}),200000,MIN({','.join(cks)})-IF({'+'.join(adjn)}>=2,50,0))"
-                           f"+{c}$5*50)")
-        nbx = []
-        if t > 1:
-            nbx.append(f"IF({jc(j-1)}${ROW_NB}=1,{jc(j-1)}{a},0)")
-        if t < T:
-            nbx.append(f"IF({c}${ROW_NB}=1,{jc(j+1)}{a},0)")
-        cws[f"{c}{rn}"] = f"=IF(OR($IW{a}=0,{SWON}=0),0,{'+'.join(nbx)})"
-SIBC = f"{q(CA)}${JA}${ROW_SIBC}:${JZ}${ROW_SIBC + NS - 1}"
-NBXM = f"{q(CA)}${JA}${ROW_NBX}:${JZ}${ROW_NBX + NS - 1}"
 
 
 def engine(name, spread):
@@ -1211,8 +1227,14 @@ def engine(name, spread):
         ws[f"G{r}"] = f"=IF(AND(C{r}>0,E{r}>0),IF(AND(INDEX({CAr(ROW_NEXT)},C{r})=1,INDEX(${nx(1)}{r}:${nx(N)}{r},C{r})=1),C{r}+1,0),0)"
 
 
-engine(CB, False)
-engine(CC, True)
+for nm_ in (CB, CC):               # マクロ（自動案を作る）が結果を書く表
+    ws = sheet(nm_)
+    put(ws, "A1", "自動案の結果（マクロが書きます。さわらないでください）", font=f(bold=True, color="B23A3A"))
+    for k_, lab_ in {"A2": "k", "B2": "児童", "C2": "枠", "D2": "空けたい枠", "G2": "空けた枠"}.items():
+        ws[k_] = lab_
+    if nm_ == CB:
+        ws["E1"] = "B1：1＝作った　C1：作ったときの入力の合計　D1：作った時刻"
+        ws["B1"] = 0
 
 # ---------------------------------------------------------------- 見た目の仕上げ（タイトル帯・メニュー・見出しの色）
 
@@ -1229,8 +1251,8 @@ LAYOUT = {
     AUT: ("B1", 11 + D, GRID_MENU),
     AUTB: ("B1", 11 + D, GRID_MENU),
     ASG: ("B1", 11 + D, GRID_MENU),
-    LES: ("B1", 11 + D, GRID_MENU),
-    LET: ("B1", 11 + D, GRID_MENU),
+    LES: ("B1", 12 + D, [x for x in GRID_MENU if x != "M1"] + ["R1"]),      # M列は「表示／隠す」の見えない列なのでとばす
+    LET: ("B1", 12 + D, [x for x in GRID_MENU if x != "L1"] + ["R1"]),      # L列は「表示／隠す」の見えない列なのでとばす
 }
 TAB = {HOME: PRIMARY_D, SET: "7A8699", ROS: PRIMARY, INP: "B23A3A", AUT: ACCENT, AUTB: "5B8BD0", ASG: "C77D1A", SIB: "7A5BA8", LES: "1E90A0", LET: "2E8B57"}
 date_ref = f"={q(SET)}$E$"
@@ -1275,7 +1297,7 @@ wb[HOME].merge_cells("K1:M1")
 put(wb[ROS], "F1", "▲ 上の「＋」で\n兄弟の列を開く", font=f(size=10, bold=True, color="5A3A00"), fill=fill("FFD966"),
     alignment=Alignment(horizontal="center", vertical="center", wrap_text=True))
 for n in (SIB, AUT, AUTB, ASG, LET, LES):
-    for c in range(6 + D, 12 + D):
+    for c in range(6 + D, 13 + D):
         wb[n].column_dimensions[CL(c)].width = 15
 wb[INP].column_dimensions["M"].width = 15
 wb[INP].column_dimensions["N"].width = 15
