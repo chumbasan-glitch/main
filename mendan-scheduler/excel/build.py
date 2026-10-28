@@ -20,7 +20,7 @@ TC = CL(12 + D)                # 設定シート「先生の都合」の表の�
 N = D * T                      # 枠の総数
 BLK = T + 4                    # ×入力シートの1人分の行数
 FONT = "BIZ UDPゴシック"
-OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール_Ver2.4.xlsx"
+OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール_Ver2.5.xlsx"
 OUT_DEFAULT_OFF = True             # 配るファイルは「止める（×の入力中）」から始める
 
 SET, ROS, INP, ASG, AUT, CA, CB = "設定", "名簿", "×入力", "調整・決定", "自動案A", "calcA", "calcB"   # 計算用の隠しシートは短い英字の名前（式が短くなり、ファイルが軽くなる）
@@ -49,7 +49,7 @@ def jc(j):                     # 計算A で枠 j の列
 JA, JZ = jc(1), jc(N)          # D 〜 DS
 HOPES = ["早い時刻", "遅い時刻", "早い日", "遅い日"]
 # 計算A の枠ごとの行（1〜8行目のほか）
-VERSION = "Ver.2.4"   # 直したら番号を上げる（ファイル名にも入る）
+VERSION = "Ver.2.5"   # 直したら番号を上げる（ファイル名にも入る）
 PS, PL, PV = CL(3 + D), CL(4 + D), CL(5 + D)   # 表の右の欄：すき間・見出し・中身
 ROW_NEXT = 106                 # 同じ日に次の枠がある
 ROW_AUTOBLK = 107              # 自動案Aで「後ろを空ける」枠になった
@@ -405,6 +405,8 @@ LR = 30                          # お手紙の欄の先頭行
 put(ws, f"A{LR}", "お手紙（お知らせ）", font=f(size=13, bold=True, color=PRIMARY_D))
 put(ws, f"B{LR}", "「お手紙（夏）」「お手紙（秋）」シートに出ます。", font=f(size=9, color="666666"))
 KINDS = ["学年に合わせる（6年は進路面談）", "個人面談", "進路面談"]
+NOSUF = lambda x, suf: f'IF(RIGHT({x},1)="{suf}",LEFT({x},LEN({x})-1),{x})'     # 最後の「年」「組」を取る
+IS6 = lambda x: f'OR({NOSUF(x, "年")}&""="6",{NOSUF(x, "年")}&""="６")'           # 6年か（「6」「6年」「６年」のどれでも）
 letter_in = [("学年", 6, "B", '0"年"'), ("組", 1, "B", '0"組"'), ("担任名", None, "B:E", None), ("学校名", None, "B:E", None),
              ("お手紙の日付", datetime.date(2026, 10, 30), "B", "m/d"), ("面談の種類", KINDS[0], "B:E", None)]
 for k, (lab, v, span, nf) in enumerate(letter_in):
@@ -419,7 +421,7 @@ dv_kind = DataValidation(type="list", formula1='"' + ",".join(KINDS) + '"', allo
 dv_ldate = DataValidation(type="date", operator="greaterThan", formula1="36526"); dv_ldate.error = "日付を「10/30」のように入れてください。"; dv_ldate.showErrorMessage = True
 ws.add_data_validation(dv_ldate); dv_ldate.add(f"B{LR+5}")
 put(ws, f"C{LR+2}", "← 数字だけ（例：1）。「組」は自動", font=f(size=9, color="666666"))
-put(ws, f"C{LR+1}", f'=IF(B{LR+6}="{KINDS[0]}","→ "&IF(B{LR+1}=6,"進路面談","個人面談")&"のお知らせになります","")', font=f(size=9, color="666666"))
+put(ws, f"C{LR+1}", f'=IF(B{LR+6}="{KINDS[0]}","→ "&IF({IS6(f"B{LR+1}")},"進路面談","個人面談")&"のお知らせになります","")', font=f(size=9, color="666666"))
 put(ws, f"A{LR+7}", "秋の本文", font=f(bold=True, color=PRIMARY_D), alignment=Alignment(vertical="top"))
 put(ws, f"B{LR+7}", "【面談】の希望調査へのご協力ありがとうございました。下記の日程で予定を組ませていただきました。短い時間ですが、有意義な話し合いとし、日々の学級生活に生かしたいと思います。どうぞ、よろしくお願いいたします。",
     fill=INPUT, border=box, alignment=Alignment(wrap_text=True, vertical="top"))
@@ -441,8 +443,7 @@ L_BODY = f"{q(SET)}$B${LR+7}"
 L_NOTES = [f"{q(SET)}$B${LR+10+k}" for k in range(3)]
 S_BODY = f"{q(SET)}$B${LR+13}"
 S_NOTES = [f"{q(SET)}$B${LR+15+k}" for k in range(3)]
-KIND = f'IF({L_KIND}="個人面談","個人面談",IF({L_KIND}="進路面談","進路面談",IF({L_GRADE}=6,"進路面談","個人面談")))'
-NOSUF = lambda x, suf: f'IF(RIGHT({x},1)="{suf}",LEFT({x},LEN({x})-1),{x})'     # 最後の「年」「組」を取る
+KIND = f'IF({L_KIND}="個人面談","個人面談",IF({L_KIND}="進路面談","進路面談",IF({IS6(L_GRADE)},"進路面談","個人面談")))'
 GR = f'IF({L_GRADE}="","　",{NOSUF(L_GRADE, "年")})&"年"&IF({L_CLASS}="","　",{NOSUF(L_CLASS, "組")})&"組"'
 
 # ---------------------------------------------------------------- 名簿
@@ -848,7 +849,6 @@ put(ws, "B1", "お手紙（秋）", font=f(size=16, bold=True))
 put(ws, "B2", "保護者へのお知らせです。宛名・日付・本文などは「設定」のいちばん下で決めます。このまま印刷できます（A4たて）。", font=f(size=10, color="444444"))
 MIN_ = lambda sz=12: Font(name="ＭＳ 明朝", size=sz)
 MARU = lambda sz: Font(name="HG丸ｺﾞｼｯｸM-PRO", size=sz)
-KIND = f'IF({L_KIND}="個人面談","個人面談",IF({L_KIND}="進路面談","進路面談",IF({L_GRADE}=6,"進路面談","個人面談")))'
 R_ = Alignment(horizontal="right", vertical="center")
 DIST = Alignment(horizontal="distributed", vertical="center")     # 枠の中で均等割り付け
 L_ = Alignment(horizontal="left", vertical="center")
@@ -1076,7 +1076,7 @@ ws[f"A59"] = "入れられる枠（使える かつ ×なし）"
 # ---------------------------------------------------------------- 計算B・計算C（自動案：入れられる枠が少ない児童から順に1人ずつ決める）
 # A順番 B決めた児童 C入れた枠 D空けたい枠を使った E後ろ空け(2必ず/1出来れば) F希望 G後ろを空けた枠
 # spread=True（計算C・自動案B）：希望のない家庭は、日ごとの人数が少ない日・前後が空いている枠を選ぶ
-BIG = 1000000
+BIG = 1000000000
 PR0 = 24
 SC0 = PR0 + NS + 1
 FR0 = SC0 + NS + 1
@@ -1091,6 +1091,11 @@ nx = lambda j: CL(NX0 + j - 1)
 ss = lambda j: CL(SS0 + j - 1)
 ld = lambda d: CL(LD0 + d - 1)
 na = lambda j: CL(NA0 + j - 1)
+SF0 = NA0 + N + 1                # 「出来れば空けたい」で空けておいた枠（入る枠がない子は使ってよい）
+XS0 = SF0 + N + 1                # 次の枠が空いている（空けておいた枠も空きとみる）
+sf = lambda j: CL(SF0 + j - 1)
+xs = lambda j: CL(XS0 + j - 1)
+OKM = f"{q(CA)}${JA}$60:${JZ}${59 + NS}"      # 児童×枠：入れられる
 CAr = lambda row: f"{q(CA)}${JA}${row}:${JZ}${row}"
 
 
@@ -1151,11 +1156,17 @@ def engine(name, spread):
             ws[f"{pr(i)}{r}"] = (f"=1-{q(CA)}C{9+i}" if k == 1 else f"=MAX({pr(i)}{r-1},IF($B{r-1}={i},1,0))")
             ok = CAr(59 + i)
             # 兄弟の時間が入っている子を先に、そのあとは入れられる枠が少ない子から
-            ws[f"{sc(i)}{r}"] = (f"=IF(OR({pr(i)}{r}=1,{SWON}=0),{BIG},IF({q(CA)}$JF${9+i}=1,0,500000)+IF({q(CA)}$IQ${9+i}=2,"
-                                 f"SUMPRODUCT({ok},${fr(1)}{r}:${fr(N)}{r},${nx(1)}{r}:${nx(N)}{r}),"
-                                 f"SUMPRODUCT({ok},${fr(1)}{r}:${fr(N)}{r}))*1000+{i})")
+            #   点数＝入れられる空き枠の数×1000＋（空けておいた枠も入れた数）。空き枠がない子は、空けておいた枠に入れるので先に決める
+            FR_, SF_, NX_, XS_ = (f"${fr(1)}{r}:${fr(N)}{r}", f"${sf(1)}{r}:${sf(N)}{r}", f"${nx(1)}{r}:${nx(N)}{r}", f"${xs(1)}{r}:${xs(N)}{r}")
+            ws[f"{sc(i)}{r}"] = (f"=IF(OR({pr(i)}{r}=1,{SWON}=0),{BIG},IF({q(CA)}$JF${9+i}=1,0,100000000)+IF({q(CA)}$IQ${9+i}=2,"
+                                 f"SUMPRODUCT({ok},{FR_},{NX_})*1000+SUMPRODUCT({ok},{FR_}+{SF_},{XS_}),"
+                                 f"SUMPRODUCT({ok},{FR_}*1001+{SF_}))*100+{i})")
         ws[f"B{r}"] = f"=IF(MIN({sc(1)}{r}:{sc(NS)}{r})>={BIG},0,MATCH(MIN({sc(1)}{r}:{sc(NS)}{r}),{sc(1)}{r}:{sc(NS)}{r},0))"
         ws[f"E{r}"] = f"=IF(B{r}=0,0,INDEX({q(CA)}$IQ$10:$IQ$54,B{r}))"
+        # W：選ばれた子に入れられる空き枠がない（＝空けておいた枠を使う）
+        FR_, NX_ = f"${fr(1)}{r}:${fr(N)}{r}", f"${nx(1)}{r}:${nx(N)}{r}"
+        ws[f"W{r}"] = (f"=IF(B{r}=0,0,IF(IF(E{r}=2,SUMPRODUCT(INDEX({OKM},B{r},0),{FR_},{NX_}),"
+                       f"SUMPRODUCT(INDEX({OKM},B{r},0),{FR_}))=0,1,0))")
         ws[f"F{r}"] = f"=IF(B{r}=0,0,INDEX({q(CA)}$IP$10:$IP$54,B{r}))"
         ws[f"H{r}"] = f"=IF(B{r}=0,0,INDEX({q(CA)}$IW$10:$IW$54,B{r}))"
         ws[f"U{r}"] = f"=IF(B{r}=0,0,INDEX({q(CA)}$IX$10:$IX$54,B{r}))"
@@ -1169,6 +1180,8 @@ def engine(name, spread):
             ws[f"{fr(j)}{r}"] = (f"=1-{q(CA)}{jc(j)}$7" if k == 1 else f"={fr(j)}{r-1}*IF(OR($C{r-1}={j},$G{r-1}={j}),0,1)")
             ws[f"{nx(j)}{r}"] = (f"=IF({q(CA)}{jc(j)}${ROW_NEXT}=1,{fr(j+1)}{r},1)" if j < N else 1)
             ws[f"{na(j)}{r}"] = (f"={q(CA)}{jc(j)}${ROW_NOGAP}" if k == 1 else f"={na(j)}{r-1}+IF(AND($C{r-1}={j},$U{r-1}=1),1,0)")
+            ws[f"{sf(j)}{r}"] = (0 if k == 1 else f"=IF($C{r-1}={j},0,{sf(j)}{r-1}+IF(AND($G{r-1}={j},$E{r-1}=1),1,0))")
+            ws[f"{xs(j)}{r}"] = (f"=IF({q(CA)}{jc(j)}${ROW_NEXT}=1,{fr(j+1)}{r}+{sf(j+1)}{r},1)" if j < N else 1)
             hope = f"INDEX({q(CA)}{jc(j)}${ROW_PRIO}:{jc(j)}${ROW_PRIO+4},$F{r}+1)+IF(AND($E{r}=1,{nx(j)}{r}=0),1000,0)"
             if spread:
                 adj = []
@@ -1191,8 +1204,8 @@ def engine(name, spread):
             # 兄弟の時間が入っている子：兄弟のすぐ前・すぐ後 → 同じ日の近い時間 → ほかの日（点数は計算Aの表）
             sib = f"INDEX({SIBC},$B{r},{j})+IF(AND($E{r}=1,{nx(j)}{r}=0),25,0)"
             score = f"IF($V{r}=1,{sib},{score})"
-            ws[f"{ss(j)}{r}"] = (f"=IF($B{r}=0,{BIG},IF(INDEX({q(CA)}${JA}$60:${JZ}$104,$B{r},{j})*{fr(j)}{r}=1,"
-                                 f"IF(AND($E{r}=2,{nx(j)}{r}=0),{BIG},{score}),{BIG}))")
+            ws[f"{ss(j)}{r}"] = (f"=IF($B{r}=0,{BIG},IF(INDEX({OKM},$B{r},{j})*IF($W{r}=1,{fr(j)}{r}+{sf(j)}{r},{fr(j)}{r})=1,"
+                                 f"IF(AND($E{r}=2,IF($W{r}=1,{xs(j)}{r},{nx(j)}{r})=0),{BIG},{score}),{BIG}))")
         ws[f"C{r}"] = f"=IF(MIN({ss(1)}{r}:{ss(N)}{r})>={BIG},0,MATCH(MIN({ss(1)}{r}:{ss(N)}{r}),{ss(1)}{r}:{ss(N)}{r},0))"
         ws[f"D{r}"] = f"=IF(C{r}>0,INDEX({CAr(5)},C{r}),0)"
         ws[f"G{r}"] = f"=IF(AND(C{r}>0,E{r}>0),IF(AND(INDEX({CAr(ROW_NEXT)},C{r})=1,INDEX(${nx(1)}{r}:${nx(N)}{r},C{r})=1),C{r}+1,0),0)"
