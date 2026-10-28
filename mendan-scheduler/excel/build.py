@@ -48,7 +48,7 @@ def jc(j):                     # 計算A で枠 j の列
 JA, JZ = jc(1), jc(N)          # D 〜 DS
 HOPES = ["早い時刻", "遅い時刻", "早い日", "遅い日"]
 # 計算A の枠ごとの行（1〜8行目のほか）
-VERSION = "Ver.2.2（2026年10月27日）"   # 直したら番号と日付を上げる
+VERSION = "Ver.2.2.1（2026年10月28日）"   # 直したら番号と日付を上げる
 PS, PL, PV = CL(3 + D), CL(4 + D), CL(5 + D)   # 表の右の欄：すき間・見出し・中身
 ROW_NEXT = 106                 # 同じ日に次の枠がある
 ROW_AUTOBLK = 107              # 自動案Aで「後ろを空ける」枠になった
@@ -164,6 +164,13 @@ def legend_image(items, w, h):
     buf = io.BytesIO(); im.save(buf, "PNG"); buf.seek(0)
     xi = XImage(buf); xi.width, xi.height = w, h
     return xi
+
+def ZEN(x):
+    """数字とコロンを全角にする式（JIS関数は環境によって動かないので、SUBSTITUTE だけで作る）"""
+    for a, b in zip("0123456789:", "０１２３４５６７８９："):
+        x = f'SUBSTITUTE({x},"{a}","{b}")'
+    return x
+
 
 def EXIST(jexpr):              # その枠が設定した日付・時間にあるか
     return f"INDEX({q(CA)}${JA}${ROW_EXIST}:${JZ}${ROW_EXIST},{jexpr})"
@@ -830,7 +837,7 @@ L_ = Alignment(horizontal="left", vertical="center")
 for r, h in ((4, 23.8), (5, 18), (6, 18), (7, 18), (8, 36), (9, 18), (10, 18), (11, 18), (12, 18), (13, 18), (14, 18), (15, 11.2)):
     ws.row_dimensions[r].height = h
 put(ws, "C5", f'={GR}&"　保護者様"', font=MIN_(), alignment=L_)
-put(ws, "H5", f'=IF({L_DATE}="","","令和"&(YEAR({L_DATE})-2018)&"年"&MONTH({L_DATE})&"月"&DAY({L_DATE})&"日（"&CHOOSE(WEEKDAY({L_DATE}),"日","月","火","水","木","金","土")&"）")', font=MIN_(), alignment=R_)
+put(ws, "H5", f'=IFERROR(IF({L_DATE}="","","令和"&(YEAR({L_DATE})-2018)&"年"&MONTH({L_DATE})&"月"&DAY({L_DATE})&"日（"&CHOOSE(WEEKDAY({L_DATE}),"日","月","火","水","木","金","土")&"）"),{L_DATE}&"")', font=MIN_(), alignment=R_)
 put(ws, "H6", f'=IF({L_SCHOOL}="","",{L_SCHOOL})', font=MIN_(), alignment=R_)
 put(ws, "H7", f'={GR}&"　担任　"&{L_TEACH}', font=MIN_(), alignment=R_)
 put(ws, "C8", f'={KIND}&"のお知らせ"', font=Font(name="ＭＳ ゴシック", size=24), alignment=center)
@@ -844,13 +851,13 @@ LH = 16                          # 表の見出しの行
 ws.row_dimensions[LH].height = 17.3
 ws.merge_cells(f"B{LH}:C{LH}"); ws.merge_cells(f"H{LH}:I{LH}")
 for d in range(1, D + 1):
-    put(ws, f"{DCOL[d-1]}{LH}", f'=JIS({q(SET)}$E${10+d})', font=MARU(8), alignment=center)
+    put(ws, f"{DCOL[d-1]}{LH}", f'={ZEN(f"{q(SET)}$E${10+d}")}', font=MARU(8), alignment=center)
 for t in range(1, T + 1):
     r = LH + t
     ws.row_dimensions[r].height = 33.5
     ws.merge_cells(f"B{r}:C{r}"); ws.merge_cells(f"H{r}:I{r}")
     tm = f"{q(SET)}$I${10+t}"
-    put(ws, f"B{r}", f'=IF({tm}="","",JIS(SUBSTITUTE({tm},"〜",""))&"～")', font=MARU(9), alignment=center)
+    put(ws, f"B{r}", f'=IF({tm}="","",{ZEN(f'SUBSTITUTE({tm},"〜","")')}&"～")', font=MARU(9), alignment=center)
     for d in range(1, D + 1):
         g = f"{q(ASG)}{CL(2+d)}{5+t}"
         put(ws, f"{DCOL[d-1]}{r}", f'=IF({g}="","",{g})', font=MARU(10.5), alignment=center)
@@ -897,7 +904,7 @@ put(ws, "B2", "保護者へのお知らせ（夏用：午前・午後の枠が�
 for r, h in ((4, 26.1), (5, 18), (6, 18), (7, 18), (8, 36), (9, 18), (10, 18), (11, 18), (12, 18), (13, 18), (14, 18), (15, 18), (16, 18), (17, 13.7)):
     ws.row_dimensions[r].height = h
 put(ws, "B5", f'={GR}&"　保護者様"', font=MIN_(), alignment=L_)
-put(ws, "G5", f'=IF({L_DATE}="","","令和"&(YEAR({L_DATE})-2018)&"年"&MONTH({L_DATE})&"月"&DAY({L_DATE})&"日（"&CHOOSE(WEEKDAY({L_DATE}),"日","月","火","水","木","金","土")&"）")', font=MIN_(), alignment=R_)
+put(ws, "G5", f'=IFERROR(IF({L_DATE}="","","令和"&(YEAR({L_DATE})-2018)&"年"&MONTH({L_DATE})&"月"&DAY({L_DATE})&"日（"&CHOOSE(WEEKDAY({L_DATE}),"日","月","火","水","木","金","土")&"）"),{L_DATE}&"")', font=MIN_(), alignment=R_)
 put(ws, "G6", f'=IF({L_SCHOOL}="","",{L_SCHOOL})', font=MIN_(), alignment=R_)
 put(ws, "G7", f'={GR}&"　担任　"&{L_TEACH}', font=MIN_(), alignment=R_)
 put(ws, "B8", f'={KIND}&"のお知らせ"', font=Font(name="ＭＳ ゴシック", size=20), alignment=center)
@@ -912,14 +919,14 @@ for k in range(3):                                       # 表の上の注意（
 SH = 18                                                  # 表の見出しの行
 ws.row_dimensions[SH].height = 23.5
 for d in range(1, D + 1):
-    put(ws, f"{SCOL[d-1]}{SH}", f'=JIS({q(SET)}$E${10+d})', font=MARU(9), alignment=center)
+    put(ws, f"{SCOL[d-1]}{SH}", f'={ZEN(f"{q(SET)}$E${10+d}")}', font=MARU(9), alignment=center)
 AM0, SEP, PM0 = SH + 1, SH + 1 + T, SH + 2 + T          # 午前の行・太い線の行・午後の行
 NA = f"MIN({N1},{q(SET)}$B$6)"                           # 午前（時間帯1）の枠の数
 for k in range(1, T + 1):
     for r, t in ((AM0 + k - 1, f"{k}"), (PM0 + k - 1, f"{NA}+{k}")):
         ws.row_dimensions[r].height = 20.9
         tm = f"INDEX({q(SET)}$I$11:$I${TL},{t})"
-        put(ws, f"B{r}", f'=IFERROR(IF({tm}="","",JIS(SUBSTITUTE({tm},"〜",""))),"")', font=MARU(9), alignment=center)
+        put(ws, f"B{r}", f'=IFERROR(IF({tm}="","",{ZEN(f'SUBSTITUTE({tm},"〜","")')}),"")', font=MARU(9), alignment=center)
         for d in range(1, D + 1):
             g = f"INDEX({q(ASG)}${CL(2+d)}$6:${CL(2+d)}${GL},{t})"
             put(ws, f"{SCOL[d-1]}{r}", f'=IFERROR(IF({g}="","",{g}),"")', font=MARU(10.5), alignment=center)
