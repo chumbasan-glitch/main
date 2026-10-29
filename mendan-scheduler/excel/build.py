@@ -20,7 +20,7 @@ TC = CL(12 + D)                # 設定シート「先生の都合」の表の�
 N = D * T                      # 枠の総数
 BLK = T + 4                    # ×入力シートの1人分の行数
 FONT = "BIZ UDPゴシック"
-OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール_Ver3.1.xlsx"
+OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール_Ver3.2.xlsx"
 OUT_DEFAULT_OFF = True             # 配るファイルは「止める（×の入力中）」から始める
 
 SET, ROS, INP, ASG, AUT, CA, CB = "設定", "名簿", "×入力", "調整・決定", "自動案A", "calcA", "calcB"   # 計算用の隠しシートは短い英字の名前（式が短くなり、ファイルが軽くなる）
@@ -49,7 +49,7 @@ def jc(j):                     # 計算A で枠 j の列
 JA, JZ = jc(1), jc(N)          # D 〜 DS
 HOPES = ["早い時刻", "遅い時刻", "早い日", "遅い日"]
 # 計算A の枠ごとの行（1〜8行目のほか）
-VERSION = "Ver.3.1"   # 直したら番号を上げる（ファイル名にも入る）
+VERSION = "Ver.3.2"   # 直したら番号を上げる（ファイル名にも入る）
 PS, PL, PV = CL(3 + D), CL(4 + D), CL(5 + D)   # 表の右の欄：すき間・見出し・中身
 ROW_NEXT = 106                 # 同じ日に次の枠がある
 ROW_AUTOBLK = 107              # 自動案Aで「後ろを空ける」枠になった
@@ -482,9 +482,9 @@ for i, (h, w) in enumerate(zip(heads, widths), start=1):
 ws.row_dimensions[4].height = 32
 put(ws, "A1", "名簿・結果", font=f(size=16, bold=True))
 put(ws, "A2", "黄色の列（番号〜兄弟③との順番）を入力します。Excelの名簿から番号と名前を「番号」の列のいちばん上に貼り付けてください（最大40人）。行の並べ替えはしないでください。", font=f(size=10, color="444444"))
-put(ws, "A3", "兄弟の欄をダブルクリック（またはプルダウン）で〇 → 兄弟クラスと、兄弟①〜③の日時の欄が出ます。兄弟クラスの書き方は自由（例：2年1組、2-1、兄 5年）。", font=f(size=10, color="444444"), alignment=Alignment(wrap_text=True, vertical="center"))
+put(ws, "A3", "兄弟の欄をダブルクリック（またはプルダウン）で〇 → 兄弟クラスと、兄弟①〜③の日時の欄が開きます。兄弟クラスの書き方は自由（例：2年1組、2-1、兄 5年）。", font=f(size=10, color="444444"), alignment=Alignment(wrap_text=True, vertical="center"))
 ws.merge_cells("A3:E3")
-button(ws, "F3", "兄弟の日時欄\n▶ 出す／しまう", color="B7791F", size=9)
+button(ws, "F3", "日時欄を開く／閉じる", color="B7791F", size=9)
 ws.row_dimensions[3].height = 40
 dv_sib = DataValidation(type="list", formula1='"〇"', allow_blank=True)
 dv_sday = DataValidation(type="list", formula1=f"={q(SET)}$E$11:$E${DL}", allow_blank=True)
@@ -1233,21 +1233,19 @@ for nm_ in (CB, CC):               # マクロ（自動案を作る）が結果�
 
 # ---------------------------------------------------------------- 見た目の仕上げ（タイトル帯・メニュー・見出しの色）
 
-MENU = [(HOME, "ホーム"), (SET, "① 設定"), (ROS, "② 名簿"), (INP, "③ ×入力"), (AUT, "④ 自動案A"), (AUTB, "④ 自動案B"), (ASG, "⑤ 調整・決定"), (SIB, "⑥ 兄弟確認"), (LES, "⑦ お手紙 夏"), (LET, "⑧ お手紙 秋")]
-# シートごと：(タイトルのセル, 帯の右はしの列, メニューボタンの場所)
-INP_MENU = ["F1", "G1", "H1", "I1", "J1", "K1", "L1", "M1", "N1", "O1"]   # どれも幅15
-GRID_MENU = [CL(5 + d) + "1" for d in range(D - 2)] + [CL(6 + D + k) + "1" for k in range(6)]   # どれも幅15（右の欄の見出し・中身の列はとばす）
+from menu_shapes import add_menu     # 上のメニューは図形のボタン（大きさが同じで、列を開いても動かない）
+# シートごと：(タイトルのセル, 帯の右はしの列, メニューを付けるか)
 LAYOUT = {
-    HOME: ("A1", 13, None),
-    SET: ("A1", 22, ["E1", "F1:G1", "H1", "I1:J1", "K1:L1", "M1", "N1", "O1", "P1", "Q1"]),   # 幅12〜20
-    ROS: ("A1", 31, ["D1", "P1", "Q1:R1", "S1:T1", "U1", "X1", "Y1", "Z1:AA1", "AB1:AC1", "AD1:AE1"]),   # 幅15〜22（兄弟の列をたたんだとき）
-    INP: ("B1", 15, INP_MENU),
-    SIB: ("B1", 11 + D, GRID_MENU),
-    AUT: ("B1", 11 + D, GRID_MENU),
-    AUTB: ("B1", 11 + D, GRID_MENU),
-    ASG: ("B1", 11 + D, GRID_MENU),
-    LES: ("B1", 12 + D, [x for x in GRID_MENU if x != "M1"] + ["R1"]),      # M列は「表示／隠す」の見えない列なのでとばす
-    LET: ("B1", 12 + D, [x for x in GRID_MENU if x != "L1"] + ["R1"]),      # L列は「表示／隠す」の見えない列なのでとばす
+    HOME: ("A1", 13, False),
+    SET: ("A1", 22, True),
+    ROS: ("A1", 31, True),
+    INP: ("B1", 15, True),
+    SIB: ("B1", 11 + D, True),
+    AUT: ("B1", 11 + D, True),
+    AUTB: ("B1", 11 + D, True),
+    ASG: ("B1", 11 + D, True),
+    LES: ("B1", 12 + D, True),
+    LET: ("B1", 12 + D, True),
 }
 TAB = {HOME: PRIMARY_D, SET: "7A8699", ROS: PRIMARY, INP: "B23A3A", AUT: ACCENT, AUTB: "5B8BD0", ASG: "C77D1A", SIB: "7A5BA8", LES: "1E90A0", LET: "2E8B57"}
 date_ref = f"={q(SET)}$E$"
@@ -1257,7 +1255,7 @@ for name, (tref, last, menu) in LAYOUT.items():
     ws.sheet_view.showRowColHeaders = False
     ws.row_dimensions[1].height = 44
     ws.row_dimensions[2].height = 24
-    for c in range(1, last + 1):
+    for c in range(1, (last if not menu else max(last, 40)) + 1):     # メニューのボタンの下まで帯をのばす
         ws.cell(1, c).fill = fill(PRIMARY_D)
         ws.cell(2, c).fill = fill(LIGHT)
     t = ws[tref]
@@ -1268,17 +1266,6 @@ for name, (tref, last, menu) in LAYOUT.items():
         if cell.value:
             cell.font = f(size=10, color=PRIMARY_D)
             cell.alignment = Alignment(vertical="center", indent=1 if c == 1 else 0)
-    if menu:
-        for (sh, lab), ref in zip(MENU, menu):
-            first = ref.split(":")[0]
-            cur = (sh == name)
-            put(ws, first, f'=HYPERLINK("#\'{sh}\'!A1","{lab}")',
-                font=f(size=11, bold=True, color=PRIMARY_D if cur else "FFFFFF"),
-                fill=fill("FFE9A8") if cur else fill(ACCENT), alignment=center,
-                border=Border(left=Side(style="medium", color=PRIMARY_D), right=Side(style="medium", color=PRIMARY_D),
-                              top=Side(style="medium", color=PRIMARY_D), bottom=Side(style="medium", color=PRIMARY_D)))
-            if ":" in ref:
-                ws.merge_cells(ref)
     # 見出しの色：日付の見出しと名簿・設定の列見出しをこい青に
     for row in ws.iter_rows(min_row=3):
         for cell in row:
@@ -1351,4 +1338,5 @@ wb[CC].sheet_state = "hidden"
 wb.active = 0
 wb.calculation.fullCalcOnLoad = True
 wb.save(OUT)
+add_menu(OUT, [n for n, (_, _, m) in LAYOUT.items() if m])
 print("saved", OUT)

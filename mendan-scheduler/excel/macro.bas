@@ -1,4 +1,4 @@
-' ===== 面談日程ツール Ver.3.1 マクロ（ThisWorkbook に貼り付け） =====
+' ===== 面談日程ツール Ver.3.2 マクロ（ThisWorkbook に貼り付け） =====
 ' 自動案（A：詰める／B：散らす）を作る・調整・決定へ写す・×のダブルクリック入力・入れ替え・ひとつ前に戻す・印刷・PDF
 Option Explicit
 
@@ -122,19 +122,37 @@ Public Sub AdjustRows()
 End Sub
 
 Public Sub SiblingColumns()
-    ' 兄弟が〇の子がいれば、兄弟①〜③の日時の欄（G〜O列）を出す。いなければしまう
+    ' 兄弟が〇の子がいれば、兄弟①〜③の日時の欄（G〜O列）を開く。いなければ閉じる
     Dim ws As Worksheet, n As Long
     On Error Resume Next
     Set ws = Me.Worksheets("名簿")
     n = Application.WorksheetFunction.CountIf(ws.Range("E5:E44"), "?*")
     ws.Range("G:O").EntireColumn.Hidden = (n = 0)
+    SibButton ws
 End Sub
 
 Private Sub ToggleSibCols()
-    ' ボタン：兄弟の日時の欄を出す／しまう
+    ' ボタン：兄弟の日時の欄を開く／閉じる
     Dim ws As Worksheet
     Set ws = Me.Worksheets("名簿")
     ws.Range("G:O").EntireColumn.Hidden = Not ws.Range("G1").EntireColumn.Hidden
+    SibButton ws
+End Sub
+
+Private Sub SibButton(ByVal ws As Worksheet)
+    ' ボタンの文字を今の状態に合わせる（閉じているときは「開く」、開いているときは「閉じる」）
+    Dim s As String
+    If ws.Range("G1").EntireColumn.Hidden Then
+        s = "日時欄を開く →"
+    Else
+        s = "← 日時欄を閉じる"
+    End If
+    On Error Resume Next
+    If ws.Range("F3").Hyperlinks.Count > 0 Then
+        ws.Range("F3").Hyperlinks(1).TextToDisplay = s     ' ボタン（リンク）はそのまま、文字だけ変える
+    Else
+        ws.Range("F3").Value = s
+    End If
 End Sub
 
 Private Sub ToggleSib(ByVal ws As Worksheet, ByVal Target As Range, Cancel As Boolean)

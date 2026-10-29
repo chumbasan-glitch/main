@@ -69,4 +69,6 @@ for sid, txt in re.findall(r'<definedName name="_xlnm.Print_Area" localSheetId="
     ws_ = wb.worksheets[int(sid)]
     ws_.defined_names["_xlnm.Print_Area"] = DefinedName("_xlnm.Print_Area", localSheetId=int(sid), attr_text=html.unescape(txt))
 wb.save(out)
+from menu_shapes import MENU, add_menu        # openpyxl で保存し直すと図形のメニューが消えるので付け直す
+add_menu(out, [sh for sh, _ in MENU if sh != "ホーム"])
 print("saved", out)
