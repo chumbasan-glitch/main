@@ -20,7 +20,7 @@ TC = CL(12 + D)                # 設定シート「先生の都合」の表の�
 N = D * T                      # 枠の総数
 BLK = T + 4                    # ×入力シートの1人分の行数
 FONT = "BIZ UDPゴシック"
-OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール_Ver3.0.xlsx"
+OUT = sys.argv[1] if len(sys.argv) > 1 else "面談日程ツール_Ver3.1.xlsx"
 OUT_DEFAULT_OFF = True             # 配るファイルは「止める（×の入力中）」から始める
 
 SET, ROS, INP, ASG, AUT, CA, CB = "設定", "名簿", "×入力", "調整・決定", "自動案A", "calcA", "calcB"   # 計算用の隠しシートは短い英字の名前（式が短くなり、ファイルが軽くなる）
@@ -49,7 +49,7 @@ def jc(j):                     # 計算A で枠 j の列
 JA, JZ = jc(1), jc(N)          # D 〜 DS
 HOPES = ["早い時刻", "遅い時刻", "早い日", "遅い日"]
 # 計算A の枠ごとの行（1〜8行目のほか）
-VERSION = "Ver.3.0"   # 直したら番号を上げる（ファイル名にも入る）
+VERSION = "Ver.3.1"   # 直したら番号を上げる（ファイル名にも入る）
 PS, PL, PV = CL(3 + D), CL(4 + D), CL(5 + D)   # 表の右の欄：すき間・見出し・中身
 ROW_NEXT = 106                 # 同じ日に次の枠がある
 ROW_AUTOBLK = 107              # 自動案Aで「後ろを空ける」枠になった
@@ -469,7 +469,7 @@ GR = f'IF({L_GRADE}="","　",{NOSUF(L_GRADE, "年")})&"年"&IF({L_CLASS}="","　
 # A番号 B名前 C兄弟 D兄弟クラス  E〜M：兄弟①〜③の（日付・時刻・順番）  N希望 O後ろを空ける（ここまで入力）
 # P表示名 Q状況 R×の数 S入れられる空き枠 T決める順 U日付 V時刻 W注意 X自動案A Y自動案B Zリンク
 ws = sheet(ROS)
-heads = ["番号", "名前", "希望", "後ろを空ける", "兄弟", "兄弟クラス\n日時は上の＋を押す"]
+heads = ["番号", "名前", "希望", "後ろを空ける", "兄弟", "兄弟クラス"]
 for k in "①②③":
     heads += [f"兄弟{k}\n日付", f"兄弟{k}\n時刻", f"兄弟{k}\nとの順番"]
 heads += ["表示名", "状況", "×の数", "入れられる空き枠", "決める順",
@@ -482,11 +482,10 @@ for i, (h, w) in enumerate(zip(heads, widths), start=1):
 ws.row_dimensions[4].height = 32
 put(ws, "A1", "名簿・結果", font=f(size=16, bold=True))
 put(ws, "A2", "黄色の列（番号〜兄弟③との順番）を入力します。Excelの名簿から番号と名前を「番号」の列のいちばん上に貼り付けてください（最大40人）。行の並べ替えはしないでください。", font=f(size=10, color="444444"))
-put(ws, "A3", "兄弟クラス：書き方は自由です（例：2年1組、2-1、兄 5年 など）。10字くらいまでが見やすいです。灰色の欄は、兄弟が〇の子だけ入力します。", font=f(size=10, color="444444"), alignment=Alignment(wrap_text=True, vertical="center"))
-ws.merge_cells("A3:F3")
-put(ws, "P3", "◀ 兄弟①〜③の列（兄弟の担任から聞いた面談の日時と順番）は、左上の「＋」で開き、「−」でたためます。", font=f(size=10, bold=True, color="9A6A00"), alignment=Alignment(wrap_text=True, vertical="center"))
-ws.merge_cells("P3:W3")
-ws.row_dimensions[3].height = 30
+put(ws, "A3", "兄弟の欄をダブルクリック（またはプルダウン）で〇 → 兄弟クラスと、兄弟①〜③の日時の欄が出ます。兄弟クラスの書き方は自由（例：2年1組、2-1、兄 5年）。", font=f(size=10, color="444444"), alignment=Alignment(wrap_text=True, vertical="center"))
+ws.merge_cells("A3:E3")
+button(ws, "F3", "兄弟の日時欄\n▶ 出す／しまう", color="B7791F", size=9)
+ws.row_dimensions[3].height = 40
 dv_sib = DataValidation(type="list", formula1='"〇"', allow_blank=True)
 dv_sday = DataValidation(type="list", formula1=f"={q(SET)}$E$11:$E${DL}", allow_blank=True)
 dv_stime = DataValidation(type="list", formula1=f"={q(SET)}$I$11:$I${TL}", allow_blank=True)
@@ -495,7 +494,7 @@ dv_hope = DataValidation(type="list", formula1='"' + ",".join(HOPES) + '"', allo
 dv_gap = DataValidation(type="list", formula1='"必ず空けたい,出来れば空けたい,空けない"', allow_blank=True)
 # 兄弟クラスのマスを選ぶと出る小さな説明（入力の制限はなし）
 dv_shint = DataValidation(allow_blank=True, showInputMessage=True, promptTitle="兄弟の面談の日時",
-                          prompt="兄弟の担任から聞いた日時は、いちばん上の「＋」を押すと出てくる「兄弟①〜③」の列に入れます。")
+                          prompt="兄弟の担任から聞いた日時は、右の「兄弟①〜③」の欄に入れます（欄が見えないときは、上の［兄弟の日時の欄］ボタン）。")
 for dv_ in [dv_sib, dv_sday, dv_stime, dv_hope, dv_gap, dv_shint] + dv_ord:
     ws.add_data_validation(dv_)
 for i in range(1, NS + 1):
@@ -529,11 +528,7 @@ ws.freeze_panes = "C5"
 ws.auto_filter.ref = "A4:Y49"
 # 兄弟が〇でない子は、兄弟の欄を灰色に
 ws.conditional_formatting.add("F5:O49", FormulaRule(formula=['$E5=""'], fill=fill("E3E3E3"), border=box))
-# 兄弟①〜③の9列は「たたむ」（グループ化）。最初はたたんだ状態
-for c in range(7, 16):
-    ws.column_dimensions[CL(c)].outline_level = 1
-    ws.column_dimensions[CL(c)].hidden = True
-ws.sheet_properties.outlinePr.summaryRight = False   # 「＋」ボタンを兄弟クラスの列の上に出す
+# 兄弟①〜③の9列は、兄弟が〇の子がいるときだけマクロで出す（開いたとき・〇を付けたとき・ボタン）
 red_txt = Font(name=FONT, color="B23A3A", bold=True)
 ws.conditional_formatting.add("W5:W49", FormulaRule(formula=['OR(W5="未決定",LEFT(W5,6)="（出来れば）")'], font=Font(name=FONT, color="9A6A00", bold=True)))
 ws.conditional_formatting.add("W5:W49", FormulaRule(formula=['W5<>""'], font=red_txt))
@@ -897,16 +892,16 @@ LH = 16                          # 表の見出しの行
 ws.row_dimensions[LH].height = 17.3
 ws.merge_cells(f"B{LH}:C{LH}"); ws.merge_cells(f"F{LH}:G{LH}"); ws.merge_cells(f"I{LH}:J{LH}")
 for d in range(1, D + 1):
-    put(ws, f"{DCOL[d-1]}{LH}", f'={ZEN(f"{q(SET)}$E${10+d}")}', font=MARU(8), alignment=center)
+    put(ws, f"{DCOL[d-1]}{LH}", f'={ZEN(f"{q(SET)}$E${10+d}")}', font=MIN_(8), alignment=center)
 for t in range(1, T + 1):
     r = LH + t
     ws.row_dimensions[r].height = 33.5
     ws.merge_cells(f"B{r}:C{r}"); ws.merge_cells(f"F{r}:G{r}"); ws.merge_cells(f"I{r}:J{r}")
     tm = f"{q(SET)}$I${10+t}"
-    put(ws, f"B{r}", f'=IF({tm}="","",{ZEN(f'SUBSTITUTE({tm},"〜","")')}&"～")', font=MARU(9), alignment=center)
+    put(ws, f"B{r}", f'=IF({tm}="","",{ZEN(f'SUBSTITUTE({tm},"〜","")')}&"～")', font=MIN_(9), alignment=center)
     for d in range(1, D + 1):
         g = f"{q(ASG)}{CL(2+d)}{5+t}"
-        put(ws, f"{DCOL[d-1]}{r}", f'=IF({g}="","",{g})', font=MARU(10.5), alignment=center)
+        put(ws, f"{DCOL[d-1]}{r}", f'=IF({g}="","",{g})', font=MIN_(11), alignment=center)
 # 表の線：使う日・時刻のところだけ（使わない日は線も消える）
 BLK_SIDE = Side(style="thin", color="000000")
 BLACK = Border(left=BLK_SIDE, right=BLK_SIDE, top=BLK_SIDE, bottom=BLK_SIDE)     # Wordと同じ黒い線
@@ -971,17 +966,17 @@ for k in range(3):                                       # 表の上の注意（
 SH = 18                                                  # 表の見出しの行
 ws.row_dimensions[SH].height = 23.5
 for d in range(1, D + 1):
-    put(ws, f"{SCOL[d-1]}{SH}", f'={ZEN(f"{q(SET)}$E${10+d}")}', font=MARU(9), alignment=center)
+    put(ws, f"{SCOL[d-1]}{SH}", f'={ZEN(f"{q(SET)}$E${10+d}")}', font=MIN_(8), alignment=center)
 AM0, SEP, PM0 = SH + 1, SH + 1 + T, SH + 2 + T          # 午前の行・太い線の行・午後の行
 NA = f"MIN({N1},{q(SET)}$B$6)"                           # 午前（時間帯1）の枠の数
 for k in range(1, T + 1):
     for r, t in ((AM0 + k - 1, f"{k}"), (PM0 + k - 1, f"{NA}+{k}")):
         ws.row_dimensions[r].height = 20.9
         tm = f"INDEX({q(SET)}$I$11:$I${TL},{t})"
-        put(ws, f"B{r}", f'=IFERROR(IF({tm}="","",{ZEN(f'SUBSTITUTE({tm},"〜","")')}),"")', font=MARU(9), alignment=center)
+        put(ws, f"B{r}", f'=IFERROR(IF({tm}="","",{ZEN(f'SUBSTITUTE({tm},"〜","")')}),"")', font=MIN_(9), alignment=center)
         for d in range(1, D + 1):
             g = f"INDEX({q(ASG)}${CL(2+d)}$6:${CL(2+d)}${GL},{t})"
-            put(ws, f"{SCOL[d-1]}{r}", f'=IFERROR(IF({g}="","",{g}),"")', font=MARU(10.5), alignment=center)
+            put(ws, f"{SCOL[d-1]}{r}", f'=IFERROR(IF({g}="","",{g}),"")', font=MIN_(11), alignment=center)
 ws.row_dimensions[SEP].height = 2.5
 for c in ["B"] + SCOL:                                   # 午前と午後のあいだの太い線（黒くぬった細い行）
     ws.conditional_formatting.add(f"{c}{SEP}", FormulaRule(formula=["TRUE" if c == "B" else f'{c}${SH}<>""'], fill=fill("000000")))
@@ -1293,9 +1288,6 @@ for name, (tref, last, menu) in LAYOUT.items():
 # ホームのタイトル帯の右はしにバージョン
 put(wb[HOME], "K1", VERSION, font=f(size=10, color="DDE6F5"), alignment=Alignment(horizontal="right", vertical="center"))
 wb[HOME].merge_cells("K1:M1")
-# 名簿：「＋」ボタンのすぐ下に目印
-put(wb[ROS], "F1", "▲ 上の「＋」で\n兄弟の列を開く", font=f(size=10, bold=True, color="5A3A00"), fill=fill("FFD966"),
-    alignment=Alignment(horizontal="center", vertical="center", wrap_text=True))
 for n in (SIB, AUT, AUTB, ASG, LET, LES):
     for c in range(6 + D, 13 + D):
         wb[n].column_dimensions[CL(c)].width = 15
@@ -1307,7 +1299,6 @@ for c in range(1, 27):
     if cell.value:
         cell.fill = fill("B7791F") if c <= 15 else HEAD_D    # 入力する列は茶色、計算の列は青
         cell.font = f(bold=True, color="FFFFFF", size=10)
-wb[ROS]["F4"].font = f(bold=True, color="FFFFFF", size=9)
 for ref in ["B10", "C10", "D10", "E10", "G10", "H10", "I10"]:
     wb[SET][ref].fill = HEAD_D; wb[SET][ref].font = f(bold=True, color="FFFFFF")
 for ref in ["A3", "A4", "A5", "A6", "A8"]:

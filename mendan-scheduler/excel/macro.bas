@@ -1,4 +1,4 @@
-' ===== 面談日程ツール Ver.3.0 マクロ（ThisWorkbook に貼り付け） =====
+' ===== 面談日程ツール Ver.3.1 マクロ（ThisWorkbook に貼り付け） =====
 ' 自動案（A：詰める／B：散らす）を作る・調整・決定へ写す・×のダブルクリック入力・入れ替え・ひとつ前に戻す・印刷・PDF
 Option Explicit
 
@@ -77,6 +77,7 @@ Private Sub Workbook_SheetBeforeDoubleClick(ByVal Sh As Object, ByVal Target As 
     On Error GoTo Done
     Select Case Sh.Name
         Case "×入力": ToggleX Sh, Target, Cancel
+        Case "名簿": ToggleSib Sh, Target, Cancel
         Case "調整・決定": SwapPick Sh, Target, Cancel
     End Select
 Done:
@@ -92,6 +93,7 @@ Private Sub Workbook_SheetFollowHyperlink(ByVal Sh As Object, ByVal Target As Hy
         Case "自動案A!K3": CopyPlan "自動案A"
         Case "自動案B!K3": CopyPlan "自動案B"
         Case "×入力!G3": NextUnentered
+        Case "名簿!F3": ToggleSibCols
         Case "調整・決定!J3": UndoGrid
         Case "兄弟確認用!J3": Preview "兄弟確認用"
         Case "兄弟確認用!K3": SavePDF "兄弟確認用"
@@ -120,16 +122,31 @@ Public Sub AdjustRows()
 End Sub
 
 Public Sub SiblingColumns()
-    ' 兄弟が〇の子がいれば、兄弟①〜③の列を開く。いなければたたむ
+    ' 兄弟が〇の子がいれば、兄弟①〜③の日時の欄（G〜O列）を出す。いなければしまう
     Dim ws As Worksheet, n As Long
     On Error Resume Next
     Set ws = Me.Worksheets("名簿")
     n = Application.WorksheetFunction.CountIf(ws.Range("E5:E44"), "?*")
-    If n > 0 Then
-        ws.Outline.ShowLevels ColumnLevels:=2
-    Else
-        ws.Outline.ShowLevels ColumnLevels:=1
-    End If
+    ws.Range("G:O").EntireColumn.Hidden = (n = 0)
+End Sub
+
+Private Sub ToggleSibCols()
+    ' ボタン：兄弟の日時の欄を出す／しまう
+    Dim ws As Worksheet
+    Set ws = Me.Worksheets("名簿")
+    ws.Range("G:O").EntireColumn.Hidden = Not ws.Range("G1").EntireColumn.Hidden
+End Sub
+
+Private Sub ToggleSib(ByVal ws As Worksheet, ByVal Target As Range, Cancel As Boolean)
+    ' 名簿の「兄弟」の欄をダブルクリック → 〇が付く／消える。付けたら兄弟クラスの欄へ
+    If Target.Cells.Count <> 1 Then Exit Sub
+    If Intersect(Target, ws.Range("E5:E44")) Is Nothing Then Exit Sub
+    Cancel = True
+    mBusy = True
+    If Trim(CStr(Target.Value)) = "" Then Target.Value = "〇" Else Target.ClearContents
+    mBusy = False
+    SiblingColumns
+    If CStr(Target.Value) <> "" Then Target.Offset(0, 1).Select
 End Sub
 
 Private Sub ToggleX(ByVal ws As Worksheet, ByVal Target As Range, Cancel As Boolean)
