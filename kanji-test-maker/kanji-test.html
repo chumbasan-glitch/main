@@ -187,7 +187,7 @@ h2.sec{margin:0;font-size:17px}
   <header class="top">
     <h1>カンジーツクール</h1>
     <span class="sub">光村図書・縦書き／漢字の小テストと漢字ノートを、かんたんに作って印刷できます</span>
-    <span class="ver" title="このページの版">ver 11.0（2026.10.24）</span>
+    <span class="ver" title="このページの版">ver 11.1（2026.10.29）</span>
   </header>
 
   <div class="layout">
@@ -357,6 +357,8 @@ h2.sec{margin:0;font-size:17px}
               <button type="button" data-v="grid">マス目</button>
               <button type="button" data-v="guide">補助線付き</button>
             </div>
+            <label class="hint" for="fixlabel">直し欄の見出し（自由に書けます。空にすると何も出ません）</label>
+            <input class="textin" id="fixlabel" type="text" maxlength="8" placeholder="例：れんしゅう">
           </div>
           <p class="hint" id="bonusNote" hidden>11問以上のときや「文の中に□」の形のときは、ボーナス欄・直し欄はつきません。</p>
         </div>
@@ -503,7 +505,7 @@ const MAX_Q = 20;
 const isBig = n => n === 25 || n === 50;
 const SPLITS = {25:[8, 8, 9], 50:[13, 13, 13, 11]};
 function fixCount(n){ n = Math.round(+n) || 10; if(isBig(n)) return n; if(n > MAX_Q) return n > 25 ? 50 : 25; return Math.max(1, n); }
-const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count", wakachi:"off", style:"normal", fixbox:"long", mode:"test", ngrid:"g7", ncontent:"model", ntrace:"2", nyomi:"on", npaper:"B5", nhead:"kanji", ntext:"", nrows:null, nshow:0 };
+const DEFAULTS = { grade:6, sel:{6:[1]}, off:{}, count:10, order:"random", rw:"half", box:"long", paper:"auto", label:"", bonus:"off", bratio:"5", newbox:"off", fsz:0, score:"count", wakachi:"off", style:"normal", fixbox:"long", fixlabel:"直し", mode:"test", ngrid:"g7", ncontent:"model", ntrace:"2", nyomi:"on", npaper:"B5", nhead:"kanji", ntext:"", nrows:null, nshow:0 };
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 function load(){
   try{
@@ -696,6 +698,8 @@ const SMALL = new Set([..."ぁぃぅぇぉっゃゅょゎァィゥェォッャ�
 const PUNC = new Set([..."、。，．"]);
 
 let fszCapped = false;
+/* 直し欄の見出し：自由に書ける（はじめは「直し」。空にすると何も書かない） */
+const fixWord = () => (state.fixlabel || "").trim();
 function drawPage(canvas, answer, pxPerMm){
   fszCapped = false;
   const paper = paperNow(); const [W, H] = PAPERS[paper];
@@ -749,10 +753,16 @@ function drawPage(canvas, answer, pxPerMm){
   const bonus = !inline && (state.bonus === "on" || state.bonus === "fix") && qs.length > 0 && qs.length <= 10;
   const fixMode = bonus && state.bonus === "fix", bonusPts = bonus && !fixMode;
   const bsY = bonusPts ? scoreY - 3 - scoreH : scoreY;
-  if(state.label){
+  /* 題名の下：回数など、そのあとに（答えのページは）赤で「答え」。例「第３回　こたえ」 */
+  {
     const top = M + tfs * title.length + tfs * 0.6, room = bsY - 4 - top;
-    const lfs = Math.min(tfs * 0.55, room / state.label.length);
-    setFont(lfs); vtext(state.label, c1x, top, lfs);
+    const lb = [...(state.label || "")], at = answer ? [...(low ? "こたえ" : "答え")] : [];
+    const n = lb.length + at.length + (lb.length && at.length ? 1 : 0);
+    if(n){
+      const f = Math.min(lb.length ? tfs * 0.55 : tfs * 0.75, room / n);
+      setFont(f); vtext(lb.join(""), c1x, top, f);
+      if(at.length){ ctx.fillStyle = RED; vtext(at.join(""), c1x, top + (lb.length ? (lb.length + 1) * f : 0), f); ctx.fillStyle = INK; }
+    }
   }
   ctx.strokeStyle = INK; rect(c1x - scoreW / 2, scoreY, scoreW, scoreH, 0.35);
   const sfs = scoreW * 0.26; setFont(sfs, 600);
@@ -771,10 +781,6 @@ function drawPage(canvas, answer, pxPerMm){
   const nbH = (H - 2 * M - nfs * name.length - 2) / 2, nbTop = H - M - nbH, nbW = c2w * 0.9;
   setFont(nfs); vtext(name, c2x, nbTop - 2 - nfs * name.length, nfs);
   rect(c2x - nbW / 2, nbTop, nbW, nbH, 0.35);
-  if(answer){
-    ctx.fillStyle = RED; const afs = Math.min(nbW * 0.62, 10); setFont(afs);
-    vtext(low ? "こたえ" : "答え", c2x, nbTop + 4, afs); ctx.fillStyle = INK;
-  }
 
   /* 問題 */
   if(inline && qs.length){ drawBig(); return {W, H, paper}; }
@@ -825,7 +831,7 @@ function drawPage(canvas, answer, pxPerMm){
       if(r > 0){ ctx.strokeStyle = "#999"; line(M, top - gap / 2, x1, top - gap / 2, 0.2); ctx.strokeStyle = INK; }
       if(fixOn){
         const rowMax = Math.max(...toks.slice(i, i + cnt).map(X => hOf(X, fs)));
-        const fy = top + nd + 3 + rowMax + 4, fh = top + rh - fy, t1 = low ? "なおし" : "直し";
+        const fy = top + nd + 3 + rowMax + 4, fh = top + rh - fy, t1 = fixWord(low);
         const f1 = Math.min(5.5, lw2 * 0.6, fh / t1.length); setFont(f1); vtext(t1, x1 + lw2 / 2 + 1, fy + (fh - f1 * t1.length) / 2, f1);
         for(let col = 0; col < cnt; col++) fixArea(x1 - col * cw - cw / 2, fy, cw * 0.86, fh);
         fixSep(x0, fy - 2, x1 + lw2);
@@ -927,7 +933,7 @@ function drawPage(canvas, answer, pxPerMm){
     if(fixMode) fixSep(x0, top + rh - boxH + aHr + 1.5, x1 + lw);
     if(bonus){
       const aH = aHr, yB = top + rh - boxH + aH + 3, bH = boxH - 3 - aH, lx = x1 + lw / 2 + 1;
-      const t1 = fixMode ? (low ? "なおし" : "直し") : "ボーナス", mk = state.newbox === "on" ? "□" : "――", t2 = low ? "（" + mk + "のかんじをつかったことば）" : "（" + mk + "の漢字を使った言葉）";
+      const t1 = fixMode ? fixWord(low) : "ボーナス", mk = state.newbox === "on" ? "□" : "――", t2 = low ? "（" + mk + "のかんじをつかったことば）" : "（" + mk + "の漢字を使った言葉）";
       const f2 = Math.min(3.4, bH / [...t2].length);
       if(!fixMode && f2 >= 2.6){
         const f1 = Math.min(4.6, bH / t1.length / 1.3);
@@ -1309,6 +1315,7 @@ function renderOptions(){
   $("bonusNote").textContent = isBig(qs.length || state.count) ? "25問・50問のときは、ボーナス欄・直し欄はつきません。" : inl ? "「文の中に□」の形では、ボーナス欄はつきません（直し欄はつけられます）。" : "11問以上のときは、ボーナス欄・直し欄はつきません。";
   setSeg($("segView"), view);
   if(document.activeElement !== $("label")) $("label").value = state.label;
+  if(document.activeElement !== $("fixlabel")) $("fixlabel").value = state.fixlabel || "";
 }
 let pvTimer = 0;
 function drawPreview(){
@@ -1696,6 +1703,7 @@ $("cntMinus").addEventListener("click", () => setCount(state.count - 1));
 $("cntPlus").addEventListener("click", () => setCount(state.count + 1));
 $("cnt").addEventListener("change", e => setCount(e.target.value));
 $("label").addEventListener("input", e => { state.label = e.target.value; persist(); drawPreview(); });
+$("fixlabel").addEventListener("input", e => { state.fixlabel = e.target.value; persist(); drawPreview(); });
 $("regen").addEventListener("click", () => { generate(); renderAll(); });
 $("unitAll").addEventListener("click", () => { state.sel[state.grade] = unitsOf(state.grade).map(u => u.no); persist(); generate(); renderAll(); });
 $("unitNone").addEventListener("click", () => { state.sel[state.grade] = []; persist(); generate(); renderAll(); });
