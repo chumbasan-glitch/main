@@ -1,9 +1,76 @@
 ' ===== ここから下を全部コピーして貼り付ける =====
 Option Explicit
 
-Private Const FIRST_ROW As Long = 21   ' 発注書の教材1行目
+Private Const FIRST_ROW As Long = 21    ' 発注書の教材1行目
 Private Const ROWS_PER_PAGE As Long = 7 ' 発注書1枚に入る教材の数
+Private Const T_FIRST As Long = 16      ' 発注シートの一覧の1行目
+Private Const T_LAST As Long = 45       ' 発注シートの一覧の最後の行
 
+' ===== ボタン1：教材を出す =====
+Sub 教材を出す()
+    Dim wsIn As Worksheet, wsList As Worksheet
+    Set wsIn = ThisWorkbook.Worksheets("発注")
+    Set wsList = ThisWorkbook.Worksheets("教材リスト")
+
+    Dim company As String, kai As Long, isTennyu As Boolean, tClass As Long, tNum As Double
+    If Not ReadInput(company, kai, isTennyu, tClass, tNum) Then Exit Sub
+
+    Dim clsNum(1 To 5) As Double, j As Long
+    For j = 1 To 5
+        clsNum(j) = Val(ThisWorkbook.Worksheets("設定").Cells(6 + j, 3).Value)
+    Next j
+
+    ' 一覧を空にする（D列の式は残す）
+    wsIn.Range("B" & T_FIRST & ":C" & T_LAST).ClearContents
+    wsIn.Range("E" & T_FIRST & ":O" & T_LAST).ClearContents
+
+    Dim lastRow As Long, r As Long, t As Long, per As Double, howTo As String, baseName As String
+    lastRow = wsList.Cells(wsList.Rows.Count, 3).End(xlUp).Row
+    t = T_FIRST
+    For r = 4 To lastRow
+        baseName = Trim(CStr(wsList.Cells(r, 3).Value))
+        howTo = Trim(CStr(wsList.Cells(r, 5).Value))
+        If Trim(CStr(wsList.Cells(r, 2).Value)) = company And baseName <> "" Then
+            If IsThisTime(howTo, kai, isTennyu) Then
+                If t > T_LAST Then
+                    MsgBox "教材が多すぎて、一覧に全部入りません（" & (T_LAST - T_FIRST + 1) & "個まで）。", vbExclamation
+                    Exit For
+                End If
+                per = Val(wsList.Cells(r, 6).Value)
+                If per <= 0 Then per = 1
+                wsIn.Cells(t, 2).Value = "○"
+                wsIn.Cells(t, 3).Value = baseName
+                wsIn.Cells(t, 5).Value = howTo
+                wsIn.Cells(t, 6).Value = wsList.Cells(r, 4).Value
+                wsIn.Cells(t, 7).Value = per
+                For j = 1 To 5
+                    If isTennyu Then
+                        If j = tClass Then wsIn.Cells(t, 7 + j).Value = tNum * per
+                    ElseIf clsNum(j) > 0 Then
+                        wsIn.Cells(t, 7 + j).Value = clsNum(j) * per
+                    End If
+                Next j
+                wsIn.Cells(t, 13).Value = wsList.Cells(r, 7).Value
+                wsIn.Cells(t, 14).Value = wsList.Cells(r, 8).Value
+                wsIn.Cells(t, 15).Value = r
+                t = t + 1
+            End If
+        End If
+    Next r
+
+    ' どの会社・何回目で出したかを覚えておく
+    wsIn.Range("O14").Value = InputKey()
+
+    If t = T_FIRST Then
+        MsgBox "「" & company & "」の" & kai & "回目に頼む教材は、教材リストにありません。" & vbCrLf & _
+               "急に頼むものがあれば、一覧のあいている行に書いてください。", vbInformation
+    Else
+        MsgBox (t - T_FIRST) & "個の教材を出しました。" & vbCrLf & _
+               "頼まないものは「頼む」の○を消してから、「発注書をつくる」を押してください。", vbInformation
+    End If
+End Sub
+
+' ===== ボタン2：発注書をつくる =====
 Sub 発注書をつくる()
     Dim wsIn As Worksheet, wsSet As Worksheet, wsList As Worksheet, wsTmp As Worksheet
     Set wsIn = ThisWorkbook.Worksheets("発注")
@@ -11,12 +78,15 @@ Sub 発注書をつくる()
     Set wsList = ThisWorkbook.Worksheets("教材リスト")
     Set wsTmp = ThisWorkbook.Worksheets("発注書ひな形")
 
-    ' --- 発注シートの入力を読む ---
-    Dim company As String, kai As Long, isTennyu As Boolean
+    Dim company As String, kai As Long, isTennyu As Boolean, tClass As Long, tNum As Double
+    If Not ReadInput(company, kai, isTennyu, tClass, tNum) Then Exit Sub
+
+    If CStr(wsIn.Range("O14").Value) <> InputKey() Then
+        MsgBox "会社名や何回目が変わっています。先に「教材を出す」を押してください。", vbExclamation
+        Exit Sub
+    End If
+
     Dim orderDate As Date, deliver As String
-    company = Trim(CStr(wsIn.Range("C4").Value))
-    kai = Val(Left(CStr(wsIn.Range("C5").Value), 1))
-    isTennyu = (Trim(CStr(wsIn.Range("C6").Value)) = "転入")
     If IsDate(wsIn.Range("C7").Value) Then
         orderDate = CDate(wsIn.Range("C7").Value)
     Else
@@ -24,58 +94,43 @@ Sub 発注書をつくる()
     End If
     deliver = CStr(wsIn.Range("C8").Value)
 
-    If company = "" Then
-        MsgBox "「会社名」を選んでください。", vbExclamation
-        Exit Sub
-    End If
-    If kai < 1 Or kai > 3 Then
-        MsgBox "「何回目」を選んでください。", vbExclamation
-        Exit Sub
-    End If
-
-    ' --- 組の名前と人数 ---
     Dim clsName(1 To 5) As String, clsNum(1 To 5) As Double, j As Long
     For j = 1 To 5
         clsName(j) = Trim(CStr(wsSet.Cells(6 + j, 2).Value))
         clsNum(j) = Val(wsSet.Cells(6 + j, 3).Value)
     Next j
 
-    Dim tClass As Long, tNum As Double
-    If isTennyu Then
-        tNum = Val(wsIn.Range("C12").Value)
-        For j = 1 To 5
-            If clsName(j) <> "" And clsName(j) = Trim(CStr(wsIn.Range("C11").Value)) Then tClass = j
-        Next j
-        If tClass = 0 Or tNum <= 0 Then
-            MsgBox "転入のときは「転入の組」と「転入の人数」を入れてください。", vbExclamation
-            Exit Sub
-        End If
-    End If
+    ' --- 一覧から「頼む」に何か入っている行を集める ---
+    Dim cnt As Long, t As Long, n As Long, per As Double, hasNum As Boolean
+    cnt = T_LAST - T_FIRST + 1
+    Dim itRow() As Long, itName() As String, itQty() As Variant
+    ReDim itRow(1 To cnt), itName(1 To cnt), itQty(1 To cnt, 1 To 5)
 
-    ' --- 教材リストから、今回頼む教材を集める ---
-    Dim lastRow As Long, r As Long, n As Long
-    lastRow = wsList.Cells(wsList.Rows.Count, 3).End(xlUp).Row
-    Dim itName() As String, itSubj() As String, itPer() As Double, itPrice() As Variant, itNote() As Variant
-    ReDim itName(1 To lastRow), itSubj(1 To lastRow), itPer(1 To lastRow), itPrice(1 To lastRow), itNote(1 To lastRow)
-
-    Dim nm As String
-    For r = 4 To lastRow
-        If Trim(CStr(wsList.Cells(r, 2).Value)) = company And Trim(CStr(wsList.Cells(r, 3).Value)) <> "" Then
-            nm = ItemName(Trim(CStr(wsList.Cells(r, 3).Value)), Trim(CStr(wsList.Cells(r, 5).Value)), kai, isTennyu)
-            If nm <> "" Then
-                n = n + 1
-                itName(n) = nm
-                itSubj(n) = CStr(wsList.Cells(r, 4).Value)
-                itPer(n) = Val(wsList.Cells(r, 6).Value)
-                If itPer(n) <= 0 Then itPer(n) = 1
-                itPrice(n) = wsList.Cells(r, 7).Value
-                itNote(n) = wsList.Cells(r, 8).Value
-            End If
+    For t = T_FIRST To T_LAST
+        If Trim(CStr(wsIn.Cells(t, 2).Value)) <> "" And Trim(CStr(wsIn.Cells(t, 3).Value)) <> "" Then
+            n = n + 1
+            itRow(n) = t
+            itName(n) = NameWithSuffix(Trim(CStr(wsIn.Cells(t, 3).Value)), Trim(CStr(wsIn.Cells(t, 5).Value)), kai)
+            per = Val(wsIn.Cells(t, 7).Value)
+            If per <= 0 Then per = 1
+            hasNum = False
+            For j = 1 To 5
+                If Trim(CStr(wsIn.Cells(t, 7 + j).Value)) <> "" Then hasNum = True
+            Next j
+            For j = 1 To 5
+                If hasNum Then
+                    itQty(n, j) = wsIn.Cells(t, 7 + j).Value
+                ElseIf isTennyu Then
+                    If j = tClass Then itQty(n, j) = tNum * per
+                ElseIf clsName(j) <> "" And clsNum(j) > 0 Then
+                    itQty(n, j) = clsNum(j) * per
+                End If
+            Next j
         End If
-    Next r
+    Next t
 
     If n = 0 Then
-        MsgBox "「" & company & "」の" & kai & "回目に頼む教材が、教材リストにありません。", vbExclamation
+        MsgBox "「頼む」に○がついている教材がありません。", vbExclamation
         Exit Sub
     End If
 
@@ -113,16 +168,12 @@ Sub 発注書をつくる()
             idx = (p - 1) * ROWS_PER_PAGE + k
             If idx <= n Then
                 ws.Range("C" & rw).Value = itName(idx)
-                ws.Range("V" & rw).Value = itSubj(idx)
+                ws.Range("V" & rw).Value = wsIn.Cells(itRow(idx), 6).Value
                 For j = 1 To 5
-                    If isTennyu Then
-                        If j = tClass Then ws.Range(colLetters(j - 1) & rw).Value = tNum * itPer(idx)
-                    ElseIf clsName(j) <> "" And clsNum(j) > 0 Then
-                        ws.Range(colLetters(j - 1) & rw).Value = clsNum(j) * itPer(idx)
-                    End If
+                    ws.Range(colLetters(j - 1) & rw).Value = itQty(idx, j)
                 Next j
-                ws.Range("AV" & rw).Value = itPrice(idx)
-                ws.Range("BB" & rw).Value = itNote(idx)
+                ws.Range("AV" & rw).Value = wsIn.Cells(itRow(idx), 13).Value
+                ws.Range("BB" & rw).Value = wsIn.Cells(itRow(idx), 14).Value
             End If
         Next k
     Next p
@@ -131,22 +182,99 @@ Sub 発注書をつくる()
     firstWs.Activate
     MsgBox pages & "枚の発注書をつくりました。" & vbCrLf & _
            "教師用冊数は、発注書に直接入れてください。", vbInformation
+
+    ' --- 急に頼んだ教材を、教材リストに入れるか聞く ---
+    Dim newRow As Long, howTo As String
+    For idx = 1 To n
+        t = itRow(idx)
+        If Trim(CStr(wsIn.Cells(t, 15).Value)) = "" Then
+            If MsgBox("「" & wsIn.Cells(t, 3).Value & "」を教材リストに入れますか？" & vbCrLf & _
+                      "（入れると、次からは「教材を出す」で出てきます）", vbYesNo + vbQuestion) = vbYes Then
+                newRow = wsList.Cells(wsList.Rows.Count, 3).End(xlUp).Row + 1
+                If newRow < 4 Then newRow = 4
+                howTo = Trim(CStr(wsIn.Cells(t, 5).Value))
+                If howTo = "" Then howTo = "年1回"
+                wsList.Cells(newRow, 2).Value = company
+                wsList.Cells(newRow, 3).Value = Trim(CStr(wsIn.Cells(t, 3).Value))
+                wsList.Cells(newRow, 4).Value = wsIn.Cells(t, 6).Value
+                wsList.Cells(newRow, 5).Value = howTo
+                per = Val(wsIn.Cells(t, 7).Value)
+                If per <= 0 Then per = 1
+                wsList.Cells(newRow, 6).Value = per
+                wsList.Cells(newRow, 7).Value = wsIn.Cells(t, 13).Value
+                wsList.Cells(newRow, 8).Value = wsIn.Cells(t, 14).Value
+                wsIn.Cells(t, 15).Value = newRow
+            End If
+        End If
+    Next idx
 End Sub
 
-' 頼み方と回数から、教材名の後ろに「上刊」「一学期」などをつける。今回頼まないものは "" を返す
-Private Function ItemName(ByVal baseName As String, ByVal howTo As String, ByVal kai As Long, ByVal isTennyu As Boolean) As String
-    ItemName = ""
+' 発注シートの上の欄を読む。足りないときはメッセージを出して False を返す
+Private Function ReadInput(company As String, kai As Long, isTennyu As Boolean, tClass As Long, tNum As Double) As Boolean
+    Dim wsIn As Worksheet, wsSet As Worksheet, j As Long
+    Set wsIn = ThisWorkbook.Worksheets("発注")
+    Set wsSet = ThisWorkbook.Worksheets("設定")
+    ReadInput = False
+    company = Trim(CStr(wsIn.Range("C4").Value))
+    kai = Val(Left(CStr(wsIn.Range("C5").Value), 1))
+    isTennyu = (Trim(CStr(wsIn.Range("C6").Value)) = "転入")
+    If company = "" Then
+        MsgBox "「会社名」を選んでください。", vbExclamation
+        Exit Function
+    End If
+    If kai < 1 Or kai > 3 Then
+        MsgBox "「何回目」を選んでください。", vbExclamation
+        Exit Function
+    End If
+    tClass = 0
+    tNum = 0
+    If isTennyu Then
+        tNum = Val(wsIn.Range("C12").Value)
+        For j = 1 To 5
+            If Trim(CStr(wsSet.Cells(6 + j, 2).Value)) <> "" And _
+               Trim(CStr(wsSet.Cells(6 + j, 2).Value)) = Trim(CStr(wsIn.Range("C11").Value)) Then tClass = j
+        Next j
+        If tClass = 0 Or tNum <= 0 Then
+            MsgBox "転入のときは「転入の組」と「転入の人数」を入れてください。", vbExclamation
+            Exit Function
+        End If
+    End If
+    ReadInput = True
+End Function
+
+' 会社名・何回目・種類・転入の組と人数をまとめた文字（入力が変わったか調べるため）
+Private Function InputKey() As String
+    Dim wsIn As Worksheet
+    Set wsIn = ThisWorkbook.Worksheets("発注")
+    InputKey = Trim(CStr(wsIn.Range("C4").Value)) & "|" & CStr(wsIn.Range("C5").Value) & "|" & _
+               CStr(wsIn.Range("C6").Value) & "|" & CStr(wsIn.Range("C11").Value) & "|" & CStr(wsIn.Range("C12").Value)
+End Function
+
+' 今回の発注で出すものか
+Private Function IsThisTime(ByVal howTo As String, ByVal kai As Long, ByVal isTennyu As Boolean) As Boolean
+    Select Case howTo
+        Case "上刊・下刊"
+            IsThisTime = (kai <= 2) Or isTennyu
+        Case "一学期・二学期・三学期"
+            IsThisTime = True
+        Case Else ' 年1回（空欄も年1回として扱う）
+            IsThisTime = (kai = 1) Or isTennyu
+    End Select
+End Function
+
+' 教材名の後ろに「上刊」「一学期」などをつける
+Private Function NameWithSuffix(ByVal baseName As String, ByVal howTo As String, ByVal kai As Long) As String
     Select Case howTo
         Case "上刊・下刊"
             If kai = 1 Then
-                ItemName = baseName & " 上刊"
-            ElseIf kai = 2 Or isTennyu Then
-                ItemName = baseName & " 下刊"
+                NameWithSuffix = baseName & " 上刊"
+            Else
+                NameWithSuffix = baseName & " 下刊"
             End If
         Case "一学期・二学期・三学期"
-            ItemName = baseName & " " & Choose(kai, "一学期", "二学期", "三学期")
-        Case Else ' 年1回（空欄も年1回として扱う）
-            If kai = 1 Or isTennyu Then ItemName = baseName
+            NameWithSuffix = baseName & " " & Choose(kai, "一学期", "二学期", "三学期")
+        Case Else
+            NameWithSuffix = baseName
     End Select
 End Function
 
