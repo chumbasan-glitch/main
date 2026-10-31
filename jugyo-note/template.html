@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="授業ノート">
+<meta name="theme-color" content="#2E6B4F">
+<title>まいにち授業ノート</title>
+<style>
+:root{--bg:#F3F1EA;--surface:#FFFFFF;--soft:#F8F6F0;--ink:#22302A;--ink-soft:#5D6A62;--line:#D5CFBF;--accent:#2E6B4F;--accent-ink:#FFFFFF;--warn:#9A5B12;--warn-bg:#FFF3DF;--done:#2E6B4F;--cont:#B0521C;color-scheme:light}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161B18;--surface:#202723;--soft:#1B211E;--ink:#E8EEE9;--ink-soft:#A8B5AD;--line:#3A463F;--accent:#7CC3A0;--accent-ink:#10231A;--warn:#F0B867;--warn-bg:#3A2E1C;--done:#7CC3A0;--cont:#F0A070;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161B18;--surface:#202723;--soft:#1B211E;--ink:#E8EEE9;--ink-soft:#A8B5AD;--line:#3A463F;--accent:#7CC3A0;--accent-ink:#10231A;--warn:#F0B867;--warn-bg:#3A2E1C;--done:#7CC3A0;--cont:#F0A070;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic UI","Yu Gothic","Meiryo",sans-serif;line-height:1.7;font-size:16px;-webkit-text-size-adjust:100%}
+header{background:var(--accent);color:var(--accent-ink);padding:10px 16px calc(0px);padding-top:max(10px,env(safe-area-inset-top))}
+header .top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;max-width:900px;margin:0 auto}
+header h1{font-size:20px;margin:0;letter-spacing:.06em}
+header .ver{font-size:13px;opacity:.85}
+nav{display:flex;gap:4px;max-width:900px;margin:8px auto 0;overflow-x:auto}
+nav button{flex:1;min-width:max-content;border:0;background:transparent;color:var(--accent-ink);opacity:.8;font:inherit;font-size:15px;padding:8px 10px;border-radius:10px 10px 0 0;cursor:pointer}
+nav button.on{background:var(--bg);color:var(--ink);opacity:1;font-weight:bold}
+main{max-width:900px;margin:0 auto;padding:16px 16px 80px}
+section{display:none}section.on{display:block}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 14px}
+h2{font-size:18px;margin:0 0 8px}
+h3{font-size:16px;margin:12px 0 6px}
+.muted{color:var(--ink-soft);font-size:14px}
+button,.btn{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:9px 14px;cursor:pointer;min-height:44px}
+button.main{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:bold}
+button.small{min-height:36px;padding:5px 10px;font-size:14px}
+button:disabled{opacity:.5}
+select,textarea,input[type=text]{font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 8px;max-width:100%}
+textarea{width:100%;min-height:90px;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.datebar{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.datebar .d{font-size:20px;font-weight:bold;text-align:center;flex:1}
+.steps{margin:8px 0;padding-left:1.4em}
+.steps li{margin:4px 0}
+.slot{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:0 0 14px;overflow:hidden}
+.slot .hd{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:var(--soft);border-bottom:1px solid var(--line)}
+.slot .pn{flex:none;width:44px;height:44px;border-radius:10px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px}
+.slot .pn.other{background:var(--line);color:var(--ink)}
+.slot .ttl{flex:1;min-width:0}
+.slot .ttl b{font-size:17px}
+.slot .bd{padding:12px 14px}
+.tag{display:inline-block;font-size:13px;border-radius:999px;padding:1px 10px;border:1px solid currentColor;margin-left:6px;white-space:nowrap}
+.tag.done{color:var(--done)}.tag.cont{color:var(--cont)}.tag.plan{color:var(--ink-soft)}
+.warn{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:8px 10px;font-size:14px;margin:8px 0}
+.plan{word-break:break-word;background:var(--soft);border-radius:8px;padding:10px 12px;margin:8px 0;font-size:15px}
+.plan div{min-height:1em;white-space:pre-wrap}
+.plan .h{font-weight:bold;color:var(--accent);margin-top:8px}
+.plan .h:first-child{margin-top:0}
+details>summary{cursor:pointer;font-weight:bold;padding:6px 0;list-style-position:inside}
+.photo{max-width:100%;max-height:320px;border-radius:8px;border:1px solid var(--line);display:block;margin:8px 0}
+.radio label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:0 6px 6px 0;cursor:pointer;min-height:44px}
+.radio input{width:20px;height:20px}
+table.tt{border-collapse:collapse;width:100%}
+table.tt th,table.tt td{border:1px solid var(--line);padding:4px;text-align:center}
+table.tt th{background:var(--soft);font-size:15px}
+table.tt select{width:100%;padding:6px 2px}
+.ttwrap{overflow-x:auto}
+.unitlist{margin:8px 0 0;padding:0;list-style:none;font-size:14px}
+.unitlist li{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding:5px 0}
+.unitlist li.now{font-weight:bold;color:var(--accent)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;background:var(--accent)}
+.rec{border-top:1px solid var(--line);padding:8px 0;cursor:pointer}
+.rec:first-child{border-top:0}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 32px);text-align:center}
+#toast.on{opacity:.95}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="top"><h1>まいにち授業ノート</h1><span class="ver">ver 1.0</span></div>
+  <nav>
+    <button data-tab="today" class="on">今日の授業</button>
+    <button data-tab="tt">時間割</button>
+    <button data-tab="prog">進み具合</button>
+    <button data-tab="recs">記録・バックアップ</button>
+  </nav>
+</header>
+<main>
+  <section id="today" class="on">
+    <div class="card">
+      <div class="datebar">
+        <button class="small" id="prevDay">◀ 前の日</button>
+        <div class="d" id="dateLabel"></div>
+        <button class="small" id="nextDay">次の日 ▶</button>
+      </div>
+      <div class="row" style="justify-content:center;margin-top:6px">
+        <button class="small" id="goToday">今日</button>
+        <button class="small" id="editDay">この日だけ時間割を変える</button>
+      </div>
+      <div id="dayEdit" class="hide" style="margin-top:10px"></div>
+    </div>
+    <div class="card" id="planBox">
+      <h2>授業案を作る</h2>
+      <ol class="steps">
+        <li>「お願いの文をコピー」をおす</li>
+        <li>Claudeのアプリを開き、貼り付けて送る</li>
+        <li>Claudeの答えの下にある「コピー」をおす</li>
+        <li>このページにもどり、下の欄に貼り付けて「授業案に入れる」をおす</li>
+      </ol>
+      <div id="planTargets" class="muted"></div>
+      <div class="row" style="margin:8px 0"><button class="main" id="copyPlan">お願いの文をコピー</button></div>
+      <textarea id="planPaste" placeholder="ここにClaudeの答えを貼り付けます"></textarea>
+      <div class="row" style="margin-top:8px"><button class="main" id="savePlan">授業案に入れる</button></div>
+    </div>
+    <div id="slots"></div>
+  </section>
+
+  <section id="tt">
+    <div class="card">
+      <h2>1週間の時間割</h2>
+      <p class="muted">何曜日の何時間目が何の教科かを選びます。国語・算数・理科・社会の時間に授業案を作ります。行事などで変わる日は、「今日の授業」の画面の「この日だけ時間割を変える」で直します。</p>
+      <div class="row" style="margin-bottom:8px">1日の時間数：<select id="periods"><option>5</option><option>6</option><option>7</option></select></div>
+      <div class="ttwrap"><table class="tt" id="ttTable"></table></div>
+    </div>
+  </section>
+
+  <section id="prog">
+    <p class="muted">「次の授業」は、記録をもとにアプリが数えています。アプリを使わずに授業を進めたときなどは、ここで直してください。</p>
+    <div id="progList"></div>
+  </section>
+
+  <section id="recs">
+    <div class="card">
+      <h2>バックアップ</h2>
+      <p class="muted">記録はこのiPadの中だけにしまってあります。Safariの「履歴とWebサイトデータを消去」をすると消えるので、ときどきバックアップを保存してください。保存したファイルは「ファイル」アプリに入ります。</p>
+      <div class="row">
+        <button class="main" id="backup">バックアップを保存</button>
+        <label class="btn" style="display:inline-flex;align-items:center">バックアップから戻す<input type="file" id="restore" accept=".json,application/json" class="hide"></label>
+      </div>
+      <p class="muted" id="lastBackup"></p>
+    </div>
+    <div class="card">
+      <h2>これまでの記録</h2>
+      <div class="row" style="margin-bottom:6px">教科：<select id="recSubj"><option value="">すべて</option></select></div>
+      <div id="recList"></div>
+    </div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+const UNITS = /*UNITS*/;
+const SUBJ4 = ['国語', '算数', '理科', '社会'];
+const OTHERS = ['体育', '音楽', '図工', '家庭', '外国語', '道徳', '総合', '学活', '書写', 'クラブ', '委員会', '行事'];
+const WD = ['日', '月', '火', '水', '木', '金', '土'];
+const KEY = 'mainichi-jugyo-note-v1';
+
+// ---------- 保存 ----------
+function blank() {
+  const tt = {}; for (let w = 1; w <= 5; w++) tt[w] = Array(7).fill('');
+  return { periods: 6, tt, ov: {}, anchor: {}, recs: {}, lastBackup: '' };
+}
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.tt) return Object.assign(blank(), s); } catch (e) {}
+  return blank();
+}
+let S = load();
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('保存できませんでした。バックアップを保存してください'); } }
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+
+// 写真は大きいので IndexedDB にしまう
+let dbp = null;
+function db() {
+  if (!dbp) dbp = new Promise((ok, ng) => {
+    try {
+      const r = indexedDB.open('mainichi-jugyo-note', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('photos');
+      r.onsuccess = () => ok(r.result); r.onerror = () => ng(r.error);
+    } catch (e) { ng(e); }
+  });
+  return dbp;
+}
+async function photoOp(mode, fn) {
+  const d = await db();
+  return new Promise((ok, ng) => { const t = d.transaction('photos', mode); const r = fn(t.objectStore('photos')); t.oncomplete = () => ok(r && r.result); t.onerror = () => ng(t.error); });
+}
+const photoGet = k => photoOp('readonly', s => s.get(k)).catch(() => null);
+const photoPut = (k, v) => photoOp('readwrite', s => s.put(v, k));
+const photoDel = k => photoOp('readwrite', s => s.delete(k)).catch(() => {});
+async function photoAll() {
+  const d = await db(); const out = {};
+  return new Promise((ok, ng) => {
+    const t = d.transaction('photos', 'readonly'); const c = t.objectStore('photos').openCursor();
+    c.onsuccess = () => { const cur = c.result; if (cur) { out[cur.key] = cur.value; cur.continue(); } };
+    t.oncomplete = () => ok(out); t.onerror = () => ng(t.error);
+  });
+}
+
+// ---------- 日付 ----------
+const ds = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const pd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const jd = s => { const d = pd(s); return `${d.getMonth() + 1}月${d.getDate()}日（${WD[d.getDay()]}）`; };
+function shiftDay(s, n) { const d = pd(s); do { d.setDate(d.getDate() + n); } while (d.getDay() === 0 || d.getDay() === 6); return ds(d); }
+function firstDay() { const d = new Date(); return (d.getDay() === 0 || d.getDay() === 6) ? shiftDay(ds(d), 1) : ds(d); }
+let cur = firstDay();
+
+// ---------- 進み具合 ----------
+const units = s => UNITS[s].units;
+function nextPos(s, p) {
+  const us = units(s); if (p.u >= us.length) return p;
+  return p.l + 1 < us[p.u].total ? { u: p.u, l: p.l + 1 } : { u: p.u + 1, l: 0 };
+}
+const keyOf = (date, p) => `${date}|${p}`;
+const recKeys = () => Object.keys(S.recs).sort();
+// date の1時間目より前で、教科 s の「次にやる時間」
+function pointerBefore(s, date) {
+  const lim = keyOf(date, 0);
+  let best = null, bestKey = '';
+  for (const k of recKeys()) { if (k >= lim) break; const r = S.recs[k]; if (r.subj === s && r.u != null) { best = r; bestKey = k; } }
+  const a = S.anchor[s];
+  if (a && a.key <= lim && a.key > bestKey) return { u: a.u, l: a.l };
+  if (best) return best.status === 'cont' ? { u: best.u, l: best.l } : nextPos(s, best);
+  return a && a.key <= lim ? { u: a.u, l: a.l } : { u: 0, l: 0 };
+}
+function daySubjects(date) {
+  const w = pd(date).getDay();
+  const arr = S.ov[date] || S.tt[w] || [];
+  return arr.slice(0, S.periods);
+}
+function daySlots(date) {
+  const subs = daySubjects(date), ptr = {}, out = [];
+  subs.forEach((s, i) => {
+    const p = i + 1, key = keyOf(date, p);
+    if (!SUBJ4.includes(s)) { out.push({ p, s, key }); return; }
+    if (!ptr[s]) ptr[s] = pointerBefore(s, date);
+    let rec = S.recs[key]; if (rec && rec.subj !== s) rec = null;
+    const calc = ptr[s];
+    const pos = rec && rec.u != null ? { u: rec.u, l: rec.l } : calc;
+    const mismatch = !!rec && (rec.u !== calc.u || rec.l !== calc.l);
+    ptr[s] = rec && rec.status === 'cont' ? pos : nextPos(s, pos);
+    out.push({ p, s, key, rec, pos, calc, mismatch });
+  });
+  return out;
+}
+function lessonOf(s, pos) { const u = units(s)[pos.u]; return u ? { unit: u, n: pos.l + 1, lesson: u.lessons[pos.l] || '', short: u.short[pos.l] || '' } : null; }
+function posLabel(s, pos) { const L = lessonOf(s, pos); return L ? `${L.unit.name}　第${L.n}時（全${L.unit.total}時間）` : '全部の単元が終わりました'; }
+function ensureRec(sl) {
+  if (!S.recs[sl.key] || S.recs[sl.key].subj !== sl.s) S.recs[sl.key] = { subj: sl.s, u: sl.pos.u, l: sl.pos.l, plan: '', memo: '', status: '', refl: '', photo: false };
+  return S.recs[sl.key];
+}
+// key より前の、同じ教科のいちばん新しい記録
+function prevRec(s, key) {
+  let best = null;
+  for (const k of recKeys()) { if (k >= key) break; const r = S.recs[k]; if (r.subj === s) best = Object.assign({ key: k }, r); }
+  return best;
+}
+
+// ---------- お願いの文 ----------
+function planPrompt(date, list) {
+  const parts = list.map(sl => {
+    const L = lessonOf(sl.s, sl.pos);
+    let t = `【${sl.p}時間目】${sl.s}\n単元：${L.unit.name}（全${L.unit.total}時間）の第${L.n}時`;
+    if (L.unit.aim) t += `\n単元のねらい：${L.unit.aim}`;
+    if (L.short) t += `\nこの時間のめあて（年間指導計画）：${L.short}`;
+    if (L.lesson) t += `\nこの時間の学習活動（年間指導計画）：${L.lesson}`;
+    const pr = prevRec(sl.s, sl.key);
+    if (pr && (pr.memo || pr.refl || pr.status)) {
+      const pl = lessonOf(sl.s, pr);
+      t += `\n前の時間（${pl ? pl.unit.name + ' 第' + pl.n + '時' : ''}）の振り返り：`;
+      if (pr.status === 'cont') t += '予定の内容が終わらず、続きが残った。';
+      if (pr.status === 'done') t += '予定どおり終わった。';
+      if (pr.refl) t += '\n' + pr.refl.trim();
+      else if (pr.memo) t += '\n' + pr.memo.trim();
+    }
+    if (pr && pr.status === 'cont' && pr.u === sl.pos.u && pr.l === sl.pos.l) t += '\n※前の時間の続きから始める授業にしてください。';
+    return t;
+  });
+  return `小学校6年生の授業案を作ってください。日付は${jd(date)}です。1時間は45分です。
+
+${parts.join('\n\n')}
+
+【書き方】
+・時間ごとに「【1時間目】国語」のように、時間と教科を書いた行から始めてください。
+・それぞれの時間に、次の5つの見出しを、この順に「■」を付けて書いてください。
+　■本時のねらい
+　■授業の流れ（導入・展開・まとめと、それぞれの時間配分）
+　■主な発問
+　■板書計画
+　■評価のポイント
+・年間指導計画の学習活動をもとにしてください。前の時間の振り返りがあるときは、それを生かしてください。
+・教科書のページ番号は、上に書いたもの以外は書かないでください。
+・前置きやあいさつ、最後のまとめのことばは書かないでください。表や太字は使わず、ふつうの文と箇条書きで書いてください。`;
+}
+function reflPrompt(sl, rec) {
+  const L = lessonOf(sl.s, sl.pos);
+  const st = rec.status === 'done' ? '予定どおり終わった' : rec.status === 'cont' ? '予定の内容が終わらず、続きが残った' : '（未記入）';
+  let aim = L.short;
+  const m = (rec.plan || '').match(/■本時のねらい\s*\n([\s\S]*?)(\n■|$)/); if (m) aim = m[1].trim();
+  return `小学校6年生の${sl.s}の授業の振り返りを書いてください。板書の写真を添付します。
+
+単元：${L.unit.name}（全${L.unit.total}時間）の第${L.n}時
+本時のねらい：${aim}
+授業の結果：${st}
+授業者のメモ：${(rec.memo || '').trim() || '（なし）'}
+
+【書き方】
+・「できたこと」「課題」「次の時間に生かすこと」の3つの見出しを「■」を付けて書いてください。
+・全体で200字くらいにしてください。
+・メモと写真から分かることだけを書き、ほかの出来事を付け加えないでください。
+・前置きやあいさつは書かないでください。表や太字は使わないでください。`;
+}
+function cleanText(t) {
+  return t.replace(/\r\n?/g, '\n').replace(/\*\*/g, '').replace(/^#{1,6}\s*/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// ---------- 画面 ----------
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2600); }
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); toast('コピーしました。Claudeに貼り付けてください'); return; } catch (e) {}
+  const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+  let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+  ta.remove(); toast(ok ? 'コピーしました。Claudeに貼り付けてください' : 'コピーできませんでした');
+}
+function renderPlan(t) {
+  return t.split('\n').map(line => /^\s*(■|【)/.test(line) ? `<div class="h">${esc(line.trim())}</div>` : `<div>${esc(line)}</div>`).join('');
+}
+function subjOptions(sel) {
+  return `<option value="">（なし）</option>` + [...SUBJ4, ...OTHERS].map(s => `<option${s === sel ? ' selected' : ''}>${s}</option>`).join('');
+}
+function unitOptions(s, u) { return units(s).map((x, i) => `<option value="${i}"${i === u ? ' selected' : ''}>${esc(x.name)}（${x.total}時間）</option>`).join(''); }
+function lessonOptions(s, u, l) { const x = units(s)[u]; return x ? Array.from({ length: x.total }, (_, i) => `<option value="${i}"${i === l ? ' selected' : ''}>第${i + 1}時</option>`).join('') : ''; }
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('main section').forEach(x => x.classList.toggle('on', x.id === b.dataset.tab));
+  render(); window.scrollTo(0, 0);
+});
+
+let planTargetKeys = [];
+function renderToday() {
+  $('dateLabel').textContent = jd(cur) + (cur === ds(new Date()) ? '・今日' : '');
+  $('editDay').textContent = S.ov[cur] ? 'この日の時間割を直す（変更あり）' : 'この日だけ時間割を変える';
+  const slots = daySlots(cur);
+  const targets = slots.filter(sl => SUBJ4.includes(sl.s) && lessonOf(sl.s, sl.pos));
+  const noPlan = targets.filter(sl => !(sl.rec && sl.rec.plan));
+  const use = noPlan.length ? noPlan : targets;
+  planTargetKeys = use.map(sl => sl.key);
+  $('planBox').classList.toggle('hide', !targets.length);
+  $('planTargets').textContent = use.length ? `作る時間：${use.map(sl => sl.p + '時間目 ' + sl.s).join('、')}` + (noPlan.length ? '' : '（全部できているので、作り直しになります）') : '';
+  if (!slots.length) { $('slots').innerHTML = `<div class="card muted">この日の時間割が入っていません。「時間割」で入れてください。</div>`; return; }
+  $('slots').innerHTML = slots.map(sl => slotHtml(sl)).join('');
+  slots.forEach(sl => bindSlot(sl));
+}
+function slotHtml(sl) {
+  if (!SUBJ4.includes(sl.s)) return `<div class="slot"><div class="hd"><div class="pn other">${sl.p}</div><div class="ttl"><b>${esc(sl.s || '（なし）')}</b></div></div></div>`;
+  const r = sl.rec || {}, L = lessonOf(sl.s, sl.pos), k = esc(sl.key);
+  const tag = r.status === 'done' ? '<span class="tag done">終わった</span>' : r.status === 'cont' ? '<span class="tag cont">続きあり</span>' : r.plan ? '<span class="tag plan">授業案あり</span>' : '';
+  let h = `<div class="slot" id="s-${k}"><div class="hd"><div class="pn">${sl.p}</div><div class="ttl"><b>${esc(sl.s)}</b>${tag}<div>${esc(posLabel(sl.s, sl.pos))}</div>${L && L.short ? `<div class="muted">${esc(L.short)}</div>` : ''}</div></div><div class="bd">`;
+  if (sl.mismatch) h += `<div class="warn">前の時間の記録が変わったので、この時間は「${esc(posLabel(sl.s, sl.calc))}」になるはずです。<br><button class="small" data-act="fix">そちらに合わせる</button></div>`;
+  h += `<details data-k="chg"><summary class="muted">単元・時間を変える</summary><div class="row" style="margin:6px 0"><select data-f="u">${unitOptions(sl.s, sl.pos.u)}</select><select data-f="l">${lessonOptions(sl.s, sl.pos.u, sl.pos.l)}</select><button class="small" data-act="setpos">変える</button></div></details>`;
+  if (!L) return h + '</div></div>';
+  if (r.plan) h += `<details${r.status ? '' : ' open'}><summary>授業案</summary><div class="plan">${renderPlan(r.plan)}</div><button class="small" data-act="delplan">授業案を消す</button></details>`;
+  else if (L.lesson) h += `<details><summary class="muted">年間指導計画の学習活動</summary><div class="plan">${renderPlan(L.lesson)}</div></details>`;
+  h += `<details${(r.memo || r.photo) && !r.refl ? ' open' : ''}><summary>授業のあとの振り返り${r.refl ? '（保存ずみ）' : ''}</summary>
+    <h3>1. 板書の写真</h3>
+    <div class="photoBox"></div>
+    <label class="btn" style="display:inline-flex;align-items:center">${r.photo ? '写真を撮り直す' : '写真を撮る・選ぶ'}<input type="file" accept="image/*" class="hide" data-f="photo"></label>
+    ${r.photo ? '<button class="small" data-act="delphoto">写真を消す</button>' : ''}
+    <h3>2. 一言メモ</h3>
+    <textarea data-f="memo" placeholder="例：時間が足りなかった。〇〇のところでつまずいた子が多かった。">${esc(r.memo || '')}</textarea>
+    <h3>3. 予定の内容は</h3>
+    <div class="radio"><label><input type="radio" name="st-${k}" value="done"${r.status === 'done' ? ' checked' : ''}>予定どおり終わった</label><label><input type="radio" name="st-${k}" value="cont"${r.status === 'cont' ? ' checked' : ''}>続きが残った（次もこの時間の続き）</label></div>
+    <h3>4. Claudeに振り返りを書いてもらう</h3>
+    <ol class="steps muted"><li>「お願いの文をコピー」をおす</li><li>Claudeに貼り付け、板書の写真も添付して送る（写真は「写真」アプリから選びます。この画面の写真を長押しすると「写真」アプリに保存できます）</li><li>Claudeの答えをコピーして、下の欄に貼り付け、「振り返りを保存」をおす</li></ol>
+    <div class="row" style="margin-bottom:8px"><button class="main" data-act="copyrefl">お願いの文をコピー</button></div>
+    <textarea data-f="refl" placeholder="ここにClaudeの振り返りを貼り付けます（自分で書いても大丈夫です）">${esc(r.refl || '')}</textarea>
+    <div class="row" style="margin-top:8px"><button class="main" data-act="saverefl">振り返りを保存</button></div>
+  </details>`;
+  return h + '</div></div>';
+}
+function bindSlot(sl) {
+  if (!SUBJ4.includes(sl.s)) return;
+  const el = document.getElementById('s-' + sl.key); if (!el) return;
+  const q = s => el.querySelector(s);
+  const memo = q('[data-f=memo]'), refl = q('[data-f=refl]');
+  const keep = () => { if (memo && (memo.value || S.recs[sl.key])) { const r = ensureRec(sl); r.memo = memo.value; save(); } };
+  if (memo) memo.onchange = keep;
+  el.querySelectorAll(`input[name="st-${sl.key}"]`).forEach(x => x.onchange = () => { const r = ensureRec(sl); r.memo = memo.value; r.status = x.value; save(); render(); toast(x.value === 'cont' ? '次の時間は、この時間の続きになります' : '次の時間は、次の内容に進みます'); });
+  const us = q('[data-f=u]'), ls = q('[data-f=l]');
+  if (us) us.onchange = () => { ls.innerHTML = lessonOptions(sl.s, +us.value, 0); };
+  el.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
+    const a = b.dataset.act;
+    if (a === 'setpos') { const r = ensureRec(sl); r.u = +us.value; r.l = +ls.value; save(); render(); toast('変えました'); }
+    if (a === 'fix') { const r = ensureRec(sl); r.u = sl.calc.u; r.l = sl.calc.l; if (r.plan && confirm('この時間の授業案は前の内容のものです。消しますか？')) r.plan = ''; save(); render(); }
+    if (a === 'delplan') { if (confirm('この時間の授業案を消しますか？')) { ensureRec(sl).plan = ''; save(); render(); } }
+    if (a === 'copyrefl') { const r = ensureRec(sl); r.memo = memo.value; save(); copy(reflPrompt(sl, r)); }
+    if (a === 'saverefl') { const r = ensureRec(sl); r.memo = memo.value; r.refl = cleanText(refl.value); save(); render(); toast('振り返りを保存しました'); }
+    if (a === 'delphoto') { if (confirm('写真を消しますか？')) { await photoDel(sl.key); ensureRec(sl).photo = false; save(); render(); } }
+  });
+  const ph = q('[data-f=photo]');
+  if (ph) ph.onchange = async () => {
+    const f = ph.files[0]; if (!f) return;
+    try { const url = await shrink(f); await photoPut(sl.key, url); const r = ensureRec(sl); r.memo = memo.value; r.photo = true; save(); render(); toast('写真を入れました'); }
+    catch (e) { toast('写真を入れられませんでした'); }
+  };
+  if (sl.rec && sl.rec.photo) photoGet(sl.key).then(u => { const box = q('.photoBox'); if (u && box) box.innerHTML = `<img class="photo" src="${u}" alt="板書の写真">`; });
+}
+function shrink(file) {
+  return new Promise((ok, ng) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const m = 1600, sc = Math.min(1, m / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      ok(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); ng(new Error('img')); };
+    img.src = url;
+  });
+}
+
+$('prevDay').onclick = () => { cur = shiftDay(cur, -1); $('dayEdit').classList.add('hide'); render(); };
+$('nextDay').onclick = () => { cur = shiftDay(cur, 1); $('dayEdit').classList.add('hide'); render(); };
+$('goToday').onclick = () => { cur = firstDay(); $('dayEdit').classList.add('hide'); render(); };
+$('editDay').onclick = () => {
+  const box = $('dayEdit');
+  if (!box.classList.contains('hide')) { box.classList.add('hide'); return; }
+  const subs = daySubjects(cur);
+  box.innerHTML = `<p class="muted">${esc(jd(cur))}だけの時間割です。いつもの時間割は変わりません。</p><div class="row">` +
+    Array.from({ length: S.periods }, (_, i) => `<label>${i + 1}時間目 <select data-i="${i}">${subjOptions(subs[i] || '')}</select></label>`).join('') +
+    `</div><div class="row" style="margin-top:8px"><button class="main small" id="ovSave">この日の時間割にする</button>${S.ov[cur] ? '<button class="small" id="ovReset">いつもの時間割にもどす</button>' : ''}</div>`;
+  box.classList.remove('hide');
+  $('ovSave').onclick = () => { S.ov[cur] = Array.from(box.querySelectorAll('select'), s => s.value); save(); box.classList.add('hide'); render(); toast('この日の時間割を変えました'); };
+  if ($('ovReset')) $('ovReset').onclick = () => { delete S.ov[cur]; save(); box.classList.add('hide'); render(); };
+};
+$('copyPlan').onclick = () => {
+  const slots = daySlots(cur).filter(sl => planTargetKeys.includes(sl.key));
+  if (!slots.length) { toast('授業案を作る時間がありません'); return; }
+  copy(planPrompt(cur, slots));
+};
+$('savePlan').onclick = () => {
+  const text = cleanText($('planPaste').value);
+  if (!text) { toast('Claudeの答えを貼り付けてください'); return; }
+  const slots = daySlots(cur).filter(sl => SUBJ4.includes(sl.s));
+  const re = /【\s*([0-9０-９]+)\s*時間目[^】]*】/g, marks = [];
+  let m; while ((m = re.exec(text))) marks.push({ p: +m[1].replace(/[０-９]/g, c => c.charCodeAt(0) - 0xFF10), i: m.index });
+  const got = {};
+  if (marks.length) marks.forEach((mk, j) => { got[mk.p] = text.slice(mk.i, j + 1 < marks.length ? marks[j + 1].i : text.length).trim(); });
+  else if (planTargetKeys.length === 1) got[+planTargetKeys[0].split('|')[1]] = text;
+  let n = 0;
+  slots.forEach(sl => { if (got[sl.p]) { const r = ensureRec(sl); r.plan = got[sl.p].replace(/^【[^】]*】[^\n]*\n?/, '').trim(); n++; } });
+  if (!n) { toast('「【1時間目】」のような行が見つかりませんでした'); return; }
+  save(); $('planPaste').value = ''; render(); toast(`${n}時間分の授業案を入れました`);
+};
+
+function renderTT() {
+  $('periods').value = S.periods;
+  let h = '<tr><th></th>' + [1, 2, 3, 4, 5].map(w => `<th>${WD[w]}</th>`).join('') + '</tr>';
+  for (let p = 0; p < S.periods; p++) h += `<tr><th>${p + 1}</th>` + [1, 2, 3, 4, 5].map(w => `<td><select data-w="${w}" data-p="${p}">${subjOptions(S.tt[w][p] || '')}</select></td>`).join('') + '</tr>';
+  $('ttTable').innerHTML = h;
+  $('ttTable').querySelectorAll('select').forEach(s => s.onchange = () => { S.tt[s.dataset.w][+s.dataset.p] = s.value; save(); toast('時間割を保存しました'); });
+}
+$('periods').onchange = () => { S.periods = +$('periods').value; save(); renderTT(); };
+
+function renderProg() {
+  const today = ds(new Date());
+  $('progList').innerHTML = SUBJ4.map(s => {
+    const us = units(s), ptr = pointerBefore(s, today), doneSet = {};
+    Object.values(S.recs).forEach(r => { if (r.subj === s && r.u != null && r.status === 'done') doneSet[r.u + '-' + r.l] = 1; });
+    const total = us.reduce((a, u) => a + u.total, 0), done = Object.keys(doneSet).length;
+    const list = us.map((u, i) => { let c = 0; for (let l = 0; l < u.total; l++) if (doneSet[i + '-' + l]) c++; return `<li class="${i === ptr.u ? 'now' : ''}"><span>${u.month ? u.month + '月　' : ''}${esc(u.name)}</span><span>${c}/${u.total}</span></li>`; }).join('');
+    return `<div class="card" data-s="${s}"><h2>${s}</h2><div class="muted">${esc(UNITS[s].label)}</div>
+      <div>今日からの次の授業：<b>${esc(posLabel(s, ptr))}</b></div>
+      <div class="bar"><i style="width:${Math.round(done / total * 100)}%"></i></div><div class="muted">「終わった」にした時間：${done} / ${total}時間</div>
+      <details><summary class="muted">次の授業を直す</summary><div class="row" style="margin:6px 0"><select data-f="u">${unitOptions(s, Math.min(ptr.u, us.length - 1))}</select><select data-f="l">${lessonOptions(s, Math.min(ptr.u, us.length - 1), ptr.l)}</select><button class="small main" data-act="anchor">ここから始める</button></div><div class="muted">今日の1時間目から、ここを「次の授業」として数えます。</div></details>
+      <details><summary class="muted">単元の一覧</summary><ul class="unitlist">${list}</ul></details></div>`;
+  }).join('');
+  $('progList').querySelectorAll('.card').forEach(c => {
+    const s = c.dataset.s, us = c.querySelector('[data-f=u]'), ls = c.querySelector('[data-f=l]');
+    us.onchange = () => { ls.innerHTML = lessonOptions(s, +us.value, 0); };
+    c.querySelector('[data-act=anchor]').onclick = () => {
+      S.anchor[s] = { u: +us.value, l: +ls.value, key: keyOf(today, 0) };
+      // 今日より後に作ってあった時間は、新しい数え方に合わせて組み直す
+      Object.keys(S.recs).forEach(k => { const r = S.recs[k]; if (r.subj === s && k > keyOf(today, 0) && !r.plan && !r.memo && !r.refl && !r.photo && !r.status) delete S.recs[k]; });
+      save(); renderProg(); toast(`${s}の次の授業を直しました`);
+    };
+  });
+}
+
+function renderRecs() {
+  const sel = $('recSubj');
+  if (sel.options.length === 1) SUBJ4.forEach(s => sel.add(new Option(s, s)));
+  const f = sel.value;
+  const ks = recKeys().reverse().filter(k => { const r = S.recs[k]; return (!f || r.subj === f) && (r.plan || r.refl || r.memo || r.status || r.photo); });
+  $('recList').innerHTML = ks.length ? ks.map(k => {
+    const r = S.recs[k], [d, p] = k.split('|');
+    const st = r.status === 'done' ? '<span class="tag done">終わった</span>' : r.status === 'cont' ? '<span class="tag cont">続きあり</span>' : '';
+    const body = r.refl || r.memo || '';
+    return `<div class="rec" data-d="${d}"><b>${esc(jd(d))} ${p}時間目 ${esc(r.subj)}</b>${st}${r.photo ? '<span class="tag plan">写真</span>' : ''}<div>${esc(posLabel(r.subj, r))}</div>${body ? `<div class="muted">${esc(body.length > 90 ? body.slice(0, 90) + '…' : body)}</div>` : ''}</div>`;
+  }).join('') : '<p class="muted">まだ記録がありません。</p>';
+  $('recList').querySelectorAll('.rec').forEach(x => x.onclick = () => { cur = x.dataset.d; document.querySelector('nav button[data-tab=today]').click(); });
+  $('lastBackup').textContent = S.lastBackup ? `前回のバックアップ：${S.lastBackup}` : 'まだバックアップを保存していません。';
+}
+$('recSubj').onchange = renderRecs;
+$('backup').onclick = async () => {
+  let photos = {}; try { photos = await photoAll(); } catch (e) {}
+  const now = new Date();
+  S.lastBackup = `${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`; save();
+  const blob = new Blob([JSON.stringify({ app: 'mainichi-jugyo-note', ver: 1, data: S, photos })], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `授業ノート_バックアップ_${ds(now)}.json`;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  renderRecs(); toast('バックアップを保存しました');
+};
+$('restore').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (j.app !== 'mainichi-jugyo-note' || !j.data) throw new Error('ちがうファイル');
+    if (!confirm('今の記録を、バックアップの内容に入れかえます。よろしいですか？')) return;
+    S = Object.assign(blank(), j.data); save();
+    for (const [k, v] of Object.entries(j.photos || {})) await photoPut(k, v);
+    render(); toast('バックアップから戻しました');
+  } catch (err) { toast('このファイルは読みこめませんでした'); }
+};
+
+function render() {
+  const on = document.querySelector('main section.on').id;
+  if (on === 'today') renderToday(); else if (on === 'tt') renderTT(); else if (on === 'prog') renderProg(); else renderRecs();
+}
+if (!Object.values(S.tt).some(a => a.some(Boolean))) document.querySelector('nav button[data-tab=tt]').click(); else render();
+</script>
+</body>
+</html>
