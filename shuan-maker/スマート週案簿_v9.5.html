@@ -347,7 +347,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v9.4";
+const VERSION = "v9.5";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -779,15 +779,22 @@ function currentFileName() {
   try { const p = decodeURIComponent(location.pathname); return p.slice(p.lastIndexOf("/") + 1); } catch (e) { return ""; }
 }
 // 保存先（ファイルの場所）を覚えておく
+// 学校のパソコンの設定によっては、ブラウザの中の保管場所が返事をしないことがある。
+// そのときに保存が止まったままにならないよう、少し待っても返事がなければ「覚えていない」として先へ進む
+const withTimeout = (p, ms, v) => Promise.race([p, new Promise(r => setTimeout(() => r(v), ms))]);
 function idb() {
   return new Promise((res, rej) => {
     const r = indexedDB.open("shuan-tsukuru", 1);
     r.onupgradeneeded = () => r.result.createObjectStore("h");
-    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error("blocked"));
   });
 }
-async function idbGet(k) { try { const db = await idb(); return await new Promise(r => { const q = db.transaction("h").objectStore("h").get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null); }); } catch (e) { return null; } }
-async function idbSet(k, v) { try { const db = await idb(); await new Promise(r => { const t = db.transaction("h", "readwrite"); t.objectStore("h").put(v, k); t.oncomplete = r; t.onerror = r; }); } catch (e) {} }
+async function idbGet(k) {
+  try { return await withTimeout((async () => { const db = await idb(); return await new Promise(r => { const t = db.transaction("h"); const q = t.objectStore("h").get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null); t.onabort = () => r(null); }); })(), 2000, null); } catch (e) { return null; }
+}
+async function idbSet(k, v) {
+  try { await withTimeout((async () => { const db = await idb(); await new Promise(r => { const t = db.transaction("h", "readwrite"); t.objectStore("h").put(v, k); t.oncomplete = r; t.onerror = r; t.onabort = r; }); })(), 2000); } catch (e) {}
+}
 let handle = null;
 function download(name, text, type = "text/html") {
   const a = document.createElement("a");
@@ -811,7 +818,7 @@ async function safeToOverwrite(h) {
     "\n上書きすると、そのデータは消えます。\n\n上書きするときは「OK」、別のファイルに保存するときは「キャンセル」を押してください。");
 }
 async function save() {
-  if (save.busy) return;   // 2回続けて押したとき
+  if (save.busy) { toast("保存しています。保存先を選ぶ画面が出ていたら、そちらで選んでください"); return; }   // 2回続けて押したとき
   // 入力中の欄の内容を先に確定させる（欄から出たときに入る欄があるため）
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
   save.busy = true;
