@@ -17,7 +17,7 @@ Sub 教材を出す()
 
     Dim clsNum(1 To 5) As Double, j As Long
     For j = 1 To 5
-        clsNum(j) = Val(ThisWorkbook.Worksheets("設定").Cells(6 + j, 3).Value)
+        clsNum(j) = Val(ThisWorkbook.Worksheets("設定").Cells(7 + j, 3).Value)
     Next j
 
     ' 一覧を空にする（D列の式は残す）
@@ -82,22 +82,22 @@ Sub 発注書をつくる()
     If Not ReadInput(company, kai, isTennyu, tClass, tNum) Then Exit Sub
 
     If CStr(wsIn.Range("O14").Value) <> InputKey() Then
-        MsgBox "会社名や何回目が変わっています。先に「教材を出す」を押してください。", vbExclamation
+        MsgBox "会社名・何回目・転入生の分かどうかが変わっています。先に「教材を出す」を押してください。", vbExclamation
         Exit Sub
     End If
 
     Dim orderDate As Date, deliver As String
-    If IsDate(wsIn.Range("C7").Value) Then
-        orderDate = CDate(wsIn.Range("C7").Value)
+    If IsDate(wsIn.Range("D7").Value) Then
+        orderDate = CDate(wsIn.Range("D7").Value)
     Else
         orderDate = Date
     End If
-    deliver = CStr(wsIn.Range("C8").Value)
+    deliver = CStr(wsIn.Range("D8").Value)
 
     Dim clsName(1 To 5) As String, clsNum(1 To 5) As Double, j As Long
     For j = 1 To 5
-        clsName(j) = Trim(CStr(wsSet.Cells(6 + j, 2).Value))
-        clsNum(j) = Val(wsSet.Cells(6 + j, 3).Value)
+        clsName(j) = Trim(CStr(wsSet.Cells(7 + j, 2).Value))
+        clsNum(j) = Val(wsSet.Cells(7 + j, 3).Value)
     Next j
 
     ' --- 一覧から「頼む」に何か入っている行を集める ---
@@ -155,8 +155,8 @@ Sub 発注書をつくる()
         ws.Range("G6").Value = company
         ws.Range("AZ6").Value = Month(orderDate)
         ws.Range("BD6").Value = Day(orderDate)
-        ws.Range("AU10").Value = wsSet.Range("C4").Value
-        ws.Range("D12").Value = wsSet.Range("C3").Value
+        ws.Range("AU10").Value = wsSet.Range("C5").Value
+        ws.Range("D12").Value = wsSet.Range("C4").Value
         ws.Range("O14").Value = pages
         ws.Range("AF14").Value = deliver
         For j = 1 To 5
@@ -222,9 +222,9 @@ Private Function ReadInput(company As String, kai As Long, isTennyu As Boolean, 
     Set wsIn = ThisWorkbook.Worksheets("発注")
     Set wsSet = ThisWorkbook.Worksheets("設定")
     ReadInput = False
-    company = Trim(CStr(wsIn.Range("C4").Value))
-    kai = Val(Left(CStr(wsIn.Range("C5").Value), 1))
-    isTennyu = (Trim(CStr(wsIn.Range("C6").Value)) = "転入")
+    company = Trim(CStr(wsIn.Range("D4").Value))
+    kai = Val(Left(CStr(wsIn.Range("D5").Value), 1))
+    isTennyu = (Trim(CStr(wsIn.Range("D6").Value)) = "はい")
     If company = "" Then
         MsgBox "「会社名」を選んでください。", vbExclamation
         Exit Function
@@ -236,25 +236,25 @@ Private Function ReadInput(company As String, kai As Long, isTennyu As Boolean, 
     tClass = 0
     tNum = 0
     If isTennyu Then
-        tNum = Val(wsIn.Range("C12").Value)
+        tNum = Val(wsIn.Range("D12").Value)
         For j = 1 To 5
-            If Trim(CStr(wsSet.Cells(6 + j, 2).Value)) <> "" And _
-               Trim(CStr(wsSet.Cells(6 + j, 2).Value)) = Trim(CStr(wsIn.Range("C11").Value)) Then tClass = j
+            If Trim(CStr(wsSet.Cells(7 + j, 2).Value)) <> "" And _
+               Trim(CStr(wsSet.Cells(7 + j, 2).Value)) = Trim(CStr(wsIn.Range("D11").Value)) Then tClass = j
         Next j
         If tClass = 0 Or tNum <= 0 Then
-            MsgBox "転入のときは「転入の組」と「転入の人数」を入れてください。", vbExclamation
+            MsgBox "転入生の分のときは「転入の組」と「転入の人数」を入れてください。", vbExclamation
             Exit Function
         End If
     End If
     ReadInput = True
 End Function
 
-' 会社名・何回目・種類・転入の組と人数をまとめた文字（入力が変わったか調べるため）
+' 会社名・何回目・転入生の分か・転入の組と人数をまとめた文字（入力が変わったか調べるため）
 Private Function InputKey() As String
     Dim wsIn As Worksheet
     Set wsIn = ThisWorkbook.Worksheets("発注")
-    InputKey = Trim(CStr(wsIn.Range("C4").Value)) & "|" & CStr(wsIn.Range("C5").Value) & "|" & _
-               CStr(wsIn.Range("C6").Value) & "|" & CStr(wsIn.Range("C11").Value) & "|" & CStr(wsIn.Range("C12").Value)
+    InputKey = Trim(CStr(wsIn.Range("D4").Value)) & "|" & CStr(wsIn.Range("D5").Value) & "|" & _
+               CStr(wsIn.Range("D6").Value) & "|" & CStr(wsIn.Range("D11").Value) & "|" & CStr(wsIn.Range("D12").Value)
 End Function
 
 ' 今回の発注で出すものか
