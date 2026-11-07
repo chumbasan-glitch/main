@@ -176,6 +176,13 @@ Sub 発注書をつくる()
                 ws.Range("BB" & rw).Value = wsIn.Cells(itRow(idx), 14).Value
             End If
         Next k
+
+        ' 冊数合計の式を入れ直し、教材の欄の取り消し線を外す
+        For k = 1 To ROWS_PER_PAGE
+            rw = FIRST_ROW + (k - 1) * 2
+            ws.Range("AP" & rw).Formula = "=IF(SUM(AA" & rw & ":AO" & (rw + 1) & ")>0,SUM(AA" & rw & ":AO" & (rw + 1) & "),"""")"
+        Next k
+        ws.Range("C" & FIRST_ROW & ":BG" & (FIRST_ROW + ROWS_PER_PAGE * 2 - 1)).Font.Strikethrough = False
     Next p
     Application.ScreenUpdating = True
 
