@@ -3,17 +3,19 @@ Option Explicit
 
 Private Const FIRST_ROW As Long = 21    ' 発注書の教材1行目
 Private Const ROWS_PER_PAGE As Long = 7 ' 発注書1枚に入る教材の数
-Private Const T_FIRST As Long = 16      ' 発注シートの一覧の1行目
-Private Const T_LAST As Long = 45       ' 発注シートの一覧の最後の行
+Private Const T_FIRST As Long = 19      ' 発注シートの一覧の1行目
+Private Const T_LAST As Long = 48       ' 発注シートの一覧の最後の行
+Private Const KEY_CELL As String = "O17" ' 「教材を出す」を押したときの入力を覚えておく場所
+Private Const CK_FIRST As Long = 4      ' 発注済確認リストの1行目
 
-' ===== ボタン1：教材を出す =====
+' ===== ボタン：教材を出す =====
 Sub 教材を出す()
     Dim wsIn As Worksheet, wsList As Worksheet
     Set wsIn = ThisWorkbook.Worksheets("発注")
     Set wsList = ThisWorkbook.Worksheets("教材リスト")
 
-    Dim company As String, kai As Long, isTennyu As Boolean, tClass As Long, tNum As Double
-    If Not ReadInput(company, kai, isTennyu, tClass, tNum) Then Exit Sub
+    Dim company As String, kai As Long, isTennyu As Boolean, tNum(1 To 5) As Double
+    If Not ReadInput(company, kai, isTennyu, tNum) Then Exit Sub
 
     Dim clsNum(1 To 5) As Double, j As Long
     For j = 1 To 5
@@ -45,7 +47,7 @@ Sub 教材を出す()
                 wsIn.Cells(t, 7).Value = per
                 For j = 1 To 5
                     If isTennyu Then
-                        If j = tClass Then wsIn.Cells(t, 7 + j).Value = tNum * per
+                        If tNum(j) > 0 Then wsIn.Cells(t, 7 + j).Value = tNum(j) * per
                     ElseIf clsNum(j) > 0 Then
                         wsIn.Cells(t, 7 + j).Value = clsNum(j) * per
                     End If
@@ -58,8 +60,8 @@ Sub 教材を出す()
         End If
     Next r
 
-    ' どの会社・何回目で出したかを覚えておく
-    wsIn.Range("O14").Value = InputKey()
+    wsIn.Range(KEY_CELL).Value = InputKey()
+    UpdateCheckList
 
     If t = T_FIRST Then
         MsgBox "「" & company & "」の" & kai & "回目に頼む教材は、教材リストにありません。" & vbCrLf & _
@@ -70,7 +72,7 @@ Sub 教材を出す()
     End If
 End Sub
 
-' ===== ボタン2：発注書をつくる =====
+' ===== ボタン：発注書をつくる =====
 Sub 発注書をつくる()
     Dim wsIn As Worksheet, wsSet As Worksheet, wsList As Worksheet, wsTmp As Worksheet
     Set wsIn = ThisWorkbook.Worksheets("発注")
@@ -78,10 +80,10 @@ Sub 発注書をつくる()
     Set wsList = ThisWorkbook.Worksheets("教材リスト")
     Set wsTmp = ThisWorkbook.Worksheets("発注書ひな形")
 
-    Dim company As String, kai As Long, isTennyu As Boolean, tClass As Long, tNum As Double
-    If Not ReadInput(company, kai, isTennyu, tClass, tNum) Then Exit Sub
+    Dim company As String, kai As Long, isTennyu As Boolean, tNum(1 To 5) As Double
+    If Not ReadInput(company, kai, isTennyu, tNum) Then Exit Sub
 
-    If CStr(wsIn.Range("O14").Value) <> InputKey() Then
+    If CStr(wsIn.Range(KEY_CELL).Value) <> InputKey() Then
         MsgBox "会社名・何回目・転入生の分かどうかが変わっています。先に「教材を出す」を押してください。", vbExclamation
         Exit Sub
     End If
@@ -121,7 +123,7 @@ Sub 発注書をつくる()
                 If hasNum Then
                     itQty(n, j) = wsIn.Cells(t, 7 + j).Value
                 ElseIf isTennyu Then
-                    If j = tClass Then itQty(n, j) = tNum * per
+                    If tNum(j) > 0 Then itQty(n, j) = tNum(j) * per
                 ElseIf clsName(j) <> "" And clsNum(j) > 0 Then
                     itQty(n, j) = clsNum(j) * per
                 End If
@@ -139,7 +141,7 @@ Sub 発注書をつくる()
     Dim ws As Worksheet, firstWs As Worksheet, baseName As String, colLetters As Variant
     colLetters = Array("AA", "AD", "AG", "AJ", "AM")
     pages = (n + ROWS_PER_PAGE - 1) \ ROWS_PER_PAGE
-    baseName = "R" & (Year(orderDate) - 2018) & "、" & Month(orderDate) & "月 " & CleanName(company)
+    baseName = ReiwaText(orderDate, "、") & "月 " & CleanName(company)
 
     Application.ScreenUpdating = False
     For p = 1 To pages
@@ -214,13 +216,151 @@ Sub 発注書をつくる()
             End If
         End If
     Next idx
+
+    ' --- 発注済確認リストに書く ---
+    UpdateCheckList
+    For idx = 1 To n
+        MarkOrdered company, itName(idx), orderDate, isTennyu
+    Next idx
 End Sub
 
+' ===== ボタン：確認リストを新しくする（発注済確認リストのシートで使う） =====
+Sub 確認リストを新しくする()
+    UpdateCheckList
+    MsgBox "発注済確認リストを、教材リストに合わせて新しくしました。", vbInformation
+End Sub
+
+' 教材リストから発注済確認リストをつくり直す。○・発注日・備考は消さずに残す
+Private Sub UpdateCheckList()
+    Dim wsList As Worksheet, wsCk As Worksheet
+    Set wsList = ThisWorkbook.Worksheets("教材リスト")
+    Set wsCk = ThisWorkbook.Worksheets("発注済確認リスト")
+
+    ' 今の確認リストを覚えておく
+    Dim oldLast As Long, oldN As Long, r As Long, i As Long
+    oldLast = wsCk.Cells(wsCk.Rows.Count, 6).End(xlUp).Row
+    If oldLast < CK_FIRST Then oldLast = CK_FIRST - 1
+    oldN = oldLast - CK_FIRST + 1
+    Dim oKey() As String, oName() As String, oMark() As Variant, oDate() As Variant, oNote() As Variant, oUsed() As Boolean
+    If oldN > 0 Then
+        ReDim oKey(1 To oldN), oName(1 To oldN), oMark(1 To oldN), oDate(1 To oldN), oNote(1 To oldN), oUsed(1 To oldN)
+        For i = 1 To oldN
+            r = CK_FIRST + i - 1
+            oKey(i) = CStr(wsCk.Cells(r, 6).Value)
+            oName(i) = CStr(wsCk.Cells(r, 3).Value)
+            oMark(i) = wsCk.Cells(r, 2).Value
+            oDate(i) = wsCk.Cells(r, 4).Value
+            oNote(i) = wsCk.Cells(r, 5).Value
+        Next i
+    End If
+
+    ' 教材リストから、上刊・下刊や1学期〜3学期に分けた行をつくる
+    Dim lastRow As Long, company As String, baseName As String, howTo As String
+    Dim names(1 To 3) As String, m As Long, k As Long
+    Dim nKey() As String, nName() As String, nN As Long
+    lastRow = wsList.Cells(wsList.Rows.Count, 3).End(xlUp).Row
+    ReDim nKey(1 To (lastRow + 1) * 3 + oldN), nName(1 To (lastRow + 1) * 3 + oldN)
+    For r = 4 To lastRow
+        company = Trim(CStr(wsList.Cells(r, 2).Value))
+        baseName = Trim(CStr(wsList.Cells(r, 3).Value))
+        howTo = Trim(CStr(wsList.Cells(r, 5).Value))
+        If baseName <> "" Then
+            Select Case HowToKind(howTo)
+                Case 2
+                    m = 2: names(1) = baseName & " 上刊": names(2) = baseName & " 下刊"
+                Case 3
+                    m = 3: names(1) = baseName & " 1学期": names(2) = baseName & " 2学期": names(3) = baseName & " 3学期"
+                Case Else
+                    m = 1: names(1) = baseName
+            End Select
+            For k = 1 To m
+                If FindIndex(nKey, nN, company & "|" & names(k)) = 0 Then
+                    nN = nN + 1
+                    nKey(nN) = company & "|" & names(k)
+                    nName(nN) = names(k)
+                End If
+            Next k
+        End If
+    Next r
+
+    ' 教材リストにないが、○や備考が入っている行は残す
+    For i = 1 To oldN
+        If oKey(i) <> "" And FindIndex(nKey, nN, oKey(i)) = 0 Then
+            If Trim(CStr(oMark(i))) <> "" Or Trim(CStr(oNote(i))) <> "" Then
+                nN = nN + 1
+                nKey(nN) = oKey(i)
+                nName(nN) = oName(i)
+            End If
+        End If
+    Next i
+
+    ' 書き直す
+    If oldN > 0 Then wsCk.Range("B" & CK_FIRST & ":F" & oldLast).ClearContents
+    For k = 1 To nN
+        r = CK_FIRST + k - 1
+        wsCk.Cells(r, 3).Value = nName(k)
+        wsCk.Cells(r, 6).Value = nKey(k)
+        If oldN > 0 Then
+            i = FindIndex(oKey, oldN, nKey(k))
+            If i > 0 Then
+                wsCk.Cells(r, 2).Value = oMark(i)
+                wsCk.Cells(r, 4).Value = oDate(i)
+                wsCk.Cells(r, 5).Value = oNote(i)
+            End If
+        End If
+    Next k
+End Sub
+
+' 発注した教材に○と発注日をつける。転入生の分は備考に書き足す
+Private Sub MarkOrdered(ByVal company As String, ByVal itemName As String, ByVal orderDate As Date, ByVal isTennyu As Boolean)
+    Dim wsCk As Worksheet, lastRow As Long, r As Long, found As Long, key As String
+    Set wsCk = ThisWorkbook.Worksheets("発注済確認リスト")
+    key = company & "|" & itemName
+    lastRow = wsCk.Cells(wsCk.Rows.Count, 6).End(xlUp).Row
+    For r = CK_FIRST To lastRow
+        If CStr(wsCk.Cells(r, 6).Value) = key Then found = r: Exit For
+    Next r
+    If found = 0 Then
+        ' 教材リストに入れなかった教材は、いちばん下に足す
+        found = lastRow + 1
+        If found < CK_FIRST Then found = CK_FIRST
+        wsCk.Cells(found, 3).Value = itemName
+        wsCk.Cells(found, 6).Value = key
+    End If
+    If isTennyu Then
+        If Trim(CStr(wsCk.Cells(found, 5).Value)) = "" Then
+            wsCk.Cells(found, 5).Value = "転入 " & DateText(orderDate)
+        Else
+            wsCk.Cells(found, 5).Value = wsCk.Cells(found, 5).Value & "、転入 " & DateText(orderDate)
+        End If
+    Else
+        wsCk.Cells(found, 2).Value = "○"
+        wsCk.Cells(found, 4).Value = DateText(orderDate)
+    End If
+End Sub
+
+' 配列の1〜nの中から同じ文字を探す。見つからなければ 0
+Private Function FindIndex(arr() As String, ByVal n As Long, ByVal s As String) As Long
+    Dim i As Long
+    For i = 1 To n
+        If arr(i) = s Then FindIndex = i: Exit Function
+    Next i
+End Function
+
+' 「R8」＋区切り＋月 をつくる（例：R8、4／R8.4）
+Private Function ReiwaText(ByVal d As Date, ByVal sep As String) As String
+    ReiwaText = "R" & (Year(d) - 2018) & sep & Month(d)
+End Function
+
+' 「R8.4.10」の形の日付
+Private Function DateText(ByVal d As Date) As String
+    DateText = ReiwaText(d, ".") & "." & Day(d)
+End Function
+
 ' 発注シートの上の欄を読む。足りないときはメッセージを出して False を返す
-Private Function ReadInput(company As String, kai As Long, isTennyu As Boolean, tClass As Long, tNum As Double) As Boolean
-    Dim wsIn As Worksheet, wsSet As Worksheet, j As Long
+Private Function ReadInput(company As String, kai As Long, isTennyu As Boolean, tNum() As Double) As Boolean
+    Dim wsIn As Worksheet, j As Long, total As Double
     Set wsIn = ThisWorkbook.Worksheets("発注")
-    Set wsSet = ThisWorkbook.Worksheets("設定")
     ReadInput = False
     company = Trim(CStr(wsIn.Range("D4").Value))
     kai = Val(Left(CStr(wsIn.Range("D5").Value), 1))
@@ -233,53 +373,66 @@ Private Function ReadInput(company As String, kai As Long, isTennyu As Boolean, 
         MsgBox "「何回目」を選んでください。", vbExclamation
         Exit Function
     End If
-    tClass = 0
-    tNum = 0
-    If isTennyu Then
-        tNum = Val(wsIn.Range("D12").Value)
-        For j = 1 To 5
-            If Trim(CStr(wsSet.Cells(7 + j, 2).Value)) <> "" And _
-               Trim(CStr(wsSet.Cells(7 + j, 2).Value)) = Trim(CStr(wsIn.Range("D11").Value)) Then tClass = j
-        Next j
-        If tClass = 0 Or tNum <= 0 Then
-            MsgBox "転入生の分のときは「転入の組」と「転入の人数」を入れてください。", vbExclamation
-            Exit Function
-        End If
+    For j = 1 To 5
+        tNum(j) = 0
+        If isTennyu Then tNum(j) = Val(wsIn.Cells(10 + j, 4).Value)
+        total = total + tNum(j)
+    Next j
+    If isTennyu And total <= 0 Then
+        MsgBox "転入生の分のときは、転入生が来た組に人数を入れてください。", vbExclamation
+        Exit Function
     End If
     ReadInput = True
 End Function
 
-' 会社名・何回目・転入生の分か・転入の組と人数をまとめた文字（入力が変わったか調べるため）
+' 会社名・何回目・転入生の分か・転入の人数をまとめた文字（入力が変わったか調べるため）
 Private Function InputKey() As String
-    Dim wsIn As Worksheet
+    Dim wsIn As Worksheet, j As Long, s As String
     Set wsIn = ThisWorkbook.Worksheets("発注")
-    InputKey = Trim(CStr(wsIn.Range("D4").Value)) & "|" & CStr(wsIn.Range("D5").Value) & "|" & _
-               CStr(wsIn.Range("D6").Value) & "|" & CStr(wsIn.Range("D11").Value) & "|" & CStr(wsIn.Range("D12").Value)
+    s = Trim(CStr(wsIn.Range("D4").Value)) & "|" & CStr(wsIn.Range("D5").Value) & "|" & CStr(wsIn.Range("D6").Value)
+    If Trim(CStr(wsIn.Range("D6").Value)) = "はい" Then
+        For j = 1 To 5
+            s = s & "|" & CStr(wsIn.Cells(10 + j, 4).Value)
+        Next j
+    End If
+    InputKey = s
+End Function
+
+' 頼み方の種類：1＝年1回、2＝上刊・下刊、3＝1学期・2学期・3学期
+Private Function HowToKind(ByVal howTo As String) As Long
+    Select Case howTo
+        Case "上刊・下刊"
+            HowToKind = 2
+        Case "1学期・2学期・3学期", "１学期・２学期・３学期", "一学期・二学期・三学期"
+            HowToKind = 3
+        Case Else
+            HowToKind = 1
+    End Select
 End Function
 
 ' 今回の発注で出すものか
 Private Function IsThisTime(ByVal howTo As String, ByVal kai As Long, ByVal isTennyu As Boolean) As Boolean
-    Select Case howTo
-        Case "上刊・下刊"
+    Select Case HowToKind(howTo)
+        Case 2
             IsThisTime = (kai <= 2) Or isTennyu
-        Case "一学期・二学期・三学期"
+        Case 3
             IsThisTime = True
-        Case Else ' 年1回（空欄も年1回として扱う）
+        Case Else
             IsThisTime = (kai = 1) Or isTennyu
     End Select
 End Function
 
-' 教材名の後ろに「上刊」「一学期」などをつける
+' 教材名の後ろに「上刊」「1学期」などをつける
 Private Function NameWithSuffix(ByVal baseName As String, ByVal howTo As String, ByVal kai As Long) As String
-    Select Case howTo
-        Case "上刊・下刊"
+    Select Case HowToKind(howTo)
+        Case 2
             If kai = 1 Then
                 NameWithSuffix = baseName & " 上刊"
             Else
                 NameWithSuffix = baseName & " 下刊"
             End If
-        Case "一学期・二学期・三学期"
-            NameWithSuffix = baseName & " " & Choose(kai, "一学期", "二学期", "三学期")
+        Case 3
+            NameWithSuffix = baseName & " " & kai & "学期"
         Case Else
             NameWithSuffix = baseName
     End Select
