@@ -323,6 +323,34 @@
 </style>
 </head>
 <body>
+<script>
+/* 起動チェック：アプリの本体（ファイルの最後にある）が動かなかったとき、理由を画面に出す。
+   ファイルが途中までしか保存されていない・ブラウザが対応していない、などを見分けるため */
+(function () {
+  var errs = [];
+  window.addEventListener("error", function (e) {
+    errs.push((e.message || "不明なエラー") + (e.lineno ? "（" + e.lineno + "行目）" : ""));
+  });
+  window.addEventListener("load", function () {
+    if (window.__pdfKakumeiReady) return;
+    var box = document.createElement("div");
+    box.style.cssText = "max-width:880px;margin:16px auto;padding:14px 18px;border:2px solid #b3261e;border-radius:10px;background:#fff4f3;color:#5c1410;font-size:.92rem;line-height:1.7;font-family:sans-serif;";
+    var h = document.createElement("strong");
+    h.textContent = "アプリを起動できませんでした。";
+    box.appendChild(h);
+    var p = document.createElement("p");
+    p.textContent = errs.length
+      ? "このブラウザで動かないところがあります。下の内容を作った人に伝えてください。"
+      : "ファイルが途中までしか保存されていない可能性があります。ファイルの大きさ（Windowsでは約5,400KB、Macでは約5.5MB）が足りているか確かめて、もう一度保存し直してください。";
+    box.appendChild(p);
+    var d = document.createElement("p");
+    d.style.cssText = "font-size:.8rem;color:#7a3a35;word-break:break-all;";
+    d.textContent = "ブラウザ：" + navigator.userAgent + (errs.length ? "　／　エラー：" + errs.slice(0, 3).join("　") : "");
+    box.appendChild(d);
+    document.body.insertBefore(box, document.body.firstChild);
+  });
+})();
+</script>
 <main>
   <header>
     <h1>PDF革命</h1>
@@ -439,7 +467,7 @@
 
   <p id="status"></p>
 
-  <footer>v1.7</footer>
+  <footer>v1.8</footer>
 </main>
 
 <div id="vOverlay" hidden>
@@ -3592,6 +3620,7 @@ var PDFJS_CMAPS_B64 = {"78-EUC-H":"AuBSQ29weXJpZ2h0IDE5OTAtMjAwOSBBZG9iZSBTeXN0Z
   window.__addFiles = addFiles;
   window.__pages = pages;
   window.__sources = sources;
+  window.__pdfKakumeiReady = true; // 起動チェック用：ここまで来れば本体は動いている
 })();
 </script>
 </body>
