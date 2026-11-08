@@ -1438,6 +1438,7 @@ const SHEET_CSS = `
 #print .sx-line table.g th.lb{font-size:6.5pt;color:#777;text-align:center;vertical-align:middle;border-bottom:0.2mm solid #cfcfcf}
 #print .sx-line .sj{font-size:7.6pt;font-weight:700;height:3.6mm}
 #print .sx-line .dot{width:2.2mm;height:2.2mm;border-radius:50%;flex:none}
+#print .sx-line .sj.x{height:3mm} #print .sx-line .sj.x .dot{width:1.8mm;height:1.8mm}
 #print .sx-line tr.band td{background:#f5f5f2;color:#555}
 #print .sx-line td.emp{background:repeating-linear-gradient(135deg,#fafafa 0 1.2mm,#efefef 1.2mm 1.6mm)}
 #print .sx-line .side h4{margin:0 0 1mm;font-size:8pt;color:var(--pl);border-bottom:0.35mm solid var(--pl);padding-bottom:0.6mm}
@@ -1459,6 +1460,7 @@ const SHEET_CSS = `
 #print .sx-wide table.g th.lb{font-size:6.5pt;vertical-align:middle;text-align:center;border:0.25mm solid var(--pl)}
 #print .sx-wide .sj{font-size:7.6pt;font-weight:700;height:3.8mm;padding:0 1mm;border-bottom:0.25mm solid var(--pl)}
 #print .sx-wide td .in{padding:0.5mm 1mm}
+#print .sx-wide .sj.x{height:3mm}
 #print .sx-wide tr.band td{background:var(--pb)}
 #print .sx-wide td.emp{background:#E6E8EB}
 #print .sx-wide table.hb{width:168mm;margin-top:2mm;font-size:6.6pt;flex:none}
@@ -1503,7 +1505,7 @@ const SHEET_CSS = `
 #print .sx-note .tab{display:inline-flex;font-size:7.6pt;font-weight:700;padding:0.3mm 2mm;border-radius:0 0 1.6mm 0;height:3.4mm;line-height:3.4mm;box-sizing:content-box;white-space:nowrap}
 #print .sx-note .tab .h{font-weight:400;font-size:6pt;margin-left:2mm}
 #print .sx-note .sj.x{height:3.1mm;overflow:hidden} #print .sx-note .sj.x .tab{height:2.9mm;line-height:2.9mm;padding:0.1mm 2mm;border-radius:0 0 1.2mm 0}
-#print .sx-note .ln{padding:0.5mm 1mm;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 2.6mm,var(--ph) 2.6mm,var(--ph) 2.8mm)}
+#print .sx-note .ln{padding:0.5mm 1mm;background-origin:content-box;background-repeat:repeat}
 #print .sx-note tr.band td{background:var(--pb)}
 #print .sx-note td.emp{background:repeating-linear-gradient(45deg,#fff 0 1mm,#eee 1mm 1.3mm)}
 #print .sx-note .side{border:0.35mm solid var(--pl);align-self:flex-start}
@@ -1566,11 +1568,11 @@ function renderSheet(kind) {
   const LW = 7, colw = (GW - LW) / N - SP;
   const PADW = {line: 2, wide: 2, stripe: 3.6, note: 2, card: 2.2}[kind];
   const SJH = {line: 3.6, wide: 3.8, stripe: 3.7, note: 4.2, card: 3.8}[kind];   // 教科の欄の高さ
-  const SJX = {line: 3.6, wide: 3.8, stripe: 3.7, note: 3.1, card: 3.0}[kind];   // 分けたときの教科の欄の高さ（詰める）
+  const SJX = {line: 3.0, wide: 3.0, stripe: 3.7, note: 3.1, card: 3.0}[kind];   // 分けたときの教科の欄の高さ（詰める）
   const LH = 1.28;
   const BASE = Math.min(7, Math.round((PH - SJH - 1.5) / 8 / (0.3528 * LH) * 10) / 10);
   const fitW = (text, hmm, w, base) => {
-    w *= 0.92; hmm -= 0.6;
+    w *= 0.92; hmm -= 1.2;
     for (let fs = base; fs > 4; fs -= 0.3) {
       const ch = fs * 0.3528, cpl = Math.max(1, Math.floor(w / ch)), lines = Math.floor(hmm / (ch * LH));
       const need = String(text).split("\n").reduce((a, l) => a + Math.max(1, Math.ceil(Array.from(l).length / cpl)), 0);
@@ -1585,7 +1587,16 @@ function renderSheet(kind) {
   };
   const bodyHtml = items => items.map(it => (it.lab ? `<span class="pu">${esc(it.lab)}</span>${it.txt ? "\n" : ""}` : "") + esc(it.txt)).filter(Boolean).join("\n");
   const bodyText = items => items.map(it => (it.lab ? it.lab + (it.txt ? "\n" : "") : "") + it.txt).filter(Boolean).join("\n");
-  const tx = (text, html, hmm, w, base = BASE) => `<div class="tx${kind === "note" ? " ln" : ""}" style="font-size:${fitW(text, hmm, w, base).toFixed(1)}pt;max-height:${hmm.toFixed(1)}mm;overflow:hidden">${html}</div>`;
+  const tx = (text, html, hmm, w, base = BASE) => {
+    const fs = fitW(text, hmm, w, base);
+    let st = `font-size:${fs.toFixed(1)}pt;${kind === "note" ? "height" : "max-height"}:${hmm.toFixed(1)}mm;overflow:hidden;box-sizing:border-box`;
+    if (kind === "note") {
+      // 1行の高さ（mm）ごとに、行のいちばん下に罫線を引く
+      const L = fs * 0.3528 * LH;
+      st += `;line-height:${L.toFixed(2)}mm;background-image:repeating-linear-gradient(to bottom,transparent 0 ${(L - 0.2).toFixed(2)}mm,var(--ph) ${(L - 0.2).toFixed(2)}mm ${L.toFixed(2)}mm)`;
+    }
+    return `<div class="tx${kind === "note" ? " ln" : ""}" style="${st}">${html}</div>`;
+  };
   const tint = (hex, a) => { const h = String(hex).replace("#", ""); if (h.length < 6) return hex; const v = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); return "#" + v.map(x => Math.round(x + (255 - x) * (1 - a)).toString(16).padStart(2, "0")).join(""); };
   const deep = (hex, f) => { const h = String(hex).replace("#", ""); if (h.length < 6) return hex; const v = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); return "#" + v.map(x => Math.round(x * f).toString(16).padStart(2, "0")).join(""); };
   // ---- 教科の欄（シートごとの形）----
@@ -1593,8 +1604,8 @@ function renderSheet(kind) {
     const col = colorOf(pt.s), nm = esc(pt.s), h = pt.h ? esc(pt.h) : "";
     const fs = Math.min(7.6, (colw - PADW - 5) / (Array.from(pt.s).length * 0.3528));
     const fst = `font-size:${fs.toFixed(1)}pt`;
-    if (kind === "line") return `<div class="sjh sj"><span class="dot" style="background:${deep(col, 0.85)}"></span><span style="${fst}">${nm}</span><span class="h">${h}</span></div>`;
-    if (kind === "wide") return `<div class="sjh sj" style="background:${col}"><span style="${fst}">${nm}</span><span class="h">${h}</span></div>`;
+    if (kind === "line") return `<div class="sjh sj${x ? " x" : ""}"><span class="dot" style="background:${deep(col, 0.85)}"></span><span style="${fst}">${nm}</span><span class="h">${h}</span></div>`;
+    if (kind === "wide") return `<div class="sjh sj${x ? " x" : ""}" style="background:${col}"><span style="${fst}">${nm}</span><span class="h">${h}</span></div>`;
     if (kind === "stripe") return `<div class="sjh sj${x ? " x" : ""}" style="--c:${deep(col, 0.8)};--bg:${tint(col, 0.45)};--d:${deep(col, 0.45)}"><span style="${fst}">${nm}</span><span class="h">${h}</span></div>`;
     if (kind === "note") return `<div class="sj${x ? " x" : ""}"><span class="tab" style="background:${col}"><span style="${fst}">${nm}</span><span class="h">${h}</span></span></div>`;
     return `<div class="sjh sj${x ? " x" : ""}"><span class="pill" style="background:${col};${fst}">${nm}</span><span class="h">${h}</span></div>`;
@@ -1615,7 +1626,7 @@ function renderSheet(kind) {
     const inner = hmm - (kind === "stripe" ? 1 : 0.3);
     const rest = inner - (kind === "stripe" ? 1 : 1.3) - (parts.length > 1 ? SJX : SJH) * parts.length - 0.4;
     const w = colw - PADW;
-    const body = rest > 2 && (items.some(it => it.lab || it.txt)) ? tx(bodyText(items), bodyHtml(items), rest, w, i === 0 ? Math.min(BASE, 6) : BASE) : "";
+    const body = rest > 2 && (kind === "note" || items.some(it => it.lab || it.txt)) ? tx(bodyText(items), bodyHtml(items), rest, w, i === 0 ? Math.min(BASE, 6) : BASE) : "";
     if (kind === "stripe") {
       const p0 = parts[0], col = colorOf(p0.s);
       const style = parts.length > 1 ? `--c:#cfcfd6;--bg:#f7f7f9` : `--c:${deep(col, 0.8)};--bg:${tint(col, 0.28)};--d:${deep(col, 0.45)}`;
