@@ -1480,7 +1480,7 @@ const SHEET_CSS = `
 #print .sx-stripe table.g th.lb{font-size:6.5pt;color:#666;vertical-align:middle;text-align:center;border-bottom:0.25mm solid #d6d6db}
 #print .sx-stripe .card{height:100%;border-left:1.4mm solid var(--c);background:var(--bg);border-radius:0 1mm 1mm 0;padding:0.5mm 1mm;box-sizing:border-box;overflow:hidden}
 #print .sx-stripe .sj{font-size:7.8pt;font-weight:700;height:3.7mm;color:var(--d)}
-#print .sx-stripe .sj.x{border-left:1.4mm solid var(--c);background:var(--bg);margin-left:-2.4mm;padding-left:1mm;margin-bottom:0.3mm}
+#print .sx-stripe .sj.x{border-left:1.4mm solid var(--c);background:var(--bg);margin-left:-2.4mm;padding-left:1mm;margin-bottom:0;height:3mm}
 #print .sx-stripe tr.band td{background:repeating-linear-gradient(90deg,var(--pb) 0 2mm,#fff 2mm 3mm)}
 #print .sx-stripe td.hol{padding:0.5mm}
 #print .sx-stripe .side h4{margin:0 0 1.2mm;font-size:8pt;background:var(--pl);color:#fff;padding:1mm 1.6mm;border-radius:1mm}
@@ -1568,7 +1568,7 @@ function renderSheet(kind) {
   const LW = 7, colw = (GW - LW) / N - SP;
   const PADW = {line: 2, wide: 2, stripe: 3.6, note: 2, card: 2.2}[kind];
   const SJH = {line: 3.6, wide: 3.8, stripe: 3.7, note: 4.2, card: 3.8}[kind];   // 教科の欄の高さ
-  const SJX = {line: 3.0, wide: 3.0, stripe: 3.7, note: 3.1, card: 3.0}[kind];   // 分けたときの教科の欄の高さ（詰める）
+  const SJX = {line: 3.0, wide: 3.0, stripe: 3.0, note: 3.1, card: 3.0}[kind];   // 分けたときの教科の欄の高さ（詰める）
   const LH = 1.28;
   const BASE = Math.min(7, Math.round((PH - SJH - 1.5) / 8 / (0.3528 * LH) * 10) / 10);
   const fitW = (text, hmm, w, base) => {
