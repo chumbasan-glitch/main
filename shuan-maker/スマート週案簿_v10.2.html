@@ -353,7 +353,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v10.1";
+const VERSION = "v10.2";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -822,10 +822,14 @@ function idb() {
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error("blocked"));
   });
 }
+let idbSlow = false;   // 一度返事がなかったら、このあとは使わない
 async function idbGet(k) {
-  try { return await withTimeout((async () => { const db = await idb(); return await new Promise(r => { const t = db.transaction("h"); const q = t.objectStore("h").get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null); t.onabort = () => r(null); }); })(), 2000, null); } catch (e) { return null; }
+  if (idbSlow) return null;
+  const t0 = Date.now();
+  try { return await withTimeout((async () => { const db = await idb(); return await new Promise(r => { const t = db.transaction("h"); const q = t.objectStore("h").get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null); t.onabort = () => r(null); }); })(), 700, null).then(v => { if (Date.now() - t0 >= 690) idbSlow = true; return v; }); } catch (e) { idbSlow = true; return null; }
 }
 async function idbSet(k, v) {
+  if (idbSlow) return;
   try { await withTimeout((async () => { const db = await idb(); await new Promise(r => { const t = db.transaction("h", "readwrite"); t.objectStore("h").put(v, k); t.oncomplete = r; t.onerror = r; t.onabort = r; }); })(), 2000); } catch (e) {}
 }
 let handle = null;
@@ -855,7 +859,8 @@ async function save() {
   // 入力中の欄の内容を先に確定させる（欄から出たときに入る欄があるため）
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
   save.busy = true;
-  try { await saveInner(); } finally { save.busy = false; }
+  $("#saveState").textContent = "保存しています…";
+  try { await saveInner(); } finally { save.busy = false; showSaveState(); }
 }
 async function saveInner() {
   const rev0 = D.rev;
@@ -891,7 +896,7 @@ async function saveInner() {
       if (!(await safeToOverwrite(h))) { D.savedAt = prevSaved; toast("保存をやめました"); return; }
     }
     const w = await h.createWritable(); await w.write(html); await w.close();
-    handle = h; await idbSet("h:" + location.href, h);
+    handle = h; idbSet("h:" + location.href, h);
     done();
     const cur = currentFileName();
     if (cur && h.name !== cur) toast("「" + h.name + "」に保存しました。次からはそのファイルを開いてください", 7000);
@@ -899,6 +904,7 @@ async function saveInner() {
   } catch (e) {
     D.savedAt = prevSaved;
     if (e && e.name === "AbortError") toast("保存をやめました");
+    else if (e && (e.name === "SecurityError" || /activation|gesture/i.test(String(e.message)))) toast("もう一度「保存」を押してください（保存先を選ぶ画面が出ます）", 6000);
     else { toast("保存できませんでした。かわりにダウンロードします"); download(fileBaseName() + ".html", buildHtml(D)); }
   }
 }
