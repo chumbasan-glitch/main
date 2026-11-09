@@ -125,7 +125,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <header class="top">
     <h1>算プリツクール</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 4.9</span>
+    <span class="ver">ver. 5.0</span>
   </header>
 
   <div class="layout">
@@ -230,6 +230,14 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
       <div class="notice" id="paperNote" hidden></div>
       <div class="pages" id="pages"></div>
       <div class="save">
+        <div class="grp"><span class="lbl">まとめて</span>
+          <div class="seg" id="segPrintOrder" role="group" aria-label="ページの順番">
+            <button type="button" data-v="seq">問題だけで裏表（問題→答え）</button>
+            <button type="button" data-v="alt">問題と答えで裏表（交互）</button>
+          </div>
+          <button class="btn primary" type="button" id="shareAll">全部まとめて共有・印刷（PDF）</button>
+          <a class="btn" id="pdfOpen" hidden target="_blank" rel="noopener">PDFを開く</a>
+        </div>
         <div class="grp"><span class="lbl">印刷</span>
           <button class="btn primary" type="button" id="printQ">問題を印刷する</button>
           <button class="btn primary" type="button" id="printA">答えを印刷する</button>
@@ -251,7 +259,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
     <strong>印刷用の画像</strong>
     <p class="hint" id="imgHow"></p>
     <ul class="caution"><li>保存しづらい場合、何度か長押しを試してみてください。</li><li><b>必ず答えも一緒に保存してください。</b>同じ問題のプリントは生成されません！</li></ul>
-    <div class="row"><button class="btn primary" type="button" id="imgClose">閉じる</button></div>
+    <div class="row"><button class="btn primary" type="button" id="shareAll2">全部まとめて共有・印刷（PDF）</button><button class="btn" type="button" id="imgClose">閉じる</button></div>
     <div id="imgList" class="imglist"></div>
     <div class="row"><button class="btn" type="button" id="imgClose2">閉じる</button></div>
   </div>

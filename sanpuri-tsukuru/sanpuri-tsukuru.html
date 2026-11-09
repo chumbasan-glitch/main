@@ -125,7 +125,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <header class="top">
     <h1>算プリツクール</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 4.9</span>
+    <span class="ver">ver. 5.0</span>
   </header>
 
   <div class="layout">
@@ -230,6 +230,14 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
       <div class="notice" id="paperNote" hidden></div>
       <div class="pages" id="pages"></div>
       <div class="save">
+        <div class="grp"><span class="lbl">まとめて</span>
+          <div class="seg" id="segPrintOrder" role="group" aria-label="ページの順番">
+            <button type="button" data-v="seq">問題だけで裏表（問題→答え）</button>
+            <button type="button" data-v="alt">問題と答えで裏表（交互）</button>
+          </div>
+          <button class="btn primary" type="button" id="shareAll">全部まとめて共有・印刷（PDF）</button>
+          <a class="btn" id="pdfOpen" hidden target="_blank" rel="noopener">PDFを開く</a>
+        </div>
         <div class="grp"><span class="lbl">印刷</span>
           <button class="btn primary" type="button" id="printQ">問題を印刷する</button>
           <button class="btn primary" type="button" id="printA">答えを印刷する</button>
@@ -251,7 +259,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
     <strong>印刷用の画像</strong>
     <p class="hint" id="imgHow"></p>
     <ul class="caution"><li>保存しづらい場合、何度か長押しを試してみてください。</li><li><b>必ず答えも一緒に保存してください。</b>同じ問題のプリントは生成されません！</li></ul>
-    <div class="row"><button class="btn primary" type="button" id="imgClose">閉じる</button></div>
+    <div class="row"><button class="btn primary" type="button" id="shareAll2">全部まとめて共有・印刷（PDF）</button><button class="btn" type="button" id="imgClose">閉じる</button></div>
     <div id="imgList" class="imglist"></div>
     <div class="row"><button class="btn" type="button" id="imgClose2">閉じる</button></div>
   </div>
@@ -7137,7 +7145,7 @@ async function makePdf(canvases, paper){
 const $ = id => document.getElementById(id);
 const LEVEL_NAMES = {0:"きほん", 1:"ふつう", 2:"チャレンジ", mix:"まぜる"};
 try{ document.documentElement.lang = "ja"; }catch(e){}
-const state = {grade:5, units:[], subsOff:{}, subN:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", hdr2:"on", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
+const state = {grade:5, units:[], subsOff:{}, subN:{}, level:0, total:20, alloc:{}, order:"group", paper:"auto", over:"bigger", size:"m", score:"count", hdr2:"on", printOrder:"seq", meateOn:false, meate:"", meateEdited:false, seed:Date.now() % 1000000};
 let view = "q", items = [], groups = [], LAY = null, PAPER_NOW = "A4";
 
 function persist(){ try{ localStorage.setItem("smm-state", JSON.stringify(Object.assign({}, state, {seed:undefined}))); }catch(e){} }
@@ -7301,7 +7309,7 @@ function renderCount(){
 }
 function renderOptions(){
   segSet("segLevel", state.level); segSet("segOrder", state.order); segSet("segPaper", state.paper);
-  segSet("segOver", state.over); segSet("segSize", state.size); segSet("segScore", state.score); segSet("segHdr2", state.hdr2); segSet("segView", view);
+  segSet("segOver", state.over); segSet("segSize", state.size); segSet("segScore", state.score); segSet("segHdr2", state.hdr2); segSet("segPrintOrder", state.printOrder); segSet("segView", view);
   $("segScore").querySelector('[data-v="count"]').textContent = "問題数（／" + state.total + "問）";
   $("meateOn").checked = state.meateOn;
   $("meate").disabled = !state.meateOn;
@@ -7396,6 +7404,50 @@ function renderPrint(ans){
   const fs = FS[state.size], opt = printOpt();
   return LAY.pages.map((_, i) => { const c = document.createElement("canvas"); c.width = Math.round(LAY.PW * PRINT_K); c.height = Math.round(LAY.PH * PRINT_K); drawPageAt(makeG(c.getContext("2d"), PRINT_K), LAY, i, fs, opt, ans); return c; });
 }
+/* まとめて印刷するときのページの順番
+   seq：問題を全部 → 答えを全部（問題どうしで裏表。問題が奇数ページなら白紙を1枚はさみ，答えが問題の裏にならないようにする）
+   alt：問題1，答え1，問題2，答え2…（問題と答えで裏表） */
+function blankPage(){ const c = document.createElement("canvas"); c.width = Math.round(LAY.PW * PRINT_K); c.height = Math.round(LAY.PH * PRINT_K); const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); return c; }
+function orderedPages(){
+  const q = renderPrint(false), a = renderPrint(true), out = [];
+  if(state.printOrder === "alt"){ q.forEach((c, i) => { out.push({label:"問題" + (q.length > 1 ? "（" + (i + 1) + "枚目）" : ""), canvas:c}, {label:"答え（先生用）" + (q.length > 1 ? "（" + (i + 1) + "枚目）" : ""), canvas:a[i]}); }); return out; }
+  q.forEach((c, i) => out.push({label:"問題" + (q.length > 1 ? "（" + (i + 1) + "枚目）" : ""), canvas:c}));
+  if(q.length % 2 === 1) out.push({label:"白紙（裏表印刷で，答えが問題の裏にならないように入れています）", canvas:blankPage(), blank:true});
+  a.forEach((c, i) => out.push({label:"答え（先生用）" + (a.length > 1 ? "（" + (i + 1) + "枚目）" : ""), canvas:c}));
+  return out;
+}
+function orderText(n){
+  if(state.printOrder === "alt") return "問題と答えが交互に入っています（裏表印刷で，表が問題・裏が答えになります）";
+  return "問題" + n + "ページのあとに答え" + n + "ページが入っています" + (n % 2 ? "（裏表印刷のため，問題のあとに白紙を1ページ入れています）" : "");
+}
+/* 全部のページを1つのPDFにまとめて，共有（タブレット）か保存をする */
+async function shareAll(btn){
+  await withBusy(btn, async () => {
+    await fontsReady;
+    status("PDFを作っています…");
+    const pages = orderedPages(), n = LAY.pages.length;
+    let blob;
+    try{ blob = await makePdf(pages.map(p => p.canvas), PAPER_NOW); }catch(err){ status("PDFを作れませんでした。", "err"); return; }
+    const name = baseName() + ".pdf";
+    let file = null; try{ file = new File([blob], name, {type:"application/pdf"}); }catch(e){}
+    if(await getDl()){
+      const r = await offer(name, blob);
+      if(r === "saved"){ status("PDFを保存しました。" + orderText(n) + "。印刷するときは，用紙を " + PAPER_NOW + " にしてください。", "ok"); return; }
+      status(...explain(r)); return;
+    }
+    if(file && navigator.canShare && navigator.share){
+      let ok = false; try{ ok = navigator.canShare({files:[file]}); }catch(e){}
+      if(ok){
+        try{ await navigator.share({files:[file], title:name}); status("共有の画面を出しました。「プリント」をえらぶと全部のページを印刷できます。" + orderText(n) + "。", "ok"); return; }
+        catch(err){ if(err && err.name === "AbortError"){ status("共有をやめました。", ""); return; } }
+      }
+    }
+    /* 共有も保存もできない画面：PDFを開くリンクを出す */
+    const url = URL.createObjectURL(blob), a = $("pdfOpen");
+    a.href = url; a.download = name; a.hidden = false;
+    status("この画面では共有できませんでした。「PDFを開く」をおして，開いた画面から印刷してください。", "err");
+  });
+}
 function baseName(){
   const us = selUnits();
   const unit = us.length ? us[0].name.replace(/[（）()\s]/g, "") + (us.length > 1 ? "ほか" : "") : "";
@@ -7409,7 +7461,7 @@ function showImages(list){
     cap.textContent = it.label; img.alt = it.label; img.src = it.canvas.toDataURL("image/png");
     fig.append(cap, img); box.appendChild(fig);
   }
-  $("imgHow").textContent = "画像を1枚ずつ長押しして「共有」→「プリント」をえらぶと，そのまま印刷できます。「写真に保存」してから，プリンターのアプリで印刷することもできます。用紙は「" + PAPER_NOW + "」，大きさは「用紙に合わせる」（ふちなしにしない）にしてください。";
+  $("imgHow").textContent = "上の「全部まとめて共有・印刷」をおすと，全部のページを1つのPDFにまとめて共有できます（「プリント」をえらぶと全部印刷できます）。画像を1枚ずつ長押しして「共有」→「プリント」で印刷することもできます。用紙は「" + PAPER_NOW + "」，大きさは「用紙に合わせる」（ふちなしにしない）にしてください。";
   $("imgOverlay").hidden = false;
 }
 async function offer(filename, data){
@@ -7425,17 +7477,16 @@ async function withBusy(btn, fn){ const t = btn.textContent; btn.disabled = true
 $("savePdf").addEventListener("click", e => withBusy(e.currentTarget, async () => {
   await fontsReady;
   if(!(await getDl())){
-    const q = renderPrint(false), a = renderPrint(true);
-    showImages(q.map((c, i) => ({label:"問題" + (q.length > 1 ? "（" + (i + 1) + "枚目）" : ""), canvas:c})).concat(a.map((c, i) => ({label:"答え（先生用）" + (a.length > 1 ? "（" + (i + 1) + "枚目）" : ""), canvas:c}))));
+    showImages(orderedPages());
     status("画像を表示しました。長押しして「共有」→「プリント」で印刷できます。", "ok");
     return;
   }
   status("PDFを作っています…");
   let blob;
-  try{ blob = await makePdf(renderPrint(false).concat(renderPrint(true)), PAPER_NOW); }catch(err){ status("PDFを作れませんでした。「画像で保存」をためしてください。", "err"); return; }
+  try{ blob = await makePdf(orderedPages().map(p => p.canvas), PAPER_NOW); }catch(err){ status("PDFを作れませんでした。「画像で保存」をためしてください。", "err"); return; }
   const r = await offer(baseName() + ".pdf", blob);
   const n = LAY.pages.length;
-  if(r === "saved") status("PDFを保存しました（" + (n > 1 ? "1〜" + n + "ページ目：問題、" + (n + 1) + "〜" + (2 * n) + "ページ目：答え" : "1ページ目：問題、2ページ目：答え") + "）。印刷するときは、用紙を " + PAPER_NOW + " にしてください。", "ok");
+  if(r === "saved") status("PDFを保存しました。" + orderText(n) + "。印刷するときは、用紙を " + PAPER_NOW + " にしてください。", "ok");
   else status(...explain(r));
 }));
 async function saveImage(ans, btn){
@@ -7477,6 +7528,9 @@ $("printA").addEventListener("click", e => printPages(true, e.currentTarget));
 $("saveImgQ").addEventListener("click", e => saveImage(false, e.currentTarget));
 $("saveImgA").addEventListener("click", e => saveImage(true, e.currentTarget));
 $("imgClose").addEventListener("click", () => { $("imgOverlay").hidden = true; });
+$("shareAll").addEventListener("click", e => shareAll(e.currentTarget));
+$("shareAll2").addEventListener("click", e => shareAll(e.currentTarget));
+bindSeg("segPrintOrder", v => { state.printOrder = v; segSet("segPrintOrder", v); persist(); });
 $("imgClose2").addEventListener("click", () => { $("imgOverlay").hidden = true; });
 getDl();
 
