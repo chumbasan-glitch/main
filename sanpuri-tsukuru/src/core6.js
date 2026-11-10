@@ -561,7 +561,8 @@ function genGridScale(lv, mode){
   const bb = bbox(pts), mnx = Math.min(...pts.map(p => p[0])), mny = Math.min(...pts.map(p => p[1]));
   pts = pts.map(p => [p[0] - mnx, p[1] - mny]);
   const c1 = bb.w + 2, r1 = bb.h + 2, c2 = Math.ceil(bb.w * k) + 2, r2 = Math.ceil(bb.h * k) + 2;
-  const BW = Math.max(c2, 8) * C, BH = Math.max(r2, 6) * C;
+  /* 答えをかく方眼は，拡大図でも縮図でも同じ大きさにする（大きさで答えがわからないように） */
+  const BW = Math.max(c2, 14) * C, BH = Math.max(r2, 11) * C;
   const drawFig = (G, x, y, w, h, fs) => {
     drawGridLines(G, x + 2, y + 1, c1, r1, C);
     G.poly(pts.map(p => [x + 2 + (p[0] + 1) * C, y + 1 + (p[1] + 1) * C]), {w:0.5});
