@@ -544,12 +544,13 @@ function genSimilar(lv){
   const inst = lv === 2 ? "下の三角形DEFは，三角形ABCの拡大図です。つぎの問題に答えましょう。" : `下の三角形DEFは，三角形ABCの${kTxt}です。つぎの長さや角の大きさを答えましょう。`;
   return setItem(92, 46, draw, subs, {inst, lead:"拡大図と縮図"});
 }
-function genGridScale(lv){
-  const k = lv === 2 ? 0.5 : 2, C = 4.5;
+/* 方眼に拡大図・縮図をかく。mode "up"：拡大図（2倍，チャレンジは3倍），"down"：縮図（1/2，チャレンジは1/3） */
+function genGridScale(lv, mode){
+  const up = mode !== "down", K = lv === 2 ? 3 : 2, k = up ? K : 1 / K, C = 4.5;
   let pts;
   for(;;){
-    const n = lv === 0 ? 3 : 4, maxc = lv === 2 ? 8 : 5, step = lv === 2 ? 2 : 1;
-    pts = Array.from({length:n}, () => [ri(0, maxc / step) * step, ri(0, (lv === 2 ? 6 : 4) / step) * step]);
+    const n = lv === 0 ? 3 : 4, step = up ? 1 : K, maxc = up ? (K === 3 ? 4 : 5) : K * 4, maxr = up ? (K === 3 ? 3 : 4) : K * 3;
+    pts = Array.from({length:n}, () => [ri(0, maxc / step) * step, ri(0, maxr / step) * step]);
     if(new Set(pts.map(p => p.join())).size < n) continue;
     const c = centroid(pts); pts.sort((a, b) => Math.atan2(a[1] - c[1], a[0] - c[0]) - Math.atan2(b[1] - c[1], b[0] - c[0]));
     const an = pts.map((p, i) => angAt(p, pts[(i + n - 1) % n], pts[(i + 1) % n]));
@@ -567,7 +568,7 @@ function genGridScale(lv){
   };
   const ans = (G, bx, by, bw, bh, fs) => { G.poly(pts.map(p => [bx + (p[0] * k + 1) * C, by + (p[1] * k + 1) * C]), {w:0.5, color:RED}); };
   const it = drawItem(c1 * C + 4, r1 * C + 2, drawFig, BW, BH, ans,
-    {inst:lv === 2 ? `左の図形の${F(1, 2)}の縮図を，右の方眼にかきましょう。` : "左の図形の2倍の拡大図を，右の方眼にかきましょう。", lead:lv === 2 ? "縮図をかく" : "拡大図をかく", sig:JSON.stringify(pts)});
+    {inst:up ? `左の図形の${K}倍の拡大図を，右の方眼にかきましょう。` : `左の図形の${F(1, K)}の縮図を，右の方眼にかきましょう。`, lead:up ? "拡大図をかく" : "縮図をかく", sig:mode + JSON.stringify(pts)});
   const d0 = it.draw;
   it.draw = function(G, x, y, W, fs, ans_){
     const side = this.side(W), bx = side ? x + W - BW : x, by = side ? y : y + r1 * C + 2 + 0.8 * fs;
@@ -584,7 +585,7 @@ unit6(12, "拡大図と縮図", "11月", "形を拡大したり縮小したり�
     const s = pick([10000, 25000, 50000]), c = ri(2, 8), km = ds(c * s / 1000, 2);
     return L(`実際の長さが${km}kmの道のりは，縮尺1：${s}の地図では何cmですか。((${c}cm))`, "つぎの問題に答えましょう。", "縮尺");
   }},
-  {id:"c", name:"方眼に拡大図・縮図をかく", gen(lv){ return genGridScale(lv); }}
+  {id:"c", name:"方眼に拡大図・縮図をかく", gen(lv){ return sceneN("6-12.c", [l => genGridScale(l, "up"), l => genGridScale(l, "down")], lv); }}
 ]);
 
 /* ---------- 比例と反比例 ---------- */
