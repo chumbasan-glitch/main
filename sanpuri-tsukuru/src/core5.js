@@ -52,7 +52,7 @@ function buildItems(st){
       for(const s of pool){ if(short <= 0) break; const g = genFor(s, 1); short -= g; progress += g; }
       if(!progress) break;
     }
-    /* 同じ指示の中で同じ種類の問題がとなりあうしかないときは，べつの問題に入れかえる（できなければへらす） */
+    /* 同じ指示の中で同じ種類の問題がとなりあうしかないときは，べつの問題に入れかえる（入れかえられなければそのまま） */
     {
       const all = [...got.values()].flat(), byInst = new Map();
       for(const it of all){ const gk = it.cat + "|" + it.inst; if(!byInst.has(gk)) byInst.set(gk, []); byInst.get(gk).push(it); }
@@ -70,7 +70,8 @@ function buildItems(st){
             if(sig && S.seen.has(sig)) continue; if(sig) S.seen.add(sig); it.unit = u; it.sub = s; rep = it;
           }
           const arr = got.get(s), ix = arr.indexOf(victim), lx = list.indexOf(victim);
-          if(rep){ arr[ix] = rep; list[lx] = rep; } else { arr.splice(ix, 1); list.splice(lx, 1); }
+          /* 入れかえる問題がないとき（指示の文そのものが種類で決まる問題など）は，けずらずにそのまま出す */
+          if(rep){ arr[ix] = rep; list[lx] = rep; } else break;
         }
       }
     }
