@@ -211,13 +211,31 @@ function layoutBody(text, indent, kaiwa){
 
 /* ===== 描く ===== */
 // 文字の「見た目の中心」を (tx, ty) に置く。rot が true なら90度回す
+// （機械によって文字の測り方がちがうので、実際に描いて形を調べる）
+var boxCache = {};
+function glyphBox(ch, size){
+  var key = ch + "|" + Math.round(size);
+  if (boxCache[key]) return boxCache[key];
+  var n = Math.ceil(size * 2), c = document.createElement("canvas");
+  c.width = c.height = n;
+  var g = c.getContext("2d");
+  g.font = '600 ' + size + 'px "Klee One"'; g.textAlign = "left"; g.textBaseline = "alphabetic";
+  g.fillStyle = "#000"; g.fillText(ch, size * 0.5, size * 1.4);
+  var d = g.getImageData(0, 0, n, n).data, x0 = n, y0 = n, x1 = -1, y1 = -1;
+  for (var y = 0; y < n; y++) for (var x = 0; x < n; x++){
+    if (d[(y * n + x) * 4 + 3] > 40){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  var r = x1 < 0 ? {dx: -size / 2, dy: size * 0.35} :
+    {dx: size * 0.5 - (x0 + x1 + 1) / 2, dy: size * 1.4 - (y0 + y1 + 1) / 2};
+  if (fontReady) boxCache[key] = r;
+  return r;
+}
 function drawAt(ctx, ch, tx, ty, size, rot){
-  ctx.font = '600 ' + size + 'px "Klee One"';
-  var m = ctx.measureText(ch);
-  var ox = (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2;
-  var oy = (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2;
-  ctx.save(); ctx.translate(tx, ty); if (rot) ctx.rotate(Math.PI / 2);
-  ctx.fillText(ch, -ox, -oy); ctx.restore();
+  var r = glyphBox(ch, size);
+  ctx.save();
+  ctx.font = '600 ' + size + 'px "Klee One"'; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.translate(tx, ty); if (rot) ctx.rotate(Math.PI / 2);
+  ctx.fillText(ch, r.dx, r.dy); ctx.restore();
 }
 function drawGlyph(ctx, ch, cx, cy, size){
   ctx.font = '600 ' + size + 'px "Klee One"';
@@ -226,7 +244,7 @@ function drawGlyph(ctx, ch, cx, cy, size){
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI / 2);
     ctx.fillText(ch, 0, 0); ctx.restore();
   } else if (PUNCT.indexOf(ch) >= 0){
-    drawAt(ctx, ch, cx + f * 0.3, cy - f * 0.3, f, false);   // 右上
+    drawAt(ctx, ch, cx + CELL * 0.27, cy - CELL * 0.27, f, false);   // 右上
   } else if (SMALL.indexOf(ch) >= 0){
     ctx.fillText(ch, cx + f * 0.1, cy - f * 0.1);
   } else {
@@ -249,11 +267,11 @@ function drawCell(ctx, cell, cx, cy){
     drawSmall(ctx, a[0], cx + FS * 0.26, cy - FS * 0.3, FS * 0.9);
     drawSmall(ctx, a[1], cx - FS * 0.05, cy + FS * 0.05, FS * 0.75);
   } else {
-    drawGlyph(ctx, a[0], cx - CELL * 0.07, cy - CELL * 0.08, FS * 0.84);
+    drawGlyph(ctx, a[0], cx, cy, FS);
   }
-  var h = chars(cell.hang), f = FS * 0.75;
+  var h = chars(cell.hang), f = FS * 0.7;
   if (h.length === 1){
-    drawSmall(ctx, h[0], cx + CELL * 0.33, cy + CELL * 0.33, f);
+    drawSmall(ctx, h[0], cx + CELL * 0.4, cy + CELL * 0.4, f);
   } else {
     drawSmall(ctx, h[0], cx + CELL * 0.35, cy + CELL * 0.2, f);
     drawSmall(ctx, h[1], cx + CELL * 0.18, cy + CELL * 0.4, f * 0.8);
