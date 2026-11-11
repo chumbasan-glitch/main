@@ -1,0 +1,390 @@
+<!--bmh-start-->
+<title>文末へんかん</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+/* 配置：上に「向き」の切りかえ、下に「もとの文章」と「へんかんした文章」を左右（せまい画面では上下）に並べる。
+   直したところは赤ペンの下線、確かめてほしいところは黄色の蛍光ペンで示す。 */
+:root{
+  --bg:#EEF2F5;
+  --surface:#FFFFFF;
+  --surface-2:#F5F8FA;
+  --ink:#1D2A38;
+  --ink-soft:#586777;
+  --line:#D5DDE5;
+  --accent:#24507A;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#E2ECF5;
+  --pen:#C4312A;
+  --pen-soft:#FBE7E5;
+  --marker:#FFE473;
+  --marker-ink:#3D3100;
+  --ok:#2E7A4C;
+  --font-ui:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
+  --font-text:"Klee One","UD デジタル 教科書体 N-R","UD Digi Kyokasho N-R","Hiragino Mincho ProN","Yu Mincho",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11171D;
+    --surface:#1A222B;
+    --surface-2:#212B35;
+    --ink:#E6ECF2;
+    --ink-soft:#A3B1BF;
+    --line:#33404D;
+    --accent:#8CB8E3;
+    --accent-ink:#0E1A26;
+    --accent-soft:#22364A;
+    --pen:#FF8A80;
+    --pen-soft:#3A2324;
+    --marker:#6E5B12;
+    --marker-ink:#FFF3C4;
+    --ok:#7CCB9A;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11171D;
+  --surface:#1A222B;
+  --surface-2:#212B35;
+  --ink:#E6ECF2;
+  --ink-soft:#A3B1BF;
+  --line:#33404D;
+  --accent:#8CB8E3;
+  --accent-ink:#0E1A26;
+  --accent-soft:#22364A;
+  --pen:#FF8A80;
+  --pen-soft:#3A2324;
+  --marker:#6E5B12;
+  --marker-ink:#FFF3C4;
+  --ok:#7CCB9A;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:16px;line-height:1.6}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+h1{margin:0;font-size:1.7rem;letter-spacing:.04em;text-wrap:balance}
+h1 small{font-size:.95rem;color:var(--ink-soft);font-weight:500;margin-left:.4em;letter-spacing:0}
+.ver{font-size:.8rem;color:var(--ink-soft)}
+
+/* 切りかえ */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px;flex-wrap:wrap}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{display:block;padding:10px 16px;border-radius:9px;cursor:pointer;font-weight:700;color:var(--ink-soft);user-select:none}
+.seg input:checked + label{background:var(--accent);color:var(--accent-ink)}
+.seg input:focus-visible + label{outline:3px solid var(--accent);outline-offset:2px}
+.seg.small label{padding:7px 14px;font-size:.95rem}
+.styleBox{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.styleBox > span{font-size:.95rem;color:var(--ink-soft)}
+
+/* 二つの面 */
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media (max-width: 860px){ .panes{grid-template-columns:1fr} }
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.cardHead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.cardHead h2{margin:0;font-size:1.1rem}
+.tag{font-size:.78rem;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-soft);border:1px solid var(--line)}
+textarea{width:100%;min-height:340px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface-2);color:var(--ink);font-family:var(--font-text);font-size:1.08rem;line-height:2}
+textarea:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font-family:var(--font-ui);font-size:1rem;font-weight:700;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 16px;cursor:pointer}
+button:hover{background:var(--surface-2)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.primary:hover{filter:brightness(1.08)}
+
+/* 結果 */
+.stats{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-size:.85rem;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);font-variant-numeric:tabular-nums}
+.chip.pen{color:var(--pen);background:var(--pen-soft);border-color:transparent}
+.chip.chk{color:var(--marker-ink);background:var(--marker);border-color:transparent}
+.out{min-height:340px;border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface-2);font-family:var(--font-text);font-size:1.08rem;line-height:2.1;white-space:pre-wrap;overflow-wrap:anywhere}
+.out .empty{color:var(--ink-soft);font-family:var(--font-ui)}
+.mk{font:inherit;color:inherit;background:none;border:none;padding:0 1px;border-radius:3px;cursor:pointer;text-decoration:underline;text-decoration-color:var(--pen);text-decoration-thickness:2px;text-underline-offset:5px;color:var(--pen)}
+.mk:hover{background:var(--pen-soft)}
+.mk.chk{background:var(--marker);color:var(--marker-ink);text-decoration-color:var(--marker-ink);text-decoration-style:dotted}
+.mk.del{text-decoration:line-through;text-decoration-thickness:2px;color:var(--ink-soft);font-size:.85em}
+.mk.sel{outline:2px solid var(--accent);outline-offset:1px}
+.mk.done{text-decoration-style:solid}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.88rem;color:var(--ink-soft)}
+.legend b{font-weight:700}
+.legend .l1{color:var(--pen);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.legend .l3{text-decoration:line-through;text-decoration-thickness:2px}
+.legend .l2{background:var(--marker);color:var(--marker-ink);padding:0 4px;border-radius:3px}
+
+/* 選ぶところ */
+.picker{border:2px solid var(--accent);border-radius:12px;padding:12px;background:var(--accent-soft);display:flex;flex-direction:column;gap:10px}
+.picker p{margin:0}
+.picker .opts{display:flex;flex-wrap:wrap;gap:8px}
+.picker .opts button{font-family:var(--font-text);font-weight:600}
+.picker .opts button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.picker .ctx{color:var(--ink-soft)}
+.checks{display:flex;flex-direction:column;gap:8px}
+.checks h3{margin:0;font-size:1rem}
+.checkItem{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.checkItem .w{font-family:var(--font-text);font-size:1.05rem}
+.checkItem .w mark{background:var(--marker);color:var(--marker-ink);padding:0 3px;border-radius:3px}
+.checkItem .n{font-size:.9rem;color:var(--ink-soft)}
+.checkItem .opts{display:flex;flex-wrap:wrap;gap:6px}
+.checkItem .opts button{padding:6px 12px;font-family:var(--font-text);font-weight:600;font-size:.98rem}
+.checkItem .opts button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.checkItem.ok{opacity:.75}
+.toast{font-size:.92rem;color:var(--ok);font-weight:700;min-height:1.4em}
+
+/* 使い方 */
+.howto{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
+.howto h2{margin:0 0 6px;font-size:1.05rem}
+.howto ol,.howto ul{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:4px;max-width:65em}
+.howto .two{display:grid;grid-template-columns:1fr 1fr;gap:12px 28px}
+@media (max-width: 760px){ .howto .two{grid-template-columns:1fr} }
+@media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>文末へんかん<small>です・ます ⇄ だ・である</small></h1>
+    <span class="ver">ver 1.0</span>
+  </header>
+
+  <div class="controls">
+    <div class="seg" role="radiogroup" aria-label="変換の向き">
+      <input type="radio" name="dir" id="dirPlain" value="plain" checked><label for="dirPlain">「です・ます」→「だ・である」</label>
+      <input type="radio" name="dir" id="dirPolite" value="polite"><label for="dirPolite">「だ・である」→「です・ます」</label>
+    </div>
+    <div class="styleBox" id="styleBox">
+      <span>「です」を</span>
+      <div class="seg small" role="radiogroup" aria-label="「です」の直し方">
+        <input type="radio" name="style" id="styleDa" value="da" checked><label for="styleDa">「だ」にする</label>
+        <input type="radio" name="style" id="styleDearu" value="dearu"><label for="styleDearu">「である」にする</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="panes">
+    <section class="card" aria-labelledby="srcTitle">
+      <div class="cardHead">
+        <h2 id="srcTitle">もとの文章</h2>
+        <span class="tag" id="sampleTag">れい文が入っています</span>
+      </div>
+      <textarea id="src" spellcheck="false" aria-label="もとの文章"></textarea>
+      <div class="btns">
+        <button class="primary" id="btnRun" type="button">へんかんする</button>
+        <button id="btnClear" type="button">文章を消す</button>
+        <button id="btnSample" type="button">れい文を入れる</button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="outTitle">
+      <div class="cardHead">
+        <h2 id="outTitle">へんかんした文章</h2>
+        <div class="stats" id="stats"></div>
+      </div>
+      <div class="out" id="out" aria-live="polite"></div>
+      <div class="legend">
+        <span><b class="l1">赤い線</b>＝直したところ</span>
+        <span><b class="l2">黄色</b>＝確かめてほしいところ</span>
+        <span><b class="l3">取り消し線</b>＝取った言葉（コピーには入りません）</span>
+        <span>言葉をおすと、ほかの形をえらべます</span>
+      </div>
+      <div class="picker" id="picker" hidden></div>
+      <div class="btns">
+        <button class="primary" id="btnCopy" type="button">へんかんした文章をコピー</button>
+      </div>
+      <div class="toast" id="toast" role="status"></div>
+      <textarea id="copyBox" aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px;top:0;min-height:0;height:1px;width:1px"></textarea>
+      <div class="checks" id="checks"></div>
+    </section>
+  </div>
+
+  <section class="howto">
+    <div class="two">
+      <div>
+        <h2>使い方</h2>
+        <ol>
+          <li>上のボタンで、変換の向きをえらぶ。</li>
+          <li>「もとの文章」に作文をはりつける（または書く）。</li>
+          <li>「へんかんする」をおす。</li>
+          <li>黄色のところを読んで、正しい形をえらぶ。</li>
+          <li>「へんかんした文章をコピー」をおして、使いたいところにはりつける。</li>
+        </ol>
+      </div>
+      <div>
+        <h2>知っておいてほしいこと</h2>
+        <ul>
+          <li>「　」や『　』の中（会話など）は変換しません。</li>
+          <li>「だ・である」→「です・ます」では、文の終わりを直します。文の途中の「〜したので、」などはそのままです。</li>
+          <li>機械で直すので、まちがうことがあります。最後に必ず自分で読み直しましょう。</li>
+          <li>文章はこの画面の中だけで変換します。どこにも送られません。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/*ENGINE*/
+</script>
+<script>
+(function(){
+  'use strict';
+  var SAMPLE_POLITE = 'ぼくは、六年生最後の運動会でリレーの選手になりました。毎日、放課後に友達と練習しました。最初はバトンパスがうまくいかず、何度も落としてしまいました。でも、先生が「あわてなくていいよ。」と言ってくれたので、少しずつできるようになりました。\n本番の日は、朝から雨がふりそうでしたが、晴れました。ゴールしたとき、みんなが「やったね。」と喜んでくれて、とてもうれしかったです。中学校でも、あきらめずにがんばろうと思います。';
+  var SAMPLE_PLAIN = 'ぼくは、六年生最後の運動会でリレーの選手になった。毎日、放課後に友達と練習した。最初はバトンパスがうまくいかず、何度も落としてしまった。でも、先生が「あわてなくていいよ。」と言ってくれたので、少しずつできるようになった。\n本番の日は、朝から雨がふりそうだったが、晴れた。ゴールで待っていた友達にあった。みんなが「やったね。」と喜んでくれて、とてもうれしかった。中学校でも、あきらめずにがんばろう。';
+
+  var $ = function(id){ return document.getElementById(id); };
+  var src = $('src'), out = $('out'), stats = $('stats'), picker = $('picker'), checks = $('checks'), toast = $('toast');
+  var state = { dir:'plain', style:'da', result:null, sel:-1, sample:true };
+
+  function dirNow(){ return document.querySelector('input[name="dir"]:checked').value; }
+  function styleNow(){ return document.querySelector('input[name="style"]:checked').value; }
+
+  function optionsOf(c){
+    var list = c.options.slice();
+    if (list.indexOf(c.from) < 0) list.push(c.from);
+    return list;
+  }
+  function labelOf(c, opt){ return opt === c.from && !c.same ? opt + '（もとのまま）' : opt; }
+  function current(c){ return optionsOf(c)[c.choice]; }
+  function outputText(){
+    var r = state.result; if (!r) return '';
+    var s = '', pos = 0;
+    r.changes.forEach(function(c){ s += r.text.slice(pos, c.start) + current(c); pos = c.end; });
+    return s + r.text.slice(pos);
+  }
+  // 前の数文字（文の始まりまで）
+  function before(c){
+    var t = state.result.text, i = c.start, n = 0;
+    while (i > 0 && n < 10 && '。！？!?\n'.indexOf(t[i-1]) < 0) { i--; n++; }
+    return (i > 0 && '。！？!?\n'.indexOf(t[i-1]) < 0 ? '…' : '') + t.slice(i, c.start);
+  }
+
+  function run(){
+    state.dir = dirNow(); state.style = styleNow();
+    $('styleBox').hidden = state.dir !== 'plain';
+    var t = src.value;
+    state.result = state.dir === 'plain' ? Bunmatsu.toPlain(t, { style: state.style }) : Bunmatsu.toPolite(t);
+    state.sel = -1;
+    draw();
+  }
+
+  function draw(){
+    var r = state.result;
+    out.textContent = '';
+    if (!r || !r.text.trim()){
+      var e = document.createElement('span'); e.className = 'empty';
+      e.textContent = '左（上）の「もとの文章」に作文を入れて、「へんかんする」をおしてください。';
+      out.appendChild(e);
+      stats.textContent = ''; checks.textContent = ''; picker.hidden = true; return;
+    }
+    var pos = 0, nFix = 0, nChk = 0;
+    r.changes.forEach(function(c, i){
+      out.appendChild(document.createTextNode(r.text.slice(pos, c.start)));
+      var b = document.createElement('button');
+      b.type = 'button';
+      var chk = !c.sure && !c.decided;
+      var cur = current(c);
+      b.className = 'mk' + (chk ? ' chk' : '') + (cur === '' ? ' del' : '') + (i === state.sel ? ' sel' : '');
+      b.textContent = cur === '' ? c.from : cur;
+      if (cur === '') b.setAttribute('aria-label', '「' + c.from + '」を取りました');
+      b.title = 'もと：' + c.from;
+      b.addEventListener('click', function(){ state.sel = (state.sel === i ? -1 : i); draw(); });
+      out.appendChild(b);
+      pos = c.end;
+      if (c.sure) nFix++; else nChk++;
+    });
+    out.appendChild(document.createTextNode(r.text.slice(pos)));
+    stats.innerHTML = '';
+    addChip('直したところ ' + (nFix + nChk), 'pen');
+    var left = r.changes.filter(function(c){ return !c.sure && !c.decided; }).length;
+    if (nChk) addChip('確かめてほしいところ ' + left + ' / ' + nChk, 'chk');
+    drawPicker(); drawChecks();
+  }
+  function addChip(t, cls){ var s = document.createElement('span'); s.className = 'chip ' + cls; s.textContent = t; stats.appendChild(s); }
+
+  function optButtons(c, box){
+    optionsOf(c).forEach(function(o, k){
+      var b = document.createElement('button'); b.type = 'button';
+      b.textContent = labelOf(c, o) || '（取る）';
+      if (k === c.choice) b.className = 'on';
+      b.setAttribute('aria-pressed', k === c.choice ? 'true' : 'false');
+      b.addEventListener('click', function(){ c.choice = k; c.decided = true; draw(); });
+      box.appendChild(b);
+    });
+  }
+
+  function drawPicker(){
+    var c = state.result && state.result.changes[state.sel];
+    picker.textContent = '';
+    if (!c){ picker.hidden = true; return; }
+    picker.hidden = false;
+    var p = document.createElement('p');
+    p.innerHTML = '';
+    p.appendChild(document.createTextNode('もとは '));
+    var w = document.createElement('b'); w.textContent = '「' + c.from + '」'; p.appendChild(w);
+    p.appendChild(document.createTextNode('　どの形にしますか？'));
+    picker.appendChild(p);
+    if (c.note){ var n = document.createElement('p'); n.className = 'ctx'; n.textContent = c.note; picker.appendChild(n); }
+    var box = document.createElement('div'); box.className = 'opts'; optButtons(c, box); picker.appendChild(box);
+    var close = document.createElement('button'); close.type = 'button'; close.textContent = 'とじる';
+    close.addEventListener('click', function(){ state.sel = -1; draw(); });
+    var row = document.createElement('div'); row.className = 'btns'; row.appendChild(close); picker.appendChild(row);
+  }
+
+  function drawChecks(){
+    checks.textContent = '';
+    var list = state.result.changes.filter(function(c){ return !c.sure; });
+    if (!list.length) return;
+    var h = document.createElement('h3'); h.textContent = '確かめてほしいところ'; checks.appendChild(h);
+    list.forEach(function(c){
+      var d = document.createElement('div'); d.className = 'checkItem' + (c.decided ? ' ok' : '');
+      var w = document.createElement('div'); w.className = 'w';
+      w.appendChild(document.createTextNode(before(c)));
+      var m = document.createElement('mark'); m.textContent = current(c) || '　'; w.appendChild(m);
+      if (c.decided){ var ok = document.createElement('span'); ok.textContent = '　えらびました'; ok.style.color = 'var(--ok)'; ok.style.fontFamily = 'var(--font-ui)'; ok.style.fontSize = '.85rem'; w.appendChild(ok); }
+      d.appendChild(w);
+      if (c.note){ var n = document.createElement('div'); n.className = 'n'; n.textContent = c.note; d.appendChild(n); }
+      var box = document.createElement('div'); box.className = 'opts'; optButtons(c, box); d.appendChild(box);
+      checks.appendChild(d);
+    });
+  }
+
+  function say(t){ toast.textContent = t; clearTimeout(say.t); say.t = setTimeout(function(){ toast.textContent = ''; }, 3000); }
+  function copy(){
+    var t = outputText();
+    if (!t){ say('コピーする文章がありません。'); return; }
+    function fallback(){
+      var box = $('copyBox'); box.value = t; box.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch(e){}
+      say(ok ? 'コピーしました。' : 'コピーできませんでした。文章を長おしして、コピーしてください。');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(function(){ say('コピーしました。'); }, fallback);
+    } else fallback();
+  }
+
+  function setSample(){
+    src.value = dirNow() === 'plain' ? SAMPLE_POLITE : SAMPLE_PLAIN;
+    state.sample = true; $('sampleTag').hidden = false; run();
+  }
+
+  var timer;
+  src.addEventListener('input', function(){
+    if (state.sample){ state.sample = false; $('sampleTag').hidden = true; }
+    clearTimeout(timer); timer = setTimeout(run, 400);
+  });
+  document.querySelectorAll('input[name="dir"]').forEach(function(r){
+    r.addEventListener('change', function(){ if (state.sample) setSample(); else run(); });
+  });
+  document.querySelectorAll('input[name="style"]').forEach(function(r){ r.addEventListener('change', run); });
+  $('btnRun').addEventListener('click', run);
+  $('btnClear').addEventListener('click', function(){ src.value = ''; state.sample = false; $('sampleTag').hidden = true; run(); src.focus(); });
+  $('btnSample').addEventListener('click', setSample);
+  $('btnCopy').addEventListener('click', copy);
+
+  setSample();
+})();
+</script>
+<!--bmh-end-->
