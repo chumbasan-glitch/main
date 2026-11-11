@@ -125,7 +125,7 @@ header.top .ver{margin-left:auto;align-self:center;border:1px solid var(--line);
   <header class="top">
     <h1>算プリツクール</h1>
     <span class="sub">学年と単元を選ぶと、問題と答えのプリントができます</span>
-    <span class="ver">ver. 5.3</span>
+    <span class="ver">ver. 5.4</span>
   </header>
 
   <div class="layout">
@@ -2653,6 +2653,38 @@ function genSimilar(lv){
   const inst = lv === 2 ? "下の三角形DEFは，三角形ABCの拡大図です。つぎの問題に答えましょう。" : `下の三角形DEFは，三角形ABCの${kTxt}です。つぎの長さや角の大きさを答えましょう。`;
   return setItem(92, 46, draw, subs, {inst, lead:"拡大図と縮図"});
 }
+/* 方眼を使わずに拡大図・縮図をかく（ふつう・チャレンジ）。
+   三角形の2つの辺の長さとその間の角を書いた図を実際の大きさでかき，答えは白いわくにかく。
+   わくの大きさは，拡大図でも縮図でも同じにする */
+function genFreeScale(lv, mode){
+  const up = mode !== "down", K = lv === 2 ? 3 : 2, k = up ? K : 1 / K;
+  let a, b, B;
+  for(;;){
+    /* a：底辺，b：左の辺，B：その間の角。答えの図の大きさ（拡大・縮図後）で辺の長さを決める */
+    const big = K === 3 ? [6, 9] : [4, 8];
+    const A2 = ri(big[0], big[1]), B2 = ri(big[0], big[1]), ang = ri(11, 18) * 5;
+    if(K === 3 && (A2 % 3 || B2 % 3) && up) continue;
+    if(up && (A2 % K || B2 % K)) continue;
+    const ra = up ? A2 / K : A2, rb = up ? B2 / K : B2;   /* もとの図の辺の長さ */
+    if(!up && (ra % K || rb % K)) continue;
+    if(rb * Math.cos(ang * D2R) > ra - 0.5 || rb === ra) continue;
+    a = ra; b = rb; B = ang; break;
+  }
+  const P = s => [[0, 0], [a * s, 0], [b * s * Math.cos(B * D2R), -b * s * Math.sin(B * D2R)]];
+  const src = P(1), dst = P(k), BW = 120, BH = 100;
+  const bbS = bbox(src), fw = Math.max(70, bbS.w * 10 + 30), fh = bbS.h * 10 + 20;
+  const lab = (G, T, pts, s, color, fs) => {
+    const Q = pts.map(T), cen = centroid(Q);
+    G.poly(Q, {w:0.45, color});
+    sideLabel(G, Q[0], Q[1], cm(+(a * s).toFixed(2)), cen, fs, {color});
+    sideLabel(G, Q[0], Q[2], cm(+(b * s).toFixed(2)), cen, fs, {color});
+    angleMark(G, Q[0], Q[1], Q[2], B + "°", fs, {color});
+  };
+  const drawFig = (G, x, y, w, h, fs) => lab(G, realPlace(src, x, y, w, h), src, 1, null, fs);
+  const ans = (G, bx, by, bw, bh, fs) => { lab(G, realPlace(dst, bx, by, bw, bh), dst, k, RED, fs); G.text("（実際の大きさ）", bx + bw - 1.5, by + bh - 2.5, {size:fs * 0.55, color:RED, align:"right"}); };
+  return drawItem(fw, fh, drawFig, BW, BH, ans,
+    {inst:up ? `上の三角形の${K}倍の拡大図を，ものさしと分度器を使って，下のわくの中にかきましょう。` : `上の三角形の${F(1, K)}の縮図を，ものさしと分度器を使って，下のわくの中にかきましょう。`, lead:up ? "拡大図をかく" : "縮図をかく", sig:"f" + mode + a + b + B});
+}
 /* 方眼に拡大図・縮図をかく。mode "up"：拡大図（2倍，チャレンジは3倍），"down"：縮図（1/2，チャレンジは1/3） */
 function genGridScale(lv, mode){
   const up = mode !== "down", K = lv === 2 ? 3 : 2, k = up ? K : 1 / K, C = 4.5;
@@ -2695,7 +2727,7 @@ unit6(12, "拡大図と縮図", "11月", "形を拡大したり縮小したり�
     const s = pick([10000, 25000, 50000]), c = ri(2, 8), km = ds(c * s / 1000, 2);
     return L(`実際の長さが${km}kmの道のりは，縮尺1：${s}の地図では何cmですか。((${c}cm))`, "つぎの問題に答えましょう。", "縮尺");
   }},
-  {id:"c", name:"方眼に拡大図・縮図をかく", gen(lv){ return sceneN("6-12.c", [l => genGridScale(l, "up"), l => genGridScale(l, "down")], lv); }}
+  {id:"c", name:"拡大図・縮図をかく", gen(lv){ return sceneN("6-12.c", lv === 0 ? [l => genGridScale(l, "up"), l => genGridScale(l, "down")] : [l => genFreeScale(l, "up"), l => genFreeScale(l, "down")], lv); }}
 ]);
 
 /* ---------- 比例と反比例 ---------- */
