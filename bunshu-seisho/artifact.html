@@ -1,0 +1,415 @@
+<title>文集清書ツール</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&display=swap">
+<style>
+:root{
+  --bg:#F3F1EA;
+  --surface:#FFFFFF;
+  --ink:#22302A;
+  --ink-soft:#5D6A62;
+  --line:#D5CFBF;
+  --accent:#2E6B4F;
+  --accent-ink:#FFFFFF;
+  --warn:#A8323F;
+  --warn-soft:#F8E4E0;
+  --ok:#2E6B4F;
+  --ok-soft:#E3F0E8;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161B18;--surface:#202723;--ink:#E8EEE9;--ink-soft:#A8B5AD;--line:#3A463F;
+    --accent:#7CC3A0;--accent-ink:#10231A;--warn:#EE8A8F;--warn-soft:#3D2522;--ok:#7CC3A0;--ok-soft:#1F3328;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161B18;--surface:#202723;--ink:#E8EEE9;--ink-soft:#A8B5AD;--line:#3A463F;
+  --accent:#7CC3A0;--accent-ink:#10231A;--warn:#EE8A8F;--warn-soft:#3D2522;--ok:#7CC3A0;--ok-soft:#1F3328;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","BIZ UDPGothic","Yu Gothic UI","Yu Gothic","Meiryo",sans-serif;line-height:1.6;-webkit-text-size-adjust:100%}
+.wrap{max-width:1280px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+h1{font-family:"Klee One",serif;font-weight:600;font-size:26px;margin:0 0 2px;letter-spacing:.08em}
+.sub{margin:0 0 18px;color:var(--ink-soft);font-size:14px}
+.grid{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:20px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+label.f{display:block;font-weight:700;font-size:15px;margin:0 0 4px}
+.row{margin-bottom:14px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+input[type=text],textarea{width:100%;font-family:"Klee One",serif;font-weight:600;font-size:18px;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+textarea{min-height:300px;line-height:1.7;resize:vertical}
+input[type=text]:focus,textarea:focus{outline:none;border-color:var(--accent)}
+.hint{font-size:13px;color:var(--ink-soft);margin:4px 0 0}
+.checks{display:flex;flex-direction:column;gap:6px;font-size:15px}
+.checks label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.checks input{width:20px;height:20px;accent-color:var(--accent)}
+.status{border-radius:8px;padding:10px 12px;font-size:15px;font-weight:700;margin-bottom:12px}
+.status.ok{background:var(--ok-soft);color:var(--ok)}
+.status.ng{background:var(--warn-soft);color:var(--warn)}
+.status div+div{margin-top:4px}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+button{font:inherit;font-weight:700;font-size:16px;border-radius:10px;padding:12px 18px;cursor:pointer;border:1.5px solid var(--accent)}
+button.main{background:var(--accent);color:var(--accent-ink);flex:1 1 220px}
+button.sub2{background:transparent;color:var(--accent)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.paper{background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.paper canvas{display:block;width:100%;height:auto}
+.prevhead{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 8px;gap:8px;flex-wrap:wrap}
+.prevhead b{font-size:15px}
+.prevhead span{font-size:13px;color:var(--ink-soft)}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+#modal.on{display:flex}
+#modal .box{background:var(--surface);color:var(--ink);border-radius:12px;padding:16px;max-width:900px;width:100%;max-height:100%;overflow:auto}
+#modal img{width:100%;height:auto;display:block;border:1px solid var(--line);margin:10px 0;-webkit-touch-callout:default}
+#modal p{margin:0;font-size:15px}
+</style>
+<div class="wrap">
+  <h1>文集清書ツール</h1>
+  <p class="sub">ロイロノートで書いた作文を貼り付けると、卒業文集用の原稿（縦書き・23字×28行）ができます。</p>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="row">
+        <label class="f" for="title">題名</label>
+        <input type="text" id="title" autocomplete="off" placeholder="例：六年間の思い出">
+      </div>
+      <div class="row two">
+        <div>
+          <label class="f" for="sei">姓（みょうじ）</label>
+          <input type="text" id="sei" autocomplete="off" placeholder="例：山田">
+        </div>
+        <div>
+          <label class="f" for="mei">名（なまえ）</label>
+          <input type="text" id="mei" autocomplete="off" placeholder="例：花子">
+        </div>
+      </div>
+      <div class="row">
+        <label class="f" for="body">本文（ここに貼り付け）</label>
+        <textarea id="body" placeholder="ロイロノートの作文をコピーして、ここに貼り付けます。"></textarea>
+        <p class="hint">段落の終わりでだけ改行してください。改行したところが新しい段落になります。</p>
+      </div>
+      <div class="row checks">
+        <label><input type="checkbox" id="indent" checked> 段落の始めを1マス空ける</label>
+        <label><input type="checkbox" id="kaiwa" checked> 「　」で始まる段落は空けない</label>
+      </div>
+      <div id="status" class="status ok"></div>
+      <div class="btns">
+        <button class="main" id="save">画像として保存する</button>
+        <button class="sub2" id="clear">全部消す</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="prevhead"><b>できあがりの見本</b><span>印刷はA4横向き</span></div>
+      <div class="paper"><canvas id="prev"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal" role="dialog" aria-modal="true">
+  <div class="box">
+    <p><b>画像を長押しして「"写真"に保存」を選んでください。</b>（パソコンでは右クリックして「名前を付けて画像を保存」）</p>
+    <img id="outimg" alt="清書した原稿の画像">
+    <div class="btns"><button class="sub2" id="close">閉じる</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===== 用紙とマス目の大きさ（300dpi・A4横） ===== */
+var DPI = 300, MM = DPI / 25.4;
+var W = Math.round(297 * MM), H = Math.round(210 * MM);
+var MARGIN = 12.7 * MM;              // Word の「狭い」余白
+var ROWS = 23, COLS = 28;            // 1行23字 × 28行
+var CELL = (H - MARGIN * 2) / ROWS;  // マス（正方形）
+var PITCH = (W - MARGIN * 2) / COLS; // 行の間隔
+var FS = CELL * 0.8;                 // 文字の大きさ
+var FONT = '600 ' + FS + 'px "Klee One"';
+var BODY_COLS = COLS - 2;            // 3行目から本文
+var TITLE_START = 2;                 // 上から2マス空ける
+
+/* ===== 文字の種類 ===== */
+var ROT = "ー－―‐—〜～…‥（）「」『』【】〔〕［］｛｝〈〉《》＜＞＝→←⇒：；｜";
+var PUNCT = "、。，．";
+var SMALL = "ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ";
+var CLOSE = "」』）】〕〉》］｝";
+var NO_HEAD = PUNCT + CLOSE;          // 行の頭に来てはいけない文字
+
+/* ===== 数字を漢数字に ===== */
+var KD = "〇一二三四五六七八九";
+function smallNum(n){ // 0〜99
+  if (n < 10) return KD[n];
+  var t = Math.floor(n / 10), o = n % 10;
+  return (t > 1 ? KD[t] : "") + "十" + (o ? KD[o] : "");
+}
+function numToKanji(s){
+  if (s.length <= 2 && !(s.length === 2 && s[0] === "0")) return smallNum(parseInt(s, 10));
+  var r = ""; for (var i = 0; i < s.length; i++) r += KD[+s[i]]; return r;
+}
+
+/* ===== 文字をそろえる ===== */
+function normalize(s){
+  s = s.replace(/\r\n?/g, "\n");
+  s = s.replace(/[｡-ﾟ]+/g, function(m){ return m.normalize("NFKC"); }); // 半角カナ
+  s = s.replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+  s = s.replace(/[​-‍﻿]/g, "");
+  s = s.replace(/(\d+)\.(\d+)/g, function(m, a, b){ return numToKanji(a) + "・" + b.split("").map(function(d){ return KD[+d]; }).join(""); });
+  s = s.replace(/\d+/g, numToKanji);
+  s = s.replace(/[ \t ]/g, "　");
+  s = s.replace(/~/g, "〜");
+  s = s.replace(/[\x21-\x7E]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) + 0xFEE0); });
+  s = s.replace(/－/g, "－");
+  return s;
+}
+function chars(s){ return Array.from(s); }
+
+/* 文字列 → マスの並び（「。」」は1マスにまとめる） */
+function toCells(s){
+  var a = chars(s), out = [];
+  for (var i = 0; i < a.length; i++){
+    var c = a[i];
+    if (PUNCT.indexOf(c) >= 0 && i + 1 < a.length && CLOSE.indexOf(a[i + 1]) >= 0){
+      out.push({ch: c + a[i + 1]}); i++;
+    } else out.push({ch: c});
+  }
+  return out;
+}
+
+/* 本文を行に分ける（句読点・閉じかっこは前の行の最後のマスに入れる） */
+function layoutBody(text, indent, kaiwa){
+  var paras = normalize(text).split("\n");
+  var cols = [];
+  paras.forEach(function(p){
+    p = p.replace(/[　]+$/, "");
+    if (indent){
+      p = p.replace(/^[　]+/, "");
+      if (!p) return;
+      if (!(kaiwa && /^[「『（]/.test(p))) p = "　" + p;
+    } else if (!p.replace(/[　]/g, "")) return;
+    var cells = toCells(p), col = [];
+    for (var i = 0; i < cells.length; i++){
+      var c = cells[i];
+      if (col.length === ROWS){
+        var last = col[ROWS - 1];
+        if (NO_HEAD.indexOf(chars(c.ch)[0]) >= 0 && !last.hang){ last.hang = c.ch; continue; }
+        cols.push(col); col = [];
+      }
+      col.push(c);
+    }
+    if (col.length) cols.push(col);
+  });
+  return cols;
+}
+
+/* ===== 描く ===== */
+// 文字の「見た目の中心」を (tx, ty) に置く。rot が true なら90度回す
+function drawAt(ctx, ch, tx, ty, size, rot){
+  ctx.font = '600 ' + size + 'px "Klee One"';
+  var m = ctx.measureText(ch);
+  var ox = (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2;
+  var oy = (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2;
+  ctx.save(); ctx.translate(tx, ty); if (rot) ctx.rotate(Math.PI / 2);
+  ctx.fillText(ch, -ox, -oy); ctx.restore();
+}
+function drawGlyph(ctx, ch, cx, cy, size){
+  ctx.font = '600 ' + size + 'px "Klee One"';
+  var f = size;
+  if (ROT.indexOf(ch) >= 0){
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI / 2);
+    ctx.fillText(ch, 0, 0); ctx.restore();
+  } else if (PUNCT.indexOf(ch) >= 0){
+    drawAt(ctx, ch, cx + f * 0.3, cy - f * 0.3, f, false);   // 右上
+  } else if (SMALL.indexOf(ch) >= 0){
+    ctx.fillText(ch, cx + f * 0.1, cy - f * 0.1);
+  } else {
+    ctx.fillText(ch, cx, cy);
+  }
+}
+function drawSmall(ctx, ch, tx, ty, size){
+  drawAt(ctx, ch, tx, ty, size, ROT.indexOf(ch) >= 0);
+}
+function drawCell(ctx, cell, cx, cy){
+  var a = chars(cell.ch);
+  if (!cell.hang && a.length === 2){            // 「。」」を1マスに：。は右上、」はその下
+    drawSmall(ctx, a[0], cx + FS * 0.26, cy - FS * 0.28, FS);
+    drawSmall(ctx, a[1], cx - FS * 0.02, cy + FS * 0.2, FS * 0.85);
+    return;
+  }
+  if (!cell.hang){ drawGlyph(ctx, a[0], cx, cy, FS); return; }
+  // 行の最後のマスに句読点などをいっしょに入れる
+  if (chars(cell.ch).length === 2){             // もとが「。」」のマス
+    drawSmall(ctx, a[0], cx + FS * 0.26, cy - FS * 0.3, FS * 0.9);
+    drawSmall(ctx, a[1], cx - FS * 0.05, cy + FS * 0.05, FS * 0.75);
+  } else {
+    drawGlyph(ctx, a[0], cx - CELL * 0.07, cy - CELL * 0.08, FS * 0.84);
+  }
+  var h = chars(cell.hang), f = FS * 0.75;
+  if (h.length === 1){
+    drawSmall(ctx, h[0], cx + CELL * 0.33, cy + CELL * 0.33, f);
+  } else {
+    drawSmall(ctx, h[0], cx + CELL * 0.35, cy + CELL * 0.2, f);
+    drawSmall(ctx, h[1], cx + CELL * 0.18, cy + CELL * 0.4, f * 0.8);
+  }
+}
+
+function render(canvas, scale, data){
+  canvas.width = Math.round(W * scale); canvas.height = Math.round(H * scale);
+  var ctx = canvas.getContext("2d");
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, W, H);
+
+  // マス目（うすい線）
+  var gap = PITCH - CELL;
+  ctx.strokeStyle = "#C4CAD0"; ctx.lineWidth = Math.max(2.4, 1 / scale);
+  for (var c = 0; c < COLS; c++){
+    var x1 = W - MARGIN - gap / 2 - c * PITCH, x0 = x1 - CELL;
+    ctx.beginPath();
+    ctx.rect(x0, MARGIN, CELL, CELL * ROWS);
+    for (var r = 1; r < ROWS; r++){ ctx.moveTo(x0, MARGIN + r * CELL); ctx.lineTo(x1, MARGIN + r * CELL); }
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "#111111"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  function put(colIdx, rowIdx, cell){
+    if (colIdx >= COLS || rowIdx >= ROWS || rowIdx < 0) return;
+    var cx = W - MARGIN - gap / 2 - colIdx * PITCH - CELL / 2;
+    var cy = MARGIN + rowIdx * CELL + CELL / 2;
+    drawCell(ctx, cell, cx, cy);
+  }
+  data.title.forEach(function(cell, i){ put(0, TITLE_START + i, cell); });
+  var nstart = ROWS - 1 - data.name.length;
+  data.name.forEach(function(cell, i){ put(1, nstart + i, cell); });
+  data.body.forEach(function(col, ci){ col.forEach(function(cell, ri){ put(2 + ci, ri, cell); }); });
+}
+
+/* ===== 画面 ===== */
+var $ = function(id){ return document.getElementById(id); };
+var els = {title: $("title"), sei: $("sei"), mei: $("mei"), body: $("body"), indent: $("indent"), kaiwa: $("kaiwa")};
+var prev = $("prev"), statusEl = $("status"), saveBtn = $("save");
+var KEY = "bunshu-seisho-v1";
+
+function collect(){
+  var title = normalize(els.title.value).replace(/\n/g, "").replace(/^[　]+|[　]+$/g, "");
+  var sei = normalize(els.sei.value).replace(/[\n　]/g, "");
+  var mei = normalize(els.mei.value).replace(/[\n　]/g, "");
+  var name = sei && mei ? sei + "　" + mei : sei + mei;
+  return {
+    title: toCells(title), name: toCells(name),
+    body: layoutBody(els.body.value, els.indent.checked, els.kaiwa.checked),
+    hasTitle: !!title, hasName: !!(sei || mei)
+  };
+}
+
+function check(d){
+  var msgs = [], ok = true;
+  var titleMax = ROWS - TITLE_START;
+  if (d.title.length > titleMax){ ok = false; msgs.push("題名が長すぎます（" + titleMax + "字まで）。"); }
+  if (d.name.length > ROWS - 1){ ok = false; msgs.push("名前が長すぎます。"); }
+  var over = d.body.length - BODY_COLS;
+  if (over > 0){ ok = false; msgs.push("本文が" + over + "行はみ出しています。あと" + over + "行分（約" + over * ROWS + "字）短くしてください。"); }
+  else msgs.push("本文：" + d.body.length + "行／" + BODY_COLS + "行（あと" + (BODY_COLS - d.body.length) + "行書けます）");
+  if (!d.hasTitle) msgs.push("題名がまだ入っていません。");
+  if (!d.hasName) msgs.push("名前がまだ入っていません。");
+  return {ok: ok, msgs: msgs};
+}
+
+var timer = null, fontReady = false;
+function allText(){ return normalize(els.title.value + els.sei.value + els.mei.value + els.body.value) + "　〇一二三四五六七八九十・"; }
+function loadFont(){
+  if (!document.fonts || !document.fonts.load) return Promise.resolve();
+  return document.fonts.load(FONT, allText()).then(function(){ fontReady = document.fonts.check(FONT, "あ"); }).catch(function(){});
+}
+function update(){
+  var d = collect(), r = check(d);
+  statusEl.className = "status " + (r.ok ? "ok" : "ng");
+  statusEl.innerHTML = "";
+  if (!fontReady) r.msgs.push("書体を読み込み中です…");
+  r.msgs.forEach(function(m){ var div = document.createElement("div"); div.textContent = m; statusEl.appendChild(div); });
+  saveBtn.disabled = !r.ok;
+  var w = prev.parentNode.clientWidth || 800;
+  var scale = Math.min(1, (w * (window.devicePixelRatio || 1)) / W);
+  render(prev, scale, d);
+  try { localStorage.setItem(KEY, JSON.stringify({t: els.title.value, s: els.sei.value, m: els.mei.value, b: els.body.value, i: els.indent.checked, k: els.kaiwa.checked})); } catch(e){}
+}
+function schedule(){
+  clearTimeout(timer);
+  timer = setTimeout(function(){ loadFont().then(update); }, 250);
+}
+
+/* ===== 保存（300dpi の情報を入れたPNG） ===== */
+var CRC = (function(){ var t = [], c; for (var n = 0; n < 256; n++){ c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b){ var c = 0xFFFFFFFF; for (var i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function addDpi(buf){
+  var src = new Uint8Array(buf), ppm = Math.round(DPI / 0.0254);
+  var chunk = new Uint8Array(21), dv = new DataView(chunk.buffer);
+  dv.setUint32(0, 9); chunk.set([0x70, 0x48, 0x59, 0x73], 4);
+  dv.setUint32(8, ppm); dv.setUint32(12, ppm); chunk[16] = 1;
+  dv.setUint32(17, crc32(chunk.subarray(4, 17)));
+  var out = new Uint8Array(src.length + 21);
+  out.set(src.subarray(0, 33)); out.set(chunk, 33); out.set(src.subarray(33), 54);
+  return new Blob([out], {type: "image/png"});
+}
+function fileName(){
+  var n = (els.sei.value + els.mei.value).replace(/[\\\/:*?"<>|\s]/g, "");
+  return "文集_" + (n || "原稿") + ".png";
+}
+saveBtn.addEventListener("click", function(){
+  saveBtn.disabled = true;
+  loadFont().then(function(){
+    var d = collect(); if (!check(d).ok){ update(); return; }
+    var cv = document.createElement("canvas");
+    render(cv, 1, d);
+    cv.toBlob(function(blob){
+      blob.arrayBuffer().then(function(ab){
+        var png = addDpi(ab), name = fileName();
+        var done = function(){ saveBtn.disabled = false; };
+        var dl = window.claude && window.claude.use ? window.claude.use("downloads") : Promise.resolve(null);
+        Promise.resolve(dl).then(function(downloads){
+          if (!downloads){ showImage(png); done(); return; }
+          downloads.save({filename: name, data: png}).then(done, function(err){
+            if (!err || err.code !== "declined") showImage(png);
+            done();
+          });
+        }, function(){ showImage(png); done(); });
+      });
+    }, "image/png");
+  });
+});
+function showImage(blob){
+  var img = $("outimg"); if (img.src) URL.revokeObjectURL(img.src);
+  img.src = URL.createObjectURL(blob); $("modal").classList.add("on");
+}
+$("close").addEventListener("click", function(){ $("modal").classList.remove("on"); });
+$("clear").addEventListener("click", function(){
+  var b = $("clear");
+  if (!b.dataset.armed){
+    b.dataset.armed = "1"; b.textContent = "もう一度押すと消えます";
+    setTimeout(function(){ delete b.dataset.armed; b.textContent = "全部消す"; }, 4000);
+    return;
+  }
+  delete b.dataset.armed; b.textContent = "全部消す";
+  els.title.value = els.sei.value = els.mei.value = els.body.value = "";
+  update();
+});
+
+/* ===== はじめに ===== */
+try {
+  var saved = JSON.parse(localStorage.getItem(KEY) || "null");
+  if (saved){ els.title.value = saved.t || ""; els.sei.value = saved.s || ""; els.mei.value = saved.m || ""; els.body.value = saved.b || ""; els.indent.checked = saved.i !== false; els.kaiwa.checked = saved.k !== false; }
+} catch(e){}
+["title", "sei", "mei", "body"].forEach(function(k){ els[k].addEventListener("input", schedule); });
+els.indent.addEventListener("change", schedule); els.kaiwa.addEventListener("change", schedule);
+window.addEventListener("resize", schedule);
+update();
+loadFont().then(update);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ loadFont().then(update); });
+})();
+</script>
