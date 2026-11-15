@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&display=swap">
-<style>
+<style id="pagestyle">
 :root{
   --bg:#F3F1EA;
   --surface:#FFFFFF;
@@ -140,9 +140,9 @@ button:disabled{opacity:.4;cursor:not-allowed}
 (function(){
 "use strict";
 /* 全員に使う設定（先生が「全員に反映する」を押すと書きかわる） */
-var SETTINGS = {"indent":true,"kaiwa":true};
+var SETTINGS = {"indent":true,"kaiwa":false};
 var PRISTINE = document.getElementById("page").outerHTML;
-var STYLE_TEXT = document.querySelector("style").textContent;
+var STYLE_TEXT = document.getElementById("pagestyle").textContent;
 var SCRIPT_TEXT = document.currentScript ? document.currentScript.textContent : "";
 
 /* ===== 用紙とマス目の大きさ（300dpi・A4横） ===== */
@@ -462,7 +462,7 @@ function buildPage(next){
     '<title>文集清書ツール</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n' +
     '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
     '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&display=swap">\n' +
-    '<style>' + STYLE_TEXT + '</style>\n' + PRISTINE + '\n<script>' + script + close + '</body></html>';
+    '<style id="pagestyle">' + STYLE_TEXT + '</style>\n' + PRISTINE + '\n<script>' + script + close + '</body></html>';
 }
 if (window.claude && window.claude.use && SCRIPT_TEXT){
   window.claude.use("user").then(function(user){
