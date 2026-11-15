@@ -32,6 +32,8 @@ header.top .cls{font-size:14px;opacity:.9}
 header.top .sp{flex:1}
 .savebox{display:flex;align-items:center;gap:10px}
 .savestate{font-size:12px;opacity:.9}
+.savestate.warn{opacity:1;background:#FFE08A;color:#4A3300;font-weight:700;padding:4px 10px;border-radius:6px}
+.savestate.err{opacity:1;background:#D93025;color:#fff;font-weight:700;padding:4px 10px;border-radius:6px;max-width:520px;line-height:1.4}
 .btn{border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;line-height:1.3}
 .btn:hover{border-color:var(--accent)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
@@ -347,7 +349,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v9.6";
+const VERSION = "v9.7";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -731,6 +733,7 @@ function changed(rerender = true) {
   D.rev++; dirty = true; CY = null;
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify({rev: D.rev, at: new Date().toISOString(), data: D})); } catch (e) {}
   showSaveState();
+  scheduleAutoSave();
   if (rerender) renderAfterInput();
 }
 // 欄から出たとき（change）にすぐ描き直すと、次にクリックした欄が消えて入力が失われる。
@@ -758,8 +761,17 @@ function restoreFocus(k) {
   try { if (k.s !== null && k.s !== undefined && e.setSelectionRange && e.type !== "date") e.setSelectionRange(Math.min(k.s, e.value.length), Math.min(k.e, e.value.length)); } catch (x) {}
 }
 function showSaveState() {
-  $("#saveState").textContent = dirty ? "保存していない変更があります" : (D.savedAt ? "保存済み " + D.savedAt.slice(5, 16).replace("T", " ").replace("-", "/") : "");
+  const el = $("#saveState"); el.className = "savestate";
+  if (saveErr) { el.classList.add("err"); el.textContent = "保存できていません：" + saveErr; return; }
+  if (dirty) {
+    if (autoOn() && handle) { el.textContent = "自動保存中…"; return; }
+    el.classList.add("warn");
+    el.textContent = !window.showSaveFilePicker ? "保存していません（このパソコンでは「保存」でダウンロードします）" : autoOn() ? "保存していません。「保存」を押すと自動保存が始まります" : "保存していません";
+    return;
+  }
+  el.textContent = D.savedAt ? "保存済み " + D.savedAt.slice(5, 16).replace("T", " ").replace("-", "/") : "";
 }
+
 function toast(msg, ms = 2600) {
   const t = $("#toast"); t.textContent = msg; t.hidden = false;
   clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, ms);
@@ -807,7 +819,7 @@ function download(name, text, type = "text/html") {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 // 保存先のファイルに、いま開いているものとは別の（または新しい）週案が入っていないか確かめる
-async function safeToOverwrite(h) {
+async function safeToOverwrite(h, silent = false) {
   let v = null;
   try {
     const t = await (await h.getFile()).text();
@@ -818,61 +830,93 @@ async function safeToOverwrite(h) {
   if (!v.savedAt) return true;   // まだ一度も保存されていないファイル（新しいファイル・配布用）
   if (v.fileId === D.fileId && v.savedAt <= baseSaved) return true;   // このファイル自身（開いたあと、ほかで保存されていない）
   const who = (v.cls && v.cls.grade ? v.cls.grade + "年" + (v.cls.kumi ? v.cls.kumi + "組" : "") + " " : "") + (v.savedAt ? v.savedAt.replace("T", " ") + "に保存" : "");
+  if (silent) return false;
   return confirm("保存先の「" + h.name + "」には、いま開いている週案とは別の（または新しい）データが入っています。" + (who ? "（" + who + "）" : "") +
     "\n上書きすると、そのデータは消えます。\n\n上書きするときは「OK」、別のファイルに保存するときは「キャンセル」を押してください。");
 }
+// ---- 保存 ----
+// 手で押す保存：入力中の欄を確定させてから保存する
 async function save() {
   if (save.busy) { toast("保存しています。保存先を選ぶ画面が出ていたら、そちらで選んでください"); return; }   // 2回続けて押したとき
   // 入力中の欄の内容を先に確定させる（欄から出たときに入る欄があるため）
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  clearTimeout(autoSave.t);
   save.busy = true;
   $("#saveState").textContent = "保存しています…";
-  try { await saveInner(); } finally { save.busy = false; showSaveState(); }
+  try { await saveInner(false); } finally { save.busy = false; showSaveState(); }
 }
-async function saveInner() {
+// 自動保存：一度「保存」を押して保存先が決まったら、入力のあと少し待って同じファイルに保存する
+const autoOn = () => D.cls.autoSave !== false;
+function scheduleAutoSave() {
+  clearTimeout(autoSave.t);
+  if (!autoOn() || !handle || saveErr) return;
+  autoSave.t = setTimeout(autoSave, 3000);
+}
+async function autoSave() {
+  if (!dirty || !autoOn() || !handle) return;
+  if (save.busy) { scheduleAutoSave(); return; }
+  save.busy = true;
+  $("#saveState").textContent = "自動保存中…";
+  try { await saveInner(true); } finally { save.busy = false; showSaveState(); }
+  if (dirty && !saveErr) scheduleAutoSave();   // 保存しているあいだに入力があったら、もう一度
+}
+let saveErr = "";   // 保存できなかった理由（次に保存できるまで、赤い字で出す）
+async function saveInner(auto) {
   const rev0 = D.rev;
   // 保存しているあいだに入力があったら、「保存していない変更」として残す
-  const done = () => { baseSaved = D.savedAt; if (D.rev === rev0) { dirty = false; try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} } showSaveState(); };
+  const done = (keepDraft = false) => { baseSaved = D.savedAt; if (D.rev === rev0) { dirty = false; if (!keepDraft) try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} } showSaveState(); };
   const prevSaved = D.savedAt;
   const now = new Date();
-  D.savedAt = fmt(now) + "T" + pad(now.getHours()) + ":" + pad(now.getMinutes());
+  D.savedAt = fmt(now) + "T" + pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
+  if (!D.cls.lastBackup) D.cls.lastBackup = today();   // バックアップのおすすめは、はじめて保存した日から数える
   const html = buildHtml(D);
+  const fail = msg => { D.savedAt = prevSaved; saveErr = msg; showSaveState(); };
   if (!window.showSaveFilePicker) {
+    if (auto) { D.savedAt = prevSaved; return; }
     download(currentFileName() || fileBaseName() + ".html", html);
-    done();
+    done(true);
     toast("ダウンロードしました。前のファイルと置きかえてください");
     return;
   }
   try {
-    let h = handle || await idbGet("h:" + location.href);
+    let h = handle || (auto ? null : await idbGet("h:" + location.href));
     let ok = false;
     if (h) {
       try {
         let p = await h.queryPermission({mode: "readwrite"});
-        if (p !== "granted") p = await h.requestPermission({mode: "readwrite"});
+        if (p !== "granted" && !auto) p = await h.requestPermission({mode: "readwrite"});
         ok = p === "granted";
       } catch (e) { ok = false; }
     }
     if (!ok) {
+      if (auto) { fail("保存の許可が切れました。「保存」を押してください"); return; }
       toast("いま開いているこのファイルを選んで「保存」→「はい（置きかえる）」を押してください", 6000);
       h = await window.showSaveFilePicker({suggestedName: currentFileName() || fileBaseName() + ".html", types: [{description: "スマート週案簿（HTML）", accept: {"text/html": [".html"]}}]});
     }
-    if (!(await safeToOverwrite(h))) {
+    if (!(await safeToOverwrite(h, auto))) {
+      if (auto) { fail("保存先のファイルが、別のところで新しく保存されています。「保存」を押して確かめてください"); return; }
       toast("保存するファイルを選んでください（新しい名前にすると、別のファイルとして保存されます）", 6000);
       h = await window.showSaveFilePicker({suggestedName: currentFileName() || fileBaseName() + ".html", types: [{description: "スマート週案簿（HTML）", accept: {"text/html": [".html"]}}]});
       if (!(await safeToOverwrite(h))) { D.savedAt = prevSaved; toast("保存をやめました"); return; }
     }
     const w = await h.createWritable(); await w.write(html); await w.close();
+    // 書きこんだファイルを読み返して、中身が同じか確かめる
+    let back = null;
+    try { back = await (await h.getFile()).text(); } catch (e) { back = null; }
+    if (back !== html) { fail("保存した内容を確かめられませんでした。もう一度「保存」を押してください"); if (!auto) toast("保存できていない可能性があります。もう一度「保存」を押してください", 6000); return; }
     handle = h; idbSet("h:" + location.href, h);
+    saveErr = "";
     done();
+    if (auto) return;
     const cur = currentFileName();
     if (cur && h.name !== cur) toast("「" + h.name + "」に保存しました。次からはそのファイルを開いてください", 7000);
-    else toast("保存しました");
+    else toast(autoOn() ? "保存しました。このあとは入力するたびに自動で保存します" : "保存しました", 4000);
   } catch (e) {
     D.savedAt = prevSaved;
+    if (auto) { fail("自動保存できませんでした。「保存」を押してください"); return; }
     if (e && e.name === "AbortError") toast("保存をやめました");
     else if (e && (e.name === "SecurityError" || /activation|gesture/i.test(String(e.message)))) toast("もう一度「保存」を押してください（保存先を選ぶ画面が出ます）", 6000);
-    else { toast("保存できませんでした。かわりにダウンロードします"); download(fileBaseName() + ".html", buildHtml(D)); }
+    else { saveErr = "保存できませんでした。かわりにダウンロードしたファイルを、前のファイルと置きかえてください"; toast("保存できませんでした。かわりにダウンロードします"); download(fileBaseName() + ".html", buildHtml(D)); showSaveState(); }
   }
 }
 
@@ -895,6 +939,41 @@ function render() {
   syncTitle();
   restoreFocus(fk);
 }
+// 「保存のテスト」：このパソコンで保存できるかを調べて、結果を出す
+async function saveDiag() {
+  const out = $("#diagOut"); if (!out) return;
+  out.innerHTML = '<p class="hint">調べています…</p>';
+  const rows = [];
+  const add = (ok, name, msg) => rows.push(`<tr><td style="font-size:16px;text-align:center">${ok === true ? "○" : ok === false ? "×" : "△"}</td><td><b>${name}</b></td><td>${msg}</td></tr>`);
+  add(true, "版", VERSION);
+  const path = decodeURIComponent(location.href);
+  if (location.protocol !== "file:") add(false, "開き方", "パソコンの中のファイルとして開いていません。メールやTeamsの中で開いていないか確かめてください");
+  else if (/\\(Temp|INetCache|Content\.Outlook)\\|\/(Temp|INetCache|Content\.Outlook)\//i.test(path)) add(false, "開き方", "一時フォルダのファイルを開いています（メールの添付を直接開いた可能性）。保存してもあとで消えます。デスクトップなどに保存してから開いてください");
+  else add(true, "開き方", "パソコンの中のファイルとして開いています");
+  add(!!window.showSaveFilePicker, "ファイルに直接保存するしくみ", window.showSaveFilePicker ? "使えます" : "使えません。保存は「ダウンロード」になり、自動保存もできません（学校の設定か、Edge以外で開いている可能性）");
+  let idbOk = false;
+  try { idbOk = !!(await withTimeout(idb(), 1000, null)); } catch (e) { idbOk = false; }
+  add(idbOk ? true : null, "Edgeの中の保管場所", idbOk ? "動いています" : "返事がありません。保存はできますが、開くたびに保存先を選ぶ画面が出ます");
+  let lsOk = false;
+  try { localStorage.setItem("shuan-test", "1"); lsOk = localStorage.getItem("shuan-test") === "1"; localStorage.removeItem("shuan-test"); } catch (e) { lsOk = false; }
+  add(lsOk ? true : null, "保存しないで閉じたときの復元", lsOk ? "使えます" : "使えません（閉じる前に必ず保存してください）");
+  if (handle) {
+    let perm = "";
+    try { perm = await handle.queryPermission({mode: "readwrite"}); } catch (e) { perm = "error"; }
+    let readOk = false;
+    try { readOk = (await (await handle.getFile()).text()).length > 0; } catch (e) { readOk = false; }
+    add(perm === "granted" && readOk, "保存先", `「${esc(handle.name)}」` + (perm === "granted" ? (readOk ? "に保存できます" : "が読めません（動かしたり消したりしていませんか）") : "への保存の許可がありません。「保存」を押してください"));
+  } else add(null, "保存先", "まだ決まっていません。「保存」を押して、いま開いているファイルを選ぶと決まります");
+  add(autoOn() ? (handle ? true : null) : null, "自動保存", autoOn() ? (handle ? "動いています" : "オンです。「保存」を一度押すと始まります") : "オフです");
+  add(saveErr ? false : true, "前回の保存", saveErr ? esc(saveErr) : (D.savedAt ? "保存済み " + esc(D.savedAt.replace("T", " ")) : "まだ保存していません"));
+  out.innerHTML = `<table class="tot" style="margin-top:8px"><tr><th></th><th>調べたこと</th><th>結果</th></tr>${rows.join("")}</table><p class="hint">×があるときは、この画面を写真にとって、詳しい人に見せてください。</p>`;
+}
+let backupLater = false;
+function backupNow() {
+  download(fileBaseName() + "_バックアップ_" + today() + ".json", JSON.stringify(D, null, 1), "application/json");
+  D.cls.lastBackup = today(); changed();
+  toast("バックアップのファイルをダウンロードしました。学校で決められた保存場所に置いてください", 6000);
+}
 function renderBanners() {
   let h = "";
   if (!D.cls.grade && curTab !== "set") {
@@ -905,6 +984,9 @@ function renderBanners() {
       <button class="btn primary" id="bnGo">決定</button></div>`;
   } else if (D.cls.grade && !D.timetable[1].some(Boolean) && curTab === "week") {
     h += `<div class="banner"><b>次に</b>「時間割」のタブで、ふだんの時間割を入れてください。毎週の週案に自動で入ります。<button class="btn" data-go="tt">時間割を入れる</button></div>`;
+  }
+  if (D.savedAt && D.cls.lastBackup && !backupLater && (parse(today()) - parse(D.cls.lastBackup)) / 864e5 >= 7) {
+    h += `<div class="banner"><b>バックアップ</b>1週間以上バックアップを取っていません（前回：${esc(md(D.cls.lastBackup))}）。ファイルが壊れたり消えたりしても、バックアップから戻せます。<button class="btn primary" id="bkGo">今すぐバックアップ</button><button class="btn" id="bkLater">あとで</button></div>`;
   }
   const dr = draftInfo;
   if (dr) h += `<div class="banner"><b>保存していない入力が残っています</b>（${esc(dr.at)}）。<button class="btn primary" id="drYes">復元する</button><button class="btn" id="drNo">捨てる</button></div>`;
@@ -919,6 +1001,8 @@ function renderBanners() {
     if (n.length) toast(g + "年の単元計画（" + n.join("・") + "）を入れました");
   };
   $$("[data-go]").forEach(b => b.onclick = () => switchTab(b.dataset.go));
+  if ($("#bkGo")) $("#bkGo").onclick = backupNow;
+  if ($("#bkLater")) $("#bkLater").onclick = () => { backupLater = true; render(); };
   if ($("#drYes")) {
     $("#drYes").onclick = () => { D = normalize(draftInfo.data); draftInfo = null; dirty = true; CY = null; render(); toast("復元しました。「保存」を押してください"); };
     $("#drNo").onclick = () => { draftInfo = null; try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} render(); };
@@ -1772,10 +1856,13 @@ function renderSet() {
     <button class="btn small" id="cpClose">閉じる</button></div></td></tr>` : ""}`).join("")}
   </table><button class="btn small" id="sAddSubj" style="margin-top:6px">＋ 教科を追加</button>
 
+  <h3>保存</h3>
+  <label class="row" style="gap:4px"><input type="checkbox" id="sAuto"${D.cls.autoSave !== false ? " checked" : ""}> 自動保存（ファイルを開いたあと一度「保存」を押すと、そのあとは入力するたびに自動で保存します）</label>
+  <div id="diagOut"></div>
   <h2 style="margin-top:24px">配る・移す</h2>
   <div class="row"><button class="btn" id="sDist">配布用のファイルを作る</button><label class="row" style="gap:4px"><input type="checkbox" id="sDistUnits"> 学年と単元計画も入れる（同じ学年の先生に配るとき）</label></div>
   <p class="hint">配布用のファイルには、学校の設定（年度・後期・休業日・教科と時数）だけが入ります。組・担任名・時間割・週案は入りません。</p>
-  <div class="row" style="margin-top:10px"><button class="btn" id="sExport">データを書き出す（バックアップ）</button><button class="btn" id="sImport">データを読み込む</button><input type="file" id="sFile" accept=".html,.htm,.json" hidden></div>
+  <div class="row" style="margin-top:10px"><button class="btn" id="sExport">データを書き出す（バックアップ）</button><button class="btn" id="sDiag">保存のテスト</button><button class="btn" id="sImport">データを読み込む</button><input type="file" id="sFile" accept=".html,.htm,.json" hidden></div>
   <p class="hint">新しい版のスマート週案簿に入れかえるときは、新しいファイルを開いて「データを読み込む」で、今まで使っていたファイルを選んでください。</p>
   <div class="row" style="margin-top:16px"><button class="btn danger" id="sClear">この年度の週案をすべて消す</button></div>`;
   el.innerHTML = h;
@@ -1865,7 +1952,9 @@ function renderSet() {
     download("スマート週案簿_" + VERSION + "_配布用" + (withU && D.cls.grade ? "_" + D.cls.grade + "年" : "") + ".html", buildHtml(nd));
     toast("配布用のファイルをダウンロードしました");
   };
-  $("#sExport").onclick = () => download(fileBaseName() + "_バックアップ_" + today() + ".json", JSON.stringify(D, null, 1), "application/json");
+  $("#sExport").onclick = backupNow;
+  $("#sDiag").onclick = saveDiag;
+  $("#sAuto").onchange = e => { D.cls.autoSave = e.target.checked; changed(); if (!e.target.checked) clearTimeout(autoSave.t); };
   $("#sImport").onclick = () => $("#sFile").click();
   $("#sFile").onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
