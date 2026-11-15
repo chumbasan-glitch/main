@@ -256,19 +256,18 @@ function drawSmall(ctx, ch, tx, ty, size){
 }
 function drawCell(ctx, cell, cx, cy){
   var a = chars(cell.ch);
-  if (!cell.hang && a.length === 2){            // 「。」」を1マスに：。は右上、」はその下
-    drawSmall(ctx, a[0], cx + FS * 0.26, cy - FS * 0.28, FS);
-    drawSmall(ctx, a[1], cx - FS * 0.02, cy + FS * 0.2, FS * 0.85);
-    return;
+  if (a.length === 2){
+    // 「。」」が1マスに入るとき：」は左上、。は右上（ふだんの位置のまま）
+    drawSmall(ctx, a[1], cx - CELL * 0.19, cy - CELL * 0.27, FS * 0.7);
+    drawGlyph(ctx, a[0], cx, cy, FS);
+  } else {
+    drawGlyph(ctx, a[0], cx, cy, FS);
   }
-  if (!cell.hang){ drawGlyph(ctx, a[0], cx, cy, FS); return; }
+  if (!cell.hang) return;
   // 行の最後のマスに句読点などをいっしょに入れる
   //   句読点（、。）は右下、閉じかっこ（」など）は左下
-  var extra = chars(cell.hang);
-  if (a.length === 2){ extra = [a[1]].concat(extra); }   // もとが「。」」のマス
-  drawGlyph(ctx, a[0], cx, cy, FS);
   var f = FS * 0.7;
-  extra.forEach(function(h){
+  chars(cell.hang).forEach(function(h){
     if (PUNCT.indexOf(h) >= 0) drawSmall(ctx, h, cx + CELL * 0.33, cy + CELL * 0.35, f);
     else drawSmall(ctx, h, cx - CELL * 0.26, cy + CELL * 0.31, f);
   });
