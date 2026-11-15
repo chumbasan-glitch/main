@@ -26,12 +26,15 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font,"MS UI Gothic","Meiryo",sans-serif);font-size:14px;line-height:1.5}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 16px;background:var(--accent);color:var(--accent-ink)}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 16px;background:var(--accent);color:var(--accent-ink);position:sticky;top:0;z-index:50}
 header.top h1{margin:0;font-size:20px;letter-spacing:.08em;font-weight:700}
 header.top .cls{font-size:14px;opacity:.9}
 header.top .sp{flex:1}
 .savebox{display:flex;align-items:center;gap:10px}
 .savestate{font-size:12px;opacity:.9}
+table.diag{border-collapse:collapse;margin-top:8px;font-size:13px;max-width:900px}
+table.diag th,table.diag td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+table.diag th{background:var(--surface-2)} table.diag td:first-child{text-align:center;width:28px} table.diag td:nth-child(2){white-space:nowrap}
 .savestate.warn{opacity:1;background:#FFE08A;color:#4A3300;font-weight:700;padding:4px 10px;border-radius:6px}
 .savestate.err{opacity:1;background:#D93025;color:#fff;font-weight:700;padding:4px 10px;border-radius:6px;max-width:520px;line-height:1.4}
 .btn{border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;line-height:1.3}
@@ -148,7 +151,7 @@ table.tt2 tr th:first-child{width:44px;font-size:18px;color:var(--ink)}
 table.tt2 th small{display:block;font-size:10px;font-weight:400;color:var(--ink-soft)}
 table.tt2 td{width:92px;height:52px;border:1.5px solid var(--line);border-radius:8px;text-align:center;vertical-align:middle;font-size:15px;font-weight:700;cursor:pointer;background:var(--surface);transition:border-color .1s}
 table.tt2 td:hover{border-color:var(--accent)}
-.ttpal{background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:12px;width:230px;position:sticky;top:12px}
+.ttpal{background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:12px;width:230px;position:sticky;top:64px}
 .ttpt{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--ink)}
 .ttbtns{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:start}
 .ttbtns>div{display:flex;flex-direction:column;gap:6px}
@@ -999,7 +1002,7 @@ async function saveDiag() {
   } else add(null, "保存先", "まだ決まっていません。「保存」を押して、いま開いているファイルを選ぶと決まります");
   add(autoOn() ? (handle ? true : null) : null, "自動保存", autoOn() ? (handle ? "動いています" : "オンです。「保存」を一度押すと始まります") : "オフです");
   add(saveErr ? false : true, "前回の保存", saveErr ? esc(saveErr) : (D.savedAt ? "保存済み " + esc(D.savedAt.replace("T", " ")) : "まだ保存していません"));
-  out.innerHTML = `<table class="tot" style="margin-top:8px"><tr><th></th><th>調べたこと</th><th>結果</th></tr>${rows.join("")}</table><p class="hint">×があるときは、この画面を写真にとって、詳しい人に見せてください。</p>`;
+  out.innerHTML = `<table class="diag"><tr><th></th><th>調べたこと</th><th>結果</th></tr>${rows.join("")}</table><p class="hint">×があるときは、この画面を写真にとって、詳しい人に見せてください。</p>`;
 }
 let backupLater = false;
 function backupNow() {
