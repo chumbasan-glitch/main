@@ -49,6 +49,9 @@ input[type=text]:focus,textarea:focus{outline:none;border-color:var(--accent)}
 .checks{display:flex;flex-direction:column;gap:6px;font-size:15px}
 .checks label{display:flex;gap:8px;align-items:center;cursor:pointer}
 .checks input{width:20px;height:20px;accent-color:var(--accent)}
+.teacher{border:1.5px dashed var(--accent);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.teacher[hidden]{display:none}
+.tlabel{margin:0;font-weight:700;font-size:14px;color:var(--accent)}
 .status{border-radius:8px;padding:10px 12px;font-size:15px;font-weight:700;margin-bottom:12px}
 .status.ok{background:var(--ok-soft);color:var(--ok)}
 .status.ng{background:var(--warn-soft);color:var(--warn)}
@@ -69,6 +72,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
 #modal img{width:100%;height:auto;display:block;border:1px solid var(--line);margin:10px 0;-webkit-touch-callout:default}
 #modal p{margin:0;font-size:15px}
 </style>
+<div id="page">
 <div class="wrap">
   <h1>文集清書ツール</h1>
   <p class="sub">ロイロノートで書いた作文を貼り付けると、卒業文集用の原稿（縦書き・23字×28行）ができます。</p>
@@ -94,9 +98,14 @@ button:disabled{opacity:.4;cursor:not-allowed}
         <textarea id="body" placeholder="ロイロノートの作文をコピーして、ここに貼り付けます。"></textarea>
         <p class="hint">段落の終わりでだけ改行してください。改行したところが新しい段落になります。</p>
       </div>
-      <div class="row checks">
-        <label><input type="checkbox" id="indent" checked> 段落の始めを1マス空ける</label>
-        <label><input type="checkbox" id="kaiwa" checked> 「　」で始まる段落は空けない</label>
+      <div class="row teacher" id="settings" hidden>
+        <p class="tlabel">先生用の設定（子どもの画面には出ません）</p>
+        <div class="checks">
+          <label><input type="checkbox" id="indent" checked> 段落の始めを1マス空ける</label>
+          <label><input type="checkbox" id="kaiwa" checked> 「　」で始まる段落は空けない</label>
+        </div>
+        <div class="btns"><button class="sub2" id="apply" disabled>この設定を全員に反映する</button></div>
+        <p class="hint" id="applymsg">チェックを変えると見本で確かめられます。全員に使うには、上のボタンを押します。</p>
       </div>
       <div id="status" class="status ok"></div>
       <div class="btns">
@@ -119,10 +128,16 @@ button:disabled{opacity:.4;cursor:not-allowed}
     <div class="btns"><button class="sub2" id="close">閉じる</button></div>
   </div>
 </div>
+</div>
 
 <script>
 (function(){
 "use strict";
+/* 全員に使う設定（先生が「全員に反映する」を押すと書きかわる） */
+var SETTINGS = {"indent":true,"kaiwa":true};
+var PRISTINE = document.getElementById("page").outerHTML;
+var STYLE_TEXT = document.querySelector("style").textContent;
+var SCRIPT_TEXT = document.currentScript ? document.currentScript.textContent : "";
 
 /* ===== 用紙とマス目の大きさ（300dpi・A4横） ===== */
 var DPI = 300, MM = DPI / 25.4;
@@ -350,7 +365,7 @@ function update(){
   var w = prev.parentNode.clientWidth || 800;
   var scale = Math.min(1, (w * (window.devicePixelRatio || 1)) / W);
   render(prev, scale, d);
-  try { localStorage.setItem(KEY, JSON.stringify({t: els.title.value, s: els.sei.value, m: els.mei.value, b: els.body.value, i: els.indent.checked, k: els.kaiwa.checked})); } catch(e){}
+  try { localStorage.setItem(KEY, JSON.stringify({t: els.title.value, s: els.sei.value, m: els.mei.value, b: els.body.value })); } catch(e){}
 }
 function schedule(){
   clearTimeout(timer);
@@ -416,13 +431,60 @@ $("clear").addEventListener("click", function(){
 /* ===== はじめに ===== */
 try {
   var saved = JSON.parse(localStorage.getItem(KEY) || "null");
-  if (saved){ els.title.value = saved.t || ""; els.sei.value = saved.s || ""; els.mei.value = saved.m || ""; els.body.value = saved.b || ""; els.indent.checked = saved.i !== false; els.kaiwa.checked = saved.k !== false; }
+  if (saved){ els.title.value = saved.t || ""; els.sei.value = saved.s || ""; els.mei.value = saved.m || ""; els.body.value = saved.b || ""; }
+} catch(e){}
+els.indent.checked = SETTINGS.indent !== false; els.kaiwa.checked = SETTINGS.kaiwa !== false;
+try {
 } catch(e){}
 ["title", "sei", "mei", "body"].forEach(function(k){ els[k].addEventListener("input", schedule); });
 els.indent.addEventListener("change", schedule); els.kaiwa.addEventListener("change", schedule);
 window.addEventListener("resize", schedule);
 update();
 loadFont().then(update);
+
+/* ===== 先生（このページの持ち主）だけ設定を変えられる ===== */
+var applyBtn = $("apply"), applyMsg = $("applymsg");
+function settingsChanged(){
+  return els.indent.checked !== (SETTINGS.indent !== false) || els.kaiwa.checked !== (SETTINGS.kaiwa !== false);
+}
+function refreshApply(){
+  applyBtn.disabled = !settingsChanged();
+  if (settingsChanged()) applyMsg.textContent = "まだ全員には反映されていません。上のボタンを押すと反映されます。";
+  else applyMsg.textContent = "今の設定が全員に使われています。";
+}
+function buildPage(next){
+  var script = SCRIPT_TEXT.replace(/var SETTINGS = \{[^}]*\};/, "var SETTINGS = " + JSON.stringify(next) + ";");
+  var close = "</" + "script>";
+  return '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">' +
+    '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>' +
+    '<title>文集清書ツール</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n' +
+    '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&display=swap">\n' +
+    '<style>' + STYLE_TEXT + '</style>\n' + PRISTINE + '\n<script>' + script + close + '</body></html>';
+}
+if (window.claude && window.claude.use && SCRIPT_TEXT){
+  window.claude.use("user").then(function(user){
+    return user ? user.isOwner() : false;
+  }).then(function(owner){
+    if (!owner) return;
+    $("settings").hidden = false; refreshApply();
+    els.indent.addEventListener("change", refreshApply); els.kaiwa.addEventListener("change", refreshApply);
+    applyBtn.addEventListener("click", function(){
+      applyBtn.disabled = true; applyMsg.textContent = "反映しています…";
+      var next = {indent: els.indent.checked, kaiwa: els.kaiwa.checked};
+      window.claude.use("artifact").then(function(art){
+        if (!art) throw {code: "unavailable"};
+        return art.publish(buildPage(next));
+      }).catch(function(err){
+        var c = err && err.code;
+        if (c === "conflict") return;
+        applyMsg.textContent = (c === "not_writer" || c === "not_granted") ?
+          "この画面からは設定を変えられません。" : "反映できませんでした。少し待ってからもう一度押してください。";
+        applyBtn.disabled = false;
+      });
+    });
+  }).catch(function(){});
+}
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ loadFont().then(update); });
 })();
 </script>
