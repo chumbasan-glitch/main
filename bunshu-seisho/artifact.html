@@ -294,16 +294,8 @@ function render(canvas, scale, data){
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, W, H);
 
-  // マス目（うすい線）
+  // マス目は描かない（文字の位置はマス目があるときと同じ）
   var gap = PITCH - CELL;
-  ctx.strokeStyle = "#C4CAD0"; ctx.lineWidth = Math.max(2.4, 1 / scale);
-  for (var c = 0; c < COLS; c++){
-    var x1 = W - MARGIN - gap / 2 - c * PITCH, x0 = x1 - CELL;
-    ctx.beginPath();
-    ctx.rect(x0, MARGIN, CELL, CELL * ROWS);
-    for (var r = 1; r < ROWS; r++){ ctx.moveTo(x0, MARGIN + r * CELL); ctx.lineTo(x1, MARGIN + r * CELL); }
-    ctx.stroke();
-  }
 
   ctx.fillStyle = "#111111"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   function put(colIdx, rowIdx, cell){
