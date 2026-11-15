@@ -26,12 +26,17 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font,"MS UI Gothic","Meiryo",sans-serif);font-size:14px;line-height:1.5}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 16px;background:var(--accent);color:var(--accent-ink)}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 16px;background:var(--accent);color:var(--accent-ink);position:sticky;top:0;z-index:50}
 header.top h1{margin:0;font-size:20px;letter-spacing:.08em;font-weight:700}
 header.top .cls{font-size:14px;opacity:.9}
 header.top .sp{flex:1}
 .savebox{display:flex;align-items:center;gap:10px}
 .savestate{font-size:12px;opacity:.9}
+table.diag{border-collapse:collapse;margin-top:8px;font-size:13px;max-width:900px}
+table.diag th,table.diag td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+table.diag th{background:var(--surface-2)} table.diag td:first-child{text-align:center;width:28px} table.diag td:nth-child(2){white-space:nowrap}
+.savestate.warn{opacity:1;background:#FFE08A;color:#4A3300;font-weight:700;padding:4px 10px;border-radius:6px}
+.savestate.err{opacity:1;background:#D93025;color:#fff;font-weight:700;padding:4px 10px;border-radius:6px;max-width:520px;line-height:1.4}
 .btn{border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;line-height:1.3}
 .btn:hover{border-color:var(--accent)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
@@ -131,7 +136,7 @@ table.tt2 tr:first-child th{height:28px}
 table.tt2 tr th:first-child{width:44px;font-size:18px;color:var(--ink)}
 table.tt2 td{width:92px;height:52px;border:1.5px solid var(--line);border-radius:8px;text-align:center;vertical-align:middle;font-size:15px;font-weight:700;cursor:pointer;background:var(--surface);transition:border-color .1s}
 table.tt2 td:hover{border-color:var(--accent)}
-.ttpal{background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:12px;width:260px;position:sticky;top:12px}
+.ttpal{background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:12px;width:260px;position:sticky;top:64px}
 .ttpt{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--ink)}
 .ttbtns{display:flex;flex-wrap:wrap;gap:6px;align-items:start}
 .ttbtns .gl{width:100%;font-size:11px;color:var(--ink-soft);margin-top:2px}
@@ -311,7 +316,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.me.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v2.0";
+const VERSION = "v2.1";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -694,6 +699,7 @@ function changed(rerender = true) {
   D.rev++; dirty = true; CY = null;
   if (!draftInfo) try { localStorage.setItem(DRAFT_KEY, JSON.stringify({rev: D.rev, at: new Date().toISOString(), data: D})); } catch (e) {}
   showSaveState();
+  scheduleAutoSave();
   if (rerender) renderAfterInput();
 }
 // 欄から出たとき（change）にすぐ描き直すと、次にクリックした欄が消えて入力が失われる。
@@ -731,7 +737,15 @@ function restoreFocus(k) {
   try { if (k.s !== null && k.s !== undefined && e.setSelectionRange && e.type !== "date") e.setSelectionRange(Math.min(k.s, e.value.length), Math.min(k.e, e.value.length)); } catch (x) {}
 }
 function showSaveState() {
-  $("#saveState").textContent = dirty ? "保存していない変更があります" : (D.savedAt ? "保存済み " + D.savedAt.slice(5, 16).replace("T", " ").replace("-", "/") : "");
+  const el = $("#saveState"); el.className = "savestate";
+  if (saveErr) { el.classList.add("err"); el.textContent = "保存できていません：" + saveErr; return; }
+  if (dirty) {
+    if (autoOn() && handle) { el.textContent = "自動保存中…"; return; }
+    el.classList.add("warn");
+    el.textContent = !window.showSaveFilePicker ? "保存していません（このパソコンでは「保存」でダウンロードします）" : autoOn() ? "保存していません。「保存」を押すと自動保存が始まります" : "保存していません";
+    return;
+  }
+  el.textContent = D.savedAt ? "保存済み " + D.savedAt.slice(5, 16).replace("T", " ").replace("-", "/") : "";
 }
 function toast(msg, ms = 2600) {
   const t = $("#toast"); t.textContent = msg; t.hidden = false;
@@ -762,10 +776,14 @@ function idb() {
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error("blocked"));
   });
 }
+let idbSlow = false;   // 一度返事がなかったら、このあとは使わない
 async function idbGet(k) {
-  try { return await withTimeout((async () => { const db = await idb(); return await new Promise(r => { const t = db.transaction("h"); const q = t.objectStore("h").get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null); t.onabort = () => r(null); }); })(), 2000, null); } catch (e) { return null; }
+  if (idbSlow) return null;
+  const t0 = Date.now();
+  try { return await withTimeout((async () => { const db = await idb(); return await new Promise(r => { const t = db.transaction("h"); const q = t.objectStore("h").get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null); t.onabort = () => r(null); }); })(), 700, null).then(v => { if (Date.now() - t0 >= 690) idbSlow = true; return v; }); } catch (e) { idbSlow = true; return null; }
 }
 async function idbSet(k, v) {
+  if (idbSlow) return;
   try { await withTimeout((async () => { const db = await idb(); await new Promise(r => { const t = db.transaction("h", "readwrite"); t.objectStore("h").put(v, k); t.oncomplete = r; t.onerror = r; t.onabort = r; }); })(), 2000); } catch (e) {}
 }
 let handle = null;
@@ -777,7 +795,7 @@ function download(name, text, type = "text/html") {
 }
 const DATA_RE = /<script id="senka-data" type="application\/json">([\s\S]*?)<\/script>/;
 // 保存先のファイルに、いま開いているものとは別の（または新しい）週案が入っていないか確かめる
-async function safeToOverwrite(h) {
+async function safeToOverwrite(h, silent = false) {
   let v = null;
   try {
     const t = await (await h.getFile()).text();
@@ -788,27 +806,51 @@ async function safeToOverwrite(h) {
   if (!v.savedAt) return true;   // まだ一度も保存されていないファイル（新しいファイル・配布用）
   if (v.fileId === D.fileId && v.savedAt <= baseSaved) return true;   // このファイル自身（開いたあと、ほかで保存されていない）
   const who = (v.me && v.me.teacher ? v.me.teacher + " " : "") + (v.savedAt ? v.savedAt.replace("T", " ") + "に保存" : "");
+  if (silent) return false;
   return confirm("保存先の「" + h.name + "」には、いま開いている週案とは別の（または新しい）データが入っています。" + (who ? "（" + who + "）" : "") +
     "\n上書きすると、そのデータは消えます。\n\n上書きするときは「OK」、別のファイルに保存するときは「キャンセル」を押してください。");
 }
+// ---- 保存 ----
+// 手で押す保存：入力中の欄を確定させてから保存する
 async function save() {
   if (save.busy) { toast("保存しています。保存先を選ぶ画面が出ていたら、そちらで選んでください"); return; }   // 2回続けて押したとき
   // 入力中の欄の内容を先に確定させる（欄から出たときに入る欄があるため）
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  clearTimeout(autoSave.t);
   save.busy = true;
-  try { await saveInner(); } finally { save.busy = false; }
+  $("#saveState").textContent = "保存しています…";
+  try { await saveInner(false); } finally { save.busy = false; showSaveState(); }
 }
-async function saveInner() {
+// 自動保存：一度「保存」を押して保存先が決まったら、入力のあと少し待って同じファイルに保存する
+const autoOn = () => D.me.autoSave !== false;
+function scheduleAutoSave() {
+  clearTimeout(autoSave.t);
+  if (!autoOn() || !handle || saveErr) return;
+  autoSave.t = setTimeout(autoSave, 3000);
+}
+async function autoSave() {
+  if (!dirty || !autoOn() || !handle) return;
+  if (save.busy) { scheduleAutoSave(); return; }
+  save.busy = true;
+  $("#saveState").textContent = "自動保存中…";
+  try { await saveInner(true); } finally { save.busy = false; showSaveState(); }
+  if (dirty && !saveErr) scheduleAutoSave();   // 保存しているあいだに入力があったら、もう一度
+}
+let saveErr = "";   // 保存できなかった理由（次に保存できるまで、赤い字で出す）
+async function saveInner(auto) {
   const rev0 = D.rev;
   // 保存しているあいだに入力があったら、「保存していない変更」として残す
   const done = (keepDraft = false) => { baseSaved = D.savedAt; if (D.rev === rev0) { dirty = false; if (!keepDraft) try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} } showSaveState(); };
   const prevSaved = D.savedAt;
   const now = new Date();
   D.savedAt = fmt(now) + "T" + pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
+  if (!D.me.lastBackup) D.me.lastBackup = today();   // バックアップのおすすめは、はじめて保存した日から数える
   const html = buildHtml(D);
+  const fail = msg => { D.savedAt = prevSaved; saveErr = msg; showSaveState(); };
   // 保存の名前：はじめて保存するときは「音楽専科週案2026.10.19～」、そのあとは開いているファイルの名前（上書きになる）
   const saveName = (!prevSaved ? "" : currentFileName()) || weekFileName() + ".html";
   if (!window.showSaveFilePicker) {
+    if (auto) { D.savedAt = prevSaved; return; }
     download(saveName, html);
     done(true);
     toast("ダウンロードしました。前のファイルと置きかえてください");
@@ -816,34 +858,44 @@ async function saveInner() {
   }
   const pick = () => window.showSaveFilePicker({suggestedName: saveName, types: [{description: "スマート専科用週案（HTML）", accept: {"text/html": [".html"]}}]});
   try {
-    let h = handle || await idbGet("h:" + location.href);
+    let h = handle || (auto ? null : await idbGet("h:" + location.href));
     let ok = false;
     if (h) {
       try {
         let p = await h.queryPermission({mode: "readwrite"});
-        if (p !== "granted") p = await h.requestPermission({mode: "readwrite"});
+        if (p !== "granted" && !auto) p = await h.requestPermission({mode: "readwrite"});
         ok = p === "granted";
       } catch (e) { ok = false; }
     }
     if (!ok) {
+      if (auto) { fail("保存の許可が切れました。「保存」を押してください"); return; }
       toast(prevSaved ? "いま開いているこのファイルを選んで「保存」→「はい（置きかえる）」を押してください" : "保存する場所を選んで「保存」を押してください。次からはそのファイルを開いて使います", 6000);
       h = await pick();
     }
-    if (!(await safeToOverwrite(h))) {
+    if (!(await safeToOverwrite(h, auto))) {
+      if (auto) { fail("保存先のファイルが、別のところで新しく保存されています。「保存」を押して確かめてください"); return; }
       toast("保存するファイルを選んでください（新しい名前にすると、別のファイルとして保存されます）", 6000);
       h = await pick();
       if (!(await safeToOverwrite(h))) { D.savedAt = prevSaved; toast("保存をやめました"); return; }
     }
     const w = await h.createWritable(); await w.write(html); await w.close();
-    handle = h; await idbSet("h:" + location.href, h);
+    // 書きこんだファイルを読み返して、中身が同じか確かめる
+    let back = null;
+    try { back = await (await h.getFile()).text(); } catch (e) { back = null; }
+    if (back !== html) { fail("保存した内容を確かめられませんでした。もう一度「保存」を押してください"); if (!auto) toast("保存できていない可能性があります。もう一度「保存」を押してください", 6000); return; }
+    handle = h; idbSet("h:" + location.href, h);
+    saveErr = "";
     done();
+    if (auto) return;
     const cur = currentFileName();
     if (cur && h.name !== cur) toast("「" + h.name + "」に保存しました。次からはそのファイルを開いてください", 7000);
-    else toast("保存しました");
+    else toast(autoOn() ? "保存しました。このあとは入力するたびに自動で保存します" : "保存しました", 4000);
   } catch (e) {
     D.savedAt = prevSaved;
+    if (auto) { fail("自動保存できませんでした。「保存」を押してください"); return; }
     if (e && e.name === "AbortError") toast("保存をやめました");
-    else { toast("保存できませんでした。かわりにダウンロードします"); download(saveName, buildHtml(D)); }
+    else if (e && (e.name === "SecurityError" || /activation|gesture/i.test(String(e.message)))) toast("もう一度「保存」を押してください（保存先を選ぶ画面が出ます）", 6000);
+    else { saveErr = "保存できませんでした。かわりにダウンロードしたファイルを、前のファイルと置きかえてください"; toast("保存できませんでした。かわりにダウンロードします"); download(saveName, buildHtml(D)); showSaveState(); }
   }
 }
 
@@ -859,6 +911,41 @@ function render() {
   syncTitle();
   restoreFocus(fk);
 }
+// 「保存のテスト」：このパソコンで保存できるかを調べて、結果を出す
+async function saveDiag() {
+  const out = $("#diagOut"); if (!out) return;
+  out.innerHTML = '<p class="hint">調べています…</p>';
+  const rows = [];
+  const add = (ok, name, msg) => rows.push(`<tr><td style="font-size:16px;text-align:center">${ok === true ? "○" : ok === false ? "×" : "△"}</td><td><b>${name}</b></td><td>${msg}</td></tr>`);
+  add(true, "版", VERSION);
+  const path = decodeURIComponent(location.href);
+  if (location.protocol !== "file:") add(false, "開き方", "パソコンの中のファイルとして開いていません。メールやTeamsの中で開いていないか確かめてください");
+  else if (/\\(Temp|INetCache|Content\.Outlook)\\|\/(Temp|INetCache|Content\.Outlook)\//i.test(path)) add(false, "開き方", "一時フォルダのファイルを開いています（メールの添付を直接開いた可能性）。保存してもあとで消えます。デスクトップなどに保存してから開いてください");
+  else add(true, "開き方", "パソコンの中のファイルとして開いています");
+  add(!!window.showSaveFilePicker, "ファイルに直接保存するしくみ", window.showSaveFilePicker ? "使えます" : "使えません。保存は「ダウンロード」になり、自動保存もできません（学校の設定か、Edge以外で開いている可能性）");
+  let idbOk = false;
+  try { idbOk = !!(await withTimeout(idb(), 1000, null)); } catch (e) { idbOk = false; }
+  add(idbOk ? true : null, "Edgeの中の保管場所", idbOk ? "動いています" : "返事がありません。保存はできますが、開くたびに保存先を選ぶ画面が出ます");
+  let lsOk = false;
+  try { localStorage.setItem("senka-test", "1"); lsOk = localStorage.getItem("senka-test") === "1"; localStorage.removeItem("senka-test"); } catch (e) { lsOk = false; }
+  add(lsOk ? true : null, "保存しないで閉じたときの復元", lsOk ? "使えます" : "使えません（閉じる前に必ず保存してください）");
+  if (handle) {
+    let perm = "";
+    try { perm = await handle.queryPermission({mode: "readwrite"}); } catch (e) { perm = "error"; }
+    let readOk = false;
+    try { readOk = (await (await handle.getFile()).text()).length > 0; } catch (e) { readOk = false; }
+    add(perm === "granted" && readOk, "保存先", `「${esc(handle.name)}」` + (perm === "granted" ? (readOk ? "に保存できます" : "が読めません（動かしたり消したりしていませんか）") : "への保存の許可がありません。「保存」を押してください"));
+  } else add(null, "保存先", "まだ決まっていません。「保存」を押して、いま開いているファイルを選ぶと決まります");
+  add(autoOn() ? (handle ? true : null) : null, "自動保存", autoOn() ? (handle ? "動いています" : "オンです。「保存」を一度押すと始まります") : "オフです");
+  add(saveErr ? false : true, "前回の保存", saveErr ? esc(saveErr) : (D.savedAt ? "保存済み " + esc(D.savedAt.replace("T", " ")) : "まだ保存していません"));
+  out.innerHTML = `<table class="diag"><tr><th></th><th>調べたこと</th><th>結果</th></tr>${rows.join("")}</table><p class="hint">×があるときは、この画面を写真にとって、詳しい人に見せてください。</p>`;
+}
+let backupLater = false;
+function backupNow() {
+  download(fileBaseName() + "_バックアップ_" + today() + ".json", JSON.stringify(D, null, 1), "application/json");
+  D.me.lastBackup = today(); changed();
+  toast("バックアップのファイルをダウンロードしました。学校で決められた保存場所に置いてください", 6000);
+}
 const subjSelect = (id, sel) => `<select id="${id}"><option value="">教科</option>${D.school.subjects.map(s => `<option${s.name === sel ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select>`;
 function renderBanners() {
   let h = "";
@@ -873,6 +960,9 @@ function renderBanners() {
       <button class="btn primary" id="bnGo">決定</button></div>`;
   } else if (D.classes.length && ![D.timetable, ...D.ttChanges.map(c => c.tt)].some(t => Object.values(t).some(a => (a || []).some(Boolean))) && curTab === "week") {
     h += `<div class="banner"><b>次に</b>「時間割」のタブで、ふだんの時間割（どのコマにどのクラスに行くか）を入れてください。毎週の週案に自動で入ります。<button class="btn" data-go="tt">時間割を入れる</button></div>`;
+  }
+  if (D.savedAt && D.me.lastBackup && !backupLater && (parse(today()) - parse(D.me.lastBackup)) / 864e5 >= 7) {
+    h += `<div class="banner"><b>バックアップ</b>1週間以上バックアップを取っていません（前回：${esc(md(D.me.lastBackup))}）。ファイルが壊れたり消えたりしても、バックアップから戻せます。<button class="btn primary" id="bkGo">今すぐバックアップ</button><button class="btn" id="bkLater">あとで</button></div>`;
   }
   const dr = draftInfo;
   if (dr) h += `<div class="banner"><b>保存していない入力が残っています</b>（${esc(dr.at)}）。${dr.newer ? '<span style="color:#B23A1E">このファイルは、そのあと別のところで保存されています。復元すると、そのとき保存された内容は消えます。</span>' : ""}<button class="btn primary" id="drYes">復元する</button><button class="btn" id="drNo">捨てる</button></div>`;
@@ -894,6 +984,8 @@ function renderBanners() {
     toast(cnt.length ? D.classes.length + "クラスを入れました" + (got.length ? "。教科書の単元計画（" + got.join("・") + "）も入れました" : "") : "週案シートを決めました", 5000);
   };
   $$("[data-go]").forEach(b => b.onclick = () => switchTab(b.dataset.go));
+  if ($("#bkGo")) $("#bkGo").onclick = backupNow;
+  if ($("#bkLater")) $("#bkLater").onclick = () => { backupLater = true; render(); };
   $$('input[name="bnSheet"]').forEach(r => r.onchange = () => $$(".banner .sp").forEach(l => l.classList.toggle("on", l.contains(r) && r.checked)));
   if ($("#drYes")) {
     $("#drYes").onclick = () => { D = normalize(draftInfo.data); draftInfo = null; dirty = true; CY = null; render(); toast("復元しました。「保存」を押してください"); };
@@ -1979,10 +2071,13 @@ function renderSet() {
   ${s.subjects.map((x, i) => `<tr data-x="${i}"><td><input type="text" class="nm" value="${esc(x.name)}"></td>${x.hours.map((v, g) => `<td><input type="text" class="h" data-g="${g}" value="${esc(v)}"></td>`).join("")}<td><button class="btn small" data-xm="-1">↑</button><button class="btn small" data-xm="1">↓</button><button class="btn small danger xd">削除</button></td></tr>`).join("")}
   </table><button class="btn small" id="sAddSubj" style="margin-top:6px">＋ 教科を追加</button>
 
+  <h3>保存</h3>
+  <label class="row" style="gap:4px"><input type="checkbox" id="sAuto"${me.autoSave !== false ? " checked" : ""}> 自動保存（ファイルを開いたあと一度「保存」を押すと、そのあとは入力するたびに自動で保存します）</label>
+  <div id="diagOut"></div>
   <h2 style="margin-top:24px">配る・移す</h2>
   <div class="row"><button class="btn" id="sDist">配布用のファイルを作る</button><label class="row" style="gap:4px"><input type="checkbox" id="sDistUnits"> 担当クラスと単元計画も入れる（同じ教科の専科の先生に配るとき）</label></div>
   <p class="hint">配布用のファイルには、学校の設定（年度・後期・休業日・教科と時数）だけが入ります。名前・時間割・週案は入りません。</p>
-  <div class="row" style="margin-top:10px"><button class="btn" id="sExport">データを書き出す（バックアップ）</button><button class="btn" id="sImport">データを読み込む</button><input type="file" id="sFile" accept=".html,.htm,.json" hidden></div>
+  <div class="row" style="margin-top:10px"><button class="btn" id="sExport">データを書き出す（バックアップ）</button><button class="btn" id="sDiag">保存のテスト</button><button class="btn" id="sImport">データを読み込む</button><input type="file" id="sFile" accept=".html,.htm,.json" hidden></div>
   <p class="hint">新しい版のスマート専科用週案に入れかえるときは、新しいファイルを開いて「データを読み込む」で、今まで使っていたファイルを選んでください。</p>
   <div class="row" style="margin-top:16px"><button class="btn danger" id="sClear">この年度の週案をすべて消す</button></div>`;
   el.innerHTML = h;
@@ -2082,7 +2177,9 @@ function renderSet() {
     download("スマート専科用週案_" + VERSION + "_配布用" + (withU && me.subject ? "_" + me.subject : "") + ".html", buildHtml(nd));
     toast("配布用のファイルをダウンロードしました");
   };
-  $("#sExport").onclick = () => download(fileBaseName() + "_バックアップ_" + today() + ".json", JSON.stringify(D, null, 1), "application/json");
+  $("#sExport").onclick = backupNow;
+  $("#sDiag").onclick = saveDiag;
+  $("#sAuto").onchange = e => { me.autoSave = e.target.checked; changed(); if (!e.target.checked) clearTimeout(autoSave.t); };
   $("#sImport").onclick = () => $("#sFile").click();
   $("#sFile").onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
