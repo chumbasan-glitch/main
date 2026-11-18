@@ -160,6 +160,7 @@ var TITLE_START = 2;                 // 上から2マス空ける
 /* ===== 文字の種類 ===== */
 var ROT = "ー－―‐—〜～…‥（）「」『』【】〔〕［］｛｝〈〉《》＜＞＝→←⇒：；｜";
 var PUNCT = "、。，．";
+var CENTER_ROT = "－―‐—〜～…‥＝｜→←⇒：；";
 var SMALL = "ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ";
 var CLOSE = "」』）】〕〉》］｝";
 var NO_HEAD = PUNCT + CLOSE;          // 行の頭に来てはいけない文字
@@ -261,7 +262,15 @@ function drawAt(ctx, ch, tx, ty, size, rot){
 function drawGlyph(ctx, ch, cx, cy, size){
   ctx.font = '600 ' + size + 'px "Klee One"';
   var f = size;
-  if (ROT.indexOf(ch) >= 0){
+  if (ch === "ー"){
+    // 伸ばし棒は書体を使わず、マスの真ん中にまっすぐの線を引く
+    ctx.save(); ctx.strokeStyle = ctx.fillStyle; ctx.lineCap = "round";
+    ctx.lineWidth = f * 0.075;
+    ctx.beginPath(); ctx.moveTo(cx, cy - f * 0.4); ctx.lineTo(cx, cy + f * 0.4); ctx.stroke();
+    ctx.restore();
+  } else if (CENTER_ROT.indexOf(ch) >= 0){
+    drawAt(ctx, ch, cx, cy, f, true);   // 〜…＝ などはマスの真ん中に
+  } else if (ROT.indexOf(ch) >= 0){
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI / 2);
     ctx.fillText(ch, 0, 0); ctx.restore();
   } else if (PUNCT.indexOf(ch) >= 0){
