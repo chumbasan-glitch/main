@@ -259,15 +259,49 @@ function drawAt(ctx, ch, tx, ty, size, rot){
   ctx.translate(tx, ty); if (rot) ctx.rotate(Math.PI / 2);
   ctx.fillText(ch, r.dx, r.dy); ctx.restore();
 }
+// 書体の字のかたむきを調べる（横書きのときの傾き）
+var slantCache = {};
+function glyphSlant(ch, size){
+  var key = ch + "|" + Math.round(size);
+  if (slantCache[key] !== undefined) return slantCache[key];
+  var n = Math.ceil(size * 2), c = document.createElement("canvas");
+  c.width = c.height = n;
+  var g = c.getContext("2d");
+  g.font = '600 ' + size + 'px "Klee One"'; g.textAlign = "left"; g.textBaseline = "alphabetic";
+  g.fillStyle = "#000"; g.fillText(ch, size * 0.5, size * 1.4);
+  var d = g.getImageData(0, 0, n, n).data, xs = [], ys = [];
+  for (var x = 0; x < n; x++){
+    var sum = 0, cnt = 0;
+    for (var y = 0; y < n; y++){ var al = d[(y * n + x) * 4 + 3]; if (al > 40){ sum += y * al; cnt += al; } }
+    if (cnt > 0){ xs.push(x); ys.push(sum / cnt); }
+  }
+  var ang = 0;
+  if (xs.length > 4){
+    // 両はしの形の影響をさけるため、まん中の6割だけで傾きを出す
+    var k0 = Math.floor(xs.length * 0.2), k1 = Math.ceil(xs.length * 0.8);
+    var mx = 0, my = 0, m = 0;
+    for (var i = k0; i < k1; i++){ mx += xs[i]; my += ys[i]; m++; }
+    mx /= m; my /= m;
+    var sxy = 0, sxx = 0;
+    for (var j = k0; j < k1; j++){ sxy += (xs[j] - mx) * (ys[j] - my); sxx += (xs[j] - mx) * (xs[j] - mx); }
+    if (sxx > 0) ang = Math.atan(sxy / sxx);
+  }
+  if (fontReady) slantCache[key] = ang;
+  return ang;
+}
+function drawStraight(ctx, ch, cx, cy, size){
+  var r = glyphBox(ch, size), ang = glyphSlant(ch, size);
+  ctx.save();
+  ctx.font = '600 ' + size + 'px "Klee One"'; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.translate(cx, cy); ctx.rotate(Math.PI / 2 - ang);
+  ctx.fillText(ch, r.dx, r.dy); ctx.restore();
+}
 function drawGlyph(ctx, ch, cx, cy, size){
   ctx.font = '600 ' + size + 'px "Klee One"';
   var f = size;
   if (ch === "ー"){
-    // 伸ばし棒は書体を使わず、マスの真ん中にまっすぐの線を引く
-    ctx.save(); ctx.strokeStyle = ctx.fillStyle; ctx.lineCap = "round";
-    ctx.lineWidth = f * 0.075;
-    ctx.beginPath(); ctx.moveTo(cx, cy - f * 0.4); ctx.lineTo(cx, cy + f * 0.4); ctx.stroke();
-    ctx.restore();
+    // 伸ばし棒：書体の「ー」の形のまま、かたむきを直してまっすぐ縦にする
+    drawStraight(ctx, ch, cx, cy, f);
   } else if (CENTER_ROT.indexOf(ch) >= 0){
     drawAt(ctx, ch, cx, cy, f, true);   // 〜…＝ などはマスの真ん中に
   } else if (ROT.indexOf(ch) >= 0){
