@@ -371,14 +371,30 @@ function collect(){
   };
 }
 
+function countChars(str){ return chars(str).filter(function(c){ return c !== "　"; }).length; }
 function check(d){
   var msgs = [], ok = true;
   var titleMax = ROWS - TITLE_START;
   if (d.title.length > titleMax){ ok = false; msgs.push("題名が長すぎます（" + titleMax + "字まで）。"); }
   if (d.name.length > ROWS - 1){ ok = false; msgs.push("名前が長すぎます。"); }
   var over = d.body.length - BODY_COLS;
-  if (over > 0){ ok = false; msgs.push("本文が" + over + "行はみ出しています。あと" + over + "行分（約" + over * ROWS + "字）短くしてください。"); }
-  else msgs.push("本文：" + d.body.length + "行／" + BODY_COLS + "行（あと" + (BODY_COLS - d.body.length) + "行書けます）");
+  var total = 0, overChars = 0;
+  d.body.forEach(function(col, ci){
+    col.forEach(function(cell){
+      var n = countChars(cell.ch) + (cell.hang ? countChars(cell.hang) : 0);
+      total += n; if (ci >= BODY_COLS) overChars += n;
+    });
+  });
+  msgs.push("本文：" + d.body.length + "行／" + BODY_COLS + "行・" + total + "字（空白はのぞく）");
+  if (over > 0){
+    ok = false;
+    msgs.push("はみ出しています：" + over + "行（" + overChars + "字）。あと" + overChars + "字けずってください。");
+    msgs.push("※段落のとちゅうをけずると、行がへらないことがあります。行の数も見ながらけずってください。");
+  } else {
+    var last = d.body.length ? d.body[d.body.length - 1].length : ROWS;
+    var room = (BODY_COLS - d.body.length) * ROWS + (d.body.length ? ROWS - last : 0);
+    msgs.push("あと" + (BODY_COLS - d.body.length) + "行書けます（最後に続けて書くなら、あと" + room + "字）");
+  }
   if (!d.hasTitle) msgs.push("題名がまだ入っていません。");
   if (!d.hasName) msgs.push("名前がまだ入っていません。");
   return {ok: ok, msgs: msgs};
