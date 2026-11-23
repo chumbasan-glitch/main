@@ -371,6 +371,7 @@ const FONTS = {
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
 const VERSION = "v10.4";
+const SHEET_LOCK = false;   // true：週案シートを選べない（今年度用。いつも「これまでのシート」）
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -500,6 +501,7 @@ function normalize(d) {
   if (!d.cls.courses) d.cls.courses = {};
   if (!d.cls.noAim) d.cls.noAim = {};
   if (d.cls.sheet === undefined) d.cls.sheet = d.savedAt ? "classic" : "";   // 週案シート（""＝まだ選んでいない）
+  if (SHEET_LOCK) d.cls.sheet = "classic";
   if (!Array.isArray(d.ttChanges)) d.ttChanges = [];
   if (!Array.isArray(d.school.events)) d.school.events = [];   // 行事予定 [{id, from, to, name, grades}]
   if (!d.cls.hideEv) d.cls.hideEv = {};   // この学級では入れない行事予定   // 年度のとちゅうからの時間割 [{from, tt}]   // 単元計画の文を週案に入れない教科
@@ -1031,8 +1033,8 @@ function renderBanners() {
       <select id="bnGrade"><option value="">学年</option>${[1,2,3,4,5,6].map(g => `<option value="${g}"${D.cls.grade === g ? " selected" : ""}>${g}年</option>`).join("")}</select>
       <span class="row" style="gap:4px"><input type="text" id="bnKumi" placeholder="例：1" style="width:70px" value="${esc(D.cls.kumi || "")}">組</span>
       <input type="text" id="bnTeacher" placeholder="担任名" style="width:160px" value="${esc(D.cls.teacher || "")}">
-      <div style="width:100%;margin-top:8px"><b>週案シート</b>を選んでください（印刷・PDFの形です。あとから設定で変えられます）${sheetPicker(D.cls.sheet || "", "bnSheet")}
-      <label class="row" style="gap:4px;margin-top:6px"><input type="checkbox" id="bnSheetEx"${D.cls.sheetExtras ? " checked" : ""}> 新しいシートにも、メモ・記録欄・備考を入れる（「これまでのシート」にはいつも入ります）</label></div>
+      ${SHEET_LOCK ? "" : `<div style="width:100%;margin-top:8px"><b>週案シート</b>を選んでください（印刷・PDFの形です。あとから設定で変えられます）${sheetPicker(D.cls.sheet || "", "bnSheet")}
+      <label class="row" style="gap:4px;margin-top:6px"><input type="checkbox" id="bnSheetEx"${D.cls.sheetExtras ? " checked" : ""}> 新しいシートにも、メモ・記録欄・備考を入れる（「これまでのシート」にはいつも入ります）</label></div>`}
       <button class="btn primary" id="bnGo">決定</button></div>`;
 
   } else if (D.cls.grade && !D.timetable[1].some(Boolean) && curTab === "week") {
@@ -1048,7 +1050,7 @@ function renderBanners() {
   if (go) go.onclick = () => {
     const g = +$("#bnGrade").value;
     if (!g) { toast("学年を選んでください"); return; }
-    const sk = ($('input[name="bnSheet"]:checked') || {}).value;
+    const sk = SHEET_LOCK ? "classic" : ($('input[name="bnSheet"]:checked') || {}).value;
     if (!sk) { toast("週案シートを選んでください"); return; }
     D.cls.sheet = sk; D.cls.sheetExtras = !!($("#bnSheetEx") || {}).checked;
     D.cls.grade = g; D.cls.kumi = kumiOf($("#bnKumi").value); D.cls.teacher = $("#bnTeacher").value.trim();
@@ -2388,9 +2390,9 @@ function renderSet() {
     <label class="f">担任名<input type="text" id="sTeacher" value="${esc(c.teacher)}"></label>
     <label class="f">このスマート週案簿を使い始める日<input type="date" id="sStart" value="${esc(c.startDate)}"></label>
   </div>
-  <h3>週案シート（印刷・PDFの形）</h3>
+  ${SHEET_LOCK ? "" : `<h3>週案シート（印刷・PDFの形）</h3>
   ${sheetPicker(c.sheet || "", "sSheet")}
-  <label class="row" style="gap:4px;margin-top:6px"><input type="checkbox" id="sSheetEx"${c.sheetExtras ? " checked" : ""}> メモ・記録欄・備考も印刷する（新しいシートのとき。「これまでのシート」は上の「印刷の形」のとおりに入ります）</label>
+  <label class="row" style="gap:4px;margin-top:6px"><input type="checkbox" id="sSheetEx"${c.sheetExtras ? " checked" : ""}> メモ・記録欄・備考も印刷する（新しいシートのとき。「これまでのシート」は上の「印刷の形」のとおりに入ります）</label>`}
   <h3>印刷の色</h3>
   <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${c.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
     <span class="tp"><span class="tph"></span><span class="tpb"></span><span class="tps"><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s1)"></i><i style="background:var(--sub)"></i><i style="background:var(--tot)"></i></span></span><b>${t.name}</b></button>`).join("")}</div>
@@ -2479,7 +2481,7 @@ function renderSet() {
   $("#sFont").onchange = e => { c.font = e.target.value; changed(); };
   $$("[data-theme]", el).forEach(b => b.onclick = () => { c.theme = b.dataset.theme; changed(); });
   $$('input[name="sSheet"]', el).forEach(r => r.onchange = () => { c.sheet = r.value; changed(); });
-  $("#sSheetEx").onchange = e => { c.sheetExtras = e.target.checked; changed(); };
+  if ($("#sSheetEx")) $("#sSheetEx").onchange = e => { c.sheetExtras = e.target.checked; changed(); };
   $("#sRate").onchange = upd(v => c.rateMode = v);
   $("#sPrintMode").onchange = upd(v => c.printMode = v);
   $$(".sAim", el).forEach(i => i.onchange = () => { if (i.checked) delete c.noAim[i.dataset.s]; else c.noAim[i.dataset.s] = true; changed(); });
