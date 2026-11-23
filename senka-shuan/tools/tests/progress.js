@@ -60,7 +60,7 @@ const SHEETS = ['classic', 'line', 'wide', 'stripe', 'note', 'card'];
   });
   const ss = await s.evaluate(() => Array.from(document.querySelectorAll('.side table.prog tr')).slice(1).map(tr => Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim()).join(' ')));
   ok('専科用：週案の画面の右に、クラスごとの進み具合が出る（3/8 の形）', ss.length === 8 && ss.every(r => / \d+\/\d+$/.test(r)), ss.slice(0, 3).join(' | '));
-  ok('専科用：はじめから印刷に入れる', await s.evaluate(() => progOn()));
+  ok('専科用：はじめは印刷に入れない（設定で選ぶ）', await s.evaluate(() => !progOn()));
   await prints(s, 'me', '専科', true);
   // 3 設定：印刷に入れるもの（チェック）。前の「印刷の形」からはじめの値が決まる・どの組み合わせでも1枚
   for (const [p, X, tag] of [[w, 'cls', '週案簿'], [s, 'me', '専科']]) {

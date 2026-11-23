@@ -375,7 +375,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.me.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v2.5";
+const VERSION = "v2.6";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1222,7 +1222,7 @@ function progressRows(last) {
     return {key: c.id, name: clsLabel(c), color: c.color, unit: l ? l.unit : "", no: l ? l.no : 0, total: un ? lessonCount(un) : 0, course: ""};
   });
 }
-const progOn = () => D.me.printProg !== false;   // 印刷に進み具合を入れる（専科用は、はじめから入れる）
+const progOn = () => !!D.me.printProg;   // 印刷に進み具合を入れる（設定で選ぶ。はじめは入れない）
 // 印刷に入れるもの（設定のチェック）。前の「印刷の形」で選んでいたときは、それに合わせる
 const prHours = () => D.me.printHours ?? !["nohours", "gridonly"].includes(D.me.printMode);   // 右の時数表・メモ
 const prRec = () => D.me.printRec ?? D.me.printMode !== "gridonly";                          // 記録欄（新しいシートは、メモ・記録欄・備考）
