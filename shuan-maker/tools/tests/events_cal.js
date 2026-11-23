@@ -67,6 +67,22 @@ let bad = 0; const ok = (name, c, info = '') => { if (!c) bad++; console.log((c 
   ok('このコマを自分で直す（ふつうの分けたコマになる）', /"s":"国語"/.test(det) && /避難訓練/.test(det) && !/"ev"/.test(det), det);
   await p.fill('.slot[data-d="2026-12-01"][data-i="2"] input.subj', '算数'); await p.press('.slot[data-d="2026-12-01"][data-i="2"] input.subj', 'Enter'); await p.waitForTimeout(80);
   ok('  上の教科を算数に直せる', await p.evaluate(() => ensureSlots('2026-12-01')[2].s === '算数' && ensureSlots('2026-12-01')[2].parts[0].t === '避難訓練'));
+  // まちがえて確定したとき：「確定を取り消す」で、行事予定が入ったときの形にもどる
+  ok('確定したコマには「確定を取り消す」が出る', !!(await p.$('.slot[data-d="2026-12-01"][data-i="2"] [data-evundo]')));
+  { await p.addStyleTag({ content: '.toast,#toast{display:none!important}' }); await p.waitForTimeout(50);
+    const sb = await (await p.$('.slot[data-d="2026-12-01"][data-i="2"]')).boundingBox();
+    await p.screenshot({ path: path.join(OUT, '画面_確定したコマと取り消し.png'), clip: { x: sb.x - 8, y: sb.y - 8, width: sb.width + 16, height: sb.height + 16 } }); }
+  await p.click('.slot[data-d="2026-12-01"][data-i="2"] [data-evundo]'); await p.waitForTimeout(80);
+  const und0 = await p.evaluate(() => { const x = slotsOf('2026-12-01')[2]; return { ev: !!x.ev, s: x.s, h: x.h, p: x.parts && x.parts[0] && x.parts[0].s + ' ' + x.parts[0].h, box: !!document.querySelector('.evslot[data-d="2026-12-01"][data-i="2"] [data-evdetach]') }; });
+  ok('  取り消すと、行事予定のコマ（国語1/2＋行事1/2、2つのボタン）にもどる', und0.ev && und0.s === '国語' && und0.h === '1/2' && und0.p === '行事 1/2' && und0.box, JSON.stringify(und0));
+  await p.click('.evslot[data-d="2026-12-01"][data-i="2"] [data-evdetach]'); await p.waitForTimeout(80);
+  ok('  もう一度「行事確定」できる', await p.evaluate(() => !slotsOf('2026-12-01')[2].ev && !!document.querySelector('.slot[data-d="2026-12-01"][data-i="2"] [data-evundo]')));
+  const asaEv = await p.evaluate(() => { for (const d of Object.keys(cy().counts)) { const x = slotsOf(d)[0]; if (x && x.ev) return d; } return null; });
+  if (asaEv) {
+    await p.click(`.evslot[data-d="${asaEv}"][data-i="0"] [data-evdetach]`); await p.waitForTimeout(80);
+    await p.click(`.asa[data-d="${asaEv}"] [data-evundo]`); await p.waitForTimeout(80);
+    ok('  朝のコマも、確定を取り消せる', await p.evaluate(d => !!slotsOf(d)[0].ev, asaEv), asaEv);
+  } else ok('  朝のコマも、確定を取り消せる（この週に朝の行事予定がない）', false);
   // 週案の画面から時間を直す
   await p.click('.evslot[data-d="2026-12-02"] [data-evopen]');
   await p.uncheck('#evEditor [data-sl="5"]'); await p.check('#evEditor [data-sl="6"]'); await p.click('#eeSave'); await p.waitForTimeout(80);

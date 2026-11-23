@@ -168,6 +168,7 @@ textarea.ev,textarea.note{width:100%;min-height:38px;resize:vertical;font-size:1
 .psplit{align-self:flex-start;margin-top:2px}
 .sh input.hr{width:38px;flex:none;font-size:12px;padding:2px 3px;text-align:center}
 .asa .sh{display:flex;gap:3px}
+.btn.evundo{font-size:11px;padding:1px 6px;margin-top:2px;align-self:flex-start;color:#9A5A00;border-color:#E0B060;background:#FFF8E6}
 .asa .sh input.subj{font-weight:400;font-size:12px}
 .slot select.unit.pinned{border-color:var(--accent);font-weight:700}
 .slot select.unit.skip{color:var(--ink-soft)}
@@ -411,7 +412,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v10.7";
+const VERSION = "v10.8";
 const SHEET_LOCK = false;   // true：週案シートを選べない（今年度用。いつも「これまでのシート」）
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -1521,6 +1522,12 @@ function evSlotHtml(d, i, x) {
     <div class="evst">${what}</div>
     <div class="evbtns"><button class="btn small primary" data-evdetach="${esc(d + "|" + i + "|" + e.id)}" title="このコマを行事で確定します。そのあとは、ふつうのコマとして教科や時数を直せます">行事確定</button><button class="btn small" data-evopen="${esc(e.id)}" title="日付・時間を変えたり、削除したりします。変えると、このコマは時間割の教科にもどります">行事予定の変更</button></div></div>`;
 }
+// このコマで「行事確定」した行事予定（取り消しボタンを出す）
+function confirmedEv(d, i) {
+  const k = i === 0 ? "asa" : String(i); const h = D.cls.hideEvSlot || {};
+  const e = schoolEventsOn(d).find(e => h[d + "|" + e.id] && evSlotsOf(e).includes(k));
+  return e ? e.id : "";
+}
 function slotHtml(d, i, x, off) {
   if (x.ev) return evSlotHtml(d, i, x);
   const inf = cy().info[d + "|" + i] || {};
@@ -1547,7 +1554,7 @@ ${esc(pm ? pt.t : (inf2.auto || ""))}</textarea>
     ${x.s ? unitFields(x, "") : ""}
     <div class="tw"><textarea class="ct${manual ? "" : " auto"}" placeholder="学習内容・めあて">
 ${esc(val)}</textarea>${manual && inf.auto ? '<button class="rv" title="単元計画の内容にもどす">↺</button>' : ""}</div>
-    ${ph}${!off && parts.length < 2 ? `<button class="btn small psplit" title="1時間の中に行事などがあるとき、コマを分けます（3つまで）">＋分ける</button>` : ""}
+    ${ph}${confirmedEv(d, i) ? `<button class="btn small evundo" data-evundo="${esc(d + "|" + i + "|" + confirmedEv(d, i))}" title="まちがえて「行事確定」を押したときに、行事予定が入ったときの形にもどします">↺ 確定を取り消す</button>` : ""}${!off && parts.length < 2 ? `<button class="btn small psplit" title="1時間の中に行事などがあるとき、コマを分けます（3つまで）">＋分ける</button>` : ""}
   </div>`;
 }
 const BREAKS = [[2, "naka", "中"], [4, "hiru", "昼"]];
@@ -1615,7 +1622,7 @@ ${esc(dayRec(d).event || "")}</textarea></td>`;
   for (const d of days) {
     const x = slotsOf(d)[0]; const col = x.s ? colorOf(x.s) : "#E5E5E5";
     if (x.ev) { h += `<td>${evSlotHtml(d, 0, x)}</td>`; continue; }
-    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><div class="asa" data-d="${d}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}"><div class="sh"><input type="text" class="subj" list="asaList" value="${esc(x.s || "")}" placeholder="―">${isAsaEvent(x.s) ? `<input type="text" class="hr" value="" placeholder="―" readonly title="朝会は時数に数えません">` : `<input type="text" class="hr" value="${esc(asaShown(x))}" placeholder="${esc(D.school.asaHours || "1/3")}" title="朝の時間の時数。空欄は設定の時数">`}</div><input type="text" class="ct" value="${esc(x.t || "")}" placeholder="内容"></div></td>`;
+    h += `<td class="${isSchoolDay(d) ? "" : "off"}"><div class="asa" data-d="${d}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}"><div class="sh"><input type="text" class="subj" list="asaList" value="${esc(x.s || "")}" placeholder="―">${isAsaEvent(x.s) ? `<input type="text" class="hr" value="" placeholder="―" readonly title="朝会は時数に数えません">` : `<input type="text" class="hr" value="${esc(asaShown(x))}" placeholder="${esc(D.school.asaHours || "1/3")}" title="朝の時間の時数。空欄は設定の時数">`}</div><input type="text" class="ct" value="${esc(x.t || "")}" placeholder="内容">${confirmedEv(d, 0) ? `<button class="btn small evundo" data-evundo="${esc(d + "|0|" + confirmedEv(d, 0))}" title="まちがえて「行事確定」を押したときに、行事予定が入ったときの形にもどします">↺ 確定を取り消す</button>` : ""}</div></td>`;
   }
   h += "</tr>";
   for (let i = 1; i <= P(); i++) {
@@ -1719,7 +1726,14 @@ function bindWeek(el, mon) {
     const copy = JSON.parse(JSON.stringify(ov)); delete copy.ev;
     for (const pt of copy.parts || []) if (pt.h) pt.hAuto = false;
     ensureSlots(d)[+i] = copy; (D.cls.hideEvSlot = D.cls.hideEvSlot || {})[d + "|" + id] = true;
-    changed(); toast("行事を確定しました。このコマは、ふつうのコマとして教科や時数を直せます", 4000);
+    changed(); toast("行事を確定しました。このコマは、ふつうのコマとして教科や時数を直せます。まちがえたときは「確定を取り消す」でもどせます", 5000);
+  });
+  // 確定を取り消す：行事予定が入ったときの形（①行事確定 ②行事予定の変更）にもどす
+  $$("[data-evundo]", el).forEach(b => b.onclick = () => {
+    const [d, i, id] = b.dataset.evundo.split("|");
+    if (!confirm("行事の確定を取り消して、行事予定が入ったときの形にもどします。\n確定したあとにこのコマで直したところは消えます。よろしいですか？")) return;
+    ensureSlots(d)[+i] = {s: defaultSlots(d)[+i].s}; delete (D.cls.hideEvSlot || {})[d + "|" + id];
+    changed(); toast("確定を取り消しました", 3000);
   });
   $$("[data-evskip]", el).forEach(b => b.onclick = () => { (D.cls.hideEvSlot = D.cls.hideEvSlot || {})[b.dataset.evskip] = true; changed(); toast("このコマは、ふだんの時間割にもどしました（行事の欄には残ります）", 4000); });
   $$("[data-hideev]", el).forEach(b => b.onclick = () => {
