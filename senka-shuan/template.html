@@ -60,6 +60,10 @@ input[type=text],input[type=date],input[type=number],select,textarea{border:1.5p
 input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
 label.f{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--ink-soft)}
 label.f>*{font-size:14px;color:var(--ink)}
+.fset{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink-soft)}
+.prchk{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:14px;color:var(--ink);padding:3px 0}
+.prchk label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.prchk label:has(input:disabled){color:var(--ink-soft)}
 
 /* 週案 */
 .weekbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
@@ -371,7 +375,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.me.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v2.4";
+const VERSION = "v2.5";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1219,6 +1223,9 @@ function progressRows(last) {
   });
 }
 const progOn = () => D.me.printProg !== false;   // 印刷に進み具合を入れる（専科用は、はじめから入れる）
+// 印刷に入れるもの（設定のチェック）。前の「印刷の形」で選んでいたときは、それに合わせる
+const prHours = () => D.me.printHours ?? !["nohours", "gridonly"].includes(D.me.printMode);   // 右の時数表・メモ
+const prRec = () => D.me.printRec ?? D.me.printMode !== "gridonly";                          // 記録欄（新しいシートは、メモ・記録欄・備考）
 const progNo = r => r.no ? r.no + (r.total ? "/" + r.total : "") : "";
 const progFit = (t, w, base) => { const n = Math.max(1, Array.from(String(t)).length); return Math.max(3.6, Math.min(base, w / (n * 0.3528 * 0.95))).toFixed(1); };
 // 単元名：1行に入らない長さなら2行に折り返す（字が小さくなりすぎないように）
@@ -1228,7 +1235,7 @@ function progressHtml(last) {
   const rows = progressRows(last); if (!rows.length) return "";
   let h = `<h3>単元の進み具合（${md(last)}まで）</h3><table class="prog"><tr><th>クラス</th><th>単元</th><th>時</th></tr>`;
   for (const r of rows) h += `<tr><td><span class="chip" style="background:${r.color}"></span>${esc(r.name)}</td><td>${esc(r.unit || "―")}${r.course ? `<small>（${esc(r.course)}）</small>` : ""}</td><td>${esc(progNo(r))}</td></tr>`;
-  return h + `</table><p class="hint">この週の終わりまでに入れた、いちばん新しい単元と時です（「3/8」は8時間のうちの3時間目）。印刷に入れるかは、設定の「印刷に単元の進み具合」で選べます。</p>`;
+  return h + `</table><p class="hint">この週の終わりまでに入れた、いちばん新しい単元と時です（「3/8」は8時間のうちの3時間目）。印刷に入れるかは、設定の「印刷に入れるもの」で選べます。</p>`;
 }
 // 印刷：時数表の下に入れる小さな表（wmm＝欄の幅）。単元が入っているクラスごとの分だけ
 function progPrintHtml(last, wmm, base = 6.3) {
@@ -1393,9 +1400,8 @@ function renderPrint() {
   if (SK !== "classic") return renderSheet(SK);
   const mon = curWeek; const days = weekDays(mon); const wr = weekRec(mon);
   const info = cy().info;
-  // 印刷の形：full＝時数表あり（いつもの）、nohours＝右の時数表・メモなし、gridonly＝時数表・メモ・記録欄なし（時間割だけ）
-  const PM = ["nohours", "gridonly"].includes(D.me.printMode) ? D.me.printMode : "full";
-  const SIDE = PM === "full", REC = PM !== "gridonly";
+  // 印刷に入れるもの：右の時数表・メモ（prHours）、記録欄（prRec）。設定のチェックで決める
+  const SIDE = prHours(), REC = prRec();
   const PROG = SIDE && progOn();
   // 高さ（mm）：本体 = 243 - 見出し6 - 記録欄27 - すきま
   const H = 243 - 6 - 1.5 - (REC ? 25 : 0) - 5;
@@ -1643,10 +1649,9 @@ const SHEET_CSS = `
 function renderSheet(kind) {
   const mon = curWeek; const days = weekDays(mon); const wr = weekRec(mon); const c = D.me;
   const info = cy().info;
-  const PM = ["nohours", "gridonly"].includes(c.printMode) ? c.printMode : "full";
-  const HOURS = PM === "full";
+  const HOURS = prHours();
   const PROG = HOURS && progOn();
-  const EX = PM !== "gridonly" && !!c.sheetExtras;   // メモ・記録欄・備考
+  const EX = prRec() && !!c.sheetExtras;   // メモ・記録欄・備考
   const N = days.length;
   // ---- 高さ（mm）----
   const HDR = {line: 14, wide: 11, stripe: 10, note: 11.6, card: 14.6}[kind];
@@ -2136,12 +2141,12 @@ function renderSet() {
   <div class="setgrid" style="margin-top:10px"><label class="f" style="grid-column:span 2">ほかの予定の名前（「、」で区切る・時数に数えない）<input type="text" id="sOthers" value="${esc((me.others || []).join("、"))}"></label></div>
   <h3>週案シート（印刷・PDFの形）</h3>
   ${sheetPicker(me.sheet || "", "sSheet")}
-  <label class="row" style="gap:4px;margin-top:6px"><input type="checkbox" id="sSheetEx"${me.sheetExtras ? " checked" : ""}> メモ・記録欄・備考も印刷する（新しいシートのとき。「これまでのシート」は下の「印刷の形」のとおりに入ります）</label>
+  <label class="row" style="gap:4px;margin-top:6px"><input type="checkbox" id="sSheetEx"${me.sheetExtras ? " checked" : ""}> メモ・記録欄・備考も印刷する（新しいシートのとき。下の「印刷に入れるもの」で「記録欄」を外すと入りません）</label>
   <h3>印刷の色</h3>
   <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${me.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
     <span class="tp"><span class="tph"></span><span class="tpb"></span><span class="tps"><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s1)"></i><i style="background:var(--sub)"></i><i style="background:var(--tot)"></i></span></span><b>${t.name}</b></button>`).join("")}</div>
   <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(me.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${me.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${me.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label>
-    <label class="f">印刷の形<select id="sPrintMode">${[["full", "いつもの（右に時数表・メモあり）"], ["nohours", "時数表なし（右の時数表・メモをカット）"], ["gridonly", "時間割だけ（時数表・メモ・記録欄なし）"]].map(([k, n]) => `<option value="${k}"${(me.printMode || "full") === k ? " selected" : ""}>${n}</option>`).join("")}</select></label><label class="f">印刷に単元の進み具合<select id="sProg"><option value="1"${progOn() ? " selected" : ""}>入れる（時数表の下）</option><option value="0"${progOn() ? "" : " selected"}>入れない</option></select></label><label class="f" style="grid-column:span 2">週案のコマに入る学習内容（単元計画から）${lessonModeSelect("sMode")}</label></div>
+    <div class="fset" style="grid-column:span 2">印刷に入れるもの<span class="prchk"><label><input type="checkbox" id="sPrHours"${prHours() ? " checked" : ""}> 時数表・メモ（右）</label><label><input type="checkbox" id="sPrRec"${prRec() ? " checked" : ""}> 記録欄（いちばん下）</label><label title="時数表を入れるときだけ入ります"><input type="checkbox" id="sPrProg"${progOn() ? " checked" : ""}${prHours() ? "" : " disabled"}> 単元の進み具合（時数表の下）</label></span></div><label class="f" style="grid-column:span 2">週案のコマに入る学習内容（単元計画から）${lessonModeSelect("sMode")}</label></div>
   <p class="hint">学習内容を自分で書きかえたコマは、どれを選んでもその文のままです。「入れない」にすると、コマには単元名と時（例：さくら さくら③）だけが出ます。</p>
   <details class="box" style="margin-top:10px"${Object.values(me.init).some(Boolean) ? " open" : ""}><summary>年度のとちゅうから使うとき：それまでの時数</summary>
     <p class="hint">「このファイルを使い始める日」の前までの累計時数をクラスごとに入れてください。使い始める日からは週案の時数がたされていきます。半端な時数は「12 1/3」のように入れられます。</p>
@@ -2220,8 +2225,9 @@ function renderSet() {
   bindLessonMode("sMode");
   $$('input[name="sSheet"]', el).forEach(r => r.onchange = () => { me.sheet = r.value; changed(); });
   $("#sSheetEx").onchange = e => { me.sheetExtras = e.target.checked; changed(); };
-  $("#sPrintMode").onchange = upd(v => me.printMode = v);
-  $("#sProg").onchange = upd(v => me.printProg = v === "1");
+  $("#sPrHours").onchange = e => { me.printHours = e.target.checked; changed(); };
+  $("#sPrRec").onchange = e => { me.printRec = e.target.checked; changed(); };
+  $("#sPrProg").onchange = e => { me.printProg = e.target.checked; changed(); };
   if ($("#sConfirm")) $("#sConfirm").onclick = () => { s.confirmed = true; changed(); };
   $("#sYear").onchange = e => {
     const ny = parseInt(e.target.value); if (!(ny >= 2000 && ny <= 2099)) return render();

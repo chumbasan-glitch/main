@@ -45,8 +45,8 @@ const SHEETS = ['classic', 'line', 'wide', 'stripe', 'note', 'card'];
   await w.screenshot({ path: path.join(OUT, '週案簿_画面_進み具合.png'), clip: { x: sideBox.x - 4, y: sideBox.y - 4, width: sideBox.width + 8, height: Math.min(sideBox.height + 8, 1400) }, fullPage: true });
   ok('スマート週案簿：はじめは印刷に入れない（設定で選ぶ）', await w.evaluate(() => !progOn()));
   await w.click('[data-tab=set]');
-  await w.selectOption('#sProg', '1'); await w.waitForTimeout(80);
-  ok('スマート週案簿：設定の「印刷に単元の進み具合」で入れるにできる', await w.evaluate(() => D.cls.printProg === true));
+  await w.check('#sPrProg'); await w.waitForTimeout(80);
+  ok('スマート週案簿：設定の「印刷に入れるもの」で進み具合にチェックできる', await w.evaluate(() => D.cls.printProg === true));
   await prints(w, 'cls', '週案簿', true);
   // 2 スマート専科用週案
   const s = await newPage(SENKA);
@@ -62,14 +62,34 @@ const SHEETS = ['classic', 'line', 'wide', 'stripe', 'note', 'card'];
   ok('専科用：週案の画面の右に、クラスごとの進み具合が出る（3/8 の形）', ss.length === 8 && ss.every(r => / \d+\/\d+$/.test(r)), ss.slice(0, 3).join(' | '));
   ok('専科用：はじめから印刷に入れる', await s.evaluate(() => progOn()));
   await prints(s, 'me', '専科', true);
+  // 3 設定：印刷に入れるもの（チェック）。前の「印刷の形」からはじめの値が決まる・どの組み合わせでも1枚
+  for (const [p, X, tag] of [[w, 'cls', '週案簿'], [s, 'me', '専科']]) {
+    await p.evaluate(X => { const c = X === 'me' ? D.me : D.cls; delete c.printHours; delete c.printRec; c.printMode = 'nohours'; c.sheet = 'classic'; switchTab('set'); }, X);
+    const st0 = await p.evaluate(() => ({ h: document.querySelector('#sPrHours').checked, r: document.querySelector('#sPrRec').checked, pg: document.querySelector('#sPrProg').disabled, old: !!document.querySelector('#sPrintMode') }));
+    ok(`${tag} 設定：「印刷の形」の選ぶ欄はなく、チェックになっている（前の「時数表なし」→時数表のチェックが外れ、進み具合は選べない）`, !st0.old && !st0.h && st0.r && st0.pg, JSON.stringify(st0));
+    await p.check('#sPrHours'); await p.waitForTimeout(60);
+    ok(`${tag} 設定：時数表にチェックすると、進み具合も選べる`, await p.evaluate(() => !document.querySelector('#sPrProg').disabled));
+    await p.uncheck('#sPrRec'); await p.waitForTimeout(60);
+    ok(`${tag} 設定：記録欄のチェックを外せる（時数表あり・記録欄なし）`, await p.evaluate(X => { const c = X === 'me' ? D.me : D.cls; return c.printHours === true && c.printRec === false; }, X));
+    await p.emulateMedia({ media: 'print' });
+    for (const [hh, rr] of [[true, false], [false, true], [false, false], [true, true]]) for (const k of SHEETS) {
+      const r = await p.evaluate(([X, k, hh, rr]) => { const c = X === 'me' ? D.me : D.cls; c.sheet = k; c.sheetExtras = true; c.printHours = hh; c.printRec = rr; c.printProg = true; curWeek = '2026-11-30'; renderPrint(); const t = document.querySelector('#print').textContent;
+        return { side: !!document.querySelector('#print .side, #print table.hb, #print table.pt2'), rec: k === 'classic' ? /記録欄/.test(t) : !!document.querySelector('#print .ex'), clip: Array.from(document.querySelectorAll('#print .tx')).filter(t => t.scrollHeight > t.clientHeight + 2).length }; }, [X, k, hh, rr]);
+      const f = path.join(OUT, `${tag}_chk_${k}_${hh ? '時数' : 'x'}_${rr ? '記録' : 'x'}.pdf`); await p.pdf({ path: f, preferCSSPageSize: true, printBackground: true });
+      const pages = +execSync(`pdfinfo "${f}" | grep Pages | awk '{print $2}'`).toString().trim();
+      ok(`${tag} 印刷 ${k}：時数表${hh ? 'あり' : 'なし'}・記録欄${rr ? 'あり' : 'なし'}`, pages === 1 && r.clip === 0 && r.side === hh && r.rec === rr, `${pages}枚 切れ${r.clip} 時数表${r.side} 記録欄${r.rec}`);
+      if (k === 'classic' && hh && !rr) execSync(`pdftoppm -r 80 -png -singlefile "${f}" "${f.replace(/\.pdf$/, '')}"`);
+    }
+    await p.emulateMedia({ media: 'screen' });
+    await p.evaluate(X => { const c = X === 'me' ? D.me : D.cls; c.printHours = true; c.printRec = true; c.printProg = true; render(); }, X);
+    await (await p.$('.setgrid:has(.fset)')).screenshot({ path: path.join(OUT, `${tag}_設定_印刷に入れるもの.png`) });
+  }
   // 3 上のボタンの並び
   const order = p => p.evaluate(() => { const wb = document.querySelector('.weekbar'); return Array.from(wb.children).map(e => e.id || (e.querySelector('input') ? e.querySelector('input').id : '') || e.className).join(' '); });
-  await w.evaluate(() => switchTab('week')); const o1 = await order(w), o2 = await order(s);
+  await w.evaluate(() => switchTab('week')); await s.evaluate(() => switchTab('week')); const o1 = await order(w), o2 = await order(s);
   ok('上のボタンの並びがスマート週案簿と同じ', o1 === o2, o2);
-  const wb = await (await s.$('.weekbar')).boundingBox();
-  await s.screenshot({ path: path.join(OUT, '専科_上のボタン.png'), clip: { x: wb.x - 4, y: wb.y - 4, width: wb.width + 8, height: wb.height + 8 } });
-  const wb2 = await (await w.$('.weekbar')).boundingBox();
-  await w.screenshot({ path: path.join(OUT, '週案簿_上のボタン.png'), clip: { x: wb2.x - 4, y: wb2.y - 4, width: wb2.width + 8, height: wb2.height + 8 } });
+  await (await s.$('.weekbar')).screenshot({ path: path.join(OUT, '専科_上のボタン.png') });
+  await (await w.$('.weekbar')).screenshot({ path: path.join(OUT, '週案簿_上のボタン.png') });
   ok('エラーが出ない', !errs.length, errs.join(' / '));
   await b.close();
   console.log(bad ? `\n${bad}件 だめ` : '\nすべて合格');
