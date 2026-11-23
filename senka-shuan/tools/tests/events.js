@@ -2,7 +2,7 @@
 // 使い方: NODE_PATH=$(npm root -g) node events.js <画像・PDFを置くフォルダ>
 const { chromium } = require('playwright'); const fs = require('fs'); const path = require('path'); const { execSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '../../..');
-const SHUAN = path.join(ROOT, 'shuan-maker', fs.readdirSync(path.join(ROOT, 'shuan-maker')).filter(f => /^スマート週案簿_v[\d.]+\.html$/.test(f)).sort((a, b) => parseFloat(a.match(/v([\d.]+)/)[1].split('.')[1]) - parseFloat(b.match(/v([\d.]+)/)[1].split('.')[1])).pop());
+const SHUAN = path.join(ROOT, 'shuan-maker', fs.readdirSync(path.join(ROOT, 'shuan-maker')).filter(f => /^スマート週案簿_v[\d.]+\.html$/.test(f)).sort((a, b) => { const v = f => f.match(/v(\d+)\.(\d+)/).slice(1).map(Number); const [x, y] = [v(a), v(b)]; return x[0] - y[0] || x[1] - y[1]; }).pop());
 const SENKA = path.join(ROOT, 'senka-shuan', 'スマート専科用週案.html');
 const TESTDATA = path.join(ROOT, 'shuan-maker', 'スマート週案簿_v9.4_テストデータ.html');
 const OUT = process.argv[2] || fs.mkdtempSync('/tmp/senka-ev-'); fs.mkdirSync(OUT, { recursive: true });

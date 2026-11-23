@@ -6,19 +6,19 @@
 <title>スマート週案簿</title>
 <style>
 :root{
-  --bg:#EEF2EC;
+  --bg:#EEF0F4;
   --surface:#FFFFFF;
-  --surface-2:#F4F7F2;
-  --ink:#1F2B24;
-  --ink-soft:#5E6B63;
-  --line:#CFD9D1;
-  --accent:#2E6B4F;
+  --surface-2:#F3F5F9;
+  --ink:#1F2430;
+  --ink-soft:#5E6575;
+  --line:#CDD3DE;
+  --accent:#2F5A8C;
   --accent-ink:#FFFFFF;
-  --accent-soft:#DDEDE3;
+  --accent-soft:#DCE6F3;
   --warn:#9A5B00;
   --warn-soft:#FFF1D6;
   --red:#A8323F;
-  --off:#E9ECE8;
+  --off:#E9EAEE;
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -64,7 +64,7 @@ label.f>*{font-size:14px;color:var(--ink)}
 .contbar{margin-top:-4px}
 .sheetpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:6px}
 .sheetpick .sp{display:flex;flex-direction:column;gap:3px;border:2px solid var(--line);border-radius:8px;padding:6px;cursor:pointer;background:#fff;font-weight:400}
-.sheetpick .sp.on{border-color:#2E7D5B;box-shadow:0 0 0 2px rgba(46,125,91,.18)}
+.sheetpick .sp.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
 .sheetpick .sp input{position:absolute;opacity:0;pointer-events:none}
 .sheetpick img,.sheetpick .noimg{width:100%;aspect-ratio:182/257;object-fit:cover;object-position:top;border:1px solid var(--line);border-radius:4px;background:#f4f4f4}
 .sheetpick b{font-size:13px} .sheetpick small{font-size:11px;color:var(--ink-soft);line-height:1.4}
@@ -160,7 +160,7 @@ textarea.ev,textarea.note{width:100%;min-height:38px;resize:vertical;font-size:1
 .part input.psubj{flex:1;min-width:0;font-weight:700;padding:2px;background:var(--cbg,#fff)}
 .part input.phr{width:38px;flex:none;font-size:12px;padding:2px 3px;text-align:center}
 .part textarea.pct{width:100%;min-height:34px;resize:vertical;font-size:12px;padding:3px 4px}
-.part textarea.pct.auto{color:#4C5A52;background:var(--surface-2)}
+.part textarea.pct.auto{color:#4C5462;background:var(--surface-2)}
 .part .pdel{border:none;background:transparent;color:var(--red);font-weight:700;padding:0 4px}
 .part .plab{font-size:12px;font-weight:700}
 .slot .adv{font-size:11px;color:var(--ink-soft);display:flex;gap:3px;align-items:center}
@@ -174,7 +174,7 @@ textarea.ev,textarea.note{width:100%;min-height:38px;resize:vertical;font-size:1
 .slot select.unit.skip{color:var(--ink-soft)}
 .slot .tw{position:relative}
 .slot textarea.ct{width:100%;min-height:48px;resize:vertical;font-size:12px;padding:3px 4px}
-.slot textarea.ct.auto{color:#4C5A52;background:var(--surface-2)}
+.slot textarea.ct.auto{color:#4C5462;background:var(--surface-2)}
 .slot .rv{position:absolute;right:2px;bottom:4px;border:none;background:var(--accent-soft);border-radius:4px;font-size:11px;padding:0 4px}
 .asa{display:flex;flex-direction:column;gap:3px;border-left:6px solid var(--c,#ddd);padding-left:4px}
 .asa select{font-size:12px;padding:2px;background:var(--cbg,#fff)}
@@ -278,7 +278,7 @@ table.subj th{background:var(--surface-2)}
 table.subj input.nm{width:80px}
 table.subj input.h{width:46px;text-align:center}
 table.subj input.xf{width:220px}
-table.subj .fxon{font-size:11px;color:#2E7D5B;background:#E3F2EA;border-radius:8px;padding:1px 7px}
+table.subj .fxon{font-size:11px;color:var(--accent);background:var(--accent-soft);border-radius:8px;padding:1px 7px}
 table.subj input[type=color]{width:34px;height:24px;padding:0;border:1px solid var(--line)}
 table.brk td,table.brk th{padding:3px 4px}
 table.brk{border-collapse:collapse}
@@ -412,7 +412,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v10.9";
+const VERSION = "v11.0";
 const SHEET_LOCK = false;   // true：週案シートを選べない（今年度用。いつも「これまでのシート」）
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));

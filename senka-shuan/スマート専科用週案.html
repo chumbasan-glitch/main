@@ -6,19 +6,19 @@
 <title>スマート専科用週案</title>
 <style>
 :root{
-  --bg:#EEF0F4;
+  --bg:#F3EEE8;
   --surface:#FFFFFF;
-  --surface-2:#F3F5F9;
-  --ink:#1F2430;
-  --ink-soft:#5E6575;
-  --line:#CDD3DE;
-  --accent:#2F5A8C;
+  --surface-2:#F8F4EF;
+  --ink:#2B241E;
+  --ink-soft:#655A50;
+  --line:#DDD2C5;
+  --accent:#9C5220;
   --accent-ink:#FFFFFF;
-  --accent-soft:#DCE6F3;
+  --accent-soft:#F6E6D6;
   --warn:#9A5B00;
   --warn-soft:#FFF1D6;
   --red:#A8323F;
-  --off:#E9EAEE;
+  --off:#ECE7E1;
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -108,7 +108,7 @@ textarea.ev,textarea.note,textarea.asa{width:100%;min-height:38px;resize:vertica
 .sh input.hr{width:38px;flex:none;font-size:12px;padding:2px 3px;text-align:center}
 .slot .tw{position:relative}
 .slot textarea.ct{width:100%;min-height:48px;resize:vertical;font-size:12px;padding:3px 4px}
-.slot textarea.ct.auto{color:#4C5462;background:var(--surface-2)}
+.slot textarea.ct.auto{color:#554A40;background:var(--surface-2)}
 .slot .rv{position:absolute;right:2px;bottom:4px;border:none;background:var(--accent-soft);border-radius:4px;font-size:11px;padding:0 4px}
 .slot .done{font-size:11px;color:var(--warn)}
 .memo textarea{width:100%;min-height:54px;resize:vertical}
@@ -363,7 +363,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.me.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v2.2";
+const VERSION = "v2.3";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
