@@ -393,7 +393,7 @@ function check(d){
   } else {
     var last = d.body.length ? d.body[d.body.length - 1].length : ROWS;
     var room = (BODY_COLS - d.body.length) * ROWS + (d.body.length ? ROWS - last : 0);
-    msgs.push("あと" + (BODY_COLS - d.body.length) + "行書けます（最後に続けて書くなら、あと" + room + "字）");
+    msgs.push("あと約" + room + "字書けます");
   }
   if (!d.hasTitle) msgs.push("題名がまだ入っていません。");
   if (!d.hasName) msgs.push("名前がまだ入っていません。");
