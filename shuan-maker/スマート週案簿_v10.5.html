@@ -95,6 +95,36 @@ tr.brk td.off{background:var(--off)}
 textarea.br{width:100%;min-height:34px;resize:vertical;font-size:12px;padding:3px 4px;background:#FFFDF5}
 .evchip{display:inline-flex;align-items:center;gap:2px;max-width:100%;background:#FFF1BF;border:1px solid #EBD27E;color:#5A4300;border-radius:10px;padding:0 2px 0 7px;font-size:11.5px;margin:0 3px 3px 0;line-height:1.6}
 .evchip button{border:none;background:none;color:#9A7A10;cursor:pointer;font-size:12px;padding:0 3px;line-height:1}
+.evchip .evn{color:inherit;font-size:11.5px;padding:0;cursor:pointer;text-align:left}
+.evchip .evn:hover{text-decoration:underline}
+.evslot{border:1.5px dashed #E0C060;background:#FFF8DC;border-radius:6px;padding:4px 6px;min-height:60px;display:flex;flex-direction:column;justify-content:space-between;gap:4px}
+.evslot.asa0{min-height:0}
+.evslot .evst{display:flex;flex-wrap:wrap;gap:4px;align-items:baseline;font-size:12.5px}
+.evslot .evtag{font-size:10.5px;background:#F2D36B;color:#4A3300;border-radius:4px;padding:0 4px}
+.evslot small{color:var(--ink-soft);font-size:11px}
+.evslot .evbtns{display:flex;flex-wrap:wrap;gap:4px}
+.calbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:8px 10px}
+.calbar select{font-weight:700}
+.calbar .calset{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-left:auto;font-size:13px}
+table.cal{border-collapse:collapse;table-layout:fixed;width:100%}
+table.cal th{background:var(--surface-2);font-size:13px;padding:4px;border:1px solid var(--line)}
+table.cal th.sat,table.cal td.sat{width:11%}
+table.cal td{border:1px solid var(--line);vertical-align:top;padding:3px 4px;height:92px;background:#fff}
+table.cal td.out{background:#F4F4F4}
+table.cal td.hol{background:#FDE8F0}
+table.cal .cd{display:flex;gap:6px;align-items:baseline;font-size:13px;margin-bottom:2px}
+table.cal .cd .hn{font-size:10.5px;color:#B04A72}
+table.cal .cev{display:block;width:100%;text-align:left;border:1px solid #EBD27E;background:#FFF1BF;color:#4A3600;border-radius:5px;font-size:11.5px;padding:1px 4px;margin-bottom:2px;cursor:pointer;line-height:1.35}
+table.cal .cev.other{background:#F2F2F2;border-color:#DDD;color:#888}
+table.cal .cev i{font-style:normal;font-size:10px;background:#F2D36B;border-radius:3px;padding:0 3px;margin-right:3px}
+table.cal .cev small{display:block;font-size:9.5px;color:#9A8040}
+table.cal .cev.other small{color:#999}
+table.cal .cadd{width:100%;font-size:11.5px;padding:2px 4px;border:1px dashed var(--line);background:transparent}
+table.cal .cadd:focus{border-style:solid;background:#fff}
+.evmodal{position:fixed;inset:0;background:rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;z-index:200}
+.evdlg{background:#fff;border-radius:12px;padding:16px 18px;width:min(560px,94vw);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.evdlg h3{margin:0 0 10px}
+.evgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .evadd{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px}
 .evg{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px} .evg label{display:inline-flex;gap:2px;align-items:center;white-space:nowrap}
 table.evt{border-collapse:collapse;font-size:13px;width:100%;max-width:1100px}
@@ -370,7 +400,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v10.4";
+const VERSION = "v10.5";
 const SHEET_LOCK = false;   // true：週案シートを選べない（今年度用。いつも「これまでのシート」）
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -504,7 +534,8 @@ function normalize(d) {
   if (SHEET_LOCK) d.cls.sheet = "classic";
   if (!Array.isArray(d.ttChanges)) d.ttChanges = [];
   if (!Array.isArray(d.school.events)) d.school.events = [];   // 行事予定 [{id, from, to, name, grades}]
-  if (!d.cls.hideEv) d.cls.hideEv = {};   // この学級では入れない行事予定   // 年度のとちゅうからの時間割 [{from, tt}]   // 単元計画の文を週案に入れない教科
+  if (!d.cls.hideEv) d.cls.hideEv = {};   // この学級では入れない行事予定
+  if (!d.cls.hideEvSlot) d.cls.hideEvSlot = {};   // 「日付|行事」：そのコマには入れない   // 年度のとちゅうからの時間割 [{from, tt}]   // 単元計画の文を週案に入れない教科
   if (!Array.isArray(d.school.asaEvents)) d.school.asaEvents = ["全校朝会", "児童集会", "音楽朝会"];
   if (!d.cls.rateMode) d.cls.rateMode = "rate";
   return d;
@@ -564,8 +595,8 @@ function defaultSlots(s) {
 }
 function slotsOf(s) {
   const r = D.days[s];
-  if (r && r.slots) { const a = r.slots.slice(0, P() + 1); const def = defaultSlots(s); while (a.length < P() + 1) a.push({...def[a.length]}); return a; }
-  return defaultSlots(s);
+  if (r && r.slots) { const a = r.slots.slice(0, P() + 1); const def = defaultSlots(s); while (a.length < P() + 1) a.push({...def[a.length]}); return evOverlay(s, a); }
+  return evOverlay(s, defaultSlots(s));
 }
 function ensureDay(s) { return D.days[s] || (D.days[s] = {}); }
 function ensureSlots(s) {
@@ -1068,21 +1099,54 @@ function renderBanners() {
   }
 }
 
-/* ---------- 行事予定（学校の予定。選んだ学年の週案の「行事」に入る） ---------- */
+/* ---------- 行事予定（学校の予定。選んだ学年の週案に入る） ---------- */
 const GR_ALL = [1, 2, 3, 4, 5, 6];
 const evGrades = e => Array.isArray(e.grades) && e.grades.length ? e.grades : GR_ALL;   // 空＝全学年
 const evEnd = e => e.to && e.to >= e.from ? e.to : e.from;
 const evOn = (e, d) => !!e.from && d >= e.from && d <= evEnd(e);
 const evForMe = e => !D.cls.grade || evGrades(e).includes(D.cls.grade);
+// 時間：""＝指定なし、asa＝朝、"1"〜"7"＝何校時、naka＝中休み、hiru＝昼休み、after＝放課後
+const evSlots = () => [["", "時間の指定なし"], ["asa", "朝"], ...Array.from({length: P()}, (_, i) => [String(i + 1), (i + 1) + "校時"]), ["naka", "中休み"], ["hiru", "昼休み"], ["after", "放課後"]];
+const slotLab = v => v ? ((evSlots().find(x => x[0] === v) || [, ""])[1]) : "";
+const evLabel = e => (e.slot ? slotLab(e.slot) + " " : "") + e.name;
 // その日に、この学級の週案に入る行事予定（この学級で「入れない」にしたものはのぞく）
+let evCache = {key: "", map: null};
 function schoolEventsOn(d, withHidden = false) {
-  return (D.school.events || []).filter(e => e.name && evOn(e, d) && evForMe(e) && (withHidden || !(D.cls.hideEv || {})[e.id]))
-    .sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+  const key = D.fileId + ":" + D.rev + ":" + D.cls.grade + ":" + (D.school.events || []).length + ":" + withHidden;
+  if (evCache.key !== key || evCache.arr !== D.school.events) {
+    const map = {};
+    for (const e of D.school.events || []) {
+      if (!e.name || !e.from || !evForMe(e) || (!withHidden && (D.cls.hideEv || {})[e.id])) continue;
+      for (let x = e.from; x <= evEnd(e); x = addDays(x, 1)) (map[x] = map[x] || []).push(e);
+    }
+    const order = v => v === "asa" ? 0 : /^\d$/.test(v || "") ? +v : v === "naka" ? 2.5 : v === "hiru" ? 4.5 : v === "after" ? 9 : -1;
+    for (const k in map) map[k].sort((a, b) => order(a.slot) - order(b.slot));
+    evCache = {key, map, arr: D.school.events};
+  }
+  return evCache.map[d] || [];
 }
-// 週案の「行事」に出す文：行事予定のあとに、自分で書いたものを続ける
+// 週案の「行事」に出す文：行事予定（時間つき）のあとに、自分で書いたものを続ける
 function eventText(d) {
   const own = (dayRec(d).event || "").trim();
-  return [...schoolEventsOn(d).map(e => e.name), ...(own ? [own] : [])].join("\n");
+  return [...schoolEventsOn(d).map(evLabel), ...(own ? [own] : [])].join("\n");
+}
+// 中休み・昼休みの帯に出す文
+function bandText(d, key) {
+  const own = (dayRec(d)[key] || "").trim();
+  return [...schoolEventsOn(d).filter(e => e.slot === key).map(e => e.name), ...(own ? [own] : [])].join("\n");
+}
+// 朝・何校時を指定した行事予定は、そのコマにも入れる（先生がそのコマに単元・内容を入れていないときだけ）
+function evOverlay(d, a) {
+  if (!(D.school.events || []).length || !isSchoolDay(d)) return a;
+  for (const e of schoolEventsOn(d)) {
+    if (!e.slot || (D.cls.hideEvSlot || {})[d + "|" + e.id]) continue;
+    const i = e.slot === "asa" ? 0 : /^\d$/.test(e.slot) ? +e.slot : -1;
+    if (i < 0 || i > P() || !a[i]) continue;
+    const x = a[i];
+    if (x.ev || x.unit || (x.t !== undefined && x.t !== null && x.t !== "") || (x.parts && x.parts.length)) continue;
+    a[i] = i === 0 ? {s: "", t: e.name, ev: e.id} : {s: "行事", t: e.name, ev: e.id};
+  }
+  return a;
 }
 const gradeLabel = e => {
   const g = evGrades(e); if (g.length === 6) return "全学年";
@@ -1100,6 +1164,16 @@ function parseGrades(v) {
   const a = [...out].sort((x, y) => x - y);
   return a.length === 6 ? [] : a;
 }
+// 「朝」「2」「2校時」「2時間目」「中休み」「昼休み」「放課後」を時間にする
+function parseSlot(v) {
+  v = String(v || "").replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).trim();
+  if (!v) return "";
+  if (/放課後/.test(v)) return "after";
+  if (/中休/.test(v)) return "naka";
+  if (/昼/.test(v)) return "hiru";
+  if (/朝|モジュール/.test(v)) return "asa";
+  const m = v.match(/[1-7]/); return m ? m[0] : "";
+}
 // 「2027/4/7」「4/7」「4月7日」「2027-04-07」を日付にする（年がないときは年度から決める）
 function parseEvDate(v) {
   v = String(v || "").replace(/[０-９／]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).trim();
@@ -1111,7 +1185,7 @@ function parseEvDate(v) {
   return "";
 }
 const newEvId = () => "e" + Math.random().toString(36).slice(2, 9);
-let evMine = false, evMsg = null;
+let evMine = false, evMsg = null, evView = "cal", calMonth = "", calGrades = [], calSlot = "";
 function evGradeBoxes(e, name) {
   const g = Array.isArray(e.grades) ? e.grades : [];
   return `<span class="evg" data-gname="${name}"><label><input type="checkbox" data-ga="1"${!g.length ? " checked" : ""}>全学年</label>${GR_ALL.map(x => `<label><input type="checkbox" data-g="${x}"${g.includes(x) ? " checked" : ""}>${x}</label>`).join("")}</span>`;
@@ -1127,63 +1201,137 @@ function bindGradeBoxes(box, onChange) {
   all.onchange = () => { if (all.checked) $$("[data-g]", box).forEach(i => i.checked = false); else if (!$$("[data-g]", box).some(i => i.checked)) all.checked = true; onChange(); };
   $$("[data-g]", box).forEach(i => i.onchange = () => { const any = $$("[data-g]", box).some(x => x.checked); all.checked = !any; onChange(); });
 }
+const slotSelect = (v, id, cls = "") => `<select${id ? ` id="${id}"` : ""}${cls ? ` class="${cls}"` : ""}>${evSlots().map(([k, n]) => `<option value="${k}"${(v || "") === k ? " selected" : ""}>${n}</option>`).join("")}</select>`;
 function eventsToTSV() {
-  let t = "日付\t終わりの日\t行事名\t学年\n";
-  for (const e of [...(D.school.events || [])].sort((a, b) => a.from < b.from ? -1 : 1)) t += [e.from.replace(/-/g, "/"), e.to ? e.to.replace(/-/g, "/") : "", e.name, gradeLabel(e)].map(v => String(v).replace(/[\t\n]/g, " ")).join("\t") + "\n";
+  let t = "日付\t終わりの日\t時間\t行事名\t学年\n";
+  for (const e of [...(D.school.events || [])].sort((a, b) => a.from < b.from ? -1 : 1)) t += [e.from.replace(/-/g, "/"), e.to ? e.to.replace(/-/g, "/") : "", slotLab(e.slot), e.name, gradeLabel(e)].map(v => String(v).replace(/[\t\n]/g, " ")).join("\t") + "\n";
   return t;
 }
-// 貼り付け：日付｜終わりの日｜行事名｜学年（終わりの日・学年は空でもよい）。3列なら 日付｜行事名｜学年
+// 貼り付け：日付｜終わりの日｜時間｜行事名｜学年（5列）、日付｜終わりの日｜行事名｜学年（4列）、日付｜行事名｜学年（3列）
 function importEvents(text, replace) {
   const rows = parseTSV(text); const got = []; const errs = [];
   rows.forEach((r, li) => {
     if (!r.filter(Boolean).length) return;
-    let from, to = "", name, gr;
-    if (r.length >= 4) { from = r[0]; to = r[1]; name = r[2]; gr = r[3]; } else { from = r[0]; name = r[1]; gr = r[2]; }
+    let from, to = "", slot = "", name, gr;
+    if (r.length >= 5) [from, to, slot, name, gr] = r;
+    else if (r.length === 4) [from, to, name, gr] = r;
+    else [from, name, gr] = r;
     const f = parseEvDate(from);
     if (!f) { if (li === 0 && /日付|日/.test(from)) return; errs.push(`${li + 1}行目：日付が読めません（「${from}」）`); return; }
     if (!name) { errs.push(`${li + 1}行目：行事名がありません`); return; }
     const t = parseEvDate(to);
-    got.push({id: newEvId(), from: f, ...(t && t > f ? {to: t} : {}), name: String(name).trim(), grades: parseGrades(gr)});
+    got.push({id: newEvId(), from: f, ...(t && t > f ? {to: t} : {}), ...(parseSlot(slot) ? {slot: parseSlot(slot)} : {}), name: String(name).trim(), grades: parseGrades(gr)});
   });
   if (replace) D.school.events = got;
-  else for (const e of got) if (!D.school.events.some(x => x.from === e.from && x.name === e.name)) D.school.events.push(e);
+  else for (const e of got) if (!D.school.events.some(x => x.from === e.from && x.name === e.name && (x.slot || "") === (e.slot || ""))) D.school.events.push(e);
   return {n: got.length, errs};
+}
+// 行事予定を直す小さな画面（行事予定タブと週案の画面のどちらからでも開く）
+function openEvEditor(e, onDone) {
+  const isNew = !e.id;
+  closeEvEditor();
+  const box = document.createElement("div"); box.id = "evEditor"; box.className = "evmodal";
+  box.innerHTML = `<div class="evdlg"><h3>${isNew ? "行事予定を追加" : "行事予定を直す"}</h3>
+    <div class="evgrid">
+      <label class="f">日付<input type="date" id="eeFrom" value="${esc(e.from || "")}"></label>
+      <label class="f">終わりの日（何日か続くとき）<input type="date" id="eeTo" value="${esc(e.to || "")}"></label>
+      <label class="f">時間${slotSelect(e.slot, "eeSlot")}</label>
+      <label class="f" style="grid-column:1/-1">行事名<input type="text" id="eeName" value="${esc(e.name || "")}"></label>
+      <div class="f" style="grid-column:1/-1">学年${evGradeBoxes(e, "ee")}</div>
+    </div>
+    <p class="hint">朝・何校時を選ぶと、週案のそのコマにも入ります（そのコマに単元や内容を入れていないとき）。ここで直すと、このファイルの行事予定が直ります。</p>
+    <div class="row" style="justify-content:space-between;margin-top:8px"><span>${isNew ? "" : '<button class="btn danger" id="eeDel">この行事を削除</button>'}</span>
+    <span class="row"><button class="btn" id="eeCancel">やめる</button><button class="btn primary" id="eeSave">${isNew ? "追加" : "保存"}</button></span></div></div>`;
+  document.body.appendChild(box);
+  bindGradeBoxes($('[data-gname="ee"]', box), () => {});
+  const name = $("#eeName"); setTimeout(() => name.focus(), 0);
+  name.addEventListener("keydown", ev => { if (ev.isComposing || ev.keyCode === 229) return; if (ev.key === "Enter") $("#eeSave").click(); });
+  box.addEventListener("keydown", ev => { if (ev.key === "Escape") closeEvEditor(); });
+  box.onclick = ev => { if (ev.target === box) closeEvEditor(); };
+  $("#eeCancel").onclick = closeEvEditor;
+  $("#eeSave").onclick = () => {
+    const from = $("#eeFrom").value, to = $("#eeTo").value, nm = name.value.trim();
+    if (!from) { toast("日付を入れてください"); return; }
+    if (!nm) { toast("行事名を入れてください"); return; }
+    const t = isNew ? {id: newEvId()} : (D.school.events || []).find(x => x.id === e.id);
+    if (!t) { closeEvEditor(); return; }
+    t.from = from; if (to && to > from) t.to = to; else delete t.to;
+    const sl = $("#eeSlot").value; if (sl) t.slot = sl; else delete t.slot;
+    t.name = nm; t.grades = readGradeBoxes($('[data-gname="ee"]', box));
+    if (isNew) (D.school.events = D.school.events || []).push(t);
+    closeEvEditor(); changed(); if (onDone) onDone(t);
+  };
+  if ($("#eeDel")) $("#eeDel").onclick = () => {
+    if (!confirm(`「${e.name}」を行事予定から削除しますか？`)) return;
+    D.school.events = D.school.events.filter(x => x.id !== e.id);
+    closeEvEditor(); changed();
+  };
+}
+function closeEvEditor() { const b = $("#evEditor"); if (b) b.remove(); }
+function evMonths() { const out = []; for (let m = 0; m < 12; m++) { const y = D.school.year + (m >= 9 ? 1 : 0), mo = ((m + 3) % 12) + 1; out.push(y + "-" + pad(mo)); } return out; }
+function renderCalendar() {
+  const months = evMonths();
+  if (!months.includes(calMonth)) { const t = (curWeek || today()).slice(0, 7); calMonth = months.includes(t) ? t : months[0]; }
+  const [y, mo] = calMonth.split("-").map(Number);
+  const first = ymd(y, mo, 1), last = addDays(ymd(mo === 12 ? y + 1 : y, mo === 12 ? 1 : mo + 1, 1), -1);
+  const mi = months.indexOf(calMonth);
+  let h = `<div class="calbar">
+    <button class="btn small" id="calPrev"${mi <= 0 ? " disabled" : ""}>◀ 前の月</button>
+    <select id="calSel">${months.map(m => `<option value="${m}"${m === calMonth ? " selected" : ""}>${m.slice(0, 4)}年${+m.slice(5)}月</option>`).join("")}</select>
+    <button class="btn small" id="calNext"${mi >= months.length - 1 ? " disabled" : ""}>次の月 ▶</button>
+    <span class="calset"><b>入れるときの学年</b>${evGradeBoxes({grades: calGrades}, "cal")}<b style="margin-left:10px">時間</b>${slotSelect(calSlot, "calSlot")}</span>
+  </div>
+  <p class="hint" style="margin:4px 0 8px">日にちの欄に行事名を書いて Enter を押すと、上の「学年」「時間」で登録されます。登録した行事をクリックすると、日付・時間・学年を直したり、削除したりできます。</p>
+  <table class="cal"><tr>${["月", "火", "水", "木", "金", "土"].map((w, k) => `<th class="${k === 5 ? "sat" : ""}">${w}</th>`).join("")}</tr>`;
+  for (let mon = mondayOf(first); mon <= last; mon = addDays(mon, 7)) {
+    h += "<tr>";
+    for (let k = 0; k < 6; k++) {
+      const d = addDays(mon, k);
+      if (d < first || d > last) { h += `<td class="out"></td>`; continue; }
+      const hol = holiday(d) || breakOf(d);
+      const evs = (D.school.events || []).filter(e => e.name && evOn(e, d));
+      const order = v => v === "asa" ? 0 : /^\d$/.test(v || "") ? +v : v === "naka" ? 2.5 : v === "hiru" ? 4.5 : v === "after" ? 9 : -1;
+      evs.sort((a, b) => order(a.slot) - order(b.slot));
+      h += `<td class="${hol ? "hol" : ""}${k === 5 ? " sat" : ""}"><div class="cd"><b>${+d.slice(8)}</b>${hol ? `<span class="hn">${esc(hol)}</span>` : ""}</div>
+        ${evs.map(e => `<button class="cev${evForMe(e) ? "" : " other"}" data-cev="${esc(e.id)}" title="${esc(gradeLabel(e))}${e.to ? "（" + md(e.from) + "〜" + md(e.to) + "）" : ""}">${e.slot ? `<i>${esc(slotLab(e.slot))}</i>` : ""}${esc(e.name)}<small>${esc(gradeLabel(e))}</small></button>`).join("")}
+        <input type="text" class="cadd" data-d="${d}" placeholder="＋行事"></td>`;
+    }
+    h += "</tr>";
+  }
+  return h + "</table>";
 }
 function renderEvents() {
   const el = $("#tab-events"); const c = D.cls;
   const list = [...(D.school.events || [])].sort((a, b) => a.from < b.from ? -1 : a.from > b.from ? 1 : 0);
   const shown = list.filter(e => !evMine || evForMe(e));
   let h = `<h2>行事予定</h2>
-  <p class="hint">日付・行事名・学年を入れると、その日の週案の「行事」に自動で入ります。入るのは、自分の学年（設定の学年）に関係するものだけです。週案の「行事」に自分で書いたものは、そのあとに続けて入ります。<br>
+  <p class="hint">日付・行事名・学年・時間を入れると、その日の週案の「行事」に自動で入ります。入るのは、自分の学年（設定の学年）に関係するものだけです。朝・何校時を指定したものは、そのコマにも入ります。<br>
   ここに入れた行事予定は、設定の「配布用のファイルを作る」で作ったファイルにも入ります。</p>
-  <div class="evadd">
-    <label class="f">日付<input type="date" id="evFrom"></label>
-    <label class="f">終わりの日（何日か続くとき）<input type="date" id="evTo"></label>
-    <label class="f" style="flex:1;min-width:200px">行事名<input type="text" id="evName" placeholder="例：遠足、身体測定"></label>
-    <div class="f">学年${evGradeBoxes({grades: []}, "new")}</div>
-    <button class="btn primary" id="evAdd">追加</button>
-  </div>
-  ${evMsg ? `<div class="msg${evMsg.err ? " err" : ""}">${esc(evMsg.text).replace(/\n/g, "<br>")}</div>` : ""}
-  <div class="row" style="margin:10px 0 6px;gap:12px">
-    <label class="row" style="gap:4px"><input type="checkbox" id="evMine"${evMine ? " checked" : ""}> ${c.grade ? c.grade + "年に関係するものだけ表示" : "自分の学年に関係するものだけ表示"}</label>
-    <span class="hint" style="margin:0">${list.length}件${evMine ? `（表示 ${shown.length}件）` : ""}</span>
-  </div>
-  <table class="evt"><tr><th>日付</th><th>終わりの日</th><th>行事名</th><th>学年</th><th title="この学級の週案には入れない">この学級では<br>入れない</th><th></th></tr>`;
-  let lastM = "";
-  for (const e of shown) {
-    const m = e.from.slice(0, 7);
-    if (m !== lastM) { h += `<tr class="mon"><td colspan="6">${+m.slice(5)}月</td></tr>`; lastM = m; }
-    const mine = evForMe(e);
-    h += `<tr data-ev="${esc(e.id)}" class="${mine ? "" : "other"}"><td><input type="date" class="ef" value="${esc(e.from)}"><span class="ewd">${WD[wday(e.from)] ? "（" + WD[wday(e.from)] + "）" : ""}</span></td><td><input type="date" class="et" value="${esc(e.to || "")}"></td><td><input type="text" class="en" value="${esc(e.name)}"></td><td>${evGradeBoxes(e, e.id)}</td><td style="text-align:center">${mine ? `<input type="checkbox" class="eh"${(c.hideEv || {})[e.id] ? " checked" : ""}>` : ""}</td><td><button class="btn small danger ed">削除</button></td></tr>`;
+  <div class="row" style="gap:6px;margin-bottom:8px"><button class="btn${evView === "cal" ? " primary" : ""}" data-evview="cal">カレンダー</button><button class="btn${evView === "list" ? " primary" : ""}" data-evview="list">一覧</button><span class="hint" style="margin:0 0 0 8px">${list.length}件</span></div>
+  ${evMsg ? `<div class="msg${evMsg.err ? " err" : ""}">${esc(evMsg.text).replace(/\n/g, "<br>")}</div>` : ""}`;
+  if (evView === "cal") h += renderCalendar();
+  else {
+    h += `<div class="row" style="margin:6px 0;gap:12px"><button class="btn small primary" id="evNew">＋ 行事を追加</button>
+      <label class="row" style="gap:4px"><input type="checkbox" id="evMine"${evMine ? " checked" : ""}> ${c.grade ? c.grade + "年に関係するものだけ表示" : "自分の学年に関係するものだけ表示"}</label>${evMine ? `<span class="hint" style="margin:0">表示 ${shown.length}件</span>` : ""}</div>
+    <table class="evt"><tr><th>日付</th><th>終わりの日</th><th>時間</th><th>行事名</th><th>学年</th><th title="この学級の週案には入れない">この学級では<br>入れない</th><th></th></tr>`;
+    let lastM = "";
+    for (const e of shown) {
+      const m = e.from.slice(0, 7);
+      if (m !== lastM) { h += `<tr class="mon"><td colspan="7">${+m.slice(5)}月</td></tr>`; lastM = m; }
+      const mine = evForMe(e);
+      h += `<tr data-ev="${esc(e.id)}" class="${mine ? "" : "other"}"><td><input type="date" class="ef" value="${esc(e.from)}"><span class="ewd">（${WD[wday(e.from)]}）</span></td><td><input type="date" class="et" value="${esc(e.to || "")}"></td><td>${slotSelect(e.slot, "", "es")}</td><td><input type="text" class="en" value="${esc(e.name)}"></td><td>${evGradeBoxes(e, e.id)}</td><td style="text-align:center">${mine ? `<input type="checkbox" class="eh"${(c.hideEv || {})[e.id] ? " checked" : ""}>` : ""}</td><td><button class="btn small danger ed">削除</button></td></tr>`;
+    }
+    if (!shown.length) h += `<tr><td colspan="7" class="hint" style="text-align:center;padding:12px">まだ行事予定がありません。カレンダーで入れるか、Excelから貼り付けてください。</td></tr>`;
+    h += `</table>`;
   }
-  if (!shown.length) h += `<tr><td colspan="6" class="hint" style="text-align:center;padding:12px">まだ行事予定がありません。上の欄から追加するか、Excelから貼り付けてください。</td></tr>`;
-  h += `</table>
+  h += `
   <details class="box paste" style="margin-top:14px"${list.length ? "" : " open"}><summary>Excelから貼り付けて登録する</summary>
-    <p class="hint">Excelで「日付｜終わりの日｜行事名｜学年」の4列の表を作り、表をコピーして下に貼り付けてください。1行が1つの行事です。<br>
+    <p class="hint">Excelで「日付｜終わりの日｜時間｜行事名｜学年」の5列の表を作り、表をコピーして下に貼り付けてください。1行が1つの行事です。<br>
     ・日付は「2027/4/7」「4/7」「4月7日」のどれでも読めます（年を書かないときは、この年度の日付になります）。<br>
     ・終わりの日は、何日か続く行事（修学旅行など）のときだけ入れます。空でもかまいません。<br>
+    ・時間は「朝」「2」「2校時」「中休み」「昼休み」「放課後」などと書きます。空なら時間の指定なしです。<br>
     ・学年は「全」（空でも全学年）、「1」「1,2」「3・4」「低学年」「中学年」「高学年」などと書きます。<br>
-    ・「日付｜行事名｜学年」の3列でも読めます。</p>
+    ・「日付｜終わりの日｜行事名｜学年」の4列や、「日付｜行事名｜学年」の3列でも読めます。</p>
     <textarea id="evPaste" placeholder="ここに貼り付け（Ctrl+V）"></textarea>
     <div class="row" style="margin-top:6px"><button class="btn primary" id="evImpAdd">追加する</button><button class="btn" id="evImpRep">今の行事予定と置きかえる</button></div>
   </details>
@@ -1193,26 +1341,37 @@ function renderEvents() {
   </div>
   <p class="hint">「ほかのファイルの行事予定を読み込む」：行事予定を入れた配布用のファイルやバックアップを選ぶと、行事予定だけを取りこみます（あとから予定が変わったときなどに）。</p>`;
   el.innerHTML = h;
-  bindGradeBoxes($('.evadd [data-gname="new"]', el), () => {});
-  $("#evAdd").onclick = () => {
-    const from = $("#evFrom").value, to = $("#evTo").value, name = $("#evName").value.trim();
-    if (!from) { toast("日付を入れてください"); return; }
-    if (!name) { toast("行事名を入れてください"); return; }
-    (D.school.events = D.school.events || []).push({id: newEvId(), from, ...(to && to > from ? {to} : {}), name, grades: readGradeBoxes($('.evadd [data-gname="new"]', el))});
-    evMsg = {err: false, text: `${md(from)}「${name}」を追加しました`};
-    changed();
-  };
-  $("#evName").addEventListener("keydown", e => { if (e.isComposing || e.keyCode === 229) return; if (e.key === "Enter") $("#evAdd").click(); });
-  $("#evMine").onchange = e => { evMine = e.target.checked; render(); };
-  $$("tr[data-ev]", el).forEach(tr => {
-    const e = D.school.events.find(x => x.id === tr.dataset.ev); if (!e) return;
-    $(".ef", tr).onchange = ev => { if (!ev.target.value) { toast("日付は消せません（行事ごと消すときは「削除」）"); return render(); } e.from = ev.target.value; if (e.to && e.to <= e.from) delete e.to; changed(); };
-    $(".et", tr).onchange = ev => { const v = ev.target.value; if (v && v > e.from) e.to = v; else delete e.to; changed(); };
-    $(".en", tr).onchange = ev => { const v = ev.target.value.trim(); if (!v) { toast("行事名は消せません（行事ごと消すときは「削除」）"); return render(); } e.name = v; changed(); };
-    bindGradeBoxes($(".evg", tr), () => { e.grades = readGradeBoxes($(".evg", tr)); changed(); });
-    if ($(".eh", tr)) $(".eh", tr).onchange = ev => { const m = (D.cls.hideEv = D.cls.hideEv || {}); if (ev.target.checked) m[e.id] = true; else delete m[e.id]; changed(); };
-    $(".ed", tr).onclick = () => { if (!confirm(`${md(e.from)}「${e.name}」を行事予定から削除しますか？`)) return; D.school.events = D.school.events.filter(x => x !== e); changed(); };
-  });
+  $$("[data-evview]", el).forEach(b => b.onclick = () => { evView = b.dataset.evview; evMsg = null; render(); });
+  if (evView === "cal") {
+    const months = evMonths();
+    $("#calPrev").onclick = () => { calMonth = months[Math.max(0, months.indexOf(calMonth) - 1)]; render(); };
+    $("#calNext").onclick = () => { calMonth = months[Math.min(months.length - 1, months.indexOf(calMonth) + 1)]; render(); };
+    $("#calSel").onchange = e => { calMonth = e.target.value; render(); };
+    bindGradeBoxes($('[data-gname="cal"]', el), () => { calGrades = readGradeBoxes($('[data-gname="cal"]', el)); });
+    $("#calSlot").onchange = e => { calSlot = e.target.value; };
+    $$(".cev", el).forEach(b => b.onclick = () => { const e = D.school.events.find(x => x.id === b.dataset.cev); if (e) openEvEditor(e); });
+    $$(".cadd", el).forEach(inp => inp.addEventListener("keydown", ev => {
+      if (ev.isComposing || ev.keyCode === 229 || ev.key !== "Enter") return;
+      const nm = inp.value.trim(); if (!nm) return;
+      (D.school.events = D.school.events || []).push({id: newEvId(), from: inp.dataset.d, ...(calSlot ? {slot: calSlot} : {}), name: nm, grades: calGrades.slice()});
+      evMsg = null; changed();
+      // 同じ日の欄にもう一度入れられるように、カーソルを戻す
+      setTimeout(() => { const n = $(`.cadd[data-d="${inp.dataset.d}"]`); if (n) n.focus(); }, 20);
+    }));
+  } else {
+    $("#evNew").onclick = () => openEvEditor({from: curWeek || today(), grades: []});
+    $("#evMine").onchange = e => { evMine = e.target.checked; render(); };
+    $$("tr[data-ev]", el).forEach(tr => {
+      const e = D.school.events.find(x => x.id === tr.dataset.ev); if (!e) return;
+      $(".ef", tr).onchange = ev => { if (!ev.target.value) { toast("日付は消せません（行事ごと消すときは「削除」）"); return render(); } e.from = ev.target.value; if (e.to && e.to <= e.from) delete e.to; changed(); };
+      $(".et", tr).onchange = ev => { const v = ev.target.value; if (v && v > e.from) e.to = v; else delete e.to; changed(); };
+      $(".es", tr).onchange = ev => { const v = ev.target.value; if (v) e.slot = v; else delete e.slot; changed(); };
+      $(".en", tr).onchange = ev => { const v = ev.target.value.trim(); if (!v) { toast("行事名は消せません（行事ごと消すときは「削除」）"); return render(); } e.name = v; changed(); };
+      bindGradeBoxes($(".evg", tr), () => { e.grades = readGradeBoxes($(".evg", tr)); changed(); });
+      if ($(".eh", tr)) $(".eh", tr).onchange = ev => { const m = (D.cls.hideEv = D.cls.hideEv || {}); if (ev.target.checked) m[e.id] = true; else delete m[e.id]; changed(); };
+      $(".ed", tr).onclick = () => { if (!confirm(`${md(e.from)}「${e.name}」を行事予定から削除しますか？`)) return; D.school.events = D.school.events.filter(x => x !== e); changed(); };
+    });
+  }
   const imp = rep => {
     const t = $("#evPaste").value; if (!t.trim()) { toast("表を貼り付けてください"); return; }
     if (rep && D.school.events.length && !confirm("今の行事予定を、貼り付けた表に置きかえます。よろしいですか？")) return;
@@ -1276,7 +1435,14 @@ function unitFields(x, cls) {
   const crs = hasCourse(x.s) && x.unit ? `<div class="crs">${COURSES.map(c => `<button class="${courseOf(x) === c ? "on" : ""}" data-c="${c}" title="${esc(x.unit)}のコース（この単元のコマすべてに入ります）">${c}</button>`).join("")}</div>` : "";
   return `<div class="uf"><input type="text" class="un${cls}" list="ul-${esc(x.s)}" value="${esc(x.unit || "")}" placeholder="単元" title="単元名（一覧から選ぶか、打ち込む）"><input type="text" class="no${cls}" value="${esc(x.no || "")}" placeholder="時" title="何時間目か（例：2　2時間分なら 2-3）"></div>${crs}`;
 }
+// 行事予定が入ったコマ：行事名と「直す」「この時間に入れない」
+function evSlotHtml(d, i, x) {
+  const e = (D.school.events || []).find(y => y.id === x.ev); if (!e) return "";
+  return `<div class="evslot${i === 0 ? " asa0" : ""}" data-d="${d}" data-i="${i}"><div class="evst"><span class="evtag">行事予定</span><b>${esc(e.name)}</b><small>${esc(gradeLabel(e))}</small></div>
+    <div class="evbtns"><button class="btn small" data-evopen="${esc(e.id)}">直す</button><button class="btn small" data-evskip="${esc(d + "|" + e.id)}" title="このコマはふだんの時間割にもどす（行事の欄には残ります）">この時間に入れない</button></div></div>`;
+}
 function slotHtml(d, i, x, off) {
+  if (x.ev) return evSlotHtml(d, i, x);
   const inf = cy().info[d + "|" + i] || {};
   const col = x.s ? colorOf(x.s) : "#E5E5E5";
   const manual = x.t !== undefined && x.t !== null;
@@ -1362,12 +1528,13 @@ function renderWeek() {
   for (const d of days) {
     const hol = holiday(d) || breakOf(d);
     const evs = schoolEventsOn(d);
-    h += `<td class="${isSchoolDay(d) ? "" : "off"}">${evs.map(e => `<span class="evchip" title="行事予定（${esc(gradeLabel(e))}）">${esc(e.name)}<button data-hideev="${esc(e.id)}" title="この学級の週案には入れない">×</button></span>`).join("")}<textarea class="ev" data-d="${d}" placeholder="${esc(evs.length ? "ほかの行事・学級の予定" : (hol || ""))}">
+    h += `<td class="${isSchoolDay(d) ? "" : "off"}">${evs.map(e => `<span class="evchip" title="行事予定（${esc(gradeLabel(e))}）。押すと日付・時間を直せます"><button class="evn" data-evopen="${esc(e.id)}">${esc(evLabel(e))}</button><button data-hideev="${esc(e.id)}" title="この学級の週案には入れない">×</button></span>`).join("")}<textarea class="ev" data-d="${d}" placeholder="${esc(evs.length ? "ほかの行事・学級の予定" : (hol || ""))}">
 ${esc(dayRec(d).event || "")}</textarea></td>`;
   }
   h += `</tr><tr><th class="lab">朝</th>`;
   for (const d of days) {
     const x = slotsOf(d)[0]; const col = x.s ? colorOf(x.s) : "#E5E5E5";
+    if (x.ev) { h += `<td>${evSlotHtml(d, 0, x)}</td>`; continue; }
     h += `<td class="${isSchoolDay(d) ? "" : "off"}"><div class="asa" data-d="${d}" style="--c:${col};--cbg:${x.s ? col + "55" : "#fff"}"><div class="sh"><input type="text" class="subj" list="asaList" value="${esc(x.s || "")}" placeholder="―">${isAsaEvent(x.s) ? `<input type="text" class="hr" value="" placeholder="―" readonly title="朝会は時数に数えません">` : `<input type="text" class="hr" value="${esc(asaShown(x))}" placeholder="${esc(D.school.asaHours || "1/3")}" title="朝の時間の時数。空欄は設定の時数">`}</div><input type="text" class="ct" value="${esc(x.t || "")}" placeholder="内容"></div></td>`;
   }
   h += "</tr>";
@@ -1378,7 +1545,7 @@ ${esc(dayRec(d).event || "")}</textarea></td>`;
     // 中休み（2時間目のあと）・昼休み（4時間目のあと）
     for (const [after, key, lab] of BREAKS) if (i === Math.min(after, P())) {
       h += `<tr class="brk"><th class="lab">${lab}</th>`;
-      for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}"><textarea class="br" data-d="${d}" data-k="${key}" placeholder="${lab}休みの予定">
+      for (const d of days) h += `<td class="${isSchoolDay(d) ? "" : "off"}">${schoolEventsOn(d).filter(e => e.slot === key).map(e => `<span class="evchip"><button class="evn" data-evopen="${esc(e.id)}">${esc(e.name)}</button></span>`).join("")}<textarea class="br" data-d="${d}" data-k="${key}" placeholder="${lab}休みの予定">
 ${esc(dayRec(d)[key] || "")}</textarea></td>`;
       h += "</tr>";
     }
@@ -1466,6 +1633,8 @@ function bindWeek(el, mon) {
   $("#wMemo").oninput = e => { ensureWeek(mon).memo = e.target.value; changed(false); };
   $("#wRec").oninput = e => { ensureWeek(mon).rec = e.target.value; changed(false); };
   $$("textarea.ev", el).forEach(t => t.oninput = () => { ensureDay(t.dataset.d).event = t.value; changed(false); });
+  $$("[data-evopen]", el).forEach(b => b.onclick = () => { const e = (D.school.events || []).find(x => x.id === b.dataset.evopen); if (e) openEvEditor(e); });
+  $$("[data-evskip]", el).forEach(b => b.onclick = () => { (D.cls.hideEvSlot = D.cls.hideEvSlot || {})[b.dataset.evskip] = true; changed(); toast("このコマは、ふだんの時間割にもどしました（行事の欄には残ります）", 4000); });
   $$("[data-hideev]", el).forEach(b => b.onclick = () => {
     const e = (D.school.events || []).find(x => x.id === b.dataset.hideev); if (!e) return;
     if (!confirm(`「${e.name}」をこの学級の週案に入れないようにしますか？（行事予定のタブで、いつでも戻せます）`)) return;
@@ -1683,7 +1852,7 @@ function renderPrint() {
     const cs = days.map(d => cell(d, i));
     return `<tr style="height:${ST}mm"><th class="l${big ? " big" : ""}" rowspan="2">${lab}</th>${cs.map(x => x[0]).join("")}</tr><tr style="height:${(i === 0 ? 5 : cont).toFixed(1)}mm">${cs.map(x => x[1]).join("")}</tr>`;
   };
-  const band = (key, lab) => `<tr class="band" style="height:${BH}mm"><th class="l">${lab}</th>${days.map(d => isSchoolDay(d) ? `<td colspan="2"><div class="cb" style="${boxStyle(dayRec(d)[key], BH)}">${esc(dayRec(d)[key] || "")}</div></td>` : `<td colspan="2" class="hol"></td>`).join("")}</tr>`;
+  const band = (key, lab) => `<tr class="band" style="height:${BH}mm"><th class="l">${lab}</th>${days.map(d => isSchoolDay(d) ? `<td colspan="2"><div class="cb" style="${boxStyle(bandText(d, key), BH)}">${esc(bandText(d, key))}</div></td>` : `<td colspan="2" class="hol"></td>`).join("")}</tr>`;
   h += two(0, `<span class="mj">モジュ<br>ール</span>`, false);
   for (let i = 1; i <= P(); i++) {
     h += two(i, i, true);
@@ -1879,7 +2048,7 @@ function renderSheet(kind) {
   const school = days.filter(d => isSchoolDay(d));
   const AS = school.some(d => (slotsOf(d)[0].t || "").trim()) ? 10 : 6.5;   // 朝：内容を書いた日があれば、内容が入る高さにする
   // 中休み・昼休み：書いた日があれば1行分、1行に入らない長さなら2行分（これまでのシートと同じ高さ）の帯にする
-  const bandTexts = school.flatMap(d => BREAKS.map(([, key]) => (dayRec(d)[key] || "").trim())).filter(Boolean);
+  const bandTexts = school.flatMap(d => BREAKS.map(([, key]) => bandText(d, key).trim())).filter(Boolean);
   const bandCpl = Math.floor(((168 - 7) / N - 2.5) * 0.92 / (6 * 0.3528));
   const BH = !bandTexts.length ? 3.6 : bandTexts.some(t => t.split("\n").length > 1 || Array.from(t).length > bandCpl) ? 6.4 : 5;
   const nb = BREAKS.filter(([after]) => after <= P()).length;
@@ -1964,7 +2133,7 @@ function renderSheet(kind) {
   };
   const boxRow = (key, hmm) => days.map(d => {
     if (!isSchoolDay(d)) return `<td class="hol"></td>`;
-    const v = key === "event" ? eventText(d) : (dayRec(d)[key] || "");
+    const v = key === "event" ? eventText(d) : (key === "naka" || key === "hiru") ? bandText(d, key) : (dayRec(d)[key] || "");
     return `<td><div class="${kind === "note" ? "" : "in"}" style="padding:0.4mm 1mm">${v ? tx(v, esc(v), hmm - 0.9, colw - 2, 6.5) : ""}</div></td>`;
   }).join("");
   // ---- 見出し ----
