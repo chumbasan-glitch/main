@@ -79,7 +79,8 @@ label.f>*{font-size:14px;color:var(--ink)}
 .weekbar .printhelp[open]{background:#FFF8E0;border:1px solid #F0DC9A;border-radius:6px;padding:6px 12px}
 .weekbar .printhelp ol{margin:6px 0 4px 1.2em;padding:0;line-height:1.8}
 .weekbar .printhelp p{margin:4px 0 2px;line-height:1.7}
-.prbox{display:inline-flex;flex-direction:column;align-items:center;gap:3px}
+.weekbar .papernote{width:100%;text-align:right;font-size:12.5px;color:#7A5200;margin-top:-4px}
+.weekbar .papernote b{background:#FFF0C2;padding:0 4px;border-radius:3px}
 .b5note{font-size:12px;font-weight:700;color:var(--red);background:#FDECEC;border:1.5px solid #E8B4BA;border-radius:6px;padding:2px 8px;white-space:nowrap}
 .weeklayout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start}
 @media (max-width:1100px){.weeklayout{grid-template-columns:minmax(0,1fr)}}
@@ -299,6 +300,13 @@ table.brk th{font-size:12px;color:var(--ink-soft);text-align:left}
 #print .memo{flex:1 1 0;min-height:0;padding:0.6mm 1mm;font-size:7.5pt;white-space:pre-wrap;overflow:hidden;border-top:0.35mm solid var(--pl)}
 #print .rec{border:0.35mm solid var(--pl);border-top:none;height:25mm;padding:0.6mm 1mm;font-size:7.5pt;white-space:pre-wrap;overflow:hidden}
 #print .k{font-weight:700}
+#print .pgx{border-top:0.35mm solid var(--pl);margin-top:0.8mm;flex:none}
+#print .pgx .pgh{font-size:6.3pt;font-weight:700;background:var(--ph);padding:0.4mm 1mm;line-height:1.2}
+#print table.pgt{width:100%;border-collapse:collapse;table-layout:fixed}
+#print table.pgt td{height:3.5mm;padding:0.3mm 0.4mm 0;border:none;border-bottom:0.2mm solid #BBB;white-space:nowrap;overflow:hidden;line-height:1.05;text-align:center;vertical-align:middle;letter-spacing:-0.02em;background:#fff}
+#print table.pgt td.u{text-align:left}
+#print table.hb tr.pg td{height:8.4mm;line-height:1.1;white-space:nowrap;overflow:hidden;font-size:5.5pt;vertical-align:middle}
+#print table.hb tr.pg td>div{overflow:hidden;max-height:5.6mm}
 </style>
 </head>
 <body>
@@ -363,7 +371,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.me.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v2.3";
+const VERSION = "v2.4";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1112,8 +1120,9 @@ function renderWeek() {
     <button class="btn" id="wNextWk">来週</button>
     <span class="sp" style="flex:1"></span>
     <label class="row" style="gap:4px"><input type="checkbox" id="wSat"${satWeek(mon) ? " checked" : ""}${satSchool(mon) ? ' disabled title="行事予定で土曜授業の日にしています"' : ""}> 土曜授業がある</label>
-    <span class="prbox"><button class="btn" id="wPrint">🖨 印刷（B5縦）</button><span class="b5note">印刷の画面で、用紙サイズを「B5」にするのを忘れずに！</span></span>
+    <button class="btn" id="wPrint">🖨 印刷（B5縦）</button>
     <button class="btn" id="wPdf" title="印刷の画面で「PDFとして保存」を選ぶと、このファイル名で保存されます">📄 PDFで保存</button>
+    <span class="papernote" title="パソコンによっては、印刷の画面がA4になっていることがあります">印刷の画面で、用紙サイズを<b>「B5」</b>にするのを忘れずに！</span>
     <details class="printhelp"${printHelpOpen ? " open" : ""}><summary>🖨 カラーにならない・小さく印刷されるとき（印刷のしかた）</summary>
       <ol>
         <li>「印刷」ボタンを押します。</li>
@@ -1202,15 +1211,36 @@ function weekTotalsHtml(mon) {
   return h;
 }
 // クラスごとの進み具合（この週の終わりまでで、いちばん新しい単元と時）
+// 単元の進み具合：クラスごとに、その日までに入れた最後の単元・時
+function progressRows(last) {
+  return D.classes.map(c => {
+    const l = lastOf(c.id, addDays(last, 1), 0); const un = l ? planOf(c).find(u => u.name === l.unit) : null;
+    return {key: c.id, name: clsLabel(c), color: c.color, unit: l ? l.unit : "", no: l ? l.no : 0, total: un ? lessonCount(un) : 0, course: ""};
+  });
+}
+const progOn = () => D.me.printProg !== false;   // 印刷に進み具合を入れる（専科用は、はじめから入れる）
+const progNo = r => r.no ? r.no + (r.total ? "/" + r.total : "") : "";
+const progFit = (t, w, base) => { const n = Math.max(1, Array.from(String(t)).length); return Math.max(3.6, Math.min(base, w / (n * 0.3528 * 0.95))).toFixed(1); };
+// 単元名：1行に入らない長さなら2行に折り返す（字が小さくなりすぎないように）
+const progUnitStyle = (t, w, base) => { const n = Math.max(1, Array.from(String(t)).length); const one = w / (n * 0.3528 * 1.08); return one >= 4.6 ? `font-size:${Math.min(base, one).toFixed(1)}pt` : `font-size:${Math.max(3.6, Math.min(base, 2 * w / (n * 0.3528 * 1.15))).toFixed(1)}pt;white-space:normal;word-break:break-all;line-height:1.05`; };
+// 週案の画面の右：進み具合の表
 function progressHtml(last) {
-  if (!D.classes.length) return "";
-  let h = `<h3>進み具合（${md(last)}まで）</h3><table class="prog"><tr><th>クラス</th><th>単元</th><th>時</th></tr>`;
-  for (const c of D.classes) {
-    const l = lastOf(c.id, addDays(last, 1), 0);
-    const un = l ? planOf(c).find(u => u.name === l.unit) : null;
-    h += `<tr><td><span class="chip" style="background:${c.color}"></span>${esc(clsLabel(c))}</td><td>${esc(l ? l.unit : "―")}</td><td>${l ? l.no + (un ? "/" + lessonCount(un) : "") : ""}</td></tr>`;
-  }
-  return h + `</table><p class="hint">クラスごとの進みのちがいが見られます。</p>`;
+  const rows = progressRows(last); if (!rows.length) return "";
+  let h = `<h3>単元の進み具合（${md(last)}まで）</h3><table class="prog"><tr><th>クラス</th><th>単元</th><th>時</th></tr>`;
+  for (const r of rows) h += `<tr><td><span class="chip" style="background:${r.color}"></span>${esc(r.name)}</td><td>${esc(r.unit || "―")}${r.course ? `<small>（${esc(r.course)}）</small>` : ""}</td><td>${esc(progNo(r))}</td></tr>`;
+  return h + `</table><p class="hint">この週の終わりまでに入れた、いちばん新しい単元と時です（「3/8」は8時間のうちの3時間目）。印刷に入れるかは、設定の「印刷に単元の進み具合」で選べます。</p>`;
+}
+// 印刷：時数表の下に入れる小さな表（wmm＝欄の幅）。単元が入っているクラスごとの分だけ
+function progPrintHtml(last, wmm, base = 6.3) {
+  const rows = progressRows(last).filter(r => r.unit); if (!rows.length) return "";
+  const nw = 9, hw = 6.5, uw = wmm - nw - hw;
+  return `<div class="pgx"><div class="pgh">単元の進み具合</div><table class="pgt"><colgroup><col style="width:${nw}mm"><col><col style="width:${hw}mm"></colgroup>${rows.map(r => `<tr><td style="font-size:${progFit(r.name, nw - 0.6, base)}pt">${esc(r.name)}</td><td class="u" style="${progUnitStyle(r.unit, uw - 0.8, base)}">${esc(r.unit)}</td><td style="font-size:${progFit(progNo(r), hw - 0.5, base)}pt">${esc(progNo(r))}</td></tr>`).join("")}</table></div>`;
+}
+// 印刷（ワイド）：下の時数表に「進み」の行を足す
+function progHbRow(all, last, colw) {
+  const pm = {}; for (const r of progressRows(last)) if (r.unit) pm[r.key] = r;
+  if (!Object.keys(pm).length) return "";
+  return `<tr class="pg"><th class="l">進み</th>${all.map(r => { const x = pm[r.id || r.name]; return `<td>${x ? `<div style="${progUnitStyle(x.unit, colw, 5.5)}">${esc(x.unit)}</div>${esc(progNo(x))}` : ""}</td>`; }).join("")}<td></td></tr>`;
 }
 // コマの上の欄：一覧から選ぶことも、打ち込むこともできる
 function bindSubj(inp, apply) {
@@ -1366,6 +1396,7 @@ function renderPrint() {
   // 印刷の形：full＝時数表あり（いつもの）、nohours＝右の時数表・メモなし、gridonly＝時数表・メモ・記録欄なし（時間割だけ）
   const PM = ["nohours", "gridonly"].includes(D.me.printMode) ? D.me.printMode : "full";
   const SIDE = PM === "full", REC = PM !== "gridonly";
+  const PROG = SIDE && progOn();
   // 高さ（mm）：本体 = 243 - 見出し6 - 記録欄27 - すきま
   const H = 243 - 6 - 1.5 - (REC ? 25 : 0) - 5;
   const BH = 6.4;   // 中休み・昼休みの帯の高さ（2行分）
@@ -1456,7 +1487,7 @@ function renderPrint() {
     s0 += g.sums[0];
   });
   t += `<tr class="tot"><td>合計</td><td>${fr(s0)}</td><td></td><td></td></tr></table>`;
-  h += (SIDE ? `<div class="side">${t}<div class="memo"><span class="k">メモ</span>\n${esc(wr.memo || "")}</div></div>` : "") + `</div>` +
+  h += (SIDE ? `<div class="side">${t}${PROG ? progPrintHtml(last, 34) : ""}<div class="memo"><span class="k">メモ</span>\n${esc(wr.memo || "")}</div></div>` : "") + `</div>` +
     (REC ? `<div class="rec"><span class="k">記録欄</span>\n${esc(wr.rec || "")}</div>` : "");
   const pe = $("#print");
   pe.style.cssText = themeVars(D.me.theme) + `;--hw:${HW}mm`;
@@ -1614,12 +1645,13 @@ function renderSheet(kind) {
   const info = cy().info;
   const PM = ["nohours", "gridonly"].includes(c.printMode) ? c.printMode : "full";
   const HOURS = PM === "full";
+  const PROG = HOURS && progOn();
   const EX = PM !== "gridonly" && !!c.sheetExtras;   // メモ・記録欄・備考
   const N = days.length;
   // ---- 高さ（mm）----
   const HDR = {line: 14, wide: 11, stripe: 10, note: 11.6, card: 14.6}[kind];
   const FRAME = kind === "note" ? 5 : 0;
-  const BOTTOM = (kind === "wide" && HOURS ? 19 : 0) + (EX ? 24 : 0);
+  const BOTTOM = (kind === "wide" && HOURS ? 19 : 0) + (kind === "wide" && PROG && progressRows(addDays(mon, 6)).some(r => r.unit) ? 9 : 0) + (EX ? 24 : 0);
   const TH = {line: 8, wide: 6.5, stripe: 6.5, note: 6, card: 5.5}[kind], EV = 7, NT = EX ? 8 : 0;
   const school = days.filter(d => isSchoolDay(d));
   const AS = school.some(d => bandText(d, "asa").trim()) ? 10 : 6.5;   // 朝：内容を書いた日があれば、内容が入る高さにする
@@ -1773,9 +1805,10 @@ function renderSheet(kind) {
       bottom = `<table class="hb" style="font-size:${hbFs.toFixed(1)}pt"><colgroup><col style="width:11mm">${all.map(() => "<col>").join("")}<col style="width:10mm"></colgroup><tr><th class="l">クラス</th>${all.map(r => `<th style="background:${r.color};${nf(r.name)}">${esc(r.name)}</th>`).join("")}<th style="background:var(--ph)">合計</th></tr>
         <tr><th class="l">今週</th>${all.map(r => `<td>${wv(r)}</td>`).join("")}<td><b>${fr(tot[0])}</b></td></tr>
         <tr><th class="l">累計</th>${all.map(r => `<td>${fr(r.vals[1])}</td>`).join("")}<td><b>${fr(tot[1])}</b></td></tr>
-        <tr class="r3"><th class="l">${rlab}</th>${all.map(r => `<td>${rateCell(r)}</td>`).join("")}<td></td></tr></table>`;
+        <tr class="r3"><th class="l">${rlab}</th>${all.map(r => `<td>${rateCell(r)}</td>`).join("")}<td></td></tr>${PROG ? progHbRow(all, last, (168 - FRAME - 21) / all.length - 0.8) : ""}</table>`;
     }
   }
+  if (PROG && side) side = side.replace(/<\/div>$/, progPrintHtml(last, SIDEW - 1) + "</div>");
   const exW = (168 - FRAME - 2) / 2 - 2.6;
   const exBox = (lab, v) => `<div><div class="tx" style="font-size:${fitW(lab + "　" + (v || ""), 20, exW, 7).toFixed(1)}pt;max-height:20mm;overflow:hidden;white-space:pre-wrap"><b>${lab}</b>${esc(v || "")}</div></div>`;
   const ex = EX ? `<div class="ex">${exBox("メモ", wr.memo)}${exBox("記録", wr.rec)}</div>` : "";
@@ -2108,7 +2141,7 @@ function renderSet() {
   <div class="themes">${Object.entries(THEMES).map(([k, t]) => `<button class="theme${me.theme === k ? " on" : ""}" data-theme="${k}" style="${themeVars(k)}">
     <span class="tp"><span class="tph"></span><span class="tpb"></span><span class="tps"><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s1)"></i><i style="background:var(--sub)"></i><i style="background:var(--tot)"></i></span></span><b>${t.name}</b></button>`).join("")}</div>
   <div class="setgrid" style="margin-top:10px"><label class="f">フォント（週案の画面と印刷）<select id="sFont">${Object.entries(FONTS).map(([k, f]) => `<option value="${k}"${(me.font || "msui") === k ? " selected" : ""} style="font-family:${esc(f.css)}">${esc(f.name)}</option>`).join("")}</select></label><label class="f">時数表の4列目<select id="sRate"><option value="rate"${me.rateMode !== "rest" ? " selected" : ""}>達成率（%）</option><option value="rest"${me.rateMode === "rest" ? " selected" : ""}>残り時数</option></select></label>
-    <label class="f">印刷の形<select id="sPrintMode">${[["full", "いつもの（右に時数表・メモあり）"], ["nohours", "時数表なし（右の時数表・メモをカット）"], ["gridonly", "時間割だけ（時数表・メモ・記録欄なし）"]].map(([k, n]) => `<option value="${k}"${(me.printMode || "full") === k ? " selected" : ""}>${n}</option>`).join("")}</select></label><label class="f" style="grid-column:span 2">週案のコマに入る学習内容（単元計画から）${lessonModeSelect("sMode")}</label></div>
+    <label class="f">印刷の形<select id="sPrintMode">${[["full", "いつもの（右に時数表・メモあり）"], ["nohours", "時数表なし（右の時数表・メモをカット）"], ["gridonly", "時間割だけ（時数表・メモ・記録欄なし）"]].map(([k, n]) => `<option value="${k}"${(me.printMode || "full") === k ? " selected" : ""}>${n}</option>`).join("")}</select></label><label class="f">印刷に単元の進み具合<select id="sProg"><option value="1"${progOn() ? " selected" : ""}>入れる（時数表の下）</option><option value="0"${progOn() ? "" : " selected"}>入れない</option></select></label><label class="f" style="grid-column:span 2">週案のコマに入る学習内容（単元計画から）${lessonModeSelect("sMode")}</label></div>
   <p class="hint">学習内容を自分で書きかえたコマは、どれを選んでもその文のままです。「入れない」にすると、コマには単元名と時（例：さくら さくら③）だけが出ます。</p>
   <details class="box" style="margin-top:10px"${Object.values(me.init).some(Boolean) ? " open" : ""}><summary>年度のとちゅうから使うとき：それまでの時数</summary>
     <p class="hint">「このファイルを使い始める日」の前までの累計時数をクラスごとに入れてください。使い始める日からは週案の時数がたされていきます。半端な時数は「12 1/3」のように入れられます。</p>
@@ -2188,6 +2221,7 @@ function renderSet() {
   $$('input[name="sSheet"]', el).forEach(r => r.onchange = () => { me.sheet = r.value; changed(); });
   $("#sSheetEx").onchange = e => { me.sheetExtras = e.target.checked; changed(); };
   $("#sPrintMode").onchange = upd(v => me.printMode = v);
+  $("#sProg").onchange = upd(v => me.printProg = v === "1");
   if ($("#sConfirm")) $("#sConfirm").onclick = () => { s.confirmed = true; changed(); };
   $("#sYear").onchange = e => {
     const ny = parseInt(e.target.value); if (!(ny >= 2000 && ny <= 2099)) return render();
