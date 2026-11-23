@@ -71,6 +71,15 @@ let bad = 0; const ok = (name, c, info = '') => { if (!c) bad++; console.log((c 
   await p.click('.evslot[data-d="2026-12-02"] [data-evopen]');
   await p.uncheck('#evEditor [data-sl="5"]'); await p.check('#evEditor [data-sl="6"]'); await p.click('#eeSave'); await p.waitForTimeout(80);
   ok('週案の画面から時間を直す（5校時→6校時）', await p.evaluate(() => slotsOf('2026-12-02')[6].ev && !slotsOf('2026-12-02')[5].ev));
+  // ②行事予定の変更で削除 → そのコマは時間割の教科にもどる
+  await p.click('.evslot[data-d="2026-12-03"][data-i="3"] [data-evopen]'); await p.click('#eeDel'); await p.waitForTimeout(80);
+  ok('②行事予定の変更で削除すると、時間割の教科にもどる', await p.evaluate(() => !slotsOf('2026-12-03')[3].ev && slotsOf('2026-12-03')[3].s === D.timetable[4][3]), await p.evaluate(() => slotsOf('2026-12-03')[3].s));
+  ok('行事予定のコマのボタンは2つ（行事確定・行事予定の変更）', await p.evaluate(() => Array.from(document.querySelectorAll('.evslot .evbtns')).every(b => b.querySelectorAll('button').length === 2 && /行事確定/.test(b.textContent) && /行事予定の変更/.test(b.textContent))));
+  // 教科が未定
+  await p.evaluate(() => { D.school.events.push({ id: 'u1', from: '2026-12-04', slots: ['3'], subj: '未定', name: '学年集会', grades: [] }); changed(); });
+  const und = await p.evaluate(() => { CY = null; return [slotsOf('2026-12-04')[3].s, JSON.stringify(cy().counts['2026-12-04'])]; });
+  const tot4 = await p.evaluate(() => { const c = cy().counts['2026-12-04']; const rows = totalsRows([c]); return { has: rows.some(r => r.name === '未定'), sum: rows.reduce((a, r) => a + (r.child ? 0 : r.vals[0]), 0), gyoji: c['行事'] || 0 }; });
+  ok('教科「未定」：時数表のどの教科にも入らない（3校時の分は数えない）', und[0] === '未定' && !tot4.has && !tot4.gyoji && tot4.sum === 48, und.join(' ') + ' 時数表の合計 ' + tot4.sum / 12);
   // 土曜授業の週
   await p.evaluate(() => { curWeek = '2026-12-07'; render(); });
   ok('土曜授業にした週は、はじめから土曜日が出る', await p.$$eval('table.wk thead th', x => x.length) === 7 && await p.evaluate(() => $('#wSat').checked && $('#wSat').disabled));
@@ -83,6 +92,11 @@ let bad = 0; const ok = (name, c, info = '') => { if (!c) bad++; console.log((c 
     ok(`印刷（${k}）に「校時」が出ない`, !/校時/.test(txt));
     await p.pdf({ path: path.join(OUT, `印刷_${k}.pdf`), preferCSSPageSize: true, printBackground: true });
   }
+  // 年度を2027・2028年度にしたときの祝日（振替休日・国民の休日・春分・秋分）
+  const hol = await p.evaluate(() => [2027, 2028].map(y => { D.school.year = y; const days = []; for (let d = ymd(y, 4, 1); d <= ymd(y + 1, 3, 31); d = addDays(d, 1)) if (holiday(d)) days.push(d.slice(5) + holiday(d)); return y + ':' + days.join(','); }).join(' | '));
+  const want = ['04-29昭和の日', '05-03憲法記念日', '05-04みどりの日', '05-05こどもの日', '07-19海の日', '08-11山の日', '09-20敬老の日', '09-23秋分の日', '10-11スポーツの日', '11-03文化の日', '11-23勤労感謝の日', '01-01元日', '01-10成人の日', '02-11建国記念の日', '02-23天皇誕生日', '03-20春分の日'];
+  ok('2027年度の祝日（曜日も自動）', want.every(w => hol.split(' | ')[0].includes(w)), hol.split(' | ')[0].slice(0, 300));
+  ok('2028年度の祝日（2028/5/3〜5/5、9/18敬老・9/22秋分、2029/3/20春分）', ['05-03憲法記念日', '05-04みどりの日', '05-05こどもの日', '09-18敬老の日', '09-22秋分の日', '03-20春分の日'].every(w => hol.split(' | ')[1].includes(w)), hol.split(' | ')[1].slice(0, 300));
   ok('エラーが出ない', !errs.length, errs.join(' / '));
   await b.close();
   console.log(bad ? `\n${bad}件 不合格` : '\nすべて合格'); process.exit(bad ? 1 : 0);
