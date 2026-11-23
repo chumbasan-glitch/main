@@ -412,7 +412,7 @@ const FONTS = {
   udnkb:  {name: "UD デジタル 教科書体 NK-B",  css: '"UD デジタル 教科書体 NK-B","UD Digi Kyokasho NK-B"'},
 };
 function applyFont() { const f = FONTS[D.cls.font] || FONTS.msui; document.documentElement.style.setProperty("--font", f.css + ',"Meiryo","Yu Gothic UI",sans-serif'); }
-const VERSION = "v10.8";
+const VERSION = "v10.9";
 const SHEET_LOCK = false;   // true：週案シートを選べない（今年度用。いつも「これまでのシート」）
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -1275,6 +1275,45 @@ function importEvents(text, replace) {
   else for (const e of got) if (!D.school.events.some(x => x.from === e.from && x.name === e.name)) D.school.events.push(e);
   return {n: got.length, errs};
 }
+// 行事予定ファイル（スマート週案簿・スマート専科用週案のどちらでも書き出せて、どちらでも取り込める）
+//   中身：{app: "shuan-events", ver: 1, year, at, events, offDays, onDays}
+//   取り込めるもの：行事予定ファイル、どちらかのツールのファイル（.html）、バックアップ（.json）
+const EV_APP = "shuan-events";
+function eventsFileData() {
+  return {app: EV_APP, ver: 1, year: D.school.year, at: new Date().toISOString().slice(0, 19), events: D.school.events || [], offDays: D.school.offDays || {}, onDays: D.school.onDays || {}};
+}
+function exportEventsFile() {
+  const n = (D.school.events || []).length;
+  download(`行事予定_${D.school.year}年度_${+today().slice(5, 7)}月${+today().slice(8)}日書き出し.json`, JSON.stringify(eventsFileData(), null, 1), "application/json");
+  toast(`行事予定ファイルを書き出しました（${n}件、休み・土曜授業もふくむ）。ダウンロードのフォルダに入っています`, 6000);
+}
+// ファイルの文字から、行事予定（学校全体の分）を取り出す。見つからなければ null
+function eventsFromFileText(name, t) {
+  let nd = null;
+  try {
+    if (/\.json$/i.test(name) || /^\s*\{/.test(t)) nd = JSON.parse(t);
+    else { const m = t.match(/<script id="(?:shuan|senka)-data" type="application\/json">([\s\S]*?)<\/script>/); if (m) nd = JSON.parse(m[1]); }
+  } catch (err) { nd = null; }
+  if (!nd || typeof nd !== "object") return null;
+  const sch = nd.app === EV_APP ? nd : nd.school;
+  if (!sch || !Array.isArray(sch.events)) return null;
+  return {year: sch.year, events: sch.events, offDays: sch.offDays || {}, onDays: sch.onDays || {}};
+}
+// 取り込む：置きかえる（同じ行事は同じものとして、学級で「入れない」にしたものも残る）か、足す
+async function importEventsFile(f) {
+  const t = await f.text();
+  const got = eventsFromFileText(f.name, t);
+  if (!got || (!got.events.length && !Object.keys(got.offDays).length && !Object.keys(got.onDays).length)) { toast("そのファイルには行事予定が入っていませんでした", 4000); return null; }
+  if (got.year && got.year !== D.school.year && !confirm(`このファイルは${got.year}年度の行事予定です（いま開いているのは${D.school.year}年度です）。それでも取り込みますか？`)) return null;
+  const rep = (D.school.events || []).length ? confirm(`「${f.name}」の行事予定（${got.events.length}件）を取り込みます。\n\n今の行事予定と置きかえるときは「OK」、今の行事予定に足すときは「キャンセル」を押してください。`) : true;
+  const evs = JSON.parse(JSON.stringify(got.events));
+  for (const e of evs) { if (!Array.isArray(e.slots)) { e.slots = e.slot ? [e.slot] : []; delete e.slot; } if (!e.id) e.id = newEvId(); }
+  if (rep) D.school.events = evs;
+  else for (const x of evs) if (!D.school.events.some(y => y.id === x.id || (y.from === x.from && y.name === x.name))) D.school.events.push(x);
+  D.school.offDays = {...(rep ? {} : D.school.offDays || {}), ...got.offDays};
+  D.school.onDays = {...(rep ? {} : D.school.onDays || {}), ...got.onDays};
+  return {rep, n: evs.length};
+}
 // 行事予定を入れる・直す小さな画面（行事予定タブと週案の画面のどちらからでも開く）
 function openEvEditor(e, onDone) {
   const isNew = !e.id;
@@ -1422,10 +1461,12 @@ function renderEvents() {
     <div class="row" style="margin-top:6px"><button class="btn primary" id="evImpAdd">追加する</button><button class="btn" id="evImpRep">今の行事予定と置きかえる</button></div>
   </details>
   <div class="row" style="margin-top:10px">
+    <button class="btn primary" id="evExport">📤 行事予定ファイルを書き出す</button>
+    <button class="btn primary" id="evFileBtn">📥 行事予定ファイルを取り込む</button><input type="file" id="evFile" accept=".json,.html,.htm" hidden>
     <button class="btn" id="evCopy">行事予定をコピー（Excelに貼れる形）</button>
-    <button class="btn" id="evFileBtn">ほかのファイルの行事予定を読み込む</button><input type="file" id="evFile" accept=".html,.htm,.json" hidden>
   </div>
-  <p class="hint">「ほかのファイルの行事予定を読み込む」：行事予定を入れた配布用のファイルやバックアップを選ぶと、行事予定と、休み・土曜授業だけを取りこみます（あとから予定が変わったときなどに）。</p>`;
+  <p class="hint">・「書き出す」：この行事予定と、休み・土曜授業を、1つのファイル（行事予定_◯年度_◯月◯日書き出し.json）にします。ほかの先生のスマート週案簿や、スマート専科用週案の「取り込む」で読み込めます。<br>
+  ・「取り込む」：書き出した行事予定ファイルのほか、スマート週案簿・スマート専科用週案のファイルやバックアップも選べます。行事予定と、休み・土曜授業だけを取り込みます（自分の週案の中身は変わりません）。予定が変わったときは、書き出し直したファイルを取り込んで「置きかえる」にします。</p>`;
   el.innerHTML = h;
   $$("[data-evview]", el).forEach(b => b.onclick = () => { evView = b.dataset.evview; evMsg = null; render(); });
   if (evView === "cal") {
@@ -1457,23 +1498,12 @@ function renderEvents() {
   $("#evImpRep").onclick = () => imp(true);
   $("#evCopy").onclick = () => copyText(eventsToTSV(), "行事予定をコピーしました。Excelに貼り付けられます");
   $("#evFileBtn").onclick = () => $("#evFile").click();
+  $("#evExport").onclick = exportEventsFile;
   $("#evFile").onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
-    const t = await f.text(); let nd = null;
-    try {
-      if (/\.json$/i.test(f.name)) nd = JSON.parse(t);
-      else { const m = t.match(/<script id="shuan-data" type="application\/json">([\s\S]*?)<\/script>/); if (m) nd = JSON.parse(m[1]); }
-    } catch (err) { nd = null; }
     e.target.value = "";
-    const sch = nd && nd.school;
-    const evs = sch && Array.isArray(sch.events) ? sch.events : null;
-    if (!evs || (!evs.length && !Object.keys(sch.offDays || {}).length && !Object.keys(sch.onDays || {}).length)) { toast("そのファイルには行事予定が入っていませんでした"); return; }
-    const rep = D.school.events.length ? confirm(`「${f.name}」の行事予定（${evs.length}件）を読み込みます。\n\n今の行事予定と置きかえるときは「OK」、今の行事予定に足すときは「キャンセル」を押してください。`) : true;
-    if (rep) D.school.events = JSON.parse(JSON.stringify(evs));
-    else for (const x of evs) if (!D.school.events.some(y => y.from === x.from && y.name === x.name)) D.school.events.push(JSON.parse(JSON.stringify(x)));
-    D.school.offDays = {...(rep ? {} : D.school.offDays || {}), ...(sch.offDays || {})};
-    D.school.onDays = {...(rep ? {} : D.school.onDays || {}), ...(sch.onDays || {})};
-    evMsg = {err: false, text: `「${f.name}」から行事予定を${rep ? "読み込みました" : "足しました"}（${evs.length}件、休み・土曜授業もふくむ）`};
+    const r = await importEventsFile(f); if (!r) return;
+    evMsg = {err: false, text: `「${f.name}」から行事予定を${r.rep ? "取り込みました（置きかえ）" : "足しました"}（${r.n}件、休み・土曜授業もふくむ）`};
     changed();
   };
 }
