@@ -139,6 +139,7 @@
     <div class="row choices">
       <label><input type="radio" name="layout" value="yoko2" checked>横に2つ</label>
       <label><input type="radio" name="layout" value="tate4">縦に4つ</label>
+      <label><input type="radio" name="layout" value="tate1">縦に1つ（大きく）</label>
     </div>
 
     <h2>名前の欄</h2>
@@ -270,6 +271,10 @@
   var PAPERS = { B5: [257, 182], A4: [297, 210] };   // 長い辺, 短い辺
   function makeLayout(paper, kind) {
     var L = PAPERS[paper][0], S = PAPERS[paper][1];
+    if (kind === "tate1") {
+      return { paper: paper, w: S, h: L, pw: S, ph: L, k: 1.2, dir: "縦",
+               pos: [[0, 0]], cuts: [] };
+    }
     if (kind === "tate4") {
       var pw = S / 2, ph = L / 2;
       return { paper: paper, w: S, h: L, pw: pw, ph: ph, k: 0.8, dir: "縦",
@@ -398,7 +403,7 @@
       yBreak: radio("yBreak") === "on", yStart: num("yStart", 100),
       xLabelMode: radio("xLabelMode"), xLabel: txt("xLabel"),
       yLabelMode: radio("yLabelMode"), yLabel: txt("yLabel"),
-      layout: radio("layout") === "tate4" ? "tate4" : "yoko2",
+      layout: ["tate4", "tate1"].indexOf(radio("layout")) >= 0 ? radio("layout") : "yoko2",
       paper: radio("paper") === "A4" ? "A4" : "B5"
     };
   }
