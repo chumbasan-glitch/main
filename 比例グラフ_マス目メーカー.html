@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>比例グラフ マス目メーカー</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --panel: #ffffff;
+    --ink: #1d2733;
+    --muted: #5b6878;
+    --line: #d5dce5;
+    --accent: #2f6fb3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Meiryo", "Hiragino Sans", sans-serif;
+    font-size: 16px;
+  }
+  header {
+    padding: 14px 16px;
+    background: var(--accent);
+    color: #fff;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  .wrap {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    align-items: flex-start;
+  }
+  .settings {
+    flex: 0 0 360px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .settings h2 {
+    font-size: 16px;
+    margin: 14px 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .settings h2:first-child { margin-top: 0; }
+  .row { margin: 8px 0; }
+  .row > .lbl { display: block; font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+  .choices { display: flex; flex-wrap: wrap; gap: 6px; }
+  .choices label {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px;
+    cursor: pointer; font-size: 15px; background: #fff;
+  }
+  .choices label:has(input:checked) { border-color: var(--accent); background: #e8f1fb; }
+  input[type=text], input[type=number] {
+    font-size: 16px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+    width: 100%;
+  }
+  input[type=number] { width: 80px; }
+  .inline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; }
+  .sub { margin-left: 4px; padding-left: 10px; border-left: 3px solid var(--line); }
+  .hidden { display: none !important; }
+  .btn {
+    display: block; width: 100%; margin-top: 16px; padding: 12px;
+    font-size: 18px; font-weight: bold; color: #fff; background: var(--accent);
+    border: none; border-radius: 10px; cursor: pointer;
+  }
+  .note { font-size: 13px; color: var(--muted); line-height: 1.6; margin-top: 10px; }
+  .previewArea { flex: 1; min-width: 0; }
+  .previewArea .cap { font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+  .scaler { transform-origin: top left; }
+  .sheet {
+    width: 257mm; height: 182mm; background: #fff;
+    display: flex; box-shadow: 0 2px 10px rgba(0,0,0,.15);
+  }
+  .sheet svg { display: block; flex: 0 0 auto; }
+  .gfont { font-family: "UD デジタル 教科書体 NK-R", "UD Digi Kyokasho NK-R", "BIZ UDPGothic", "Meiryo", sans-serif; }
+
+  @media (max-width: 800px) {
+    .wrap { flex-direction: column; }
+    .settings { flex: none; width: 100%; }
+    .previewArea { width: 100%; }
+  }
+
+  @page { size: 257mm 182mm; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    header, .settings, .previewArea .cap { display: none !important; }
+    .wrap { padding: 0; display: block; }
+    .scaler { transform: none !important; height: auto !important; }
+    .sheet { box-shadow: none; }
+    .sheet, .sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<header><h1>比例グラフ マス目メーカー（B5横・2つ分）</h1></header>
+
+<div class="wrap">
+  <form class="settings" id="f" onsubmit="return false">
+    <h2>名前の欄</h2>
+    <div class="row choices">
+      <label><input type="radio" name="nameMode" value="full" checked>組・番・名前</label>
+      <label><input type="radio" name="nameMode" value="name">名前だけ</label>
+      <label><input type="radio" name="nameMode" value="none">入れない</label>
+    </div>
+
+    <h2>グラフの題名</h2>
+    <div class="row choices">
+      <label><input type="radio" name="titleMode" value="text" checked>入力する</label>
+      <label><input type="radio" name="titleMode" value="box">四角（子どもが書く）</label>
+      <label><input type="radio" name="titleMode" value="none">入れない</label>
+    </div>
+    <div class="row" id="titleTextRow">
+      <input type="text" id="titleText" value="水そうに入れた水の量と深さ">
+    </div>
+
+    <h2>マスの数</h2>
+    <div class="row inline">
+      横 <input type="number" id="nx" min="1" max="100" value="30"> マス
+      ／ 縦 <input type="number" id="ny" min="1" max="100" value="55"> マス
+    </div>
+    <div class="row">
+      <span class="lbl">太い線</span>
+      <div class="choices">
+        <label><input type="radio" name="major" value="5">5マスごと</label>
+        <label><input type="radio" name="major" value="10" checked>10マスごと</label>
+        <label><input type="radio" name="major" value="0">全部同じ太さ</label>
+      </div>
+    </div>
+
+    <h2>よこ軸（x）</h2>
+    <div class="row">
+      <span class="lbl">数字</span>
+      <div class="choices">
+        <label><input type="radio" name="xNumMode" value="num" checked>数字を入れる</label>
+        <label><input type="radio" name="xNumMode" value="box">四角（子どもが書く）</label>
+        <label><input type="radio" name="xNumMode" value="none">入れない</label>
+      </div>
+    </div>
+    <div class="row sub" id="xNumOpts">
+      <div class="inline"><input type="number" id="xEvery" min="1" value="5"> マスごとに</div>
+      <div class="inline" id="xStepRow" style="margin-top:6px">数字を <input type="number" id="xStep" step="any" value="1"> ずつ増やす</div>
+    </div>
+    <div class="row">
+      <span class="lbl">項目名</span>
+      <div class="choices">
+        <label><input type="radio" name="xLabelMode" value="text" checked>入力する</label>
+        <label><input type="radio" name="xLabelMode" value="box">四角（子どもが書く）</label>
+        <label><input type="radio" name="xLabelMode" value="none">入れない</label>
+      </div>
+    </div>
+    <div class="row" id="xLabelRow"><input type="text" id="xLabel" value="x（L）"></div>
+
+    <h2>たて軸（y）</h2>
+    <div class="row">
+      <span class="lbl">数字</span>
+      <div class="choices">
+        <label><input type="radio" name="yNumMode" value="num" checked>数字を入れる</label>
+        <label><input type="radio" name="yNumMode" value="box">四角（子どもが書く）</label>
+        <label><input type="radio" name="yNumMode" value="none">入れない</label>
+      </div>
+    </div>
+    <div class="row sub" id="yNumOpts">
+      <div class="inline"><input type="number" id="yEvery" min="1" value="5"> マスごとに</div>
+      <div class="inline" id="yStepRow" style="margin-top:6px">数字を <input type="number" id="yStep" step="any" value="1"> ずつ増やす</div>
+    </div>
+    <div class="row">
+      <span class="lbl">項目名</span>
+      <div class="choices">
+        <label><input type="radio" name="yLabelMode" value="text" checked>入力する</label>
+        <label><input type="radio" name="yLabelMode" value="box">四角（子どもが書く）</label>
+        <label><input type="radio" name="yLabelMode" value="none">入れない</label>
+      </div>
+    </div>
+    <div class="row" id="yLabelRow"><input type="text" id="yLabel" value="y（cm）"></div>
+
+    <button type="button" class="btn" onclick="window.print()">印刷する</button>
+    <p class="note">
+      印刷の画面では、用紙を「B5（JIS）」、向きを「横」、倍率を「100%（実際のサイズ）」にしてください。<br>
+      色をきれいに出すには「背景のグラフィック」にチェックを入れてください。
+    </p>
+  </form>
+
+  <div class="previewArea" id="pa">
+    <div class="cap">印刷イメージ（B5横）</div>
+    <div class="scaler" id="scaler">
+      <div class="sheet" id="sheet"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var PW = 128.5, PH = 182;              // 半分の大きさ（mm）
+  var C_MINOR = "#a9cbea", C_MAJOR = "#4f8fcf", C_AXIS = "#2a6aad";
+  var f = document.getElementById("f");
+  var STORE = "hirei-grid-settings-v1";
+
+  function radio(name) {
+    var el = f.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : "";
+  }
+  function num(id, def, min, max) {
+    var v = parseFloat(document.getElementById(id).value);
+    if (!isFinite(v)) v = def;
+    if (min != null && v < min) v = min;
+    if (max != null && v > max) v = max;
+    return v;
+  }
+  function txt(id) { return document.getElementById(id).value; }
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function fmt(v) {
+    var r = Math.round(v * 10000) / 10000;
+    return String(r);
+  }
+  function r2(v) { return Math.round(v * 1000) / 1000; }
+  // 文字のだいたいの幅（mm）
+  function textW(s, size) {
+    var w = 0;
+    for (var i = 0; i < s.length; i++) {
+      w += s.charCodeAt(i) > 255 ? size : size * 0.55;
+    }
+    return w;
+  }
+
+  function read() {
+    return {
+      nameMode: radio("nameMode"),
+      titleMode: radio("titleMode"), titleText: txt("titleText"),
+      nx: Math.round(num("nx", 30, 1, 100)), ny: Math.round(num("ny", 55, 1, 100)),
+      major: parseInt(radio("major"), 10) || 0,
+      xNumMode: radio("xNumMode"), xEvery: Math.round(num("xEvery", 5, 1, 100)), xStep: num("xStep", 1),
+      yNumMode: radio("yNumMode"), yEvery: Math.round(num("yEvery", 5, 1, 100)), yStep: num("yStep", 1),
+      xLabelMode: radio("xLabelMode"), xLabel: txt("xLabel"),
+      yLabelMode: radio("yLabelMode"), yLabel: txt("yLabel")
+    };
+  }
+
+  function build(s) {
+    var o = [];
+    var M = 6;               // 紙のはしからの余白
+    var NUM = 3.6;           // 数字の大きさ
+    var LAB = 4;             // 項目名の大きさ
+
+    // 名前の欄（いちばん上・右よせ）
+    var top = M;
+    if (s.nameMode !== "none") {
+      var right = PW - M, base = top + 5.5;
+      var start = s.nameMode === "full" ? right - 84 : right - 50;
+      o.push('<line x1="' + start + '" y1="' + (base + 1.2) + '" x2="' + right + '" y2="' + (base + 1.2) + '" stroke="#333" stroke-width="0.25"/>');
+      if (s.nameMode === "full") {
+        o.push('<text x="' + (start + 12) + '" y="' + base + '" font-size="4">組</text>');
+        o.push('<text x="' + (start + 28) + '" y="' + base + '" font-size="4">番</text>');
+        o.push('<text x="' + (start + 34) + '" y="' + base + '" font-size="4">名前</text>');
+      } else {
+        o.push('<text x="' + start + '" y="' + base + '" font-size="4">名前</text>');
+      }
+      top += 10;
+    }
+
+    // 各部分の大きさ
+    var titleH = s.titleMode === "none" ? 0 : 13;
+    var yLabH = s.yLabelMode === "none" ? 4 : 11;
+    var bottomH = (s.xNumMode === "none" ? 6 : 9);
+
+    var yNumW = 3;
+    if (s.yNumMode === "num") {
+      var maxW = 0;
+      for (var j = s.yEvery; j <= s.ny; j += s.yEvery) {
+        maxW = Math.max(maxW, textW(fmt(j / s.yEvery * s.yStep), NUM));
+      }
+      yNumW = Math.max(maxW, NUM * 0.6) + 2.5;
+    } else if (s.yNumMode === "box") {
+      yNumW = 11;
+    }
+    yNumW = Math.max(yNumW, 5);   // 「0」が入る分
+
+    var xLabW = 3;
+    if (s.xLabelMode === "text") xLabW = textW(s.xLabel, LAB) + 3;
+    else if (s.xLabelMode === "box") xLabW = 18;
+    // 右はしの目もりの数字（四角）が軸の右にはみ出す分
+    var lastHalf = 0;
+    if (s.nx % s.xEvery === 0) {
+      if (s.xNumMode === "num") lastHalf = textW(fmt(s.nx / s.xEvery * s.xStep), NUM) / 2;
+      else if (s.xNumMode === "box") lastHalf = 4;
+    }
+    var xLabGap = Math.max(2, lastHalf + 1.5);
+    xLabW += xLabGap - 2;
+
+    var availW = PW - 2 * M - yNumW - xLabW;
+    var availH = PH - top - M - titleH - yLabH - bottomH;
+    var sq = Math.min(availW / s.nx, availH / s.ny);
+    if (sq <= 0) sq = 0.5;
+    var gw = sq * s.nx, gh = sq * s.ny;
+
+    // 横は真ん中、縦はまとまりを真ん中に
+    var blockW = yNumW + gw + xLabW;
+    var gx = M + (PW - 2 * M - blockW) / 2 + yNumW;
+    var blockH = titleH + yLabH + gh + bottomH;
+    var by = top + (PH - top - M - blockH) / 2;
+    var gy = by + titleH + yLabH;
+    var gb = gy + gh, gr = gx + gw;
+
+    // 題名
+    var cx = gx + gw / 2;
+    if (s.titleMode === "text") {
+      o.push('<text x="' + r2(cx) + '" y="' + r2(by + 7) + '" font-size="5" font-weight="bold" text-anchor="middle">' + esc(s.titleText) + '</text>');
+    } else if (s.titleMode === "box") {
+      var tw = Math.min(100, PW - 2 * M);
+      o.push('<rect x="' + r2(PW / 2 - tw / 2) + '" y="' + r2(by) + '" width="' + tw + '" height="10" fill="none" stroke="#333" stroke-width="0.3"/>');
+    }
+
+    // マス目（細い線 → 太い線 → 軸）
+    var minor = [], major = [];
+    for (var i = 0; i <= s.nx; i++) {
+      var x = r2(gx + i * sq);
+      var isMaj = s.major > 0 && i % s.major === 0;
+      (isMaj ? major : minor).push('M' + x + ' ' + r2(gy) + 'V' + r2(gb));
+    }
+    for (var k = 0; k <= s.ny; k++) {
+      var y = r2(gb - k * sq);
+      var isMajY = s.major > 0 && k % s.major === 0;
+      (isMajY ? major : minor).push('M' + r2(gx) + ' ' + y + 'H' + r2(gr));
+    }
+    o.push('<path d="' + minor.join("") + '" stroke="' + C_MINOR + '" stroke-width="0.15" fill="none"/>');
+    if (major.length) o.push('<path d="' + major.join("") + '" stroke="' + C_MAJOR + '" stroke-width="0.35" fill="none"/>');
+    o.push('<rect x="' + r2(gx) + '" y="' + r2(gy) + '" width="' + r2(gw) + '" height="' + r2(gh) + '" fill="none" stroke="' + C_MAJOR + '" stroke-width="0.35"/>');
+    o.push('<path d="M' + r2(gx) + ' ' + r2(gy) + 'V' + r2(gb) + 'H' + r2(gr) + '" stroke="' + C_AXIS + '" stroke-width="0.5" fill="none"/>');
+
+    // 0
+    o.push('<text x="' + r2(gx - 1.5) + '" y="' + r2(gb + 4.6) + '" font-size="' + NUM + '" text-anchor="end">0</text>');
+
+    // よこ軸の数字
+    for (var a = s.xEvery; a <= s.nx; a += s.xEvery) {
+      var ax = gx + a * sq;
+      if (s.xNumMode === "num") {
+        o.push('<text x="' + r2(ax) + '" y="' + r2(gb + 4.6) + '" font-size="' + NUM + '" text-anchor="middle">' + fmt(a / s.xEvery * s.xStep) + '</text>');
+      } else if (s.xNumMode === "box") {
+        var bw = Math.min(8, s.xEvery * sq - 0.8);
+        if (bw > 1) o.push('<rect x="' + r2(ax - bw / 2) + '" y="' + r2(gb + 1.2) + '" width="' + r2(bw) + '" height="6" fill="none" stroke="#333" stroke-width="0.25"/>');
+      }
+    }
+    // たて軸の数字
+    for (var b = s.yEvery; b <= s.ny; b += s.yEvery) {
+      var byy = gb - b * sq;
+      if (s.yNumMode === "num") {
+        o.push('<text x="' + r2(gx - 1.5) + '" y="' + r2(byy + NUM * 0.36) + '" font-size="' + NUM + '" text-anchor="end">' + fmt(b / s.yEvery * s.yStep) + '</text>');
+      } else if (s.yNumMode === "box") {
+        var bh = Math.min(6, s.yEvery * sq - 0.8);
+        if (bh > 1) o.push('<rect x="' + r2(gx - 1.2 - 9) + '" y="' + r2(byy - bh / 2) + '" width="9" height="' + r2(bh) + '" fill="none" stroke="#333" stroke-width="0.25"/>');
+      }
+    }
+
+    // 項目名
+    if (s.xLabelMode === "text") {
+      o.push('<text x="' + r2(gr + xLabGap) + '" y="' + r2(gb + 1.4) + '" font-size="' + LAB + '">' + esc(s.xLabel) + '</text>');
+    } else if (s.xLabelMode === "box") {
+      o.push('<rect x="' + r2(gr + xLabGap) + '" y="' + r2(gb - 3.5) + '" width="16" height="7" fill="none" stroke="#333" stroke-width="0.25"/>');
+    }
+    if (s.yLabelMode === "text") {
+      o.push('<text x="' + r2(gx - 3) + '" y="' + r2(gy - 5) + '" font-size="' + LAB + '">' + esc(s.yLabel) + '</text>');
+    } else if (s.yLabelMode === "box") {
+      o.push('<rect x="' + r2(gx - 3) + '" y="' + r2(gy - 11) + '" width="20" height="7" fill="none" stroke="#333" stroke-width="0.25"/>');
+    }
+
+    return '<svg xmlns="http://www.w3.org/2000/svg" class="gfont" width="' + PW + 'mm" height="' + PH + 'mm" viewBox="0 0 ' + PW + ' ' + PH + '" fill="#1d2733">' + o.join("") + '</svg>';
+  }
+
+  function render() {
+    var s = read();
+    document.getElementById("titleTextRow").classList.toggle("hidden", s.titleMode !== "text");
+    document.getElementById("xNumOpts").classList.toggle("hidden", s.xNumMode === "none");
+    document.getElementById("yNumOpts").classList.toggle("hidden", s.yNumMode === "none");
+    document.getElementById("xStepRow").classList.toggle("hidden", s.xNumMode !== "num");
+    document.getElementById("yStepRow").classList.toggle("hidden", s.yNumMode !== "num");
+    document.getElementById("xLabelRow").classList.toggle("hidden", s.xLabelMode !== "text");
+    document.getElementById("yLabelRow").classList.toggle("hidden", s.yLabelMode !== "text");
+
+    var one = build(s);
+    var cut = '<div style="width:0;border-left:0.3mm dashed #bbb;height:182mm"></div>';
+    document.getElementById("sheet").innerHTML = one + cut + one;
+    fit();
+    save();
+  }
+
+  function fit() {
+    var pa = document.getElementById("pa"), sc = document.getElementById("scaler"), sh = document.getElementById("sheet");
+    sc.style.transform = "none";
+    var w = sh.offsetWidth, h = sh.offsetHeight;
+    var k = Math.min(1, pa.clientWidth / w);
+    sc.style.transform = "scale(" + k + ")";
+    sc.style.height = (h * k) + "px";
+  }
+
+  function save() {
+    try {
+      var data = {};
+      f.querySelectorAll("input").forEach(function (el) {
+        if (el.type === "radio") { if (el.checked) data[el.name] = el.value; }
+        else data[el.id] = el.value;
+      });
+      localStorage.setItem(STORE, JSON.stringify(data));
+    } catch (e) {}
+  }
+  function load() {
+    try {
+      var data = JSON.parse(localStorage.getItem(STORE) || "null");
+      if (!data) return;
+      f.querySelectorAll("input").forEach(function (el) {
+        if (el.type === "radio") { if (data[el.name] != null) el.checked = (data[el.name] === el.value); }
+        else if (data[el.id] != null) el.value = data[el.id];
+      });
+    } catch (e) {}
+  }
+
+  load();
+  f.addEventListener("input", render);
+  f.addEventListener("change", render);
+  window.addEventListener("resize", fit);
+  render();
+})();
+</script>
+</body>
+</html>
