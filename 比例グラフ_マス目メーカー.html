@@ -2,9 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
 <title>比例グラフ マス目メーカー</title>
 <style>
+  /* 左に設定、右に印刷イメージ。紙の部分はいつも白 */
   :root {
     --bg: #f4f6f9;
     --panel: #ffffff;
@@ -12,6 +14,21 @@
     --muted: #5b6878;
     --line: #d5dce5;
     --accent: #2f6fb3;
+    --accent-soft: #e8f1fb;
+    --on-accent: #ffffff;
+    --paper: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151b23; --panel: #1e2631; --ink: #e6ebf1; --muted: #9aa8b8;
+      --line: #364353; --accent: #5b9ae0; --accent-soft: #23364d; --on-accent: #0d1520;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151b23; --panel: #1e2631; --ink: #e6ebf1; --muted: #9aa8b8;
+    --line: #364353; --accent: #5b9ae0; --accent-soft: #23364d; --on-accent: #0d1520;
+    color-scheme: dark;
   }
   * { box-sizing: border-box; }
   body {
@@ -24,13 +41,17 @@
   header {
     padding: 14px 16px;
     background: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
   header h1 { margin: 0; font-size: 20px; }
   .wrap {
     display: flex;
     gap: 16px;
-    padding: 16px;
+    padding-block: 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
     align-items: flex-start;
   }
   .settings {
@@ -53,10 +74,11 @@
   .choices label {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px;
-    cursor: pointer; font-size: 15px; background: #fff;
+    cursor: pointer; font-size: 15px; background: var(--panel);
   }
-  .choices label:has(input:checked) { border-color: var(--accent); background: #e8f1fb; }
+  .choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
   input[type=text], input[type=number] {
+    background: var(--panel); color: var(--ink);
     font-size: 16px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
     width: 100%;
   }
@@ -66,15 +88,19 @@
   .hidden { display: none !important; }
   .btn {
     display: block; width: 100%; margin-top: 16px; padding: 12px;
-    font-size: 18px; font-weight: bold; color: #fff; background: var(--accent);
+    font-size: 18px; font-weight: bold; color: var(--on-accent); background: var(--accent);
     border: none; border-radius: 10px; cursor: pointer;
   }
+  .btn.sub2 { background: var(--panel); color: var(--accent); border: 2px solid var(--accent); margin-top: 10px; }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  #msg { font-size: 14px; margin-top: 8px; min-height: 1.2em; color: var(--accent); }
   .note { font-size: 13px; color: var(--muted); line-height: 1.6; margin-top: 10px; }
   .previewArea { flex: 1; min-width: 0; }
   .previewArea .cap { font-size: 14px; color: var(--muted); margin-bottom: 6px; }
   .scaler { transform-origin: top left; }
   .sheet {
-    width: 257mm; height: 182mm; background: #fff;
+    width: 257mm; height: 182mm; background: var(--paper);
     display: flex; box-shadow: 0 2px 10px rgba(0,0,0,.15);
   }
   .sheet svg { display: block; flex: 0 0 auto; }
@@ -179,10 +205,15 @@
     </div>
     <div class="row" id="yLabelRow"><input type="text" id="yLabel" value="y（cm）"></div>
 
-    <button type="button" class="btn" onclick="window.print()">印刷する</button>
-    <p class="note">
+    <button type="button" class="btn" id="printBtn">印刷する</button>
+    <button type="button" class="btn sub2" id="pdfBtn">PDFで保存</button>
+    <div id="msg" role="status"></div>
+    <p class="note" id="printNote">
       印刷の画面では、用紙を「B5（JIS）」、向きを「横」、倍率を「100%（実際のサイズ）」にしてください。<br>
       色をきれいに出すには「背景のグラフィック」にチェックを入れてください。
+    </p>
+    <p class="note">
+      PDFはB5横の大きさでできます。PDFを開いて印刷するときも、倍率は「100%（実際のサイズ）」にしてください。ロイロノートにもそのまま入れられます。
     </p>
   </form>
 
@@ -194,12 +225,15 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function () {
   var PW = 128.5, PH = 182;              // 半分の大きさ（mm）
   var C_MINOR = "#a9cbea", C_MAJOR = "#4f8fcf", C_AXIS = "#2a6aad";
   var f = document.getElementById("f");
   var STORE = "hirei-grid-settings-v1";
+  var FONT = "'UD デジタル 教科書体 NK-R', 'UD Digi Kyokasho NK-R', 'BIZ UDPGothic', Meiryo, 'Hiragino Sans', sans-serif";
+  var lastSvg = "";
 
   function radio(name) {
     var el = f.querySelector('input[name="' + name + '"]:checked');
@@ -370,7 +404,7 @@
       o.push('<rect x="' + r2(gx - 3) + '" y="' + r2(gy - 11) + '" width="20" height="7" fill="none" stroke="#333" stroke-width="0.25"/>');
     }
 
-    return '<svg xmlns="http://www.w3.org/2000/svg" class="gfont" width="' + PW + 'mm" height="' + PH + 'mm" viewBox="0 0 ' + PW + ' ' + PH + '" fill="#1d2733">' + o.join("") + '</svg>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" class="gfont" font-family="' + FONT + '" width="' + PW + 'mm" height="' + PH + 'mm" viewBox="0 0 ' + PW + ' ' + PH + '" fill="#1d2733">' + o.join("") + '</svg>';
   }
 
   function render() {
@@ -384,6 +418,7 @@
     document.getElementById("yLabelRow").classList.toggle("hidden", s.yLabelMode !== "text");
 
     var one = build(s);
+    lastSvg = one;
     var cut = '<div style="width:0;border-left:0.3mm dashed #bbb;height:182mm"></div>';
     document.getElementById("sheet").innerHTML = one + cut + one;
     fit();
@@ -419,6 +454,82 @@
       });
     } catch (e) {}
   }
+
+  // ---- PDFで保存 ----
+  var msg = document.getElementById("msg");
+  var inArtifact = !!(window.claude && typeof window.claude.use === "function");
+  if (inArtifact) {
+    document.getElementById("printBtn").hidden = true;
+    document.getElementById("printNote").hidden = true;
+  }
+  document.getElementById("printBtn").addEventListener("click", function () { window.print(); });
+
+  function sheetSvg() {
+    var inner = lastSvg.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="3084" height="2184" viewBox="0 0 257 182" font-family="' + FONT + '">' +
+      '<rect width="257" height="182" fill="#ffffff"/>' +
+      '<g fill="#1d2733">' + inner + '</g>' +
+      '<line x1="128.5" y1="0" x2="128.5" y2="182" stroke="#bbbbbb" stroke-width="0.3" stroke-dasharray="1.2 1.2"/>' +
+      '<g transform="translate(128.5 0)" fill="#1d2733">' + inner + '</g></svg>';
+  }
+  function toPng() {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(new Blob([sheetSvg()], { type: "image/svg+xml" }));
+      var img = new Image();
+      img.onload = function () {
+        var c = document.createElement("canvas");
+        c.width = 3084; c.height = 2184;
+        var g = c.getContext("2d");
+        g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/png"));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("img")); };
+      img.src = url;
+    });
+  }
+  function fileName() {
+    var t = read().titleMode === "text" ? read().titleText.trim() : "";
+    t = t.replace(/[\\/:*?"<>|]/g, "").slice(0, 40);
+    return (t ? "グラフ用紙_" + t : "グラフ用紙") + ".pdf";
+  }
+  var pdfBtn = document.getElementById("pdfBtn");
+  if (!(window.jspdf && window.jspdf.jsPDF)) {
+    pdfBtn.hidden = true;
+  }
+  pdfBtn.addEventListener("click", function () {
+    pdfBtn.disabled = true;
+    msg.textContent = "PDFを作っています…";
+    toPng().then(function (png) {
+      var doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: [257, 182] });
+      doc.addImage(png, "PNG", 0, 0, 257, 182, undefined, "FAST");
+      var name = fileName();
+      if (!inArtifact) {
+        var u = URL.createObjectURL(doc.output("blob"));
+        var link = document.createElement("a");
+        link.href = u; link.download = name;
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+        msg.textContent = "PDFを保存しました。";
+        return;
+      }
+      return window.claude.use("downloads").then(function (dl) {
+        if (!dl) { msg.textContent = "ここではPDFを保存できません。ブラウザでファイルを開いて保存してください。"; return; }
+        return dl.save({ filename: name, data: doc.output("blob") }).then(function () {
+          msg.textContent = "PDFを保存しました。";
+        }, function (e) {
+          var c = e && e.code;
+          if (c === "declined") msg.textContent = "保存をやめました。";
+          else if (c === "rate_limited") msg.textContent = "少し待ってから、もう一度押してください。";
+          else if (c === "host_unavailable") msg.textContent = "このアプリでは保存できません。パソコンのブラウザで開いてください。";
+          else msg.textContent = "PDFを保存できませんでした。";
+        });
+      });
+    }).catch(function () {
+      msg.textContent = "PDFを作れませんでした。もう一度押してください。";
+    }).then(function () { pdfBtn.disabled = false; });
+  });
 
   load();
   f.addEventListener("input", render);
