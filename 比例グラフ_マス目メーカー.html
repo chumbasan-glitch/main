@@ -278,13 +278,76 @@
     return v;
   }
   function txt(id) { return document.getElementById(id).value; }
-  // 単独の x・y（全角のｘ・ｙも）を、教科書のような数学の文字（ななめの書体）にする
-  var MATHF = "'Times New Roman', Times, 'Cambria Math', serif";
-  function mathText(str) {
-    return esc(str).replace(/(^|[^A-Za-z])([xyｘｙ])(?![A-Za-z])/g, function (m, pre, ch) {
+  // 単独の x・y（全角のｘ・ｙも）を、教科書のような手書き風の文字にする。
+  // 書体にたよらず線でかくので、どの機械でも同じ形になる。
+  // 形は1文字の高さ=1（下が0、上が-1）の目もりでかく
+  var GLYPH = {
+    x: { w: 0.62, d: "M0.04 -0.42 Q0.09 -0.5 0.17 -0.5 Q0.31 -0.5 0.31 -0.25 Q0.31 0 0.15 0 Q0.07 0 0.03 -0.06" +
+                     "M0.58 -0.44 Q0.53 -0.5 0.45 -0.5 Q0.31 -0.5 0.31 -0.25 Q0.31 0 0.47 0 Q0.55 0 0.6 -0.07" },
+    y: { w: 0.56, d: "M0.03 -0.43 Q0.07 -0.5 0.13 -0.5 Q0.19 -0.5 0.19 -0.4 L0.19 -0.17 Q0.19 0 0.33 0 Q0.46 0 0.48 -0.22" +
+                     "M0.49 -0.5 L0.49 0.1 Q0.49 0.3 0.3 0.3 Q0.18 0.3 0.12 0.21" }
+  };
+  var GAP = 0.05;   // 文字の前後のすきま
+  function splitMath(str) {
+    var parts = [], buf = "", i, ch, prev, next;
+    for (i = 0; i < str.length; i++) {
+      ch = str[i];
       var c = ch === "ｘ" ? "x" : ch === "ｙ" ? "y" : ch;
-      return pre + '<tspan font-family="' + MATHF + '" font-style="italic" font-weight="normal" font-size="1.2em">' + c + '</tspan>';
+      prev = i > 0 ? str[i - 1] : ""; next = i < str.length - 1 ? str[i + 1] : "";
+      if ((c === "x" || c === "y") && !/[A-Za-z]/.test(prev) && !/[A-Za-z]/.test(next)) {
+        if (buf) { parts.push({ t: buf }); buf = ""; }
+        parts.push({ m: c });
+      } else buf += ch;
+    }
+    if (buf) parts.push({ t: buf });
+    return parts;
+  }
+  var measurer = null, mcache = {};
+  function measure(str, size, bold) {
+    var key = size + "|" + (bold ? 1 : 0) + "|" + str;
+    if (mcache[key] != null) return mcache[key];
+    var w;
+    try {
+      if (!measurer) {
+        var sv = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        sv.setAttribute("style", "position:absolute;left:-9999px;top:0;visibility:hidden");
+        sv.setAttribute("width", "10"); sv.setAttribute("height", "10");
+        measurer = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        measurer.setAttribute("font-family", FONT);
+        measurer.setAttribute("xml:space", "preserve");
+        sv.appendChild(measurer); document.body.appendChild(sv);
+      }
+      measurer.setAttribute("font-size", size);
+      measurer.setAttribute("font-weight", bold ? "bold" : "normal");
+      measurer.textContent = str;
+      w = measurer.getComputedTextLength();
+    } catch (e) { w = 0; }
+    if (!w) w = textW(str, size);
+    mcache[key] = w;
+    return w;
+  }
+  function richWidth(str, size, bold) {
+    return splitMath(str).reduce(function (sum, p) {
+      return sum + (p.t != null ? measure(p.t, size, bold) : (GLYPH[p.m].w + 2 * GAP) * size);
+    }, 0);
+  }
+  // anchor: "start" / "middle" / "end"
+  function richText(x, y, size, str, anchor, bold) {
+    var w = richWidth(str, size, bold);
+    var cx = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+    var out = "", sw = bold ? 0.09 : 0.075;
+    splitMath(str).forEach(function (p) {
+      if (p.t != null) {
+        out += '<text x="' + r2(cx) + '" y="' + r2(y) + '" font-size="' + size + '"' + (bold ? ' font-weight="bold"' : "") + ' xml:space="preserve">' + esc(p.t) + '</text>';
+        cx += measure(p.t, size, bold);
+      } else {
+        var g = GLYPH[p.m], gs = size * 1.05;
+        out += '<path transform="translate(' + r2(cx + GAP * size) + ' ' + r2(y) + ') scale(' + r2(gs) + ')" d="' + g.d +
+          '" fill="none" stroke="#1d2733" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round"/>';
+        cx += (g.w + 2 * GAP) * size;
+      }
     });
+    return out;
   }
   function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -358,7 +421,7 @@
     yNumW = Math.max(yNumW, 5);   // 「0」が入る分
 
     var xLabW = 3;
-    if (s.xLabelMode === "text") xLabW = textW(s.xLabel, LAB) + 3;
+    if (s.xLabelMode === "text") xLabW = richWidth(s.xLabel, LAB) + 3;
     else if (s.xLabelMode === "box") xLabW = 18;
     // 右はしの目もりの数字（四角）が軸の右にはみ出す分
     var lastHalf = 0;
@@ -386,7 +449,7 @@
     // 題名
     var cx = gx + gw / 2;
     if (s.titleMode === "text") {
-      o.push('<text x="' + r2(cx) + '" y="' + r2(by + 7) + '" font-size="5" font-weight="bold" text-anchor="middle">' + mathText(s.titleText) + '</text>');
+      o.push(richText(cx, by + 7, 5, s.titleText, "middle", true));
     } else if (s.titleMode === "box") {
       var tw = Math.min(100, PW - 2 * M);
       o.push('<rect x="' + r2(PW / 2 - tw / 2) + '" y="' + r2(by) + '" width="' + tw + '" height="10" fill="none" stroke="#333" stroke-width="0.3"/>');
@@ -435,12 +498,12 @@
 
     // 項目名
     if (s.xLabelMode === "text") {
-      o.push('<text x="' + r2(gr + xLabGap) + '" y="' + r2(gb + 1.4) + '" font-size="' + LAB + '">' + mathText(s.xLabel) + '</text>');
+      o.push(richText(gr + xLabGap, gb + 1.4, LAB, s.xLabel, "start", false));
     } else if (s.xLabelMode === "box") {
       o.push('<rect x="' + r2(gr + xLabGap) + '" y="' + r2(gb - 3.5) + '" width="16" height="7" fill="none" stroke="#333" stroke-width="0.25"/>');
     }
     if (s.yLabelMode === "text") {
-      o.push('<text x="' + r2(gx - 3) + '" y="' + r2(gy - 5) + '" font-size="' + LAB + '">' + mathText(s.yLabel) + '</text>');
+      o.push(richText(gx - 3, gy - 5, LAB, s.yLabel, "start", false));
     } else if (s.yLabelMode === "box") {
       o.push('<rect x="' + r2(gx - 3) + '" y="' + r2(gy - 11) + '" width="20" height="7" fill="none" stroke="#333" stroke-width="0.25"/>');
     }
