@@ -278,6 +278,14 @@
     return v;
   }
   function txt(id) { return document.getElementById(id).value; }
+  // 単独の x・y（全角のｘ・ｙも）を、教科書のような数学の文字（ななめの書体）にする
+  var MATHF = "'Times New Roman', Times, 'Cambria Math', serif";
+  function mathText(str) {
+    return esc(str).replace(/(^|[^A-Za-z])([xyｘｙ])(?![A-Za-z])/g, function (m, pre, ch) {
+      var c = ch === "ｘ" ? "x" : ch === "ｙ" ? "y" : ch;
+      return pre + '<tspan font-family="' + MATHF + '" font-style="italic" font-weight="normal" font-size="1.2em">' + c + '</tspan>';
+    });
+  }
   function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
@@ -378,7 +386,7 @@
     // 題名
     var cx = gx + gw / 2;
     if (s.titleMode === "text") {
-      o.push('<text x="' + r2(cx) + '" y="' + r2(by + 7) + '" font-size="5" font-weight="bold" text-anchor="middle">' + esc(s.titleText) + '</text>');
+      o.push('<text x="' + r2(cx) + '" y="' + r2(by + 7) + '" font-size="5" font-weight="bold" text-anchor="middle">' + mathText(s.titleText) + '</text>');
     } else if (s.titleMode === "box") {
       var tw = Math.min(100, PW - 2 * M);
       o.push('<rect x="' + r2(PW / 2 - tw / 2) + '" y="' + r2(by) + '" width="' + tw + '" height="10" fill="none" stroke="#333" stroke-width="0.3"/>');
@@ -427,12 +435,12 @@
 
     // 項目名
     if (s.xLabelMode === "text") {
-      o.push('<text x="' + r2(gr + xLabGap) + '" y="' + r2(gb + 1.4) + '" font-size="' + LAB + '">' + esc(s.xLabel) + '</text>');
+      o.push('<text x="' + r2(gr + xLabGap) + '" y="' + r2(gb + 1.4) + '" font-size="' + LAB + '">' + mathText(s.xLabel) + '</text>');
     } else if (s.xLabelMode === "box") {
       o.push('<rect x="' + r2(gr + xLabGap) + '" y="' + r2(gb - 3.5) + '" width="16" height="7" fill="none" stroke="#333" stroke-width="0.25"/>');
     }
     if (s.yLabelMode === "text") {
-      o.push('<text x="' + r2(gx - 3) + '" y="' + r2(gy - 5) + '" font-size="' + LAB + '">' + esc(s.yLabel) + '</text>');
+      o.push('<text x="' + r2(gx - 3) + '" y="' + r2(gy - 5) + '" font-size="' + LAB + '">' + mathText(s.yLabel) + '</text>');
     } else if (s.yLabelMode === "box") {
       o.push('<rect x="' + r2(gx - 3) + '" y="' + r2(gy - 11) + '" width="20" height="7" fill="none" stroke="#333" stroke-width="0.25"/>');
     }
