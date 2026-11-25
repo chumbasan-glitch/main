@@ -101,9 +101,12 @@
   .scaler { transform-origin: top left; }
   .sheet {
     width: 257mm; height: 182mm; background: var(--paper);
-    display: flex; box-shadow: 0 2px 10px rgba(0,0,0,.15);
+    position: relative; box-shadow: 0 2px 10px rgba(0,0,0,.15);
   }
-  .sheet svg { display: block; flex: 0 0 auto; }
+  .sheet svg { display: block; position: absolute; }
+  .sheet .cut { position: absolute; border: 0 dashed #bbb; }
+  #outWrap { margin-top: 10px; }
+  #outWrap img { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
   .gfont { font-family: "UD デジタル 教科書体 NK-R", "UD Digi Kyokasho NK-R", "BIZ UDPGothic", "Meiryo", sans-serif; }
 
   @media (max-width: 800px) {
@@ -112,7 +115,6 @@
     .previewArea { width: 100%; }
   }
 
-  @page { size: 257mm 182mm; margin: 0; }
   @media print {
     body { background: #fff; }
     header, .settings, .previewArea .cap { display: none !important; }
@@ -124,10 +126,17 @@
 </style>
 </head>
 <body>
-<header><h1>比例グラフ マス目メーカー（B5横・2つ分）</h1></header>
+<style id="pageSize">@page { size: 257mm 182mm; margin: 0; }</style>
+<header><h1>比例グラフ マス目メーカー</h1></header>
 
 <div class="wrap">
   <form class="settings" id="f" onsubmit="return false">
+    <h2>紙の使い方</h2>
+    <div class="row choices">
+      <label><input type="radio" name="layout" value="yoko2" checked>B5横に2つ</label>
+      <label><input type="radio" name="layout" value="tate4">B5縦に4つ</label>
+    </div>
+
     <h2>名前の欄</h2>
     <div class="row choices">
       <label><input type="radio" name="nameMode" value="full" checked>組・番・名前</label>
@@ -206,19 +215,24 @@
     <div class="row" id="yLabelRow"><input type="text" id="yLabel" value="y（cm）"></div>
 
     <button type="button" class="btn" id="printBtn">印刷する</button>
+    <button type="button" class="btn sub2" id="pngBtn">画像で保存</button>
     <button type="button" class="btn sub2" id="pdfBtn">PDFで保存</button>
     <div id="msg" role="status"></div>
+    <div id="outWrap" hidden>
+      <p class="note" style="margin-top:0">保存できないときは、下の画像を長くおして「画像を保存」を選んでください。</p>
+      <img id="outImg" alt="できあがったグラフ用紙の画像">
+    </div>
     <p class="note" id="printNote">
-      印刷の画面では、用紙を「B5（JIS）」、向きを「横」、倍率を「100%（実際のサイズ）」にしてください。<br>
+      印刷の画面では、用紙を「B5（JIS）」、向きを「<span class="dirTxt">横</span>」、倍率を「100%（実際のサイズ）」にしてください。<br>
       色をきれいに出すには「背景のグラフィック」にチェックを入れてください。
     </p>
     <p class="note">
-      PDFはB5横の大きさでできます。PDFを開いて印刷するときも、倍率は「100%（実際のサイズ）」にしてください。ロイロノートにもそのまま入れられます。
+      画像とPDFは、B5<span class="dirTxt">横</span>1枚分でできます。印刷するときは、用紙を「B5」、倍率を「用紙に合わせる」にしてください。ロイロノートにもそのまま入れられます。
     </p>
   </form>
 
   <div class="previewArea" id="pa">
-    <div class="cap">印刷イメージ（B5横）</div>
+    <div class="cap" id="cap">印刷イメージ（B5横）</div>
     <div class="scaler" id="scaler">
       <div class="sheet" id="sheet"></div>
     </div>
@@ -228,12 +242,20 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function () {
-  var PW = 128.5, PH = 182;              // 半分の大きさ（mm）
+  // 紙の使い方。pw・phは1つ分の大きさ（mm）。kは文字や余白の縮め方
+  var LAYOUTS = {
+    yoko2: { w: 257, h: 182, pw: 128.5, ph: 182, k: 1, dir: "横",
+             pos: [[0, 0], [128.5, 0]], cuts: [["v", 128.5]] },
+    tate4: { w: 182, h: 257, pw: 91, ph: 128.5, k: 0.8, dir: "縦",
+             pos: [[0, 0], [91, 0], [0, 128.5], [91, 128.5]], cuts: [["v", 91], ["h", 128.5]] }
+  };
+  var LAY = LAYOUTS.yoko2;
+  var PW = LAY.pw, PH = LAY.ph;   // 1つ分を描くときの大きさ（kで割った値）
+  var lastInner = "";
   var C_MINOR = "#a9cbea", C_MAJOR = "#4f8fcf", C_AXIS = "#2a6aad";
   var f = document.getElementById("f");
   var STORE = "hirei-grid-settings-v1";
   var FONT = "'UD デジタル 教科書体 NK-R', 'UD Digi Kyokasho NK-R', 'BIZ UDPGothic', Meiryo, 'Hiragino Sans', sans-serif";
-  var lastSvg = "";
 
   function radio(name) {
     var el = f.querySelector('input[name="' + name + '"]:checked');
@@ -273,7 +295,8 @@
       xNumMode: radio("xNumMode"), xEvery: Math.round(num("xEvery", 5, 1, 100)), xStep: num("xStep", 1),
       yNumMode: radio("yNumMode"), yEvery: Math.round(num("yEvery", 5, 1, 100)), yStep: num("yStep", 1),
       xLabelMode: radio("xLabelMode"), xLabel: txt("xLabel"),
-      yLabelMode: radio("yLabelMode"), yLabel: txt("yLabel")
+      yLabelMode: radio("yLabelMode"), yLabel: txt("yLabel"),
+      layout: LAYOUTS[radio("layout")] ? radio("layout") : "yoko2"
     };
   }
 
@@ -404,7 +427,7 @@
       o.push('<rect x="' + r2(gx - 3) + '" y="' + r2(gy - 11) + '" width="20" height="7" fill="none" stroke="#333" stroke-width="0.25"/>');
     }
 
-    return '<svg xmlns="http://www.w3.org/2000/svg" class="gfont" font-family="' + FONT + '" width="' + PW + 'mm" height="' + PH + 'mm" viewBox="0 0 ' + PW + ' ' + PH + '" fill="#1d2733">' + o.join("") + '</svg>';
+    return o.join("");
   }
 
   function render() {
@@ -417,10 +440,24 @@
     document.getElementById("xLabelRow").classList.toggle("hidden", s.xLabelMode !== "text");
     document.getElementById("yLabelRow").classList.toggle("hidden", s.yLabelMode !== "text");
 
-    var one = build(s);
-    lastSvg = one;
-    var cut = '<div style="width:0;border-left:0.3mm dashed #bbb;height:182mm"></div>';
-    document.getElementById("sheet").innerHTML = one + cut + one;
+    LAY = LAYOUTS[s.layout];
+    PW = r2(LAY.pw / LAY.k); PH = r2(LAY.ph / LAY.k);
+    lastInner = build(s);
+    var sh = document.getElementById("sheet"), html = "";
+    sh.style.width = LAY.w + "mm"; sh.style.height = LAY.h + "mm";
+    LAY.pos.forEach(function (q) {
+      html += '<svg xmlns="http://www.w3.org/2000/svg" class="gfont" font-family="' + FONT + '" style="left:' + q[0] + 'mm;top:' + q[1] + 'mm" width="' + LAY.pw + 'mm" height="' + LAY.ph + 'mm" viewBox="0 0 ' + PW + ' ' + PH + '" fill="#1d2733">' + lastInner + '</svg>';
+    });
+    LAY.cuts.forEach(function (c) {
+      html += c[0] === "v"
+        ? '<div class="cut" style="left:' + c[1] + 'mm;top:0;height:' + LAY.h + 'mm;border-left-width:0.3mm"></div>'
+        : '<div class="cut" style="top:' + c[1] + 'mm;left:0;width:' + LAY.w + 'mm;border-top-width:0.3mm"></div>';
+    });
+    sh.innerHTML = html;
+    document.getElementById("pageSize").textContent = "@page { size: " + LAY.w + "mm " + LAY.h + "mm; margin: 0; }";
+    document.getElementById("cap").textContent = "印刷イメージ（B5" + LAY.dir + "）";
+    document.querySelectorAll(".dirTxt").forEach(function (el) { el.textContent = LAY.dir; });
+    document.getElementById("outWrap").hidden = true;
     fit();
     save();
   }
@@ -464,36 +501,82 @@
   }
   document.getElementById("printBtn").addEventListener("click", function () { window.print(); });
 
+  var PX = 12;   // 1mmあたりの点の数（約300dpi）
   function sheetSvg() {
-    var inner = lastSvg.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="3084" height="2184" viewBox="0 0 257 182" font-family="' + FONT + '">' +
-      '<rect width="257" height="182" fill="#ffffff"/>' +
-      '<g fill="#1d2733">' + inner + '</g>' +
-      '<line x1="128.5" y1="0" x2="128.5" y2="182" stroke="#bbbbbb" stroke-width="0.3" stroke-dasharray="1.2 1.2"/>' +
-      '<g transform="translate(128.5 0)" fill="#1d2733">' + inner + '</g></svg>';
+    var o = '<svg xmlns="http://www.w3.org/2000/svg" width="' + (LAY.w * PX) + '" height="' + (LAY.h * PX) + '" viewBox="0 0 ' + LAY.w + ' ' + LAY.h + '" font-family="' + FONT + '">' +
+      '<rect width="' + LAY.w + '" height="' + LAY.h + '" fill="#ffffff"/>';
+    LAY.pos.forEach(function (q) {
+      o += '<svg x="' + q[0] + '" y="' + q[1] + '" width="' + LAY.pw + '" height="' + LAY.ph + '" viewBox="0 0 ' + PW + ' ' + PH + '" fill="#1d2733">' + lastInner + '</svg>';
+    });
+    LAY.cuts.forEach(function (c) {
+      o += c[0] === "v"
+        ? '<line x1="' + c[1] + '" y1="0" x2="' + c[1] + '" y2="' + LAY.h + '" stroke="#bbbbbb" stroke-width="0.3" stroke-dasharray="1.2 1.2"/>'
+        : '<line x1="0" y1="' + c[1] + '" x2="' + LAY.w + '" y2="' + c[1] + '" stroke="#bbbbbb" stroke-width="0.3" stroke-dasharray="1.2 1.2"/>';
+    });
+    return o + '</svg>';
   }
-  function toPng() {
+  function toCanvas() {
     return new Promise(function (resolve, reject) {
       var url = URL.createObjectURL(new Blob([sheetSvg()], { type: "image/svg+xml" }));
       var img = new Image();
       img.onload = function () {
         var c = document.createElement("canvas");
-        c.width = 3084; c.height = 2184;
+        c.width = LAY.w * PX; c.height = LAY.h * PX;
         var g = c.getContext("2d");
         g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height);
         g.drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(url);
-        resolve(c.toDataURL("image/png"));
+        resolve(c);
       };
       img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("img")); };
       img.src = url;
     });
   }
-  function fileName() {
+  function fileName(ext) {
     var t = read().titleMode === "text" ? read().titleText.trim() : "";
     t = t.replace(/[\\/:*?"<>|]/g, "").slice(0, 40);
-    return (t ? "グラフ用紙_" + t : "グラフ用紙") + ".pdf";
+    return (t ? "グラフ用紙_" + t : "グラフ用紙") + "." + ext;
   }
+  // ファイルを渡す（Artifactの中か、ふつうのブラウザかで分ける）
+  function giveFile(name, blob, what) {
+    if (!inArtifact) {
+      var u = URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      link.href = u; link.download = name;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(function () { URL.revokeObjectURL(u); }, 60000);
+      msg.textContent = what + "を保存しました。";
+      return Promise.resolve();
+    }
+    return window.claude.use("downloads").then(function (dl) {
+      if (!dl) { msg.textContent = "ここでは" + what + "を保存できません。"; return; }
+      return dl.save({ filename: name, data: blob }).then(function () {
+        msg.textContent = what + "を保存しました。";
+      }, function (e) {
+        var c = e && e.code;
+        if (c === "declined") msg.textContent = "保存をやめました。";
+        else if (c === "rate_limited") msg.textContent = "少し待ってから、もう一度押してください。";
+        else msg.textContent = what + "を保存できませんでした。";
+      });
+    });
+  }
+
+  var pngBtn = document.getElementById("pngBtn");
+  pngBtn.addEventListener("click", function () {
+    pngBtn.disabled = true;
+    msg.textContent = "画像を作っています…";
+    toCanvas().then(function (c) {
+      return new Promise(function (res) { c.toBlob(res, "image/png"); });
+    }).then(function (blob) {
+      var oi = document.getElementById("outImg");
+      if (oi.src && oi.src.indexOf("blob:") === 0) URL.revokeObjectURL(oi.src);
+      oi.src = URL.createObjectURL(blob);
+      document.getElementById("outWrap").hidden = false;
+      return giveFile(fileName("png"), blob, "画像");
+    }).catch(function () {
+      msg.textContent = "画像を作れませんでした。もう一度押してください。";
+    }).then(function () { pngBtn.disabled = false; });
+  });
   var pdfBtn = document.getElementById("pdfBtn");
   if (!(window.jspdf && window.jspdf.jsPDF)) {
     pdfBtn.hidden = true;
@@ -501,31 +584,10 @@
   pdfBtn.addEventListener("click", function () {
     pdfBtn.disabled = true;
     msg.textContent = "PDFを作っています…";
-    toPng().then(function (png) {
-      var doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: [257, 182] });
-      doc.addImage(png, "PNG", 0, 0, 257, 182, undefined, "FAST");
-      var name = fileName();
-      if (!inArtifact) {
-        var u = URL.createObjectURL(doc.output("blob"));
-        var link = document.createElement("a");
-        link.href = u; link.download = name;
-        document.body.appendChild(link); link.click(); link.remove();
-        setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
-        msg.textContent = "PDFを保存しました。";
-        return;
-      }
-      return window.claude.use("downloads").then(function (dl) {
-        if (!dl) { msg.textContent = "ここではPDFを保存できません。ブラウザでファイルを開いて保存してください。"; return; }
-        return dl.save({ filename: name, data: doc.output("blob") }).then(function () {
-          msg.textContent = "PDFを保存しました。";
-        }, function (e) {
-          var c = e && e.code;
-          if (c === "declined") msg.textContent = "保存をやめました。";
-          else if (c === "rate_limited") msg.textContent = "少し待ってから、もう一度押してください。";
-          else if (c === "host_unavailable") msg.textContent = "このアプリでは保存できません。パソコンのブラウザで開いてください。";
-          else msg.textContent = "PDFを保存できませんでした。";
-        });
-      });
+    toCanvas().then(function (c) {
+      var doc = new window.jspdf.jsPDF({ orientation: LAY.w > LAY.h ? "landscape" : "portrait", unit: "mm", format: [LAY.w, LAY.h] });
+      doc.addImage(c.toDataURL("image/png"), "PNG", 0, 0, LAY.w, LAY.h, undefined, "FAST");
+      return giveFile(fileName("pdf"), doc.output("blob"), "PDF");
     }).catch(function () {
       msg.textContent = "PDFを作れませんでした。もう一度押してください。";
     }).then(function () { pdfBtn.disabled = false; });
