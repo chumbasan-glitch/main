@@ -581,12 +581,13 @@
     var d = "";
     [0, ROWH, H].forEach(function (yy) { d += "M" + r2(L) + " " + r2(ty + yy) + "H" + r2(R); });
     // たての線（右はしは波線のときかかない）
-    for (var i = 0; i <= n + extra; i++) {
+    d += "M" + r2(L) + " " + r2(ty) + "V" + r2(ty + H);
+    d += "M" + r2(L + hw) + " " + r2(ty) + "V" + r2(ty + H);
+    for (var i = 1; i <= n + extra; i++) {
       if (i === n + extra && s.tWave) break;
-      var xx = i === 0 ? L : L + hw + (i - 1) * cw;
+      var xx = L + hw + i * cw;
       d += "M" + r2(xx) + " " + r2(ty) + "V" + r2(ty + H);
     }
-    if (n + extra > 0) d += "M" + r2(L + hw) + " " + r2(ty) + "V" + r2(ty + H);
     o.push('<path d="' + d + '" fill="none"' + st + '/>');
     if (s.tWave) {
       var w = "M" + r2(R) + " " + r2(ty), seg = H / 4;
