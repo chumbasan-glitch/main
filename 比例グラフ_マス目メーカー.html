@@ -133,8 +133,12 @@
   <form class="settings" id="f" onsubmit="return false">
     <h2>紙の使い方</h2>
     <div class="row choices">
-      <label><input type="radio" name="layout" value="yoko2" checked>B5横に2つ</label>
-      <label><input type="radio" name="layout" value="tate4">B5縦に4つ</label>
+      <label><input type="radio" name="paper" value="B5" checked>B5</label>
+      <label><input type="radio" name="paper" value="A4">A4</label>
+    </div>
+    <div class="row choices">
+      <label><input type="radio" name="layout" value="yoko2" checked>横に2つ</label>
+      <label><input type="radio" name="layout" value="tate4">縦に4つ</label>
     </div>
 
     <h2>名前の欄</h2>
@@ -223,11 +227,11 @@
       <img id="outImg" alt="できあがったグラフ用紙の画像">
     </div>
     <p class="note" id="printNote">
-      印刷の画面では、用紙を「B5（JIS）」、向きを「<span class="dirTxt">横</span>」、倍率を「100%（実際のサイズ）」にしてください。<br>
+      印刷の画面では、用紙を「<span class="paperTxt2">B5（JIS）</span>」、向きを「<span class="dirTxt">横</span>」、倍率を「100%（実際のサイズ）」にしてください。<br>
       色をきれいに出すには「背景のグラフィック」にチェックを入れてください。
     </p>
     <p class="note">
-      画像とPDFは、B5<span class="dirTxt">横</span>1枚分でできます。印刷するときは、用紙を「B5」、倍率を「用紙に合わせる」にしてください。ロイロノートにもそのまま入れられます。
+      画像とPDFは、<span class="paperTxt">B5</span><span class="dirTxt">横</span>1枚分でできます。印刷するときは、用紙を「<span class="paperTxt">B5</span>」、倍率を「用紙に合わせる」にしてください。ロイロノートにもそのまま入れられます。
     </p>
   </form>
 
@@ -243,13 +247,18 @@
 <script>
 (function () {
   // 紙の使い方。pw・phは1つ分の大きさ（mm）。kは文字や余白の縮め方
-  var LAYOUTS = {
-    yoko2: { w: 257, h: 182, pw: 128.5, ph: 182, k: 1, dir: "横",
-             pos: [[0, 0], [128.5, 0]], cuts: [["v", 128.5]] },
-    tate4: { w: 182, h: 257, pw: 91, ph: 128.5, k: 0.8, dir: "縦",
-             pos: [[0, 0], [91, 0], [0, 128.5], [91, 128.5]], cuts: [["v", 91], ["h", 128.5]] }
-  };
-  var LAY = LAYOUTS.yoko2;
+  var PAPERS = { B5: [257, 182], A4: [297, 210] };   // 長い辺, 短い辺
+  function makeLayout(paper, kind) {
+    var L = PAPERS[paper][0], S = PAPERS[paper][1];
+    if (kind === "tate4") {
+      var pw = S / 2, ph = L / 2;
+      return { paper: paper, w: S, h: L, pw: pw, ph: ph, k: 0.8, dir: "縦",
+               pos: [[0, 0], [pw, 0], [0, ph], [pw, ph]], cuts: [["v", pw], ["h", ph]] };
+    }
+    return { paper: paper, w: L, h: S, pw: L / 2, ph: S, k: 1, dir: "横",
+             pos: [[0, 0], [L / 2, 0]], cuts: [["v", L / 2]] };
+  }
+  var LAY = makeLayout("B5", "yoko2");
   var PW = LAY.pw, PH = LAY.ph;   // 1つ分を描くときの大きさ（kで割った値）
   var lastInner = "";
   var C_MINOR = "#a9cbea", C_MAJOR = "#4f8fcf", C_AXIS = "#2a6aad";
@@ -296,7 +305,8 @@
       yNumMode: radio("yNumMode"), yEvery: Math.round(num("yEvery", 5, 1, 100)), yStep: num("yStep", 1),
       xLabelMode: radio("xLabelMode"), xLabel: txt("xLabel"),
       yLabelMode: radio("yLabelMode"), yLabel: txt("yLabel"),
-      layout: LAYOUTS[radio("layout")] ? radio("layout") : "yoko2"
+      layout: radio("layout") === "tate4" ? "tate4" : "yoko2",
+      paper: radio("paper") === "A4" ? "A4" : "B5"
     };
   }
 
@@ -440,7 +450,7 @@
     document.getElementById("xLabelRow").classList.toggle("hidden", s.xLabelMode !== "text");
     document.getElementById("yLabelRow").classList.toggle("hidden", s.yLabelMode !== "text");
 
-    LAY = LAYOUTS[s.layout];
+    LAY = makeLayout(s.paper, s.layout);
     PW = r2(LAY.pw / LAY.k); PH = r2(LAY.ph / LAY.k);
     lastInner = build(s);
     var sh = document.getElementById("sheet"), html = "";
@@ -455,7 +465,9 @@
     });
     sh.innerHTML = html;
     document.getElementById("pageSize").textContent = "@page { size: " + LAY.w + "mm " + LAY.h + "mm; margin: 0; }";
-    document.getElementById("cap").textContent = "印刷イメージ（B5" + LAY.dir + "）";
+    document.getElementById("cap").textContent = "印刷イメージ（" + LAY.paper + LAY.dir + "）";
+    document.querySelectorAll(".paperTxt").forEach(function (el) { el.textContent = LAY.paper; });
+    document.querySelectorAll(".paperTxt2").forEach(function (el) { el.textContent = LAY.paper === "B5" ? "B5（JIS）" : "A4"; });
     document.querySelectorAll(".dirTxt").forEach(function (el) { el.textContent = LAY.dir; });
     document.getElementById("outWrap").hidden = true;
     fit();
