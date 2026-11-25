@@ -186,6 +186,16 @@
       <div class="inline" id="xStepRow" style="margin-top:6px">数字を <input type="number" id="xStep" step="any" value="1"> ずつ増やす</div>
     </div>
     <div class="row">
+      <span class="lbl">波線（0のあとを省略する）</span>
+      <div class="choices">
+        <label><input type="radio" name="xBreak" value="off" checked>入れない</label>
+        <label><input type="radio" name="xBreak" value="on">入れる</label>
+      </div>
+    </div>
+    <div class="row sub" id="xBreakOpts">
+      <div class="inline">波線のあとの最初の数字 <input type="number" id="xStart" step="any" value="100"></div>
+    </div>
+    <div class="row">
       <span class="lbl">項目名</span>
       <div class="choices">
         <label><input type="radio" name="xLabelMode" value="text" checked>入力する</label>
@@ -207,6 +217,16 @@
     <div class="row sub" id="yNumOpts">
       <div class="inline"><input type="number" id="yEvery" min="1" value="5"> マスごとに</div>
       <div class="inline" id="yStepRow" style="margin-top:6px">数字を <input type="number" id="yStep" step="any" value="1"> ずつ増やす</div>
+    </div>
+    <div class="row">
+      <span class="lbl">波線（0のあとを省略する）</span>
+      <div class="choices">
+        <label><input type="radio" name="yBreak" value="off" checked>入れない</label>
+        <label><input type="radio" name="yBreak" value="on">入れる</label>
+      </div>
+    </div>
+    <div class="row sub" id="yBreakOpts">
+      <div class="inline">波線のあとの最初の数字 <input type="number" id="yStart" step="any" value="100"></div>
     </div>
     <div class="row">
       <span class="lbl">項目名</span>
@@ -373,12 +393,38 @@
       nx: Math.round(num("nx", 30, 1, 100)), ny: Math.round(num("ny", 55, 1, 100)),
       major: parseInt(radio("major"), 10) || 0,
       xNumMode: radio("xNumMode"), xEvery: Math.round(num("xEvery", 5, 1, 100)), xStep: num("xStep", 1),
+      xBreak: radio("xBreak") === "on", xStart: num("xStart", 100),
       yNumMode: radio("yNumMode"), yEvery: Math.round(num("yEvery", 5, 1, 100)), yStep: num("yStep", 1),
+      yBreak: radio("yBreak") === "on", yStart: num("yStart", 100),
       xLabelMode: radio("xLabelMode"), xLabel: txt("xLabel"),
       yLabelMode: radio("yLabelMode"), yLabel: txt("yLabel"),
       layout: radio("layout") === "tate4" ? "tate4" : "yoko2",
       paper: radio("paper") === "A4" ? "A4" : "B5"
     };
+  }
+
+  // 目もりの数字。波線ありのときは、最初の目もりが「波線のあとの最初の数字」
+  function valX(s, i) { var j = i / s.xEvery; return s.xBreak ? s.xStart + (j - 1) * s.xStep : j * s.xStep; }
+  function valY(s, i) { var j = i / s.yEvery; return s.yBreak ? s.yStart + (j - 1) * s.yStep : j * s.yStep; }
+
+  // 2本の波線と、そのあいだの白い帯。horiz=true でよこ向き（たて軸を省略）
+  function breakBand(horiz, c, half, a, b) {
+    var A = 0.6, n = Math.max(2, Math.round((b - a) / 3.5)), h = (b - a) / n;
+    function P(u, v) { return horiz ? r2(u) + " " + r2(v) : r2(v) + " " + r2(u); }
+    function wave(v, back) {
+      var d = "";
+      for (var i = 0; i < n; i++) {
+        var k = back ? n - 1 - i : i;
+        var u0 = a + k * h, u1 = u0 + h, cv = v + (k % 2 ? A : -A);
+        d += " Q" + P(u0 + h / 2, cv) + " " + P(back ? u0 : u1, v);
+      }
+      return d;
+    }
+    var v1 = c - half, v2 = c + half;
+    var band = "M" + P(a, v1) + wave(v1, false) + " L" + P(b, v2) + wave(v2, true) + " Z";
+    var lines = "M" + P(a, v1) + wave(v1, false) + " M" + P(a, v2) + wave(v2, false);
+    return '<path d="' + band + '" fill="#ffffff" stroke="none"/>' +
+      '<path d="' + lines + '" fill="none" stroke="#333333" stroke-width="0.3"/>';
   }
 
   function build(s) {
@@ -412,7 +458,7 @@
     if (s.yNumMode === "num") {
       var maxW = 0;
       for (var j = s.yEvery; j <= s.ny; j += s.yEvery) {
-        maxW = Math.max(maxW, textW(fmt(j / s.yEvery * s.yStep), NUM));
+        maxW = Math.max(maxW, textW(fmt(valY(s, j)), NUM));
       }
       yNumW = Math.max(maxW, NUM * 0.6) + 2.5;
     } else if (s.yNumMode === "box") {
@@ -426,7 +472,7 @@
     // 右はしの目もりの数字（四角）が軸の右にはみ出す分
     var lastHalf = 0;
     if (s.nx % s.xEvery === 0) {
-      if (s.xNumMode === "num") lastHalf = textW(fmt(s.nx / s.xEvery * s.xStep), NUM) / 2;
+      if (s.xNumMode === "num") lastHalf = textW(fmt(valX(s, s.nx)), NUM) / 2;
       else if (s.xNumMode === "box") lastHalf = 4;
     }
     var xLabGap = Math.max(2, lastHalf + 1.5);
@@ -472,6 +518,10 @@
     o.push('<rect x="' + r2(gx) + '" y="' + r2(gy) + '" width="' + r2(gw) + '" height="' + r2(gh) + '" fill="none" stroke="' + C_MAJOR + '" stroke-width="0.35"/>');
     o.push('<path d="M' + r2(gx) + ' ' + r2(gy) + 'V' + r2(gb) + 'H' + r2(gr) + '" stroke="' + C_AXIS + '" stroke-width="0.5" fill="none"/>');
 
+    // 波線（0と最初の目もりの間を省略）
+    if (s.yBreak) o.push(breakBand(true, gb - (s.yEvery / 2) * sq, Math.min(Math.max(s.yEvery * sq * 0.22, 0.7), 2), gx - 2, gr + 1));
+    if (s.xBreak) o.push(breakBand(false, gx + (s.xEvery / 2) * sq, Math.min(Math.max(s.xEvery * sq * 0.22, 0.7), 2), gy - 1, gb + 1.8));
+
     // 0
     o.push('<text x="' + r2(gx - 1.5) + '" y="' + r2(gb + 4.6) + '" font-size="' + NUM + '" text-anchor="end">0</text>');
 
@@ -479,7 +529,7 @@
     for (var a = s.xEvery; a <= s.nx; a += s.xEvery) {
       var ax = gx + a * sq;
       if (s.xNumMode === "num") {
-        o.push('<text x="' + r2(ax) + '" y="' + r2(gb + 4.6) + '" font-size="' + NUM + '" text-anchor="middle">' + fmt(a / s.xEvery * s.xStep) + '</text>');
+        o.push('<text x="' + r2(ax) + '" y="' + r2(gb + 4.6) + '" font-size="' + NUM + '" text-anchor="middle">' + fmt(valX(s, a)) + '</text>');
       } else if (s.xNumMode === "box") {
         var bw = Math.min(8, s.xEvery * sq - 0.8);
         if (bw > 1) o.push('<rect x="' + r2(ax - bw / 2) + '" y="' + r2(gb + 1.2) + '" width="' + r2(bw) + '" height="6" fill="none" stroke="#333" stroke-width="0.25"/>');
@@ -489,7 +539,7 @@
     for (var b = s.yEvery; b <= s.ny; b += s.yEvery) {
       var byy = gb - b * sq;
       if (s.yNumMode === "num") {
-        o.push('<text x="' + r2(gx - 1.5) + '" y="' + r2(byy + NUM * 0.36) + '" font-size="' + NUM + '" text-anchor="end">' + fmt(b / s.yEvery * s.yStep) + '</text>');
+        o.push('<text x="' + r2(gx - 1.5) + '" y="' + r2(byy + NUM * 0.36) + '" font-size="' + NUM + '" text-anchor="end">' + fmt(valY(s, b)) + '</text>');
       } else if (s.yNumMode === "box") {
         var bh = Math.min(6, s.yEvery * sq - 0.8);
         if (bh > 1) o.push('<rect x="' + r2(gx - 1.2 - 9) + '" y="' + r2(byy - bh / 2) + '" width="9" height="' + r2(bh) + '" fill="none" stroke="#333" stroke-width="0.25"/>');
@@ -518,6 +568,8 @@
     document.getElementById("yNumOpts").classList.toggle("hidden", s.yNumMode === "none");
     document.getElementById("xStepRow").classList.toggle("hidden", s.xNumMode !== "num");
     document.getElementById("yStepRow").classList.toggle("hidden", s.yNumMode !== "num");
+    document.getElementById("xBreakOpts").classList.toggle("hidden", !(s.xBreak && s.xNumMode === "num"));
+    document.getElementById("yBreakOpts").classList.toggle("hidden", !(s.yBreak && s.yNumMode === "num"));
     document.getElementById("xLabelRow").classList.toggle("hidden", s.xLabelMode !== "text");
     document.getElementById("yLabelRow").classList.toggle("hidden", s.yLabelMode !== "text");
 
