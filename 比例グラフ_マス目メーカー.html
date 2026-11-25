@@ -61,6 +61,35 @@
     border-radius: 10px;
     padding: 12px 14px;
   }
+  .step { border-bottom: 1px solid var(--line); }
+  .step:last-child { border-bottom: none; }
+  .step > summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    padding: 12px 2px; font-weight: bold; font-size: 16px;
+  }
+  .step > summary::-webkit-details-marker { display: none; }
+  .step > summary::after { content: "＋"; margin-left: auto; color: var(--accent); font-weight: bold; }
+  .step[open] > summary::after { content: "－"; }
+  .step > summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  .stepNo {
+    flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); color: var(--on-accent);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .stepTtl { flex: 0 0 auto; }
+  .stepSum { font-weight: normal; font-size: 13px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .step[open] .stepSum { display: none; }
+  .stepBody { padding: 0 2px 14px; }
+  .nextBtn {
+    display: block; width: 100%; margin-top: 14px; padding: 10px;
+    font-size: 16px; font-weight: bold; color: var(--on-accent); background: var(--accent);
+    border: none; border-radius: 8px; cursor: pointer;
+  }
+  .nextBtn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .step .btn:first-child { margin-top: 4px; }
+  @media (min-width: 801px) {
+    .previewArea { position: sticky; top: 16px; }
+  }
   .settings h2 {
     font-size: 16px;
     margin: 14px 0 6px;
@@ -131,7 +160,9 @@
 
 <div class="wrap">
   <form class="settings" id="f" onsubmit="return false">
-    <h2>紙の使い方</h2>
+    <details class="step" open>
+      <summary><span class="stepNo">1</span><span class="stepTtl">紙の使い方</span><span class="stepSum" id="sum1"></span></summary>
+      <div class="stepBody">
     <div class="row choices">
       <label><input type="radio" name="paper" value="B5" checked>B5</label>
       <label><input type="radio" name="paper" value="A4">A4</label>
@@ -141,15 +172,23 @@
       <label><input type="radio" name="layout" value="tate4">縦に4つ</label>
       <label><input type="radio" name="layout" value="tate1">縦に1つ（大きく）</label>
     </div>
-
-    <h2>名前の欄</h2>
+      <button type="button" class="nextBtn">次へ（名前の欄）</button>
+      </div>
+    </details>
+    <details class="step">
+      <summary><span class="stepNo">2</span><span class="stepTtl">名前の欄</span><span class="stepSum" id="sum2"></span></summary>
+      <div class="stepBody">
     <div class="row choices">
       <label><input type="radio" name="nameMode" value="full" checked>組・番・名前</label>
       <label><input type="radio" name="nameMode" value="name">名前だけ</label>
       <label><input type="radio" name="nameMode" value="none">入れない</label>
     </div>
-
-    <h2>グラフの題名</h2>
+      <button type="button" class="nextBtn">次へ（グラフの題名）</button>
+      </div>
+    </details>
+    <details class="step">
+      <summary><span class="stepNo">3</span><span class="stepTtl">グラフの題名</span><span class="stepSum" id="sum3"></span></summary>
+      <div class="stepBody">
     <div class="row choices">
       <label><input type="radio" name="titleMode" value="text" checked>入力する</label>
       <label><input type="radio" name="titleMode" value="box">四角（子どもが書く）</label>
@@ -158,8 +197,12 @@
     <div class="row" id="titleTextRow">
       <input type="text" id="titleText" value="水そうに入れた水の量と深さ">
     </div>
-
-    <h2>マスの数</h2>
+      <button type="button" class="nextBtn">次へ（マスの数）</button>
+      </div>
+    </details>
+    <details class="step">
+      <summary><span class="stepNo">4</span><span class="stepTtl">マスの数</span><span class="stepSum" id="sum4"></span></summary>
+      <div class="stepBody">
     <div class="row inline">
       横 <input type="number" id="nx" min="1" max="100" value="30"> マス
       ／ 縦 <input type="number" id="ny" min="1" max="100" value="55"> マス
@@ -172,8 +215,12 @@
         <label><input type="radio" name="major" value="0">全部同じ太さ</label>
       </div>
     </div>
-
-    <h2>よこ軸（x）</h2>
+      <button type="button" class="nextBtn">次へ（よこ軸（x））</button>
+      </div>
+    </details>
+    <details class="step">
+      <summary><span class="stepNo">5</span><span class="stepTtl">よこ軸（x）</span><span class="stepSum" id="sum5"></span></summary>
+      <div class="stepBody">
     <div class="row">
       <span class="lbl">数字</span>
       <div class="choices">
@@ -205,8 +252,12 @@
       </div>
     </div>
     <div class="row" id="xLabelRow"><input type="text" id="xLabel" value="x（L）"></div>
-
-    <h2>たて軸（y）</h2>
+      <button type="button" class="nextBtn">次へ（たて軸（y））</button>
+      </div>
+    </details>
+    <details class="step">
+      <summary><span class="stepNo">6</span><span class="stepTtl">たて軸（y）</span><span class="stepSum" id="sum6"></span></summary>
+      <div class="stepBody">
     <div class="row">
       <span class="lbl">数字</span>
       <div class="choices">
@@ -238,7 +289,12 @@
       </div>
     </div>
     <div class="row" id="yLabelRow"><input type="text" id="yLabel" value="y（cm）"></div>
-
+      <button type="button" class="nextBtn">次へ（保存・印刷）</button>
+      </div>
+    </details>
+    <details class="step">
+      <summary><span class="stepNo">7</span><span class="stepTtl">保存・印刷</span><span class="stepSum" id="sum7"></span></summary>
+      <div class="stepBody">
     <button type="button" class="btn" id="printBtn">印刷する</button>
     <button type="button" class="btn sub2" id="pngBtn">画像で保存</button>
     <button type="button" class="btn sub2" id="pdfBtn">PDFで保存</button>
@@ -254,6 +310,8 @@
     <p class="note">
       画像とPDFは、<span class="paperTxt">B5</span><span class="dirTxt">横</span>1枚分でできます。印刷するときは、用紙を「<span class="paperTxt">B5</span>」、倍率を「用紙に合わせる」にしてください。ロイロノートにもそのまま入れられます。
     </p>
+      </div>
+    </details>
   </form>
 
   <div class="previewArea" id="pa">
@@ -578,6 +636,7 @@
     document.getElementById("xLabelRow").classList.toggle("hidden", s.xLabelMode !== "text");
     document.getElementById("yLabelRow").classList.toggle("hidden", s.yLabelMode !== "text");
 
+    summaries(s);
     LAY = makeLayout(s.paper, s.layout);
     PW = r2(LAY.pw / LAY.k); PH = r2(LAY.ph / LAY.k);
     lastInner = build(s);
@@ -732,6 +791,32 @@
       msg.textContent = "PDFを作れませんでした。もう一度押してください。";
     }).then(function () { pdfBtn.disabled = false; });
   });
+
+  // ---- 項目ごとに開く・閉じる ----
+  var steps = Array.prototype.slice.call(document.querySelectorAll(".step"));
+  steps.forEach(function (d, i) {
+    var nb = d.querySelector(".nextBtn");
+    if (nb) nb.addEventListener("click", function () {
+      d.open = false;
+      var nx = steps[i + 1];
+      nx.open = true;
+      nx.querySelector("summary").scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  });
+  function setSum(i, t) { var el = document.getElementById("sum" + i); if (el) el.textContent = t; }
+  function axisSum(mode, every, step, brk, start) {
+    var t = mode === "num" ? every + "マスごと・" + fmt(step) + "ずつ" : mode === "box" ? "四角" : "数字なし";
+    if (brk) t += "・波線" + (mode === "num" ? "（" + fmt(start) + "から）" : "");
+    return t;
+  }
+  function summaries(s) {
+    setSum(1, s.paper + "・" + { yoko2: "横に2つ", tate4: "縦に4つ", tate1: "縦に1つ" }[s.layout]);
+    setSum(2, { full: "組・番・名前", name: "名前だけ", none: "入れない" }[s.nameMode]);
+    setSum(3, s.titleMode === "text" ? s.titleText : s.titleMode === "box" ? "四角" : "入れない");
+    setSum(4, "横" + s.nx + "・縦" + s.ny + "マス");
+    setSum(5, axisSum(s.xNumMode, s.xEvery, s.xStep, s.xBreak, s.xStart));
+    setSum(6, axisSum(s.yNumMode, s.yEvery, s.yStep, s.yBreak, s.yStart));
+  }
 
   load();
   f.addEventListener("input", render);
