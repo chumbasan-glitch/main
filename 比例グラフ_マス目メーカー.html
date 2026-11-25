@@ -90,6 +90,14 @@
   @media (min-width: 801px) {
     .previewArea { position: sticky; top: 16px; }
   }
+  .tblIn { overflow-x: auto; }
+  .tblIn table { border-collapse: collapse; }
+  .tblIn th { font-size: 13px; color: var(--muted); font-weight: normal; padding: 2px 6px 2px 0; text-align: left; white-space: nowrap; }
+  .tblIn td { padding: 2px; }
+  .tblIn input { width: 52px; padding: 5px 4px; text-align: center; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-weight: bold; margin-right: 8px; }
+  .chk input { width: 20px; height: 20px; }
+  .lineRow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   .settings h2 {
     font-size: 16px;
     margin: 14px 0 6px;
@@ -197,11 +205,37 @@
     <div class="row" id="titleTextRow">
       <input type="text" id="titleText" value="水そうに入れた水の量と深さ">
     </div>
+      <button type="button" class="nextBtn">次へ（表）</button>
+      </div>
+    </details>
+    <details class="step">
+      <summary><span class="stepNo">4</span><span class="stepTtl">表</span><span class="stepSum" id="sum4"></span></summary>
+      <div class="stepBody">
+    <div class="row choices">
+      <label><input type="radio" name="tableMode" value="off" checked>入れない</label>
+      <label><input type="radio" name="tableMode" value="on">入れる</label>
+    </div>
+    <div id="tableOpts">
+      <div class="row inline">列の数 <input type="number" id="tCols" min="1" max="10" value="5"></div>
+      <div class="row"><span class="lbl">1行目の名前</span><input type="text" id="tLab1" value="水の量x（L）"></div>
+      <div class="row"><span class="lbl">2行目の名前</span><input type="text" id="tLab2" value="深さy（cm）"></div>
+      <div class="row">
+        <span class="lbl">数字（空にしたマスは、子どもが書く空らんになります）</span>
+        <div class="tblIn" id="tblIn"></div>
+      </div>
+      <div class="row">
+        <span class="lbl">右はしの波線（まだ続くことを表す）</span>
+        <div class="choices">
+          <label><input type="radio" name="tWave" value="off">入れない</label>
+          <label><input type="radio" name="tWave" value="on" checked>入れる</label>
+        </div>
+      </div>
+    </div>
       <button type="button" class="nextBtn">次へ（マスの数）</button>
       </div>
     </details>
     <details class="step">
-      <summary><span class="stepNo">4</span><span class="stepTtl">マスの数</span><span class="stepSum" id="sum4"></span></summary>
+      <summary><span class="stepNo">5</span><span class="stepTtl">マスの数</span><span class="stepSum" id="sum5"></span></summary>
       <div class="stepBody">
     <div class="row inline">
       横 <input type="number" id="nx" min="1" max="100" value="30"> マス
@@ -219,7 +253,7 @@
       </div>
     </details>
     <details class="step">
-      <summary><span class="stepNo">5</span><span class="stepTtl">よこ軸（x）</span><span class="stepSum" id="sum5"></span></summary>
+      <summary><span class="stepNo">6</span><span class="stepTtl">よこ軸（x）</span><span class="stepSum" id="sum6"></span></summary>
       <div class="stepBody">
     <div class="row">
       <span class="lbl">数字</span>
@@ -256,7 +290,7 @@
       </div>
     </details>
     <details class="step">
-      <summary><span class="stepNo">6</span><span class="stepTtl">たて軸（y）</span><span class="stepSum" id="sum6"></span></summary>
+      <summary><span class="stepNo">7</span><span class="stepTtl">たて軸（y）</span><span class="stepSum" id="sum7"></span></summary>
       <div class="stepBody">
     <div class="row">
       <span class="lbl">数字</span>
@@ -289,11 +323,32 @@
       </div>
     </div>
     <div class="row" id="yLabelRow"><input type="text" id="yLabel" value="y（cm）"></div>
+      <button type="button" class="nextBtn">次へ（直線）</button>
+      </div>
+    </details>
+    <details class="step">
+      <summary><span class="stepNo">8</span><span class="stepTtl">直線</span><span class="stepSum" id="sum8"></span></summary>
+      <div class="stepBody">
+    <p class="note" style="margin-top:0">0と、入力した点を通る直線を、マス目のはしまで引きます。</p>
+    <div class="row lineRow"><label class="chk"><input type="checkbox" id="l1On"> 直線Ⓐ</label>
+      <span class="inline">xが <input type="number" id="l1x" step="any" value="1"> のとき yが <input type="number" id="l1y" step="any" value="2"></span></div>
+    <div class="row lineRow"><label class="chk"><input type="checkbox" id="l2On"> 直線Ⓑ</label>
+      <span class="inline">xが <input type="number" id="l2x" step="any" value="1"> のとき yが <input type="number" id="l2y" step="any" value="3"></span></div>
+    <div class="row lineRow"><label class="chk"><input type="checkbox" id="l3On"> 直線Ⓒ</label>
+      <span class="inline">xが <input type="number" id="l3x" step="any" value="1"> のとき yが <input type="number" id="l3y" step="any" value="1"></span></div>
+    <div class="row">
+      <span class="lbl">記号（Ⓐ・Ⓑ・Ⓒ）</span>
+      <div class="choices">
+        <label><input type="radio" name="lineMark" value="on" checked>つける</label>
+        <label><input type="radio" name="lineMark" value="off">つけない</label>
+      </div>
+    </div>
+    <p class="note" id="lineWarn" hidden>波線を入れた軸があるので、直線は引けません。</p>
       <button type="button" class="nextBtn">次へ（保存・印刷）</button>
       </div>
     </details>
     <details class="step">
-      <summary><span class="stepNo">7</span><span class="stepTtl">保存・印刷</span><span class="stepSum" id="sum7"></span></summary>
+      <summary><span class="stepNo">9</span><span class="stepTtl">保存・印刷</span><span class="stepSum" id="sum9"></span></summary>
       <div class="stepBody">
     <button type="button" class="btn" id="printBtn">印刷する</button>
     <button type="button" class="btn sub2" id="pngBtn">画像で保存</button>
@@ -449,6 +504,21 @@
     return w;
   }
 
+  // 表の入力らん（10列分を作り、使う列だけ見せる）
+  (function makeTableInputs() {
+    var dx = ["1", "2", "3", "4", "5"], dy = ["2", "4", "6", "8", "10"];
+    var h = '<table><tr><th>1行目</th>';
+    for (var i = 0; i < 10; i++) h += '<td class="tc' + i + '"><input type="text" inputmode="decimal" id="tx' + i + '" value="' + (dx[i] || "") + '" aria-label="1行目 ' + (i + 1) + '列め"></td>';
+    h += '</tr><tr><th>2行目</th>';
+    for (var j = 0; j < 10; j++) h += '<td class="tc' + j + '"><input type="text" inputmode="decimal" id="ty' + j + '" value="' + (dy[j] || "") + '" aria-label="2行目 ' + (j + 1) + '列め"></td>';
+    document.getElementById("tblIn").innerHTML = h + '</tr></table>';
+  })();
+  function cellVals(pre) {
+    var a = [];
+    for (var i = 0; i < 10; i++) a.push(document.getElementById(pre + i).value.trim());
+    return a;
+  }
+
   function read() {
     return {
       nameMode: radio("nameMode"),
@@ -462,7 +532,14 @@
       xLabelMode: radio("xLabelMode"), xLabel: txt("xLabel"),
       yLabelMode: radio("yLabelMode"), yLabel: txt("yLabel"),
       layout: ["tate4", "tate1"].indexOf(radio("layout")) >= 0 ? radio("layout") : "yoko2",
-      paper: radio("paper") === "A4" ? "A4" : "B5"
+      paper: radio("paper") === "A4" ? "A4" : "B5",
+      table: radio("tableMode") === "on", tCols: Math.round(num("tCols", 5, 1, 10)),
+      tLab1: txt("tLab1"), tLab2: txt("tLab2"), tWave: radio("tWave") === "on",
+      tx: cellVals("tx"), ty: cellVals("ty"),
+      lines: [1, 2, 3].map(function (i) {
+        return { on: document.getElementById("l" + i + "On").checked, x: num("l" + i + "x", 0), y: num("l" + i + "y", 0), mark: "ABC"[i - 1] };
+      }),
+      lineMark: radio("lineMark") !== "off"
     };
   }
 
@@ -490,6 +567,43 @@
       '<path d="' + lines + '" fill="none" stroke="#333333" stroke-width="0.3"/>';
   }
 
+  // グラフの上の表
+  function drawTable(s, ty, NUM, ROWH, M) {
+    var o = [], n = s.tCols, extra = s.tWave ? 1 : 0;
+    var hw = Math.max(richWidth(s.tLab1, NUM), richWidth(s.tLab2, NUM)) + 4;
+    var maxW = PW - 2 * M;
+    var cw = Math.min(14, (maxW - hw) / (n + extra));
+    if (cw < 4) cw = 4;
+    var tw = hw + cw * (n + extra), L = PW / 2 - tw / 2, R = L + tw, H = ROWH * 2;
+    var st = ' stroke="#333333" stroke-width="0.25"';
+    o.push('<rect x="' + r2(L) + '" y="' + r2(ty) + '" width="' + r2(hw) + '" height="' + H + '" fill="#e3edf6"/>');
+    // よこの線
+    var d = "";
+    [0, ROWH, H].forEach(function (yy) { d += "M" + r2(L) + " " + r2(ty + yy) + "H" + r2(R); });
+    // たての線（右はしは波線のときかかない）
+    for (var i = 0; i <= n + extra; i++) {
+      if (i === n + extra && s.tWave) break;
+      var xx = i === 0 ? L : L + hw + (i - 1) * cw;
+      d += "M" + r2(xx) + " " + r2(ty) + "V" + r2(ty + H);
+    }
+    if (n + extra > 0) d += "M" + r2(L + hw) + " " + r2(ty) + "V" + r2(ty + H);
+    o.push('<path d="' + d + '" fill="none"' + st + '/>');
+    if (s.tWave) {
+      var w = "M" + r2(R) + " " + r2(ty), seg = H / 4;
+      for (var k = 0; k < 4; k++) w += " Q" + r2(R + (k % 2 ? -0.7 : 0.7)) + " " + r2(ty + seg * k + seg / 2) + " " + r2(R) + " " + r2(ty + seg * (k + 1));
+      o.push('<path d="' + w + '" fill="none"' + st + '/>');
+    }
+    var base = NUM * 0.36;
+    o.push(richText(L + hw / 2, ty + ROWH / 2 + base, NUM, s.tLab1, "middle", false));
+    o.push(richText(L + hw / 2, ty + ROWH * 1.5 + base, NUM, s.tLab2, "middle", false));
+    for (var c = 0; c < n; c++) {
+      var cxm = L + hw + c * cw + cw / 2;
+      if (s.tx[c]) o.push(richText(cxm, ty + ROWH / 2 + base, NUM, s.tx[c], "middle", false));
+      if (s.ty[c]) o.push(richText(cxm, ty + ROWH * 1.5 + base, NUM, s.ty[c], "middle", false));
+    }
+    return o.join("");
+  }
+
   function build(s) {
     var o = [];
     var M = 6;               // 紙のはしからの余白
@@ -514,6 +628,7 @@
 
     // 各部分の大きさ
     var titleH = s.titleMode === "none" ? 0 : 13;
+    var ROWH = 7, tableH = s.table ? ROWH * 2 + 5 : 0;
     var yLabH = s.yLabelMode === "none" ? 4 : 11;
     var bottomH = (s.xNumMode === "none" ? 6 : 9);
 
@@ -542,7 +657,7 @@
     xLabW += xLabGap - 2;
 
     var availW = PW - 2 * M - yNumW - xLabW;
-    var availH = PH - top - M - titleH - yLabH - bottomH;
+    var availH = PH - top - M - titleH - tableH - yLabH - bottomH;
     var sq = Math.min(availW / s.nx, availH / s.ny);
     if (sq <= 0) sq = 0.5;
     var gw = sq * s.nx, gh = sq * s.ny;
@@ -550,9 +665,9 @@
     // 横は真ん中、縦はまとまりを真ん中に
     var blockW = yNumW + gw + xLabW;
     var gx = M + (PW - 2 * M - blockW) / 2 + yNumW;
-    var blockH = titleH + yLabH + gh + bottomH;
+    var blockH = titleH + tableH + yLabH + gh + bottomH;
     var by = top + (PH - top - M - blockH) / 2;
-    var gy = by + titleH + yLabH;
+    var gy = by + titleH + tableH + yLabH;
     var gb = gy + gh, gr = gx + gw;
 
     // 題名
@@ -563,6 +678,9 @@
       var tw = Math.min(100, PW - 2 * M);
       o.push('<rect x="' + r2(PW / 2 - tw / 2) + '" y="' + r2(by) + '" width="' + tw + '" height="10" fill="none" stroke="#333" stroke-width="0.3"/>');
     }
+
+    // 表
+    if (s.table) o.push(drawTable(s, by + titleH, NUM, ROWH, M));
 
     // マス目（細い線 → 太い線 → 軸）
     var minor = [], major = [];
@@ -584,6 +702,28 @@
     // 波線（0と最初の目もりの間を省略）
     if (s.yBreak) o.push(breakBand(true, gb - (s.yEvery / 2) * sq, Math.min(Math.max(s.yEvery * sq * 0.22, 0.7), 2), gx - 2, gr + 1));
     if (s.xBreak) o.push(breakBand(false, gx + (s.xEvery / 2) * sq, Math.min(Math.max(s.xEvery * sq * 0.22, 0.7), 2), gy - 1, gb + 1.8));
+
+    // 直線（0と入力した点を通り、マス目のはしまで）
+    if (!s.xBreak && !s.yBreak) {
+      var ux = sq * s.xEvery / s.xStep, uy = sq * s.yEvery / s.yStep;   // 1あたりの長さ
+      s.lines.forEach(function (L) {
+        if (!L.on || !(L.x > 0) || !(L.y > 0) || !(ux > 0) || !(uy > 0)) return;
+        var dx = L.x * ux, dy = L.y * uy;
+        var t = Math.min(gw / dx, gh / dy);
+        var ex = gx + dx * t, ey = gb - dy * t;
+        o.push('<line x1="' + r2(gx) + '" y1="' + r2(gb) + '" x2="' + r2(ex) + '" y2="' + r2(ey) + '" stroke="#1d2733" stroke-width="0.4" stroke-linecap="round"/>');
+        if (s.lineMark) {
+          var mx, my;
+          if (gw / dx < gh / dy) {        // 右のはしで終わる
+            mx = gr - 3; my = ey - 3.5; if (my < gy + 3) my = ey + 3.5;
+          } else {                        // 上のはしで終わる
+            mx = ex + 3.2; my = gy + 3.2; if (mx > gr - 2.5) mx = ex - 3.2;
+          }
+          o.push('<circle cx="' + r2(mx) + '" cy="' + r2(my) + '" r="1.9" fill="#ffffff" stroke="#1d2733" stroke-width="0.25"/>' +
+            '<text x="' + r2(mx) + '" y="' + r2(my + 0.95) + '" font-size="2.7" text-anchor="middle">' + L.mark + '</text>');
+        }
+      });
+    }
 
     // 0
     o.push('<text x="' + r2(gx - 1.5) + '" y="' + r2(gb + 4.6) + '" font-size="' + NUM + '" text-anchor="end">0</text>');
@@ -636,6 +776,11 @@
     document.getElementById("xLabelRow").classList.toggle("hidden", s.xLabelMode !== "text");
     document.getElementById("yLabelRow").classList.toggle("hidden", s.yLabelMode !== "text");
 
+    document.getElementById("tableOpts").classList.toggle("hidden", !s.table);
+    for (var c = 0; c < 10; c++) {
+      document.querySelectorAll(".tc" + c).forEach(function (el) { el.classList.toggle("hidden", c >= s.tCols); });
+    }
+    document.getElementById("lineWarn").hidden = !((s.xBreak || s.yBreak) && s.lines.some(function (L) { return L.on; }));
     summaries(s);
     LAY = makeLayout(s.paper, s.layout);
     PW = r2(LAY.pw / LAY.k); PH = r2(LAY.ph / LAY.k);
@@ -675,6 +820,7 @@
       var data = {};
       f.querySelectorAll("input").forEach(function (el) {
         if (el.type === "radio") { if (el.checked) data[el.name] = el.value; }
+        else if (el.type === "checkbox") data[el.id] = el.checked;
         else data[el.id] = el.value;
       });
       localStorage.setItem(STORE, JSON.stringify(data));
@@ -686,6 +832,7 @@
       if (!data) return;
       f.querySelectorAll("input").forEach(function (el) {
         if (el.type === "radio") { if (data[el.name] != null) el.checked = (data[el.name] === el.value); }
+        else if (el.type === "checkbox") { if (data[el.id] != null) el.checked = !!data[el.id]; }
         else if (data[el.id] != null) el.value = data[el.id];
       });
     } catch (e) {}
@@ -813,10 +960,14 @@
     setSum(1, s.paper + "・" + { yoko2: "横に2つ", tate4: "縦に4つ", tate1: "縦に1つ" }[s.layout]);
     setSum(2, { full: "組・番・名前", name: "名前だけ", none: "入れない" }[s.nameMode]);
     setSum(3, s.titleMode === "text" ? s.titleText : s.titleMode === "box" ? "四角" : "入れない");
-    setSum(4, "横" + s.nx + "・縦" + s.ny + "マス");
-    setSum(5, axisSum(s.xNumMode, s.xEvery, s.xStep, s.xBreak, s.xStart));
-    setSum(6, axisSum(s.yNumMode, s.yEvery, s.yStep, s.yBreak, s.yStart));
+    setSum(4, s.table ? s.tCols + "列" + (s.tWave ? "・波線" : "") : "入れない");
+    setSum(5, "横" + s.nx + "・縦" + s.ny + "マス");
+    setSum(6, axisSum(s.xNumMode, s.xEvery, s.xStep, s.xBreak, s.xStart));
+    setSum(7, axisSum(s.yNumMode, s.yEvery, s.yStep, s.yBreak, s.yStart));
+    var on = s.lines.filter(function (L) { return L.on; }).length;
+    setSum(8, on ? on + "本" : "引かない");
   }
+
 
   load();
   f.addEventListener("input", render);
