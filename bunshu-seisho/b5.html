@@ -57,6 +57,11 @@ input[type=text]:focus,textarea:focus{outline:none;border-color:var(--accent)}
 .teacher[hidden]{display:none}
 .tlabel{margin:0;font-weight:700;font-size:14px;color:var(--accent)}
 .b5{font-family:"Hiragino Sans",sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--accent-ink);background:var(--accent);border-radius:6px;padding:2px 7px;margin-left:10px;vertical-align:4px}
+.calib{border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.tlabel2{margin:0;font-weight:700;font-size:14px}
+.calrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:15px}
+.calrow input{width:5.5em;font:inherit;font-size:16px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.calrow span{margin-right:8px}
 .status{border-radius:8px;padding:10px 12px;font-size:15px;font-weight:700;margin-bottom:12px}
 .status.ok{background:var(--ok-soft);color:var(--ok)}
 .status.ng{background:var(--warn-soft);color:var(--warn)}
@@ -111,6 +116,17 @@ button:disabled{opacity:.4;cursor:not-allowed}
           <label><input type="checkbox" id="indent" checked> 段落の始めを1マス空ける</label>
           <label><input type="checkbox" id="kaiwa" checked> 「　」で始まる段落は空けない</label>
         </div>
+        <div class="calib">
+          <p class="tlabel2">印刷の大きさの直し</p>
+          <p class="hint" id="calibnow"></p>
+          <p class="hint">B5に印刷して、点線の長さを測って入れてください。次から20.8cm×14.8cmで出るように直します。</p>
+          <div class="calrow">
+            <label for="mw">横</label><input type="number" id="mw" inputmode="decimal" step="0.1" min="15" max="25" placeholder="20.8"><span>cm</span>
+            <label for="mh">縦</label><input type="number" id="mh" inputmode="decimal" step="0.1" min="10" max="18" placeholder="14.8"><span>cm</span>
+          </div>
+          <div class="btns"><button class="sub2" id="calib">この長さで直す</button><button class="sub2" id="calibreset">直しをなくす</button></div>
+          <p class="hint" id="calibmsg"></p>
+        </div>
         <div class="btns"><button class="sub2" id="apply" disabled>この設定を全員に反映する</button></div>
         <p class="hint" id="applymsg">チェックを変えると見本で確かめられます。全員に使うには、上のボタンを押します。</p>
       </div>
@@ -141,7 +157,9 @@ button:disabled{opacity:.4;cursor:not-allowed}
 (function(){
 "use strict";
 /* 全員に使う設定（先生が「全員に反映する」を押すと書きかわる） */
-var SETTINGS = {"indent":true,"kaiwa":false};
+var SETTINGS = {"indent":true,"kaiwa":false,"sx":1.0246,"sy":1.0207};
+/* 印刷の大きさの直し（見本・保存画像に使う） */
+var SX = SETTINGS.sx || 1, SY = SETTINGS.sy || 1;
 var PRISTINE = document.getElementById("page").outerHTML;
 var STYLE_TEXT = document.getElementById("pagestyle").textContent;
 var SCRIPT_TEXT = document.currentScript ? document.currentScript.textContent : "";
@@ -344,6 +362,8 @@ function render(canvas, scale, data){
   var ctx = canvas.getContext("2d");
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, W, H);
+  // 印刷で小さくなる分をみこして、真ん中を中心に少し大きく描く
+  ctx.translate(W / 2, H / 2); ctx.scale(SX, SY); ctx.translate(-W / 2, -H / 2);
 
   // マス目は描かない（文字の位置はマス目があるときと同じ）
   var gap = PITCH - CELL;
@@ -507,9 +527,16 @@ loadFont().then(update);
 /* ===== 先生（このページの持ち主）だけ設定を変えられる ===== */
 var applyBtn = $("apply"), applyMsg = $("applymsg");
 function settingsChanged(){
-  return els.indent.checked !== (SETTINGS.indent !== false) || els.kaiwa.checked !== (SETTINGS.kaiwa !== false);
+  return els.indent.checked !== (SETTINGS.indent !== false) || els.kaiwa.checked !== (SETTINGS.kaiwa !== false) ||
+    Math.abs(SX - (SETTINGS.sx || 1)) > 1e-4 || Math.abs(SY - (SETTINGS.sy || 1)) > 1e-4;
+}
+function pct(v){ var d = Math.round((v - 1) * 1000) / 10; return d === 0 ? "そのまま" : (d > 0 ? d + "％大きく" : (-d) + "％小さく"); }
+function refreshCalib(){
+  $("calibnow").textContent = (Math.abs(SX - 1) < 1e-4 && Math.abs(SY - 1) < 1e-4) ? "今の直し：なし" :
+    "今の直し：横は" + pct(SX) + "、縦は" + pct(SY) + "作っています。";
 }
 function refreshApply(){
+  refreshCalib();
   applyBtn.disabled = !settingsChanged();
   if (settingsChanged()) applyMsg.textContent = "まだ全員には反映されていません。上のボタンを押すと反映されます。";
   else applyMsg.textContent = "今の設定が全員に使われています。";
@@ -530,10 +557,24 @@ if (window.claude && window.claude.use && SCRIPT_TEXT){
   }).then(function(owner){
     if (!owner) return;
     $("settings").hidden = false; refreshApply();
+    $("calib").addEventListener("click", function(){
+      var mw = parseFloat($("mw").value), mh = parseFloat($("mh").value);
+      if (!(mw >= 15 && mw <= 25) || !(mh >= 10 && mh <= 18)){
+        $("calibmsg").textContent = "横は15〜25cm、縦は10〜18cmの数を入れてください（例：20.3、14.5）。"; return;
+      }
+      SX = SX * 20.8 / mw; SY = SY * 14.8 / mh;
+      $("mw").value = $("mh").value = "";
+      $("calibmsg").textContent = "直しました。見本で確かめて、「この設定を全員に反映する」を押してください。";
+      refreshApply(); schedule();
+    });
+    $("calibreset").addEventListener("click", function(){
+      SX = 1; SY = 1; $("calibmsg").textContent = "直しをなくしました。";
+      refreshApply(); schedule();
+    });
     els.indent.addEventListener("change", refreshApply); els.kaiwa.addEventListener("change", refreshApply);
     applyBtn.addEventListener("click", function(){
       applyBtn.disabled = true; applyMsg.textContent = "反映しています…";
-      var next = {indent: els.indent.checked, kaiwa: els.kaiwa.checked};
+      var next = {indent: els.indent.checked, kaiwa: els.kaiwa.checked, sx: Math.round(SX * 10000) / 10000, sy: Math.round(SY * 10000) / 10000};
       window.claude.use("artifact").then(function(art){
         if (!art) throw {code: "unavailable"};
         return art.publish(buildPage(next));
