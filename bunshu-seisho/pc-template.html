@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>文集清書ツール PC版</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&family=Shippori+Mincho:wght@500&display=swap">
+<style>
+/* 3列：名簿｜入力｜印刷用の原稿。原稿がいちばん広い */
+:root{
+  --bg:#EEF1EC;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F3;
+  --ink:#1F2B24;
+  --ink-soft:#5A6860;
+  --line:#CFD7CF;
+  --accent:#2E6B4F;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#E1EFE6;
+  --warn:#A8323F;
+  --warn-soft:#F8E4E0;
+  --edit:#FFF8D6;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151A17;--surface:#1F2622;--surface-2:#252E29;--ink:#E7EDE9;--ink-soft:#A6B4AC;--line:#38443D;
+    --accent:#7CC3A0;--accent-ink:#0F2219;--accent-soft:#22382C;--warn:#EE8A8F;--warn-soft:#3D2522;--edit:#FFF8D6;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151A17;--surface:#1F2622;--surface-2:#252E29;--ink:#E7EDE9;--ink-soft:#A6B4AC;--line:#38443D;
+  --accent:#7CC3A0;--accent-ink:#0F2219;--accent-soft:#22382C;--warn:#EE8A8F;--warn-soft:#3D2522;--edit:#FFF8D6;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:"BIZ UDPGothic","Yu Gothic UI","Yu Gothic","Meiryo","Hiragino Sans",sans-serif;font-size:15px;line-height:1.55}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:flex;flex-direction:column;height:100%}
+header.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top h1{margin:0 8px 0 0;font-family:"Klee One",serif;font-weight:600;font-size:22px;letter-spacing:.06em;white-space:nowrap}
+.tag{font-size:12px;font-weight:700;background:var(--accent);color:var(--accent-ink);border-radius:5px;padding:2px 7px;margin-left:8px;vertical-align:3px;font-family:inherit;letter-spacing:.04em}
+.tb{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sp{flex:1}
+.btn{border:1.5px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:7px 14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn.main{background:var(--accent);color:var(--accent-ink)}
+.btn.warn{border-color:var(--warn);color:var(--warn)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.settings{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:8px 16px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:14px}
+.settings label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.settings select{padding:4px 8px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface)}
+.settings input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+.settings .calnum{width:4.6em;padding:3px 6px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface)}
+.settings .note{color:var(--ink-soft)}
+.fontwarn{color:var(--warn);font-weight:700}
+.main3{flex:1;display:grid;grid-template-columns:250px 340px minmax(0,1fr);min-height:0}
+.col{min-height:0;overflow:auto;padding:12px}
+.col+.col{border-left:1px solid var(--line)}
+h2{font-size:14px;margin:0 0 8px;color:var(--ink-soft);letter-spacing:.04em}
+.list{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.item{display:grid;grid-template-columns:2.4em 1fr;gap:2px 6px;align-items:center;text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 8px;cursor:pointer}
+.item.on{border-color:var(--accent);background:var(--accent-soft)}
+.item .no{grid-row:span 2;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;color:var(--ink-soft)}
+.item .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .st{font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .st.ng{color:var(--warn);font-weight:700}
+.listbtns{display:flex;flex-direction:column;gap:6px}
+.empty{color:var(--ink-soft);font-size:14px;padding:8px 2px}
+.field{margin-bottom:10px}
+.field label{display:block;font-weight:700;font-size:14px;margin-bottom:3px}
+.field input,.field textarea{width:100%;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;background:var(--surface)}
+.field textarea{min-height:300px;resize:vertical;line-height:1.7}
+.two{display:grid;grid-template-columns:5em 1fr 1fr;gap:8px}
+.status{border-radius:8px;padding:8px 10px;font-size:14px;font-weight:700;margin-bottom:10px;background:var(--accent-soft);color:var(--accent)}
+.status.ng{background:var(--warn-soft);color:var(--warn)}
+.status div+div{margin-top:3px}
+.hint{font-size:13px;color:var(--ink-soft);margin:4px 0 0}
+.prevhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.prevhead b{font-size:15px}
+.prevhead span{font-size:13px;color:var(--ink-soft)}
+.paper{position:relative;background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.paper canvas{display:block;width:100%;height:auto;cursor:text}
+#ov{position:absolute;writing-mode:vertical-rl;resize:none;border:2px solid #2E6B4F;background:#FFF8D6;color:#111;padding:0;margin:0;overflow:hidden;line-height:1;border-radius:3px;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:3}
+#ov[hidden]{display:none}
+.ovhelp{position:absolute;z-index:4;background:#1F2B24;color:#fff;font-size:12px;padding:4px 8px;border-radius:5px;white-space:nowrap;pointer-events:none}
+.ovhelp[hidden]{display:none}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal[hidden]{display:none}
+.modal .box{background:var(--surface);color:var(--ink);border-radius:12px;padding:18px;max-width:760px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.modal h3{margin:0;font-size:17px}
+.modal p{margin:0}
+.modal textarea{width:100%;min-height:220px;padding:8px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);font-size:13px}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.sample{border-collapse:collapse;font-size:13px}
+.sample td,.sample th{border:1px solid var(--line);padding:3px 8px}
+.sample th{background:var(--surface-2)}
+.bar{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+@media (max-width:1100px){.main3{grid-template-columns:220px 300px minmax(0,1fr)}}
+@media (max-width:860px){.main3{grid-template-columns:1fr}.col+.col{border-left:0;border-top:1px solid var(--line)}}
+@media (prefers-reduced-motion: reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>文集清書ツール<span class="tag">PC版・B5</span></h1>
+    <div class="tb">
+      <button class="btn" id="open">下書きを開く</button>
+      <button class="btn" id="save">下書きを保存</button>
+      <input type="file" id="file" accept=".json,application/json" hidden>
+    </div>
+    <div class="sp"></div>
+    <div class="tb">
+      <button class="btn" id="pdfone">この人だけPDF</button>
+      <button class="btn main" id="pdfall">全員分をPDFにする</button>
+    </div>
+  </header>
+
+  <div class="settings">
+    <label>書体
+      <select id="font">
+        <option value="klee">Klee One（教科書体風）</option>
+        <option value="shippori">しっぽり明朝</option>
+        <option value="ud">UDデジタル教科書体</option>
+      </select>
+    </label>
+    <span id="fontwarn" class="fontwarn" hidden></span>
+    <label><input type="checkbox" id="indent"> 段落の始めを1マス空ける</label>
+    <label><input type="checkbox" id="kaiwa"> 「　」で始まる段落は空けない</label>
+    <span>印刷の直し：横 <input class="calnum" type="number" id="sx" step="0.1" min="-10" max="10">％ 縦 <input class="calnum" type="number" id="sy" step="0.1" min="-10" max="10">％</span>
+    <span class="note">（印刷して小さく出るときだけ。ふつうは0）</span>
+  </div>
+
+  <div class="main3">
+    <section class="col" aria-label="名簿">
+      <h2>名簿（<span id="count">0</span>人）</h2>
+      <div class="list" id="list"></div>
+      <div class="listbtns">
+        <button class="btn" id="add">＋ 1人ふやす</button>
+        <button class="btn" id="paste">Excelから貼り付け</button>
+        <button class="btn" id="sort">番号順に並べる</button>
+      </div>
+    </section>
+
+    <section class="col" aria-label="入力">
+      <h2>作文の入力</h2>
+      <div id="editor">
+        <div class="field two">
+          <div><label for="no">番号</label><input type="text" id="no" autocomplete="off"></div>
+          <div><label for="sei">姓</label><input type="text" id="sei" autocomplete="off"></div>
+          <div><label for="mei">名</label><input type="text" id="mei" autocomplete="off"></div>
+        </div>
+        <div class="field"><label for="title">題名</label><input type="text" id="title" autocomplete="off"></div>
+        <div class="field">
+          <label for="body">本文（ロイロノートからコピーして貼り付け）</label>
+          <textarea id="body"></textarea>
+          <p class="hint">段落の終わりでだけ改行します。改行したところが新しい段落になります。</p>
+        </div>
+        <div id="status" class="status"></div>
+        <button class="btn warn" id="del">この人を名簿から消す</button>
+      </div>
+    </section>
+
+    <section class="col" aria-label="印刷用の原稿">
+      <div class="prevhead"><b>印刷用の原稿（クリックするとその行を直せます）</b><span>B5横・点線が20.8cm×14.8cm</span></div>
+      <div class="paper" id="paper">
+        <canvas id="prev"></canvas>
+        <textarea id="ov" hidden spellcheck="false" aria-label="この行を直す"></textarea>
+        <div class="ovhelp" id="ovhelp" hidden>Enterで決定／Escでやめる／Shift+Enterで段落を分ける</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="modal" id="mPaste" hidden role="dialog" aria-modal="true" aria-labelledby="mPasteT">
+  <div class="box">
+    <h3 id="mPasteT">Excelから貼り付け</h3>
+    <p>Excelで、次の順に並べた表をえらんでコピーし、下の枠に貼り付けてください。1行目が見出しでもかまいません。</p>
+    <table class="sample"><tr><th>番号</th><th>姓</th><th>名</th><th>題名</th><th>本文</th></tr><tr><td>1</td><td>山田</td><td>花子</td><td>六年間の思い出</td><td>私が六年間で…</td></tr></table>
+    <textarea id="pasteArea" placeholder="ここに貼り付け"></textarea>
+    <p id="pasteInfo" class="hint"></p>
+    <div class="row">
+      <button class="btn" id="pasteCancel">やめる</button>
+      <button class="btn" id="pasteReplace" disabled>名簿を入れかえる</button>
+      <button class="btn main" id="pasteAdd" disabled>今の名簿に足す</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="mConfirm" hidden role="dialog" aria-modal="true" aria-labelledby="mConfirmT">
+  <div class="box">
+    <h3 id="mConfirmT"></h3>
+    <p id="mConfirmP" style="white-space:pre-wrap"></p>
+    <div class="row">
+      <button class="btn" id="cNo">やめる</button>
+      <button class="btn main" id="cYes">はい</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="mProg" hidden role="dialog" aria-modal="true" aria-labelledby="mProgT">
+  <div class="box">
+    <h3 id="mProgT">PDFを作っています…</h3>
+    <div class="bar"><i id="progBar"></i></div>
+    <p id="progP"></p>
+  </div>
+</div>
+
+<script>/*JSPDF*/</script>
+<script>
+(function(){
+"use strict";
+
+/* ===== 用紙とマス目（300dpi・B5横） ===== */
+var DPI = 300, MM = DPI / 25.4;
+var W = Math.round(257 * MM), H = Math.round(182 * MM);   // B5横 25.7cm×18.2cm
+var AW = 208 * MM, AH = 148 * MM;                        // 原稿 20.8cm×14.8cm
+var MX = (W - AW) / 2, MY = (H - AH) / 2;
+var ROWS = 23, COLS = 28;
+var CELL = AH / ROWS, PITCH = AW / COLS, GAP = PITCH - CELL;
+var FS = CELL * 0.8;
+var BODY_COLS = COLS - 2;
+var TITLE_START = 3;                                     // 題名は上から3マス空け
+
+/* ===== 書体 ===== */
+var FONTS = {
+  klee:     {weight: "600", family: '"Klee One"', label: "Klee One"},
+  shippori: {weight: "500", family: '"Shippori Mincho"', label: "しっぽり明朝"},
+  ud:       {weight: "400", family: '"UD デジタル 教科書体 N-R", "UD Digi Kyokasho N-R", "UD デジタル 教科書体 NK-R", "UD Digi Kyokasho NK-R"', label: "UDデジタル教科書体", local: true}
+};
+var curFont = "klee";
+function fontCss(size){ var f = FONTS[curFont]; return f.weight + " " + size + "px " + f.family + ', serif'; }
+
+/* ===== 文字の種類 ===== */
+var ROT = "ー－―‐—〜～…‥（）「」『』【】〔〕［］｛｝〈〉《》＜＞＝→←⇒：；｜";
+var CENTER_ROT = "－―‐—〜～…‥＝｜→←⇒：；＜＞";
+var OPEN = "「『（【〔［｛〈《";
+var CLOSE = "」』）】〕］｝〉》";
+var PUNCT = "、。，．";
+var SMALL = "ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ";
+var NO_HEAD = PUNCT + CLOSE;
+// かっこの位置（iPad版で決めた位置を、どの書体でも同じにする。単位は字の大きさ）
+var BR_POS = {"「": [0.09, 0.33], "『": [0.09, 0.32], "」": [-0.11, -0.33], "』": [-0.11, -0.32]};
+function bracketPos(ch){ return BR_POS[ch] || (OPEN.indexOf(ch) >= 0 ? [0, 0.33] : [0, -0.33]); }
+
+/* ===== 数字を漢数字に ===== */
+var KD = "〇一二三四五六七八九";
+function smallNum(n){ if (n < 10) return KD[n]; var t = Math.floor(n / 10), o = n % 10; return (t > 1 ? KD[t] : "") + "十" + (o ? KD[o] : ""); }
+function numToKanji(s){
+  if (s.length <= 2 && !(s.length === 2 && s[0] === "0")) return smallNum(parseInt(s, 10));
+  var r = ""; for (var i = 0; i < s.length; i++) r += KD[+s[i]]; return r;
+}
+function normalize(s){
+  s = String(s || "").replace(/\r\n?/g, "\n");
+  s = s.replace(/[｡-ﾟ]+/g, function(m){ return m.normalize("NFKC"); });
+  s = s.replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+  s = s.replace(/[​-‍﻿]/g, "");
+  s = s.replace(/(\d+)\.(\d+)/g, function(m, a, b){ return numToKanji(a) + "・" + b.split("").map(function(d){ return KD[+d]; }).join(""); });
+  s = s.replace(/\d+/g, numToKanji);
+  s = s.replace(/[ \t ]/g, "　");
+  s = s.replace(/~/g, "〜");
+  s = s.replace(/[\x21-\x7E]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) + 0xFEE0); });
+  return s;
+}
+function chars(s){ return Array.from(s); }
+
+/* 文字列 → マス（「。」」は1マス）。s,e は元の文字列での位置 */
+function toCells(str){
+  var a = chars(str), out = [], pos = 0;
+  for (var i = 0; i < a.length; i++){
+    var c = a[i], st = pos; pos += c.length;
+    if (PUNCT.indexOf(c) >= 0 && i + 1 < a.length && CLOSE.indexOf(a[i + 1]) >= 0){
+      pos += a[i + 1].length; out.push({ch: c + a[i + 1], s: st, e: pos}); i++;
+    } else out.push({ch: c, s: st, e: pos});
+  }
+  return out;
+}
+
+/* 本文 → 段落の並び（そろえた形） */
+function canonParas(text, indent){
+  return normalize(text).split("\n").map(function(p){
+    p = p.replace(/　+$/, "");
+    if (indent) p = p.replace(/^　+/, "");
+    return p;
+  }).filter(function(p){ return p.replace(/　/g, "") !== ""; });
+}
+
+/* 段落 → 行（句読点・閉じかっこは前の行の最後のマスへ） */
+function layoutBody(paras, indent, kaiwa){
+  var cols = [];
+  paras.forEach(function(p, pi){
+    var cells = toCells(p);
+    if (indent && !(kaiwa && /^[「『（]/.test(p))) cells.unshift({ch: "　", s: 0, e: 0, pad: true});
+    var col = null;
+    for (var i = 0; i < cells.length; i++){
+      var c = cells[i];
+      if (col && col.cells.length === ROWS){
+        var last = col.cells[ROWS - 1];
+        if (NO_HEAD.indexOf(chars(c.ch)[0]) >= 0 && !last.hang){ last.hang = c.ch; col.e = c.e; continue; }
+        cols.push(col); col = null;
+      }
+      if (!col) col = {pi: pi, s: c.pad ? 0 : c.s, e: c.s, cells: []};
+      col.cells.push(c); col.e = c.e;
+    }
+    if (col) cols.push(col);
+  });
+  return cols;
+}
+
+/* ===== 字の形を調べる（書体ごと） ===== */
+var boxCache = {}, slantCache = {}, fontReady = {};
+function probe(ch, size){
+  var n = Math.ceil(size * 2), c = document.createElement("canvas"); c.width = c.height = n;
+  var g = c.getContext("2d", {willReadFrequently: true});
+  g.font = fontCss(size); g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillStyle = "#000";
+  g.fillText(ch, size * 0.5, size * 1.4);
+  return {n: n, d: g.getImageData(0, 0, n, n).data};
+}
+function glyphBox(ch, size){
+  var key = curFont + ch + "|" + Math.round(size);
+  if (boxCache[key]) return boxCache[key];
+  var p = probe(ch, size), n = p.n, d = p.d, x0 = n, y0 = n, x1 = -1, y1 = -1;
+  for (var y = 0; y < n; y++) for (var x = 0; x < n; x++){
+    if (d[(y * n + x) * 4 + 3] > 40){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  var r = x1 < 0 ? {dx: -size / 2, dy: size * 0.35} : {dx: size * 0.5 - (x0 + x1 + 1) / 2, dy: size * 1.4 - (y0 + y1 + 1) / 2};
+  if (fontReady[curFont]) boxCache[key] = r;
+  return r;
+}
+function glyphSlant(ch, size){
+  var key = curFont + ch + "|" + Math.round(size);
+  if (slantCache[key] !== undefined) return slantCache[key];
+  var p = probe(ch, size), n = p.n, d = p.d, xs = [], ys = [];
+  for (var x = 0; x < n; x++){
+    var sum = 0, cnt = 0;
+    for (var y = 0; y < n; y++){ var al = d[(y * n + x) * 4 + 3]; if (al > 40){ sum += y * al; cnt += al; } }
+    if (cnt > 0){ xs.push(x); ys.push(sum / cnt); }
+  }
+  var ang = 0;
+  if (xs.length > 4){
+    var k0 = Math.floor(xs.length * 0.2), k1 = Math.ceil(xs.length * 0.8), mx = 0, my = 0, m = 0;
+    for (var i = k0; i < k1; i++){ mx += xs[i]; my += ys[i]; m++; }
+    mx /= m; my /= m;
+    var sxy = 0, sxx = 0;
+    for (var j = k0; j < k1; j++){ sxy += (xs[j] - mx) * (ys[j] - my); sxx += (xs[j] - mx) * (xs[j] - mx); }
+    if (sxx > 0) ang = Math.atan(sxy / sxx);
+  }
+  if (fontReady[curFont]) slantCache[key] = ang;
+  return ang;
+}
+// 字の見た目の中心を (tx,ty) に置く。rot は回す角度
+function drawAt(ctx, ch, tx, ty, size, rot){
+  var r = glyphBox(ch, size);
+  ctx.save(); ctx.font = fontCss(size); ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.translate(tx, ty); if (rot) ctx.rotate(rot);
+  ctx.fillText(ch, r.dx, r.dy); ctx.restore();
+}
+function drawGlyph(ctx, ch, cx, cy, f){
+  if (ch === "　") return;
+  if (ch === "ー"){ drawAt(ctx, ch, cx, cy, f, Math.PI / 2 - glyphSlant(ch, f)); return; }        // 伸ばし棒はまっすぐ縦に
+  if (CENTER_ROT.indexOf(ch) >= 0){ drawAt(ctx, ch, cx, cy, f, Math.PI / 2); return; }               // 〜…＝ などは真ん中
+  if (OPEN.indexOf(ch) >= 0 || CLOSE.indexOf(ch) >= 0){ var bp = bracketPos(ch); drawAt(ctx, ch, cx + bp[0] * f, cy + bp[1] * f, f, Math.PI / 2); return; }
+  if (PUNCT.indexOf(ch) >= 0){ drawAt(ctx, ch, cx + CELL * 0.27, cy - CELL * 0.27, f, 0); return; }   // 右上
+  if (SMALL.indexOf(ch) >= 0){ drawAt(ctx, ch, cx + f * 0.09, cy + f * 0.04, f, 0); return; }
+  ctx.font = fontCss(f); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(ch, cx, cy);
+}
+function drawSmall(ctx, ch, tx, ty, size){ drawAt(ctx, ch, tx, ty, size, ROT.indexOf(ch) >= 0 ? Math.PI / 2 : 0); }
+function drawCell(ctx, cell, cx, cy){
+  var a = chars(cell.ch);
+  if (a.length === 2){
+    drawSmall(ctx, a[1], cx - CELL * 0.19, cy - CELL * 0.27, FS * 0.7);   // 「。」」：」は左上、。は右上
+    drawGlyph(ctx, a[0], cx, cy, FS);
+  } else drawGlyph(ctx, a[0], cx, cy, FS);
+  if (!cell.hang) return;
+  var f = FS * 0.7;                                                        // 行の最後のマス：句読点は右下、」は左下
+  chars(cell.hang).forEach(function(h){
+    if (PUNCT.indexOf(h) >= 0) drawSmall(ctx, h, cx + CELL * 0.33, cy + CELL * 0.35, f);
+    else drawSmall(ctx, h, cx - CELL * 0.26, cy + CELL * 0.31, f);
+  });
+}
+function colX(c){ return W - MX - GAP / 2 - c * PITCH - CELL; }    // その行のマスの左はし
+
+/* ===== 1人分の原稿を作る ===== */
+function layoutStudent(st){
+  var title = normalize(st.title).replace(/\n/g, "").replace(/^　+|　+$/g, "");
+  var sei = normalize(st.sei).replace(/[\n　]/g, ""), mei = normalize(st.mei).replace(/[\n　]/g, "");
+  var paras = canonParas(st.body, S.indent);
+  return {
+    title: toCells(title), name: toCells(sei && mei ? sei + "　" + mei : sei + mei),
+    paras: paras, body: layoutBody(paras, S.indent, S.kaiwa),
+    hasTitle: !!title, hasName: !!(sei || mei)
+  };
+}
+function render(canvas, scale, L){
+  canvas.width = Math.round(W * scale); canvas.height = Math.round(H * scale);
+  var ctx = canvas.getContext("2d");
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, W, H);
+  var sx = 1 + (S.sx || 0) / 100, sy = 1 + (S.sy || 0) / 100;
+  ctx.translate(W / 2, H / 2); ctx.scale(sx, sy); ctx.translate(-W / 2, -H / 2);
+  ctx.save();                                                   // 切り取り線
+  ctx.strokeStyle = "#B4B9BE"; ctx.lineWidth = Math.max(0.25 * MM, 1 / scale);
+  ctx.setLineDash([2 * MM, 1.5 * MM]); ctx.strokeRect(MX, MY, AW, AH); ctx.restore();
+  ctx.fillStyle = "#111111";
+  function put(c, r, cell){
+    if (c >= COLS || r >= ROWS || r < 0) return;
+    drawCell(ctx, cell, colX(c) + CELL / 2, MY + r * CELL + CELL / 2);
+  }
+  L.title.forEach(function(cell, i){ put(0, TITLE_START + i, cell); });
+  var ns = ROWS - 1 - L.name.length;
+  L.name.forEach(function(cell, i){ put(1, ns + i, cell); });
+  L.body.forEach(function(col, ci){ col.cells.forEach(function(cell, ri){ put(2 + ci, ri, cell); }); });
+}
+function countChars(str){ return chars(str).filter(function(c){ return c !== "　"; }).length; }
+function check(L){
+  var msgs = [], ok = true, titleMax = ROWS - TITLE_START;
+  if (L.title.length > titleMax){ ok = false; msgs.push("題名が長すぎます（" + titleMax + "字まで）。"); }
+  if (L.name.length > ROWS - 1){ ok = false; msgs.push("名前が長すぎます。"); }
+  var over = L.body.length - BODY_COLS, total = 0, overChars = 0;
+  L.body.forEach(function(col, ci){ col.cells.forEach(function(cell){ var n = countChars(cell.ch) + (cell.hang ? countChars(cell.hang) : 0); total += n; if (ci >= BODY_COLS) overChars += n; }); });
+  msgs.push("本文：" + L.body.length + "行／" + BODY_COLS + "行・" + total + "字（空白はのぞく）");
+  if (over > 0){ ok = false; msgs.push("はみ出しています：" + over + "行（" + overChars + "字）。あと" + overChars + "字けずってください。"); }
+  else {
+    var last = L.body.length ? L.body[L.body.length - 1].cells.length : ROWS;
+    msgs.push("あと約" + ((BODY_COLS - L.body.length) * ROWS + (L.body.length ? ROWS - last : 0)) + "字書けます");
+  }
+  if (!L.hasTitle) msgs.push("題名がまだ入っていません。");
+  if (!L.hasName) msgs.push("名前がまだ入っていません。");
+  return {ok: ok, msgs: msgs, over: over, overChars: overChars};
+}
+
+/* ===== データ ===== */
+var S = {font: "klee", indent: true, kaiwa: false, sx: 0, sy: 0};
+var students = [], cur = -1, uid = 1;
+var KEY = "bunshu-pc-v1";
+function newStudent(o){ o = o || {}; return {id: uid++, no: o.no || "", sei: o.sei || "", mei: o.mei || "", title: o.title || "", body: o.body || ""}; }
+function snapshot(){ return {app: "bunshu-seisho-pc", version: 1, settings: S, students: students.map(function(s){ return {no: s.no, sei: s.sei, mei: s.mei, title: s.title, body: s.body}; })}; }
+function loadData(d){
+  if (!d || !Array.isArray(d.students)) throw new Error("bad");
+  var st = d.settings || {};
+  S = {font: FONTS[st.font] ? st.font : "klee", indent: st.indent !== false, kaiwa: !!st.kaiwa, sx: +st.sx || 0, sy: +st.sy || 0};
+  students = d.students.map(newStudent);
+  cur = students.length ? 0 : -1;
+}
+var dirty = false;
+function autosave(){ dirty = true; try { localStorage.setItem(KEY, JSON.stringify(snapshot())); } catch(e){} }
+
+/* ===== 画面 ===== */
+var $ = function(id){ return document.getElementById(id); };
+var F = {no: $("no"), sei: $("sei"), mei: $("mei"), title: $("title"), body: $("body")};
+var prev = $("prev"), ov = $("ov"), ovhelp = $("ovhelp"), lastL = null;
+
+function stLabel(s){ return (s.sei || s.mei) ? (s.sei + " " + s.mei).trim() : "（名前なし）"; }
+function renderList(){
+  var box = $("list"); box.innerHTML = "";
+  $("count").textContent = students.length;
+  if (!students.length){ var e = document.createElement("div"); e.className = "empty"; e.textContent = "まだだれも入っていません。「＋ 1人ふやす」か「Excelから貼り付け」で入れてください。"; box.appendChild(e); }
+  students.forEach(function(s, i){
+    var r = check(layoutStudent(s));
+    var b = document.createElement("button"); b.type = "button"; b.className = "item" + (i === cur ? " on" : "");
+    var no = document.createElement("span"); no.className = "no"; no.textContent = s.no || "－";
+    var nm = document.createElement("span"); nm.className = "nm"; nm.textContent = stLabel(s);
+    var st = document.createElement("span"); st.className = "st" + (r.ok ? "" : " ng");
+    st.textContent = !s.body.trim() ? "本文なし" : (r.over > 0 ? "あと" + r.overChars + "字けずる" : (r.ok ? (s.title || "題名なし") : r.msgs[0]));
+    b.appendChild(no); b.appendChild(nm); b.appendChild(st);
+    b.addEventListener("click", function(){ select(i); });
+    box.appendChild(b);
+  });
+  $("editor").style.visibility = cur >= 0 ? "visible" : "hidden";
+  $("pdfone").disabled = cur < 0; $("pdfall").disabled = !students.length;
+}
+function select(i){
+  closeOv(true);
+  cur = i; var s = students[i];
+  if (s){ F.no.value = s.no; F.sei.value = s.sei; F.mei.value = s.mei; F.title.value = s.title; F.body.value = s.body; }
+  renderList(); schedule(0);
+}
+function fillSettings(){
+  $("font").value = S.font; $("indent").checked = S.indent; $("kaiwa").checked = S.kaiwa;
+  $("sx").value = S.sx; $("sy").value = S.sy; curFont = S.font; checkFont();
+}
+
+var timer = null;
+function schedule(ms){ clearTimeout(timer); timer = setTimeout(function(){ loadFont(cur >= 0 ? allText([students[cur]]) : "").then(updatePreview); }, ms === undefined ? 200 : ms); }
+function updatePreview(){
+  var s = students[cur], statusEl = $("status");
+  var L = s ? layoutStudent(s) : layoutStudent(newStudent());
+  lastL = L;
+  var w = prev.parentNode.clientWidth || 800;
+  render(prev, Math.min(1, (w * (window.devicePixelRatio || 1)) / W), L);
+  statusEl.innerHTML = "";
+  if (s){
+    var r = check(L);
+    statusEl.className = "status" + (r.ok ? "" : " ng");
+    r.msgs.forEach(function(m){ var d = document.createElement("div"); d.textContent = m; statusEl.appendChild(d); });
+  }
+}
+
+/* 書体の読み込み・ある/なしの確認 */
+function allText(list){ return normalize(list.map(function(s){ return s.title + s.sei + s.mei + s.body; }).join("")) + "　〇一二三四五六七八九十・。、「」ー"; }
+function loadFont(text){
+  var f = FONTS[curFont];
+  if (f.local || !document.fonts || !document.fonts.load){ fontReady[curFont] = true; return Promise.resolve(); }
+  return document.fonts.load(fontCss(FS), text || "あ").then(function(){
+    var ok = document.fonts.check(fontCss(FS), "あ") && hasLocalFont(FONTS[curFont].family);   // 読みこめたか、字のはばでも確かめる
+    if (ok && !fontReady[curFont]){ boxCache = {}; slantCache = {}; }
+    fontReady[curFont] = ok;
+    netWarn(!ok);
+  }).catch(function(){ netWarn(true); });
+}
+function netWarn(on){
+  var w = $("fontwarn");
+  if (FONTS[curFont].local) return;
+  if (on){ w.textContent = "書体を読み込めませんでした。インターネットにつながっているか確かめるか、UDデジタル教科書体を選んでください。"; w.hidden = false; }
+  else w.hidden = true;
+}
+function hasLocalFont(fam){
+  var c = document.createElement("canvas").getContext("2d"), t = "文集清書あいう漢字";
+  var res = ["monospace", "serif"].map(function(base){
+    c.font = "40px " + base; var w0 = c.measureText(t).width;
+    c.font = "40px " + fam + ", " + base; return c.measureText(t).width !== w0;
+  });
+  return res[0] || res[1];
+}
+function checkFont(){
+  var w = $("fontwarn");
+  if (curFont === "ud" && !hasLocalFont('"UD デジタル 教科書体 N-R"') && !hasLocalFont('"UD Digi Kyokasho N-R"') && !hasLocalFont('"UD デジタル 教科書体 NK-R"')){
+    w.textContent = "このパソコンにはUDデジタル教科書体が入っていません。ほかの書体を選んでください。"; w.hidden = false;
+  } else if (FONTS[curFont].local) w.hidden = true;
+}
+
+/* ===== 入力欄 ===== */
+Object.keys(F).forEach(function(k){
+  F[k].addEventListener("input", function(){
+    var s = students[cur]; if (!s) return;
+    s[k] = F[k].value; autosave(); schedule(); clearTimeout(listTimer); listTimer = setTimeout(renderList, 400);
+  });
+});
+var listTimer = null;
+$("font").addEventListener("change", function(){ S.font = curFont = this.value; checkFont(); autosave(); schedule(0); });
+$("indent").addEventListener("change", function(){ S.indent = this.checked; autosave(); renderList(); schedule(0); });
+$("kaiwa").addEventListener("change", function(){ S.kaiwa = this.checked; autosave(); renderList(); schedule(0); });
+["sx", "sy"].forEach(function(k){ $(k).addEventListener("input", function(){ var v = parseFloat(this.value); S[k] = isFinite(v) ? Math.max(-10, Math.min(10, v)) : 0; autosave(); schedule(); }); });
+
+$("add").addEventListener("click", function(){
+  var maxNo = students.reduce(function(m, s){ var n = parseInt(s.no, 10); return isFinite(n) && n > m ? n : m; }, 0);
+  students.push(newStudent({no: String(maxNo + 1)})); autosave(); select(students.length - 1); F.sei.focus();
+});
+$("sort").addEventListener("click", function(){
+  var id = students[cur] && students[cur].id;
+  students.sort(function(a, b){ var x = parseFloat(a.no), y = parseFloat(b.no); if (isNaN(x)) return 1; if (isNaN(y)) return -1; return x - y; });
+  cur = students.findIndex(function(s){ return s.id === id; }); autosave(); select(cur);
+});
+$("del").addEventListener("click", function(){
+  var s = students[cur]; if (!s) return;
+  ask("名簿から消しますか？", (s.no ? s.no + "番 " : "") + stLabel(s) + " さんの作文を消します。", function(){
+    students.splice(cur, 1); autosave(); select(Math.min(cur, students.length - 1));
+  });
+});
+
+/* ===== 確認の画面 ===== */
+var askYes = null;
+function ask(title, text, yes, yesLabel){ $("mConfirmT").textContent = title; $("mConfirmP").textContent = text; $("cYes").textContent = yesLabel || "はい"; askYes = yes; $("mConfirm").hidden = false; $("cYes").focus(); }
+$("cNo").addEventListener("click", function(){ $("mConfirm").hidden = true; askYes = null; });
+$("cYes").addEventListener("click", function(){ $("mConfirm").hidden = true; var f = askYes; askYes = null; if (f) f(); });
+
+/* ===== Excelから貼り付け ===== */
+function parseTSV(t){
+  t = t.replace(/\r\n?/g, "\n");
+  var rows = [], row = [], f = "", q = false;
+  for (var i = 0; i < t.length; i++){
+    var c = t[i];
+    if (q){
+      if (c === '"'){ if (t[i + 1] === '"'){ f += '"'; i++; } else q = false; }
+      else f += c;
+    } else if (c === '"' && f === "") q = true;
+    else if (c === "\t"){ row.push(f); f = ""; }
+    else if (c === "\n"){ row.push(f); rows.push(row); row = []; f = ""; }
+    else f += c;
+  }
+  if (f !== "" || row.length){ row.push(f); rows.push(row); }
+  rows = rows.filter(function(r){ return r.some(function(v){ return v.trim() !== ""; }); });
+  if (rows.length && /姓|題名|本文|番号|名前/.test(rows[0].join(""))) rows.shift();
+  return rows.map(function(r){ return {no: (r[0] || "").trim(), sei: (r[1] || "").trim(), mei: (r[2] || "").trim(), title: (r[3] || "").trim(), body: (r[4] || "").replace(/^\n+|\n+$/g, "")}; });
+}
+var pasted = [];
+$("paste").addEventListener("click", function(){ $("pasteArea").value = ""; pasted = []; pasteInfo(); $("mPaste").hidden = false; $("pasteArea").focus(); });
+$("pasteArea").addEventListener("input", function(){ pasted = parseTSV(this.value); pasteInfo(); });
+function pasteInfo(){
+  var n = pasted.length;
+  $("pasteInfo").textContent = n ? n + "人分を読みこめます（" + pasted.slice(0, 3).map(stLabel).join("、") + (n > 3 ? " ほか" : "") + "）。" : "まだ読みこめる行がありません。";
+  $("pasteAdd").disabled = $("pasteReplace").disabled = !n;
+}
+$("pasteCancel").addEventListener("click", function(){ $("mPaste").hidden = true; });
+$("pasteAdd").addEventListener("click", function(){ pasted.forEach(function(o){ students.push(newStudent(o)); }); $("mPaste").hidden = true; autosave(); select(students.length - pasted.length); });
+$("pasteReplace").addEventListener("click", function(){
+  $("mPaste").hidden = true;
+  ask("名簿を入れかえますか？", "今の名簿（" + students.length + "人）を消して、貼り付けた " + pasted.length + "人分に入れかえます。", function(){
+    students = pasted.map(newStudent); autosave(); select(0);
+  }, "入れかえる");
+});
+
+/* ===== 下書きの保存・読みこみ ===== */
+function today(){ var d = new Date(); return d.getFullYear() + ("0" + (d.getMonth() + 1)).slice(-2) + ("0" + d.getDate()).slice(-2); }
+function download(blob, name){
+  var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+}
+$("save").addEventListener("click", function(){
+  download(new Blob([JSON.stringify(snapshot(), null, 1)], {type: "application/json"}), "文集_下書き_" + today() + ".json");
+  dirty = false;
+});
+$("open").addEventListener("click", function(){
+  if (students.length) ask("下書きを開きますか？", "今の名簿と作文は、開いた下書きに入れかわります。今の分を残したいときは、先に「下書きを保存」を押してください。", function(){ $("file").click(); }, "開く");
+  else $("file").click();
+});
+$("file").addEventListener("change", function(){
+  var f = this.files && this.files[0]; this.value = ""; if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function(){
+    try { loadData(JSON.parse(rd.result)); } catch(e){ ask("開けませんでした", "このツールで保存した下書きのファイル（.json）を選んでください。", null, "わかった"); return; }
+    fillSettings(); autosave(); dirty = false; select(cur);
+  };
+  rd.readAsText(f, "utf-8");
+});
+window.addEventListener("beforeunload", function(e){ if (dirty){ e.preventDefault(); e.returnValue = ""; } });
+
+/* ===== 原稿の上で直す ===== */
+var ovTarget = null;
+function canvasMap(){
+  var f = prev.clientWidth / W, sx = 1 + (S.sx || 0) / 100, sy = 1 + (S.sy || 0) / 100;
+  return {f: f, X: function(x){ return (W / 2 + (x - W / 2) * sx) * f; }, Y: function(y){ return (H / 2 + (y - H / 2) * sy) * f; }, sx: sx, sy: sy};
+}
+prev.addEventListener("click", function(e){
+  var s = students[cur]; if (!s) return;
+  closeOv(true);
+  var L = layoutStudent(s);                                          // いちばん新しい形で調べる
+  var m = canvasMap(), rect = prev.getBoundingClientRect();
+  var x = (e.clientX - rect.left) / m.f, y = (e.clientY - rect.top) / m.f;
+  x = W / 2 + (x - W / 2) / m.sx; y = H / 2 + (y - H / 2) / m.sy;          // 直しの分をもどす
+  if (y < MY - CELL || y > MY + AH + CELL) return;
+  var c = Math.floor((W - MX - x) / PITCH);
+  if (c < 0 || c >= COLS) return;
+  var text, kind, pad = 0;
+  if (c === 0){ kind = "title"; text = s.title; pad = TITLE_START; }
+  else if (c === 1){ kind = "name"; text = (s.sei + "　" + s.mei).trim(); pad = Math.max(0, ROWS - 1 - L.name.length); }
+  else {
+    var col = L.body[c - 2];
+    if (col){ kind = "body"; text = L.paras[col.pi].slice(col.s, col.e); pad = col.cells[0] && col.cells[0].pad ? 1 : 0; ovTarget = {kind: kind, pi: col.pi, s: col.s, e: col.e}; }
+    else { kind = "new"; text = ""; pad = S.indent ? 1 : 0; }
+  }
+  if (kind !== "body") ovTarget = {kind: kind};
+  openOv(c, text, pad);
+});
+function openOv(c, text, pad){
+  var m = canvasMap(), fpx = FS * m.f * m.sy, cellPx = CELL * m.f * m.sy;
+  var left = m.X(colX(c) - GAP * 0.4), right = m.X(colX(c) + CELL + GAP * 0.4);
+  var w = Math.max(right - left, fpx * 1.7);
+  ov.style.left = (left - (w - (right - left)) / 2) + "px"; ov.style.top = m.Y(MY) + "px";
+  ov.style.width = w + "px"; ov.style.height = (AH * m.f * m.sy + cellPx * 4) + "px";   // 下に少し余裕（「。」」などで字が多くなるため）
+  ov.style.paddingTop = (pad * cellPx + (cellPx - fpx) / 2) + "px";
+  ov.style.fontFamily = FONTS[curFont].family + ", serif"; ov.style.fontWeight = FONTS[curFont].weight;
+  ov.style.fontSize = fpx + "px"; ov.style.letterSpacing = Math.max(0, CELL * m.f * m.sy - fpx) + "px";
+  ov.value = text; ov.hidden = false;
+  ovhelp.style.left = Math.max(0, left - 150) + "px"; ovhelp.style.top = Math.max(0, m.Y(MY) - 26) + "px"; ovhelp.hidden = false;
+  ov.focus(); ov.setSelectionRange(ov.value.length, ov.value.length);
+}
+function closeOv(commit){
+  if (ov.hidden) return;
+  var t = ovTarget, s = students[cur], v = ov.value;
+  ov.hidden = true; ovhelp.hidden = true; ovTarget = null;
+  if (!commit || !t || !s) return;
+  if (t.kind === "title") s.title = v.replace(/\n/g, "");
+  else if (t.kind === "name"){
+    var p = v.replace(/\n/g, "").trim().split(/[\s　]+/);
+    s.sei = p[0] || ""; s.mei = p.slice(1).join("");
+  } else {
+    var paras = canonParas(s.body, S.indent);                      // そろえた形にしてから、その行だけ入れかえる
+    if (t.kind === "body" && paras[t.pi] !== undefined){
+      paras[t.pi] = paras[t.pi].slice(0, t.s) + v + paras[t.pi].slice(t.e);
+    } else if (v.trim()) paras.push(v);
+    s.body = paras.join("\n");
+  }
+  F.title.value = s.title; F.sei.value = s.sei; F.mei.value = s.mei; F.body.value = s.body;
+  autosave(); renderList(); schedule(0);
+}
+ov.addEventListener("keydown", function(e){
+  if (e.isComposing || e.keyCode === 229) return;                 // 漢字に変換しているとき
+  if (e.key === "Escape"){ e.preventDefault(); closeOv(false); }
+  else if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); closeOv(true); }
+  else if (e.key === "Enter" && e.shiftKey && ovTarget && ovTarget.kind !== "body" && ovTarget.kind !== "new"){ e.preventDefault(); }
+});
+ov.addEventListener("blur", function(){ setTimeout(function(){ if (document.activeElement !== ov) closeOv(true); }, 0); });
+window.addEventListener("resize", function(){ closeOv(true); schedule(); });
+
+/* ===== PDF ===== */
+function makePdf(list, name){
+  if (!window.jspdf){ ask("PDFを作れません", "PDFを作るしくみが読みこめませんでした。ページを開き直してください。", null, "わかった"); return; }
+  var bad = list.filter(function(s){ return !check(layoutStudent(s)).ok; });
+  function go(){
+    $("mProg").hidden = false; $("progBar").style.width = "0"; $("progP").textContent = "";
+    loadFont(allText(list)).then(function(){
+      var doc = new window.jspdf.jsPDF({orientation: "landscape", unit: "mm", format: [182, 257], compress: true});
+      var cv = document.createElement("canvas"), i = 0;
+      function step(){
+        if (i >= list.length){
+          doc.save(name); $("mProg").hidden = true; return;
+        }
+        var s = list[i];
+        render(cv, 1, layoutStudent(s));
+        if (i > 0) doc.addPage([182, 257], "landscape");
+        doc.addImage(cv.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 257, 182, undefined, "FAST");
+        i++;
+        $("progBar").style.width = Math.round(i / list.length * 100) + "%";
+        $("progP").textContent = i + "／" + list.length + "人（" + stLabel(s) + "）";
+        setTimeout(step, 0);
+      }
+      step();
+    });
+  }
+  if (bad.length){
+    ask("このままPDFにしますか？", "次の人は、はみ出しや入れわすれがあります。はみ出した部分は印刷されません。\n\n" + bad.map(function(s){ return (s.no ? s.no + "番 " : "") + stLabel(s); }).join("\n"), go, "このまま作る");
+  } else go();
+}
+$("pdfall").addEventListener("click", function(){ closeOv(true); makePdf(students.slice(), "文集_全員分_" + today() + ".pdf"); });
+$("pdfone").addEventListener("click", function(){ closeOv(true); var s = students[cur]; if (s) makePdf([s], "文集_" + ((s.no ? s.no + "番_" : "") + (s.sei + s.mei)).replace(/[\\\/:*?"<>|\s]/g, "") + ".pdf"); });
+
+/* ===== はじめに ===== */
+try {
+  var saved = JSON.parse(localStorage.getItem(KEY) || "null");
+  if (saved) loadData(saved);
+} catch(e){}
+fillSettings(); dirty = false;
+if (cur >= 0) select(cur); else { renderList(); schedule(0); }
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ boxCache = {}; slantCache = {}; schedule(0); });
+})();
+</script>
+</body>
+</html>
