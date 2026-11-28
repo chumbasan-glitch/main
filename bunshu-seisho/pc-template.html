@@ -75,7 +75,7 @@ h2{font-size:14px;margin:0 0 8px;color:var(--ink-soft);letter-spacing:.04em}
 .field label{display:block;font-weight:700;font-size:14px;margin-bottom:3px}
 .field input,.field textarea{width:100%;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;background:var(--surface)}
 .field textarea{min-height:300px;resize:vertical;line-height:1.7}
-.two{display:grid;grid-template-columns:5em 1fr 1fr;gap:8px}
+.two{display:grid;grid-template-columns:5em 1fr;gap:8px}
 .status{border-radius:8px;padding:8px 10px;font-size:14px;font-weight:700;margin-bottom:10px;background:var(--accent-soft);color:var(--accent)}
 .status.ng{background:var(--warn-soft);color:var(--warn)}
 .status div+div{margin-top:3px}
@@ -153,8 +153,7 @@ h2{font-size:14px;margin:0 0 8px;color:var(--ink-soft);letter-spacing:.04em}
       <div id="editor">
         <div class="field two">
           <div><label for="no">番号</label><input type="text" id="no" autocomplete="off"></div>
-          <div><label for="sei">姓</label><input type="text" id="sei" autocomplete="off"></div>
-          <div><label for="mei">名</label><input type="text" id="mei" autocomplete="off"></div>
+          <div><label for="name">名前（姓と名の間にスペース）</label><input type="text" id="name" autocomplete="off" placeholder="例：山田 花子"></div>
         </div>
         <div class="field"><label for="title">題名</label><input type="text" id="title" autocomplete="off"></div>
         <div class="field">
@@ -181,8 +180,8 @@ h2{font-size:14px;margin:0 0 8px;color:var(--ink-soft);letter-spacing:.04em}
 <div class="modal" id="mPaste" hidden role="dialog" aria-modal="true" aria-labelledby="mPasteT">
   <div class="box">
     <h3 id="mPasteT">Excelから貼り付け</h3>
-    <p>Excelで、次の順に並べた表をえらんでコピーし、下の枠に貼り付けてください。1行目が見出しでもかまいません。</p>
-    <table class="sample"><tr><th>番号</th><th>姓</th><th>名</th><th>題名</th><th>本文</th></tr><tr><td>1</td><td>山田</td><td>花子</td><td>六年間の思い出</td><td>私が六年間で…</td></tr></table>
+    <p>Excelで、次の順に並べた表をえらんでコピーし、下の枠に貼り付けてください。1行目が見出しでもかまいません。名前は、姓と名の間にスペースを入れます。</p>
+    <table class="sample"><tr><th>番号</th><th>名前</th><th>題名</th><th>本文</th></tr><tr><td>1</td><td>山田 花子</td><td>六年間の思い出</td><td>私が六年間で…</td></tr></table>
     <textarea id="pasteArea" placeholder="ここに貼り付け"></textarea>
     <p id="pasteInfo" class="hint"></p>
     <div class="row">
@@ -387,10 +386,15 @@ function drawCell(ctx, cell, cx, cy){
 }
 function colX(c){ return W - MX - GAP / 2 - c * PITCH - CELL; }    // その行のマスの左はし
 
+/* 名前：スペース（全角・半角）で姓と名に分ける。スペースがなければ1つの名前 */
+function splitName(name){
+  var p = normalize(name).replace(/\n/g, "").split(/\u3000+/).filter(function(x){ return x; });
+  return [p[0] || "", p.slice(1).join("")];
+}
 /* ===== 1人分の原稿を作る ===== */
 function layoutStudent(st){
   var title = normalize(st.title).replace(/\n/g, "").replace(/^　+|　+$/g, "");
-  var sei = normalize(st.sei).replace(/[\n　]/g, ""), mei = normalize(st.mei).replace(/[\n　]/g, "");
+  var nm = splitName(st.name), sei = nm[0], mei = nm[1];
   var paras = canonParas(st.body, S.indent);
   return {
     title: toCells(title), name: toCells(sei && mei ? sei + "　" + mei : sei + mei),
@@ -440,8 +444,12 @@ function check(L){
 var S = {font: "klee", indent: true, kaiwa: false, sx: 0, sy: 0};
 var students = [], cur = -1, uid = 1;
 var KEY = "bunshu-pc-v1";
-function newStudent(o){ o = o || {}; return {id: uid++, no: o.no || "", sei: o.sei || "", mei: o.mei || "", title: o.title || "", body: o.body || ""}; }
-function snapshot(){ return {app: "bunshu-seisho-pc", version: 1, settings: S, students: students.map(function(s){ return {no: s.no, sei: s.sei, mei: s.mei, title: s.title, body: s.body}; })}; }
+function newStudent(o){
+  o = o || {};
+  var name = o.name !== undefined ? o.name : ((o.sei || "") + (o.sei && o.mei ? " " : "") + (o.mei || ""));   // 前の形（姓・名べつ）の下書きも開ける
+  return {id: uid++, no: o.no || "", name: name, title: o.title || "", body: o.body || ""};
+}
+function snapshot(){ return {app: "bunshu-seisho-pc", version: 2, settings: S, students: students.map(function(s){ return {no: s.no, name: s.name, title: s.title, body: s.body}; })}; }
 function loadData(d){
   if (!d || !Array.isArray(d.students)) throw new Error("bad");
   var st = d.settings || {};
@@ -454,10 +462,10 @@ function autosave(){ dirty = true; try { localStorage.setItem(KEY, JSON.stringif
 
 /* ===== 画面 ===== */
 var $ = function(id){ return document.getElementById(id); };
-var F = {no: $("no"), sei: $("sei"), mei: $("mei"), title: $("title"), body: $("body")};
+var F = {no: $("no"), name: $("name"), title: $("title"), body: $("body")};
 var prev = $("prev"), ov = $("ov"), ovhelp = $("ovhelp"), lastL = null;
 
-function stLabel(s){ return (s.sei || s.mei) ? (s.sei + " " + s.mei).trim() : "（名前なし）"; }
+function stLabel(s){ return s.name.trim() ? s.name.trim().replace(/[\s\u3000]+/g, " ") : "（名前なし）"; }
 function renderList(){
   var box = $("list"); box.innerHTML = "";
   $("count").textContent = students.length;
@@ -479,7 +487,7 @@ function renderList(){
 function select(i){
   closeOv(true);
   cur = i; var s = students[i];
-  if (s){ F.no.value = s.no; F.sei.value = s.sei; F.mei.value = s.mei; F.title.value = s.title; F.body.value = s.body; }
+  if (s){ F.no.value = s.no; F.name.value = s.name; F.title.value = s.title; F.body.value = s.body; }
   renderList(); schedule(0);
 }
 function fillSettings(){
@@ -504,7 +512,7 @@ function updatePreview(){
 }
 
 /* 書体の読み込み・ある/なしの確認 */
-function allText(list){ return normalize(list.map(function(s){ return s.title + s.sei + s.mei + s.body; }).join("")) + "　〇一二三四五六七八九十・。、「」ー"; }
+function allText(list){ return normalize(list.map(function(s){ return s.title + s.name + s.body; }).join("")) + "　〇一二三四五六七八九十・。、「」ー"; }
 function loadFont(text){
   var f = FONTS[curFont];
   if (f.local || !document.fonts || !document.fonts.load){ fontReady[curFont] = true; return Promise.resolve(); }
@@ -551,7 +559,7 @@ $("kaiwa").addEventListener("change", function(){ S.kaiwa = this.checked; autosa
 
 $("add").addEventListener("click", function(){
   var maxNo = students.reduce(function(m, s){ var n = parseInt(s.no, 10); return isFinite(n) && n > m ? n : m; }, 0);
-  students.push(newStudent({no: String(maxNo + 1)})); autosave(); select(students.length - 1); F.sei.focus();
+  students.push(newStudent({no: String(maxNo + 1)})); autosave(); select(students.length - 1); F.name.focus();
 });
 $("sort").addEventListener("click", function(){
   var id = students[cur] && students[cur].id;
@@ -587,8 +595,16 @@ function parseTSV(t){
   }
   if (f !== "" || row.length){ row.push(f); rows.push(row); }
   rows = rows.filter(function(r){ return r.some(function(v){ return v.trim() !== ""; }); });
-  if (rows.length && /姓|題名|本文|番号|名前/.test(rows[0].join(""))) rows.shift();
-  return rows.map(function(r){ return {no: (r[0] || "").trim(), sei: (r[1] || "").trim(), mei: (r[2] || "").trim(), title: (r[3] || "").trim(), body: (r[4] || "").replace(/^\n+|\n+$/g, "")}; });
+  // 「番号・名前・題名・本文」の4列。前の形（番号・姓・名・題名・本文の5列）でも読める
+  var five = false;
+  var HEAD = /^(番号|出席番号|名前|氏名|姓|名|題名|題|本文|作文)$/;
+  var isHead = rows.length && rows[0].filter(function(v){ return HEAD.test(v.trim()); }).length >= 2 && !/^[0-9０-９]+$/.test((rows[0][0] || "").trim());   // 見出しの行は、見出しのことばが2つ以上ある
+  if (isHead){ five = rows[0].some(function(v){ return v.trim() === "姓"; }); rows.shift(); }
+  else five = rows.length > 0 && rows.every(function(r){ return r.length >= 5 && (r[4] || "").trim() !== ""; });
+  return rows.map(function(r){
+    if (five) return {no: (r[0] || "").trim(), name: ((r[1] || "").trim() + " " + (r[2] || "").trim()).trim(), title: (r[3] || "").trim(), body: (r[4] || "").replace(/^\n+|\n+$/g, "")};
+    return {no: (r[0] || "").trim(), name: (r[1] || "").trim(), title: (r[2] || "").trim(), body: (r[3] || "").replace(/^\n+|\n+$/g, "")};
+  });
 }
 var pasted = [];
 $("paste").addEventListener("click", function(){ $("pasteArea").value = ""; pasted = []; pasteInfo(); $("mPaste").hidden = false; $("pasteArea").focus(); });
@@ -650,7 +666,7 @@ prev.addEventListener("click", function(e){
   if (c < 0 || c >= COLS) return;
   var text, kind, pad = 0;
   if (c === 0){ kind = "title"; text = s.title; pad = TITLE_START; }
-  else if (c === 1){ kind = "name"; text = (s.sei + "　" + s.mei).trim(); pad = Math.max(0, ROWS - 1 - L.name.length); }
+  else if (c === 1){ kind = "name"; text = s.name.trim(); pad = Math.max(0, ROWS - 1 - L.name.length); }
   else {
     var col = L.body[c - 2];
     if (col){ kind = "body"; text = L.paras[col.pi].slice(col.s, col.e); pad = col.cells[0] && col.cells[0].pad ? 1 : 0; ovTarget = {kind: kind, pi: col.pi, s: col.s, e: col.e}; }
@@ -679,8 +695,7 @@ function closeOv(commit){
   if (!commit || !t || !s) return;
   if (t.kind === "title") s.title = v.replace(/\n/g, "");
   else if (t.kind === "name"){
-    var p = v.replace(/\n/g, "").trim().split(/[\s　]+/);
-    s.sei = p[0] || ""; s.mei = p.slice(1).join("");
+    s.name = v.replace(/\n/g, "").trim();
   } else {
     var paras = canonParas(s.body, S.indent);                      // そろえた形にしてから、その行だけ入れかえる
     if (t.kind === "body" && paras[t.pi] !== undefined){
@@ -688,7 +703,7 @@ function closeOv(commit){
     } else if (v.trim()) paras.push(v);
     s.body = paras.join("\n");
   }
-  F.title.value = s.title; F.sei.value = s.sei; F.mei.value = s.mei; F.body.value = s.body;
+  F.title.value = s.title; F.name.value = s.name; F.body.value = s.body;
   autosave(); renderList(); schedule(0);
 }
 ov.addEventListener("keydown", function(e){
@@ -730,7 +745,7 @@ function makePdf(list, name){
   } else go();
 }
 $("pdfall").addEventListener("click", function(){ closeOv(true); makePdf(students.slice(), "文集_全員分_" + today() + ".pdf"); });
-$("pdfone").addEventListener("click", function(){ closeOv(true); var s = students[cur]; if (s) makePdf([s], "文集_" + ((s.no ? s.no + "番_" : "") + (s.sei + s.mei)).replace(/[\\\/:*?"<>|\s]/g, "") + ".pdf"); });
+$("pdfone").addEventListener("click", function(){ closeOv(true); var s = students[cur]; if (s) makePdf([s], "文集_" + ((s.no ? s.no + "番_" : "") + s.name).replace(/[\\\/:*?"<>|\s]/g, "") + ".pdf"); });
 
 /* ===== はじめに ===== */
 try {
