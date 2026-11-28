@@ -6,7 +6,7 @@
 <title>文集清書ツール PC版</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&family=Shippori+Mincho:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&display=swap">
 <style>
 /* 3列：名簿｜入力｜印刷用の原稿。原稿がいちばん広い */
 :root{
@@ -129,13 +129,6 @@ h2{font-size:14px;margin:0 0 8px;color:var(--ink-soft);letter-spacing:.04em}
   </header>
 
   <div class="settings">
-    <label>書体
-      <select id="font">
-        <option value="klee">Klee One（教科書体風）</option>
-        <option value="shippori">しっぽり明朝</option>
-        <option value="ud">UDデジタル教科書体</option>
-      </select>
-    </label>
     <span id="fontwarn" class="fontwarn" hidden></span>
     <label><input type="checkbox" id="indent"> 段落の始めを1マス空ける</label>
     <label><input type="checkbox" id="kaiwa"> 「　」で始まる段落は空けない</label>
@@ -474,7 +467,7 @@ function snapshot(){ return {app: "bunshu-seisho-pc", version: 2, settings: S, s
 function loadData(d){
   if (!d || !Array.isArray(d.students)) throw new Error("bad");
   var st = d.settings || {};
-  S = {font: FONTS[st.font] ? st.font : "klee", indent: st.indent !== false, kaiwa: !!st.kaiwa, sx: +st.sx || 0, sy: +st.sy || 0};
+  S = {font: "klee", indent: st.indent !== false, kaiwa: !!st.kaiwa, sx: +st.sx || 0, sy: +st.sy || 0};
   students = d.students.map(newStudent);
   cur = students.length ? 0 : -1;
 }
@@ -512,7 +505,7 @@ function select(i){
   renderList(); schedule(0);
 }
 function fillSettings(){
-  $("font").value = S.font; $("indent").checked = S.indent; $("kaiwa").checked = S.kaiwa;
+  $("indent").checked = S.indent; $("kaiwa").checked = S.kaiwa;
   $("sx").value = S.sx; $("sy").value = S.sy; curFont = S.font; checkFont();
 }
 
@@ -547,7 +540,7 @@ function loadFont(text){
 function netWarn(on){
   var w = $("fontwarn");
   if (FONTS[curFont].local) return;
-  if (on){ w.textContent = "書体を読み込めませんでした。インターネットにつながっているか確かめるか、UDデジタル教科書体を選んでください。"; w.hidden = false; }
+  if (on){ w.textContent = "書体（Klee One）を読み込めませんでした。インターネットにつながっているか確かめて、ページを開き直してください。"; w.hidden = false; }
   else w.hidden = true;
 }
 // 書体があるかどうか：字の形を実際に描いて、ない場合の字（代わりの書体）とくらべる
@@ -586,7 +579,6 @@ Object.keys(F).forEach(function(k){
   });
 });
 var listTimer = null;
-$("font").addEventListener("change", function(){ S.font = curFont = this.value; checkFont(); autosave(); schedule(0); });
 $("indent").addEventListener("change", function(){ S.indent = this.checked; autosave(); renderList(); schedule(0); });
 $("kaiwa").addEventListener("change", function(){ S.kaiwa = this.checked; autosave(); renderList(); schedule(0); });
 ["sx", "sy"].forEach(function(k){ $(k).addEventListener("input", function(){ var v = parseFloat(this.value); S[k] = isFinite(v) ? Math.max(-10, Math.min(10, v)) : 0; autosave(); schedule(); }); });
