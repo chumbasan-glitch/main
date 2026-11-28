@@ -99,6 +99,12 @@ h2{font-size:14px;margin:0 0 8px;color:var(--ink-soft);letter-spacing:.04em}
 .sample{border-collapse:collapse;font-size:13px}
 .sample td,.sample th{border:1px solid var(--line);padding:3px 8px}
 .sample th{background:var(--surface-2)}
+.ncount{display:flex;align-items:center;gap:8px;font-weight:700}
+.ncount input{width:5em;padding:5px 8px;border:1.5px solid var(--line);border-radius:7px;background:var(--surface);font-size:16px}
+.nrows{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px;max-height:50vh;overflow:auto;padding:2px}
+.nrow{display:grid;grid-template-columns:2.6em 1fr;align-items:center;gap:6px}
+.nrow span{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink-soft)}
+.nrow input{width:100%;padding:5px 8px;border:1.5px solid var(--line);border-radius:7px;background:var(--surface)}
 .bar{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
 @media (max-width:1100px){.main3{grid-template-columns:220px 300px minmax(0,1fr)}}
@@ -142,6 +148,7 @@ h2{font-size:14px;margin:0 0 8px;color:var(--ink-soft);letter-spacing:.04em}
       <h2>名簿（<span id="count">0</span>人）</h2>
       <div class="list" id="list"></div>
       <div class="listbtns">
+        <button class="btn main" id="names">人数から名簿を作る</button>
         <button class="btn" id="add">＋ 1人ふやす</button>
         <button class="btn" id="paste">Excelから貼り付け</button>
         <button class="btn" id="sort">番号順に並べる</button>
@@ -188,6 +195,20 @@ h2{font-size:14px;margin:0 0 8px;color:var(--ink-soft);letter-spacing:.04em}
       <button class="btn" id="pasteCancel">やめる</button>
       <button class="btn" id="pasteReplace" disabled>名簿を入れかえる</button>
       <button class="btn main" id="pasteAdd" disabled>今の名簿に足す</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="mNames" hidden role="dialog" aria-modal="true" aria-labelledby="mNamesT">
+  <div class="box">
+    <h3 id="mNamesT">人数から名簿を作る</h3>
+    <label class="ncount">人数 <input type="number" id="nCount" min="1" max="60" step="1"> 人</label>
+    <p class="hint">名前は、姓と名の間にスペースを入れます。Enterで次の人へ進みます。Excelの名前の列をコピーして1番の欄に貼り付けると、下まで一度に入ります。</p>
+    <div class="nrows" id="nRows"></div>
+    <p class="hint">今の名簿にいる人は、同じ番号の人の名前だけを入れかえます。作文はそのまま残ります。</p>
+    <div class="row">
+      <button class="btn" id="nCancel">やめる</button>
+      <button class="btn main" id="nOk">名簿を作る</button>
     </div>
   </div>
 </div>
@@ -469,7 +490,7 @@ function stLabel(s){ return s.name.trim() ? s.name.trim().replace(/[\s\u3000]+/g
 function renderList(){
   var box = $("list"); box.innerHTML = "";
   $("count").textContent = students.length;
-  if (!students.length){ var e = document.createElement("div"); e.className = "empty"; e.textContent = "まだだれも入っていません。「＋ 1人ふやす」か「Excelから貼り付け」で入れてください。"; box.appendChild(e); }
+  if (!students.length){ var e = document.createElement("div"); e.className = "empty"; e.textContent = "まだだれも入っていません。まず「人数から名簿を作る」で、名前を入れてください。"; box.appendChild(e); }
   students.forEach(function(s, i){
     var r = check(layoutStudent(s));
     var b = document.createElement("button"); b.type = "button"; b.className = "item" + (i === cur ? " on" : "");
@@ -571,6 +592,65 @@ $("del").addEventListener("click", function(){
   ask("名簿から消しますか？", (s.no ? s.no + "番 " : "") + stLabel(s) + " さんの作文を消します。", function(){
     students.splice(cur, 1); autosave(); select(Math.min(cur, students.length - 1));
   });
+});
+
+/* ===== 人数から名簿を作る ===== */
+function nInputs(){ return Array.prototype.slice.call($("nRows").querySelectorAll("input")); }
+function buildNameRows(n, keep){
+  var box = $("nRows"); box.innerHTML = "";
+  for (var i = 1; i <= n; i++){
+    var r = document.createElement("label"); r.className = "nrow";
+    var sp = document.createElement("span"); sp.textContent = i;
+    var inp = document.createElement("input"); inp.type = "text"; inp.autocomplete = "off"; inp.id = "nm" + i;
+    inp.value = keep[i - 1] || "";
+    r.appendChild(sp); r.appendChild(inp); box.appendChild(r);
+  }
+}
+function nameByNo(n){ var s = students.find(function(x){ return String(x.no).trim() === String(n); }); return s ? s.name : ""; }
+$("names").addEventListener("click", function(){
+  var maxNo = students.reduce(function(m, s){ var k = parseInt(s.no, 10); return isFinite(k) && k > m ? k : m; }, 0);
+  var n = Math.max(maxNo, students.length) || 30;
+  $("nCount").value = n;
+  var keep = []; for (var i = 1; i <= n; i++) keep.push(nameByNo(i));
+  buildNameRows(n, keep); $("mNames").hidden = false; $("nCount").focus(); $("nCount").select();
+});
+$("nCount").addEventListener("input", function(){
+  var n = Math.max(1, Math.min(60, parseInt(this.value, 10) || 0)); if (!parseInt(this.value, 10)) return;
+  var keep = nInputs().map(function(x){ return x.value; });
+  for (var i = keep.length + 1; i <= n; i++) keep.push(nameByNo(i));
+  buildNameRows(n, keep);
+});
+$("nCount").addEventListener("keydown", function(e){ if (e.key === "Enter" && !e.isComposing){ e.preventDefault(); var f = nInputs()[0]; if (f) f.focus(); } });
+$("nRows").addEventListener("keydown", function(e){
+  if (e.target.tagName !== "INPUT" || e.isComposing || e.keyCode === 229) return;
+  if (e.key === "Enter"){
+    e.preventDefault(); var all = nInputs(), i = all.indexOf(e.target);
+    if (all[i + 1]) all[i + 1].focus(); else $("nOk").focus();
+  }
+});
+$("nRows").addEventListener("paste", function(e){
+  if (e.target.tagName !== "INPUT") return;
+  var t = (e.clipboardData || window.clipboardData).getData("text");
+  var lines = t.replace(/\r\n?/g, "\n").replace(/\n+$/, "").split("\n");
+  if (lines.length < 2) return;                                  // 1人分だけなら、ふつうに貼り付ける
+  e.preventDefault();
+  var all = nInputs(), start = all.indexOf(e.target);
+  var need = start + lines.length;
+  if (need > all.length){
+    var keep = all.map(function(x){ return x.value; });
+    $("nCount").value = Math.min(60, need); buildNameRows(Math.min(60, need), keep); all = nInputs();
+  }
+  lines.forEach(function(l, k){ if (all[start + k]) all[start + k].value = l.split("\t")[0].trim(); });
+});
+$("nCancel").addEventListener("click", function(){ $("mNames").hidden = true; });
+$("nOk").addEventListener("click", function(){
+  nInputs().forEach(function(inp, k){
+    var no = String(k + 1), v = inp.value.trim();
+    var s = students.find(function(x){ return String(x.no).trim() === no; });
+    if (s) s.name = v; else students.push(newStudent({no: no, name: v}));
+  });
+  students.sort(function(a, b){ var x = parseFloat(a.no), y = parseFloat(b.no); if (isNaN(x)) return 1; if (isNaN(y)) return -1; return x - y; });
+  $("mNames").hidden = true; autosave(); select(0);
 });
 
 /* ===== 確認の画面 ===== */
