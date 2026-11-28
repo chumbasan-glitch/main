@@ -252,7 +252,7 @@ var TITLE_START = 3;                                     // 題名は上から3�
 var FONTS = {
   klee:     {weight: "600", family: '"Klee One"', label: "Klee One"},
   shippori: {weight: "500", family: '"Shippori Mincho"', label: "しっぽり明朝"},
-  ud:       {weight: "400", family: '"UD デジタル 教科書体 N-R", "UD Digi Kyokasho N-R", "UD デジタル 教科書体 NK-R", "UD Digi Kyokasho NK-R"', label: "UDデジタル教科書体", local: true}
+  ud:       {weight: "400", family: '"UD デジタル 教科書体 N-R", "UD Digi Kyokasho N-R", "UD デジタル 教科書体 NK-R", "UD Digi Kyokasho NK-R", "UD デジタル 教科書体 NP-R", "UD Digi Kyokasho NP-R"', label: "UDデジタル教科書体", local: true}
 };
 var curFont = "klee";
 function fontCss(size){ var f = FONTS[curFont]; return f.weight + " " + size + "px " + f.family + ', serif'; }
@@ -538,7 +538,7 @@ function loadFont(text){
   var f = FONTS[curFont];
   if (f.local || !document.fonts || !document.fonts.load){ fontReady[curFont] = true; return Promise.resolve(); }
   return document.fonts.load(fontCss(FS), text || "あ").then(function(){
-    var ok = document.fonts.check(fontCss(FS), "あ") && hasLocalFont(FONTS[curFont].family);   // 読みこめたか、字のはばでも確かめる
+    var ok = document.fonts.check(fontCss(FS), "あ") && hasLocalFont(FONTS[curFont].family);   // 読みこめたか、字の形でも確かめる
     if (ok && !fontReady[curFont]){ boxCache = {}; slantCache = {}; }
     fontReady[curFont] = ok;
     netWarn(!ok);
@@ -550,18 +550,31 @@ function netWarn(on){
   if (on){ w.textContent = "書体を読み込めませんでした。インターネットにつながっているか確かめるか、UDデジタル教科書体を選んでください。"; w.hidden = false; }
   else w.hidden = true;
 }
+// 書体があるかどうか：字の形を実際に描いて、ない場合の字（代わりの書体）とくらべる
 function hasLocalFont(fam){
-  var c = document.createElement("canvas").getContext("2d"), t = "文集清書あいう漢字";
-  var res = ["monospace", "serif"].map(function(base){
-    c.font = "40px " + base; var w0 = c.measureText(t).width;
-    c.font = "40px " + fam + ", " + base; return c.measureText(t).width !== w0;
+  var t = "永あ字A";
+  function pix(font){
+    var c = document.createElement("canvas"); c.width = 220; c.height = 60;
+    var g = c.getContext("2d", {willReadFrequently: true});
+    g.fillStyle = "#000"; g.font = font; g.textBaseline = "top"; g.fillText(t, 4, 6);
+    return g.getImageData(0, 0, 220, 60).data;
+  }
+  function same(a, b){ for (var i = 3; i < a.length; i += 4){ if (a[i] !== b[i]) return false; } return true; }
+  return ["monospace", "serif", "sans-serif"].some(function(base){
+    return !same(pix("40px " + fam + ", " + base), pix("40px " + base));
   });
-  return res[0] || res[1];
 }
+var UD_NAMES = ['"UD デジタル 教科書体 N-R"', '"UD Digi Kyokasho N-R"', '"UD デジタル 教科書体 NK-R"', '"UD Digi Kyokasho NK-R"', '"UD デジタル 教科書体 NP-R"', '"UD Digi Kyokasho NP-R"', '"UD デジタル 教科書体 N-B"', '"UD Digi Kyokasho N-B"'];
 function checkFont(){
   var w = $("fontwarn");
-  if (curFont === "ud" && !hasLocalFont('"UD デジタル 教科書体 N-R"') && !hasLocalFont('"UD Digi Kyokasho N-R"') && !hasLocalFont('"UD デジタル 教科書体 NK-R"')){
-    w.textContent = "このパソコンにはUDデジタル教科書体が入っていません。ほかの書体を選んでください。"; w.hidden = false;
+  if (curFont === "ud"){
+    var found = UD_NAMES.filter(hasLocalFont);
+    if (found.length){
+      FONTS.ud.family = found.join(", ");                         // 見つかった名前を使う
+      boxCache = {}; slantCache = {}; w.hidden = true;
+    } else {
+      w.textContent = "このパソコンでUDデジタル教科書体が見つかりませんでした。見本の字が教科書体になっていなければ、ほかの書体を選んでください。"; w.hidden = false;
+    }
   } else if (FONTS[curFont].local) w.hidden = true;
 }
 
